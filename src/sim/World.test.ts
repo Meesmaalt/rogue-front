@@ -42,7 +42,6 @@ describe("World", () => {
   it("tootmine kulutab krediiti ja loob üksuse", () => {
     const w = new World(1);
     w.spawn("hq", 0, BASES[0].x, BASES[0].z);
-    w.spawn("factory", 0, BASES[0].x + 14, BASES[0].z);
     const before = w.entities.length;
     w.issue({ type: "produce", kind: "tank" });
     w.tick(SIM_STEP);
@@ -54,7 +53,6 @@ describe("World", () => {
   it("ei luba toota ilma krediidita", () => {
     const w = new World(1);
     w.spawn("hq", 0, BASES[0].x, BASES[0].z);
-    w.spawn("factory", 0, BASES[0].x + 14, BASES[0].z);
     w.credits = 10;
     w.issue({ type: "produce", kind: "tank" });
     w.tick(SIM_STEP);
@@ -79,7 +77,6 @@ describe("World", () => {
   it("vaenlane saadab laine", () => {
     const w = new World(1);
     w.spawn("hq", 1, BASES[1].x, BASES[1].z);
-    w.spawn("engineer", 1, BASES[1].x - 10, BASES[1].z);
     run(w, 23);
     expect(w.entities.length).toBeGreaterThan(1);
   });

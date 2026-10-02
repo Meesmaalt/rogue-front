@@ -1,26 +1,16 @@
 import type { FlowField } from "./nav/FlowField";
 import type { MapFeatureDef } from "./mapFeatures";
 export type Team = 0 | 1;
-export type UnitKind = "tank" | "inf" | "bunker" | "hq" | "engineer" | "heli" | "transport" | "gunship" | "fighter" | "artillery" | "aa" | "refinery" | "barracks" | "factory" | "helipad";
-export type Mode = "idle" | "move" | "attack" | "amove" | "patrol" | "hold" | "build" | "repair" | "transport-load" | "transport-unload";
+export type UnitKind = "tank" | "inf" | "bunker" | "hq" | "engineer" | "heli" | "fighter" | "aa" | "refinery";
+export type Mode = "idle" | "move" | "attack" | "amove" | "patrol" | "hold";
 export type GameStatus = "running" | "won" | "lost";
 
 export interface UnitDef {
   name: string; hp: number; speed: number; turnRate: number; range: number; damage: number; cooldown: number;
   radius: number; height: number; cost: number; buildTime: number; projectileSpeed: number;
-  producible: boolean; turret: boolean; building?: boolean; armor: "light" | "medium" | "heavy" | "air"; weapon: "bullet" | "cannon" | "missile" | "none"; splash?: number;
+  producible: boolean; turret: boolean; armor: "light" | "medium" | "heavy" | "air"; weapon: "bullet" | "cannon" | "missile" | "none";
 }
 export interface Point { x: number; z: number }
-
-export interface IntelContact {
-  entityId: number;
-  team: Team;
-  kind: UnitKind;
-  x: number;
-  z: number;
-  lastSeen: number;
-  shared: boolean;
-}
 
 export interface Entity {
   id: number; kind: UnitKind; team: Team; def: UnitDef;
@@ -30,33 +20,25 @@ export interface Entity {
   hp: number; cooldown: number; mode: Mode; dest: Point | null; target: Entity | null;
   aggro: number; dead: boolean;
   navPath: Point[]; navPathIndex: number; flowField: FlowField | null; stuckTime: number; stuckX: number; stuckZ: number;
-  xp: number; veteran: number; supply?: number; maxSupply?: number; role?: "line" | "support" | "siege" | "air-superiority" | "air-ground" | "logistics"; holdPosition: boolean; patrolPoints: Point[]; patrolIndex: number; upgrades: Set<string>; cargo: number; logisticsTarget: Point | null; logisticsHome: Point | null; logisticsPhase: "idle" | "loading" | "unloading"; productionQueue: UnitKind[]; productionProgress: number; rallyPoint: Point | null;
-  constructionProgress: number;
-  strategicTarget?: Point | null; constructionTime: number;
-  firingArc: number;
-  firingRange: number;
-  facingLocked: boolean;
-  fuel?: number; maxFuel?: number; ammo?: number; maxAmmo?: number; fireMission?: Point | null; lastCombatTime: number; builderIds: number[]; underConstruction: boolean; cargoUnitIds: number[]; loadedIntoId: number | null; transportTargetId: number | null; unloadPoint: Point | null;
+  xp: number; veteran: number; holdPosition: boolean; patrolPoints: Point[]; patrolIndex: number; upgrades: Set<string>;
 }
 
 export interface Projectile {
   id: number; team: Team; x: number; y: number; z: number; vx: number; vy: number; vz: number;
-  tx: number; tz: number; target: Entity | null; sourceId: number; damage: number; speed: number; splash?: number;
+  tx: number; tz: number; target: Entity; sourceId: number; damage: number; speed: number;
 }
 
 export type Command = ({
   type: "move"; ids: number[]; x: number; z: number
 } | { type: "amove"; ids: number[]; x: number; z: number } | { type: "attack"; ids: number[]; targetId: number } |
-  { type: "stop"; ids: number[] } | { type: "repair"; ids: number[]; targetId: number } | { type: "rally"; ids: number[]; x: number; z: number } | { type: "patrol"; ids: number[]; x: number; z: number } | { type: "hold"; ids: number[] } |
-  { type: "build"; ids: number[]; kind: "bunker" | "aa" | "refinery" | "barracks" | "factory" | "helipad"; x: number; z: number; rotation?: number } |
+  { type: "stop"; ids: number[] } | { type: "patrol"; ids: number[]; x: number; z: number } | { type: "hold"; ids: number[] } |
+  { type: "build"; ids: number[]; kind: "bunker" | "aa" | "refinery"; x: number; z: number } |
   { type: "upgrade"; ids: number[]; upgrade: "armor" | "weapon" | "range" } |
-  { type: "research"; tech: "air" | "advanced-armor" } | { type: "produce"; kind: UnitKind } | { type: "load"; ids: number[]; targetId: number } | { type: "unload"; ids: number[]; x: number; z: number } | { type: "fire-mission"; ids: number[]; x: number; z: number }) & { team?: Team };
+  { type: "research"; tech: "air" | "advanced-armor" } | { type: "produce"; kind: UnitKind }) & { team?: Team };
 
 export type SimEvent =
   | { type: "fire"; team: Team; x: number; y: number; z: number }
   | { type: "hit"; x: number; y: number; z: number }
-  | { type: "build-complete"; team: Team; x: number; y: number; z: number; kind: UnitKind }
-  | { type: "repair-complete"; team: Team; x: number; y: number; z: number; kind: UnitKind }
   | { type: "death"; x: number; y: number; z: number; big: boolean };
 
 
@@ -80,7 +62,7 @@ export interface MissionTriggerDef {
   message?: string;
   spawn?: { kind: UnitKind; team: Team; x: number; z: number; count?: number; spacing?: number };
 }
-export interface MapResourceDef { x: number; z: number; amount: number; radius: number; controlledBy?: Team | null; controlProgress?: number }
+export interface MapResourceDef { x: number; z: number; amount: number; radius: number }
 export interface MissionMapDef {
   id: string;
   name: string;

@@ -1,6 +1,6 @@
 import type { Point } from "./types";
 
-export type MapFeatureKind = "road" | "bridge" | "building" | "wall" | "chokepoint" | "cover" | "gate";
+export type MapFeatureKind = "road" | "bridge" | "building" | "wall" | "chokepoint" | "cover";
 
 export interface MapFeatureDef {
   id: string;

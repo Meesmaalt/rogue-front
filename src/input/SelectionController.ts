@@ -59,6 +59,4 @@ export class SelectionController {
       return p.z < 1 && p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1;
     }), add);
   }
-  selectedIds(): number[] { return [...this.selected]; }
-
 }

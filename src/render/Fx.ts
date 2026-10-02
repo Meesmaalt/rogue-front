@@ -40,9 +40,7 @@ export class Fx {
     for (const e of events) {
       if (e.type === "fire") for (let i = 0; i < 4; i++) this.puff(e.x, e.y, e.z, this.r(4), Math.random() * 3, this.r(4), 0.25, 0.6, "fire");
       else if (e.type === "hit") for (let i = 0; i < 3; i++) this.puff(e.x, e.y, e.z, this.r(5), Math.random() * 4, this.r(5), 0.3, 0.5, "dust");
-      else if (e.type === "death") this.explode(e.x, e.y, e.z, e.big);
-      else if (e.type === "build-complete") this.ping(e.x, e.z, 0x66d9a0);
-      else if (e.type === "repair-complete") this.ping(e.x, e.z, 0x4ca8ff);
+      else this.explode(e.x, e.y, e.z, e.big);
     }
   }
 

@@ -16,7 +16,7 @@ export function createTerrain(theme: "desert" | "mountains" | "city" = "desert",
   for (let i = 0; i < pos.count; i++) pos.setY(i, heightAt(pos.getX(i), pos.getZ(i)));
   geo.computeVertexNormals();
 
-  const nrm = geo.attributes.normal;
+  const nrm = geo.attributes.normal as THREE.BufferAttribute;
   const col = new Float32Array(pos.count * 3);
   const c = new THREE.Color();
   const palette = theme === "mountains"
@@ -200,18 +200,6 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       group.add(mesh);
-      continue;
-    }
-    if (f.kind === "gate") {
-      const postGeo = new THREE.BoxGeometry(0.5, 3.5, 0.5);
-      const mat = new THREE.MeshStandardMaterial({ color: 0x8b6a3f, roughness: 0.8, metalness: 0.15 });
-      for (const side of [-1, 1]) {
-        const post = new THREE.Mesh(postGeo, mat);
-        const c = Math.cos(f.rotation ?? 0), s = Math.sin(f.rotation ?? 0);
-        post.position.set(f.x + c * side * (f.width * 0.42), y + 1.75, f.z + s * side * (f.width * 0.42));
-        post.rotation.y = f.rotation ?? 0;
-        post.castShadow = true; group.add(post);
-      }
       continue;
     }
     if (f.kind === "cover") {

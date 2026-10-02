@@ -82,7 +82,7 @@ export class NavGrid {
   syncBuildings(entities: readonly Entity[]): void {
     for (let i = 0; i < this.blocked.length; i++) if (this.blocked[i] === 2) this.blocked[i] = 0;
     for (const e of entities) {
-      if (e.dead || e.def.speed > 0 || e.underConstruction) continue;
+      if (e.dead || e.def.speed > 0) continue;
       const c = this.worldToCell(e.x, e.z);
       const r = Math.ceil((e.def.radius + 1) / this.cellSize);
       for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {

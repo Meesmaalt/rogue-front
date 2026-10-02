@@ -9,7 +9,7 @@ function unit(id: number, team: 0 | 1, x: number, z: number, kind: "tank" | "hq"
     px: x, pz: z, pHeading: 0, pTurretYaw: 0, hp: UNITS[kind].hp, cooldown: 0,
     mode: "idle", dest: null, target: null, aggro: 0, dead: false,
     navPath: [], navPathIndex: 0, flowField: null, stuckTime: 0, stuckX: x, stuckZ: z,
-    xp: 0, veteran: 0, holdPosition: false, patrolPoints: [], patrolIndex: 0, upgrades: new Set<string>(), cargo: 0, logisticsTarget: null, logisticsHome: null, logisticsPhase: "idle", productionQueue: [], productionProgress: 0, rallyPoint: null, constructionProgress: 1, constructionTime: 0, builderIds: [], underConstruction: false, cargoUnitIds: [], loadedIntoId: null, transportTargetId: null, unloadPoint: null,
+    xp: 0, veteran: 0, holdPosition: false, patrolPoints: [], patrolIndex: 0, upgrades: new Set<string>(),
   };
 }
 

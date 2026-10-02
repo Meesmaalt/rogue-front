@@ -8,7 +8,7 @@ const cache = new Map<string, THREE.Group>();
 
 /** GLB pipeline with a deterministic local primitive fallback. Local assets can be dropped in public/models/<kind>.glb. */
 export async function preloadModels(): Promise<void> {
-  const kinds: UnitKind[] = ["tank", "inf", "hq", "bunker", "heli", "transport", "gunship", "fighter", "artillery", "aa", "barracks", "factory", "helipad", "refinery"];
+  const kinds: UnitKind[] = ["tank", "inf", "hq", "bunker", "heli", "fighter", "aa"];
   await Promise.all(kinds.map(async (kind) => {
     try {
       const gltf = await loader.loadAsync(`/models/${kind}.glb`);

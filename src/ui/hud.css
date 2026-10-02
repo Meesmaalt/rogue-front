@@ -49,5 +49,3 @@ button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .mission-choice small { color:var(--amber); font:500 11px var(--body); letter-spacing:.08em; }
 
 .warning{color:#ff8168;font:700 12px var(--disp);margin-top:4px;min-height:14px}.controls{pointer-events:auto}.controls button{font-family:var(--body)}
-
-.build-sub{display:grid;grid-template-columns:1fr 1fr;gap:4px}.build-sub button{font-size:12px;padding:6px 7px}.build-sub span{color:var(--amber)}

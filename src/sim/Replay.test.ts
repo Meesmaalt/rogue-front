@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { SIM_STEP } from "./constants";
 import { ReplayRecorder, replay, worldHash } from "./Replay";
 import { createSkirmish } from "./scenario";
 import { World } from "./World";
-
 
 describe("replay", () => {
   it("sama seeme + samad käsud annab sama lõppseisu", () => {
