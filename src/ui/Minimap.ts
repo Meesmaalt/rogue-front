@@ -43,15 +43,26 @@ export class Minimap {
     const cellW = S / this.world.vision.width, cellH = S / this.world.vision.height;
     for (let iz = 0; iz < this.world.vision.height; iz++) for (let ix = 0; ix < this.world.vision.width; ix++) {
       const p = this.world.vision.cellToWorld(ix, iz);
-      const state = this.world.vision.stateAt(world.playerTeam, p.x, p.z);
+      const state = this.world.vision.stateAt(this.world.playerTeam, p.x, p.z);
       if (state === 2) continue;
       const x = (p.x + MAP_SIZE / 2) / MAP_SIZE * S;
       const y = (p.z + MAP_SIZE / 2) / MAP_SIZE * S;
       c.fillStyle = state === 0 ? "rgba(5,8,9,.86)" : "rgba(5,8,9,.48)";
       c.fillRect(x, y, cellW + .5, cellH + .5);
     }
+    // Viimane teadaolev vaenlase asukoht jääb kaardile mõneks ajaks nähtavaks.
+    for (const c of this.world.getIntel(this.world.playerTeam, true)) {
+      if (this.world.vision.isVisible(this.world.playerTeam, c.x, c.z)) continue;
+      const age = this.world.time - c.lastSeen;
+      const alpha = Math.max(0.12, 0.62 - age / 55);
+      const [mx, my] = this.w2m(c.x, c.z);
+      c.save();
+      c.strokeStyle = `rgba(224,85,63,${alpha})`; c.lineWidth = 1.5;
+      c.beginPath(); c.moveTo(mx - 3, my - 3); c.lineTo(mx + 3, my + 3); c.moveTo(mx + 3, my - 3); c.lineTo(mx - 3, my + 3); c.stroke();
+      c.restore();
+    }
     for (const u of this.world.entities) {
-      if (u.dead || (u.team === 1 && !this.world.vision.isVisible(world.playerTeam, u.x, u.z))) continue;
+      if (u.dead || (u.team === 1 && !this.world.vision.isVisible(this.world.playerTeam, u.x, u.z))) continue;
       const [mx, my] = this.w2m(u.x, u.z), s = u.def.speed === 0 ? 6 : u.kind === "tank" ? 4 : 2.5;
       c.fillStyle = u.team ? "#e0553f" : "#46b3e6";
       c.fillRect(mx - s / 2, my - s / 2, s, s);

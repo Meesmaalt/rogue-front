@@ -49,6 +49,29 @@ export function createModel(kind: UnitKind, team: Team): Model {
       g.add(a);
       break;
     }
+    case "barracks": {
+      g.add(box(8,3,7,0x6b6758,0,1.5,0), box(6,1,5,ACC[team],0,3.5,0), box(1.2,2,0.4,DARK,0,1,3.55)); break;
+    }
+    case "factory": {
+      g.add(box(10,4,9,0x5a5a55,0,2,0), box(7,2,5,BODY[team],0,5,0), box(2,1,1.5,DARK,0,4.8,4.2)); break;
+    }
+    case "helipad": {
+      g.add(box(10,1,10,0x4c514c,0,0.5,0), box(6,0.2,6,ACC[team],0,1.1,0)); break;
+    }
+    case "refinery": {
+      g.add(box(8,4,8,0x6b624e,0,2,0), box(2,5,2,DARK,-2,6,0), box(2,4,2,DARK,2,5.5,0)); break;
+    }
+    case "artillery": {
+      g.add(box(2.8,1.2,4.2,BODY[team],0,0.9,0), box(0.55,0.7,4.8,DARK,-1.8,0.65,0), box(0.55,0.7,4.8,DARK,1.8,0.65,0));
+      turret = new THREE.Group(); turret.position.y = 1.5; turret.add(box(1.8,0.7,2.2,BODY[team],0,0.3,0)); barrel(5.8,0.16,0.35,3.2,turret); g.add(turret); break;
+    }
+    case "transport": {
+      g.add(box(3.2,1.2,4.8,BODY[team],0,2.6,0), box(1.1,0.7,3,DARK,0,1.7,0), box(0.18,1.4,4.2,ACC[team],-1.8,2.4,0), box(0.18,1.4,4.2,ACC[team],1.8,2.4,0)); break;
+    }
+    case "gunship": {
+      g.add(box(2.8,1.1,4.4,BODY[team],0,2.6,0), box(0.45,0.25,7,DARK,0,2.7,0));
+      turret = new THREE.Group(); turret.position.y = 1.8; turret.add(box(1.4,0.45,1.8,ACC[team],0,0.2,0)); barrel(2.6,0.15,0.2,1.7,turret); g.add(turret); break;
+    }
     case "bunker": {
       const b = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 4.2, 2, 10), mat(0x5d5b52));
       b.position.y = 1; b.castShadow = b.receiveShadow = true;

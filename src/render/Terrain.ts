@@ -202,6 +202,18 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
       group.add(mesh);
       continue;
     }
+    if (f.kind === "gate") {
+      const postGeo = new THREE.BoxGeometry(0.5, 3.5, 0.5);
+      const mat = new THREE.MeshStandardMaterial({ color: 0x8b6a3f, roughness: 0.8, metalness: 0.15 });
+      for (const side of [-1, 1]) {
+        const post = new THREE.Mesh(postGeo, mat);
+        const c = Math.cos(f.rotation ?? 0), s = Math.sin(f.rotation ?? 0);
+        post.position.set(f.x + c * side * (f.width * 0.42), y + 1.75, f.z + s * side * (f.width * 0.42));
+        post.rotation.y = f.rotation ?? 0;
+        post.castShadow = true; group.add(post);
+      }
+      continue;
+    }
     if (f.kind === "cover") {
       const geo = new THREE.BoxGeometry(f.width, f.height ?? 1.8, f.depth);
       const mat = new THREE.MeshStandardMaterial({ color: 0x756b58, roughness: 0.95 });

@@ -33,6 +33,8 @@ export class LockstepClient {
 
   constructor(callbacks: LockstepCallbacks = {}) { this.callbacks = callbacks; }
 
+  setCallbacks(callbacks: LockstepCallbacks): void { this.callbacks = callbacks; }
+
   connect(room: string, missionId: string, url = defaultWsUrl()): void {
     this.room = room; this.missionId = missionId; this.url = url; this.intentionalClose = false;
     this.open();
