@@ -1,0 +1,215 @@
+{
+  "id": "operation-sandglass",
+  "name": "Operatsioon Liivakell",
+  "briefing": "Võta kõrbe läbiv koridor enda kontrolli alla ja hävita vaenlase komandopunkt. Esimene laine saabub 35 sekundi pärast.",
+  "map": {
+    "id": "desert",
+    "name": "Liivaväli",
+    "theme": "desert",
+    "heightmap": "/maps/desert.png",
+    "maxHeight": 55,
+    "bases": [
+      {
+        "x": -130,
+        "z": 130,
+        "r": 34
+      },
+      {
+        "x": 130,
+        "z": -130,
+        "r": 34
+      }
+    ],
+    "objects": [
+      {
+        "kind": "hq",
+        "team": 0,
+        "x": -130,
+        "z": 130
+      },
+      {
+        "kind": "tank",
+        "team": 0,
+        "x": -112,
+        "z": 112,
+        "count": 4,
+        "dx": 6,
+        "dz": 0
+      },
+      {
+        "kind": "inf",
+        "team": 0,
+        "x": -116,
+        "z": 103,
+        "count": 6,
+        "dx": 3,
+        "dz": 0
+      },
+      {
+        "kind": "hq",
+        "team": 1,
+        "x": 130,
+        "z": -130
+      },
+      {
+        "kind": "bunker",
+        "team": 1,
+        "x": 106,
+        "z": -118
+      },
+      {
+        "kind": "bunker",
+        "team": 1,
+        "x": 120,
+        "z": -102
+      },
+      {
+        "kind": "bunker",
+        "team": 1,
+        "x": 100,
+        "z": -136
+      },
+      {
+        "kind": "tank",
+        "team": 1,
+        "x": 116,
+        "z": -113,
+        "count": 3,
+        "dx": -6,
+        "dz": 0
+      },
+      {
+        "kind": "inf",
+        "team": 1,
+        "x": 118,
+        "z": -105,
+        "count": 5,
+        "dx": -3,
+        "dz": 0
+      }
+    ],
+    "resources": [
+      {
+        "x": -70,
+        "z": 70,
+        "amount": 1000,
+        "radius": 12
+      },
+      {
+        "x": 70,
+        "z": -70,
+        "amount": 1000,
+        "radius": 12
+      },
+      {
+        "x": 0,
+        "z": 25,
+        "amount": 700,
+        "radius": 10
+      }
+    ],
+    "features": [
+      {
+        "id": "desert-road-west",
+        "kind": "road",
+        "x": -55,
+        "z": 55,
+        "width": 22,
+        "depth": 190,
+        "rotation": 0.0
+      },
+      {
+        "id": "desert-road-east",
+        "kind": "road",
+        "x": 55,
+        "z": -55,
+        "width": 22,
+        "depth": 190,
+        "rotation": 0.0
+      },
+      {
+        "id": "desert-choke-north",
+        "kind": "chokepoint",
+        "x": 0,
+        "z": 72,
+        "width": 54,
+        "depth": 14,
+        "height": 4,
+        "rotation": 0
+      },
+      {
+        "id": "desert-choke-south",
+        "kind": "chokepoint",
+        "x": 0,
+        "z": -72,
+        "width": 54,
+        "depth": 14,
+        "height": 4,
+        "rotation": 0
+      },
+      {
+        "id": "desert-cover-1",
+        "kind": "cover",
+        "x": -18,
+        "z": 18,
+        "width": 10,
+        "depth": 5,
+        "rotation": 0.25
+      },
+      {
+        "id": "desert-cover-2",
+        "kind": "cover",
+        "x": 22,
+        "z": -18,
+        "width": 10,
+        "depth": 5,
+        "rotation": -0.35
+      }
+    ]
+  },
+  "seed": 7,
+  "objectives": [
+    {
+      "id": "destroy-hq",
+      "title": "Hävita komandopunkt",
+      "description": "Hävita vaenlase komandopunkt.",
+      "kind": "destroy",
+      "primary": true,
+      "target": {
+        "team": 1,
+        "kind": "hq",
+        "count": 1
+      }
+    }
+  ],
+  "triggers": [
+    {
+      "id": "reinforcements",
+      "when": {
+        "time": 35
+      },
+      "message": "Vaenlane saadab uue ründelainet.",
+      "spawn": {
+        "kind": "tank",
+        "team": 1,
+        "x": 108,
+        "z": -110,
+        "count": 3,
+        "spacing": 6
+      }
+    },
+    {
+      "id": "second-message",
+      "when": {
+        "time": 75
+      },
+      "message": "Õhutõrjeüksus on vaenlase baasi saabunud.",
+      "spawn": {
+        "kind": "aa",
+        "team": 1,
+        "x": 105,
+        "z": -120
+      }
+    }
+  ]
+}

@@ -1,0 +1,283 @@
+{
+  "id": "operation-black-city",
+  "name": "Must Linn",
+  "briefing": "Linnalahingus tuleb ellu jääda. Kaitse oma komandopunkti 120 sekundit ja säilita vähemalt üks insener.",
+  "map": {
+    "id": "city",
+    "name": "Must linn",
+    "theme": "city",
+    "heightmap": "/maps/city.png",
+    "maxHeight": 25,
+    "bases": [
+      {
+        "x": -130,
+        "z": 130,
+        "r": 34
+      },
+      {
+        "x": 130,
+        "z": -130,
+        "r": 34
+      }
+    ],
+    "objects": [
+      {
+        "kind": "hq",
+        "team": 0,
+        "x": -130,
+        "z": 130
+      },
+      {
+        "kind": "engineer",
+        "team": 0,
+        "x": -108,
+        "z": 112
+      },
+      {
+        "kind": "tank",
+        "team": 0,
+        "x": -112,
+        "z": 100,
+        "count": 3,
+        "dx": 6,
+        "dz": 0
+      },
+      {
+        "kind": "inf",
+        "team": 0,
+        "x": -115,
+        "z": 92,
+        "count": 6,
+        "dx": 3,
+        "dz": 0
+      },
+      {
+        "kind": "hq",
+        "team": 1,
+        "x": 130,
+        "z": -130
+      },
+      {
+        "kind": "bunker",
+        "team": 1,
+        "x": 108,
+        "z": -118
+      },
+      {
+        "kind": "bunker",
+        "team": 1,
+        "x": 120,
+        "z": -104
+      },
+      {
+        "kind": "tank",
+        "team": 1,
+        "x": 110,
+        "z": -96,
+        "count": 3,
+        "dx": -6,
+        "dz": 0
+      }
+    ],
+    "resources": [
+      {
+        "x": -72,
+        "z": 68,
+        "amount": 800,
+        "radius": 10
+      },
+      {
+        "x": 68,
+        "z": -72,
+        "amount": 800,
+        "radius": 10
+      },
+      {
+        "x": 35,
+        "z": -15,
+        "amount": 650,
+        "radius": 10
+      },
+      {
+        "x": -25,
+        "z": 20,
+        "amount": 650,
+        "radius": 10
+      }
+    ],
+    "features": [
+      {
+        "id": "city-main-road",
+        "kind": "road",
+        "x": 0,
+        "z": 0,
+        "width": 28,
+        "depth": 360,
+        "rotation": 0
+      },
+      {
+        "id": "city-cross-road",
+        "kind": "road",
+        "x": 0,
+        "z": 0,
+        "width": 360,
+        "depth": 24,
+        "rotation": 0
+      },
+      {
+        "id": "city-block-a",
+        "kind": "building",
+        "x": -62,
+        "z": -62,
+        "width": 48,
+        "depth": 42,
+        "height": 14
+      },
+      {
+        "id": "city-block-b",
+        "kind": "building",
+        "x": 62,
+        "z": -62,
+        "width": 48,
+        "depth": 42,
+        "height": 18
+      },
+      {
+        "id": "city-block-c",
+        "kind": "building",
+        "x": -62,
+        "z": 62,
+        "width": 48,
+        "depth": 42,
+        "height": 11
+      },
+      {
+        "id": "city-block-d",
+        "kind": "building",
+        "x": 62,
+        "z": 62,
+        "width": 48,
+        "depth": 42,
+        "height": 16
+      },
+      {
+        "id": "city-wall-west",
+        "kind": "wall",
+        "x": -108,
+        "z": 0,
+        "width": 8,
+        "depth": 170,
+        "height": 6
+      },
+      {
+        "id": "city-wall-east",
+        "kind": "wall",
+        "x": 108,
+        "z": 0,
+        "width": 8,
+        "depth": 170,
+        "height": 6
+      },
+      {
+        "id": "city-choke-north",
+        "kind": "chokepoint",
+        "x": 0,
+        "z": 88,
+        "width": 70,
+        "depth": 12,
+        "height": 3.5
+      },
+      {
+        "id": "city-choke-south",
+        "kind": "chokepoint",
+        "x": 0,
+        "z": -88,
+        "width": 70,
+        "depth": 12,
+        "height": 3.5
+      },
+      {
+        "id": "city-cover",
+        "kind": "cover",
+        "x": 18,
+        "z": 18,
+        "width": 8,
+        "depth": 4,
+        "height": 2.2,
+        "rotation": 0.25
+      }
+    ]
+  },
+  "seed": 31,
+  "objectives": [
+    {
+      "id": "survive",
+      "title": "Pea vastu",
+      "description": "Ela üle 120 sekundit.",
+      "kind": "survive",
+      "primary": true,
+      "duration": 120
+    },
+    {
+      "id": "engineer",
+      "title": "Säilita insener",
+      "description": "Hoia vähemalt üks insener elus.",
+      "kind": "defend",
+      "primary": true,
+      "point": {
+        "x": -108,
+        "z": 112
+      },
+      "radius": 14,
+      "duration": 120,
+      "unitKind": "engineer"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "city-wave-1",
+      "when": {
+        "time": 30
+      },
+      "message": "Esimene linnalahingu laine on kohal.",
+      "spawn": {
+        "kind": "inf",
+        "team": 1,
+        "x": 95,
+        "z": -90,
+        "count": 8,
+        "spacing": 3
+      }
+    },
+    {
+      "id": "city-wave-2",
+      "when": {
+        "time": 70
+      },
+      "message": "Vaenlane toob tankid sisse.",
+      "spawn": {
+        "kind": "tank",
+        "team": 1,
+        "x": 85,
+        "z": -80,
+        "count": 4,
+        "spacing": 6
+      }
+    },
+    {
+      "id": "city-wave-3",
+      "when": {
+        "time": 100
+      },
+      "message": "Viimane rünnak. Hoia positsiooni.",
+      "spawn": {
+        "kind": "heli",
+        "team": 1,
+        "x": 100,
+        "z": -100,
+        "count": 2,
+        "spacing": 8
+      }
+    }
+  ]
+}

@@ -1,0 +1,196 @@
+{
+  "id": "operation-high-ground",
+  "name": "Kõrge Maa",
+  "briefing": "Mäestiku läbimine on aeglane. Jõua märgitud vaatluspunkti ja hoia seda vähemalt 25 sekundit.",
+  "map": {
+    "id": "mountains",
+    "name": "Mustad mäed",
+    "theme": "mountains",
+    "heightmap": "/maps/mountains.png",
+    "maxHeight": 70,
+    "bases": [
+      {
+        "x": -130,
+        "z": 130,
+        "r": 34
+      },
+      {
+        "x": 130,
+        "z": -130,
+        "r": 34
+      }
+    ],
+    "objects": [
+      {
+        "kind": "hq",
+        "team": 0,
+        "x": -130,
+        "z": 130
+      },
+      {
+        "kind": "tank",
+        "team": 0,
+        "x": -110,
+        "z": 110,
+        "count": 3,
+        "dx": 6,
+        "dz": 0
+      },
+      {
+        "kind": "inf",
+        "team": 0,
+        "x": -112,
+        "z": 100,
+        "count": 5,
+        "dx": 3,
+        "dz": 0
+      },
+      {
+        "kind": "hq",
+        "team": 1,
+        "x": 130,
+        "z": -130
+      },
+      {
+        "kind": "bunker",
+        "team": 1,
+        "x": 108,
+        "z": -118
+      },
+      {
+        "kind": "tank",
+        "team": 1,
+        "x": 112,
+        "z": -108,
+        "count": 2,
+        "dx": -6,
+        "dz": 0
+      }
+    ],
+    "resources": [
+      {
+        "x": -65,
+        "z": 55,
+        "amount": 900,
+        "radius": 11
+      },
+      {
+        "x": 55,
+        "z": -65,
+        "amount": 900,
+        "radius": 11
+      },
+      {
+        "x": -5,
+        "z": 5,
+        "amount": 500,
+        "radius": 9
+      }
+    ],
+    "features": [
+      {
+        "id": "mountain-pass-road",
+        "kind": "road",
+        "x": 0,
+        "z": 0,
+        "width": 18,
+        "depth": 250,
+        "rotation": 0
+      },
+      {
+        "id": "mountain-bridge",
+        "kind": "bridge",
+        "x": 0,
+        "z": 18,
+        "width": 34,
+        "depth": 12,
+        "rotation": 0
+      },
+      {
+        "id": "mountain-west-wall",
+        "kind": "wall",
+        "x": -48,
+        "z": 15,
+        "width": 12,
+        "depth": 150,
+        "height": 7,
+        "rotation": 0.08
+      },
+      {
+        "id": "mountain-east-wall",
+        "kind": "wall",
+        "x": 48,
+        "z": -15,
+        "width": 12,
+        "depth": 150,
+        "height": 7,
+        "rotation": -0.08
+      },
+      {
+        "id": "mountain-choke",
+        "kind": "chokepoint",
+        "x": 0,
+        "z": -55,
+        "width": 48,
+        "depth": 12,
+        "height": 4
+      },
+      {
+        "id": "mountain-cover",
+        "kind": "cover",
+        "x": -25,
+        "z": 8,
+        "width": 8,
+        "depth": 5,
+        "height": 2.4,
+        "rotation": 0.4
+      }
+    ]
+  },
+  "seed": 19,
+  "objectives": [
+    {
+      "id": "reach-pass",
+      "title": "Jõua vaatluspunkti",
+      "description": "Too vähemalt üks mängija üksus mäekuru vaatluspunkti.",
+      "kind": "reach",
+      "primary": true,
+      "point": {
+        "x": 0,
+        "z": 0
+      },
+      "radius": 18,
+      "unitKind": "tank"
+    },
+    {
+      "id": "hold-pass",
+      "title": "Hoia vaatluspunkti",
+      "description": "Hoia vaatluspunkti kontrolli all 25 sekundit.",
+      "kind": "defend",
+      "primary": true,
+      "point": {
+        "x": 0,
+        "z": 0
+      },
+      "radius": 20,
+      "duration": 25
+    }
+  ],
+  "triggers": [
+    {
+      "id": "mountain-wave",
+      "when": {
+        "time": 55
+      },
+      "message": "Vaenlane liigub läbi põhjakuru.",
+      "spawn": {
+        "kind": "inf",
+        "team": 1,
+        "x": 95,
+        "z": -85,
+        "count": 5,
+        "spacing": 4
+      }
+    }
+  ]
+}

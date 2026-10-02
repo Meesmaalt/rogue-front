@@ -1,0 +1,5 @@
+{
+  "engineering": {"cost": 0, "requires": []},
+  "air": {"cost": 240, "requires": ["engineering"]},
+  "advanced-armor": {"cost": 220, "requires": ["engineering"]}
+}

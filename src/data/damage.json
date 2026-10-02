@@ -1,0 +1,6 @@
+{
+  "bullet": { "light": 1.0, "medium": 0.35, "heavy": 0.15, "air": 0.7 },
+  "cannon": { "light": 1.2, "medium": 1.0, "heavy": 0.75, "air": 0.1 },
+  "missile": { "light": 1.0, "medium": 1.1, "heavy": 1.15, "air": 1.35 },
+  "none": { "light": 0, "medium": 0, "heavy": 0, "air": 0 }
+}
