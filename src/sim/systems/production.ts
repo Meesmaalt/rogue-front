@@ -24,12 +24,10 @@ function spawnProduced(w: World, producer: Entity, kind: UnitKind): void {
   if (producer.preDeployOrder) { const o = producer.preDeployOrder; u.mode = o.mode === "attack" ? "amove" : o.mode; u.dest = o.x !== undefined && o.z !== undefined ? {x:o.x,z:o.z} : null; if (o.mode === "hold") u.holdPosition = true; }
   if (kind === "special") { u.supply = 100; }
   if (kind === "transport") {
-    const depot = w.nearestSupplyDepot(producer.team, {x: producer.x, z: producer.z}, false);
-    const rp = w.resourcePoints.find(r => r.amount > 0);
-    u.logisticsHome = depot ? { x: depot.x, z: depot.z } : { x: producer.x, z: producer.z };
-    u.logisticsTarget = rp ? { x: rp.x, z: rp.z } : null;
-    u.mode = rp ? "patrol" : "idle";
-    u.dest = u.logisticsTarget;
+    // Toodetud transport on taktikaline vägede transport.
+    // Supply-helicopterid tulevad Supply Depotidele automaatselt väljastpoolt kaarti.
+    u.mode = "idle";
+    u.dest = null;
   } else {
     const rally = producer.rallyPoint;
     u.mode = rally ? "move" : "idle";

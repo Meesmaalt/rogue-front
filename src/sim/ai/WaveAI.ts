@@ -40,6 +40,7 @@ export class WaveAI {
     }
     this.manageLogistics(w);
     this.expandForward(w);
+    this.upgradeProducers(w);
     this.produceArmy(w);
     if (this.counterAttackTimer <= 0) {
       this.counterAttackTimer = this.personality === "aggressive" ? 14 : 22;
@@ -70,13 +71,20 @@ export class WaveAI {
     const backZ = base.z - (w.bases[0].z - base.z) * 0.08;
     const plans: Array<[BuildableKind, number, number, number]> = [
       ["generator", base.x - 12, base.z - 10, 140],
+      ["supply", base.x - 22, base.z - 10, 130],
+      ["landCommand", base.x - 30, base.z - 2, 100],
+      ["airCommand", base.x + 28, base.z - 2, 120],
+      ["seaCommand", base.x - 30, base.z + 20, 120],
+      ["combatEngineer", base.x - 18, base.z + 20, 150],
       ["barracks", base.x - 16, base.z + 8, 160],
       ["factory", base.x + 16, base.z + 8, 220],
       ["helipad", base.x + 16, base.z - 10, 200],
       ["airbase", base.x + 22, base.z + 10, 320],
-      ["supply", base.x - 22, base.z - 10, 130],
       ["radar", base.x + 10, base.z + 22, 190],
       ["shipyard", base.x - 28, base.z + 24, 360],
+      ["landStrategy", base.x - 2, base.z + 24, 240],
+      ["airStrategy", base.x + 22, base.z + 24, 260],
+      ["seaStrategy", base.x - 42, base.z + 24, 260],
       ["refinery", w.resourcePoints[w.resourcePoints.length - 1]?.x ?? base.x - 24, w.resourcePoints[w.resourcePoints.length - 1]?.z ?? base.z - 24, 180],
       ["aa", backX + 14, backZ + 12, 160],
       ["bunker", gate.x - (gate.x - base.x) * 0.18, gate.z - (gate.z - base.z) * 0.18, 120],
@@ -89,22 +97,8 @@ export class WaveAI {
     }
   }
 
-  private manageLogistics(w: World): void {
-    const helipad = w.entities.find(e => !e.dead && e.team === 1 && e.kind === "helipad");
-    if (!helipad) return;
-    const active = w.entities.filter(e => !e.dead && e.team === 1 && e.kind === "transport");
-    const wanted = this.personality === "economic" ? 4 : this.difficulty === "hard" ? 3 : 2;
-    if (active.length >= wanted || !w.resourcePoints.some(r => r.amount > 0)) return;
-    const cost = 150;
-    if (w.teamResources[1] < cost || w.teamCredits[1] < cost) return;
-    w.teamResources[1] -= cost;
-    w.teamCredits[1] -= Math.min(w.teamCredits[1], cost);
-    const rp = w.resourcePoints.find(r => r.amount > 0)!;
-    const u = w.spawn("transport", 1, helipad.x + 8 + active.length * 3, helipad.z + 8);
-    u.logisticsHome = { x: helipad.x, z: helipad.z };
-    u.logisticsTarget = { x: rp.x, z: rp.z };
-    u.dest = u.logisticsTarget;
-    u.mode = "patrol";
+  private manageLogistics(_w: World): void {
+    // Varustushelikopterid on Supply Depotide automaatne logistikasüsteem.
   }
 
   private expandForward(w: World): void {
@@ -136,6 +130,13 @@ export class WaveAI {
     const frontline = army.filter(e=>e.kind!=="artillery");
     frontline.forEach((u,i)=>{u.mode="amove";u.dest={x:threatened.r.x+(i%3-1)*8,z:threatened.r.z+(i%2)*6};u.target=null;});
     army.filter(e=>e.kind==="artillery").forEach(u=>{u.fireMission={x:threatened.r.x,z:threatened.r.z};u.mode="attack";u.target=null;});
+  }
+
+  private upgradeProducers(w: World): void {
+    const candidates = w.entities.filter(e => !e.dead && !e.underConstruction && e.team === 1 && ["barracks","factory","helipad","airbase","shipyard"].includes(e.kind) && w.canUpgradeProducer(e));
+    const target = candidates.find(e => e.kind === "barracks" || e.kind === "factory") ?? candidates[0];
+    if (!target || w.teamResources[1] < 260 || w.teamCredits[1] < 260) return;
+    w.issue({ type: "upgrade", ids: [target.id], upgrade: "producer", team: 1 });
   }
 
   private produceArmy(w: World): void {

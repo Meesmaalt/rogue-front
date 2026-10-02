@@ -110,15 +110,28 @@ function updateTransport(w: World, u: Entity, dt: number): void {
   const target = u.logisticsPhase === "loading" ? u.logisticsHome : u.logisticsTarget;
   u.dest = target; u.mode = "patrol";
   if (!moveAirTo(u, target, dt, w)) return;
+  const depot = u.supplyDepotId != null ? w.byId.get(u.supplyDepotId) : null;
+  const level = depot?.supplyLevel ?? 0;
+  const capacity = 100 + level * 50;
+  const loadTime = Math.max(2.5, 7.5 - level * 1.25);
+  const unloadTime = Math.max(1.5, 4 - level * 0.5);
   if (u.logisticsPhase === "idle" || u.logisticsPhase === "unloading") {
     const rp = w.resourcePoints.find(r => Math.hypot(r.x - u.x, r.z - u.z) <= r.radius + 4 && r.amount > 0 && (r.controlledBy == null || r.controlledBy === u.team));
-    if (rp) { u.cargo = Math.min(100, rp.amount); rp.amount -= u.cargo; u.logisticsPhase = "loading"; }
+    if (rp) {
+      u.logisticsLoadProgress = (u.logisticsLoadProgress ?? 0) + dt;
+      if (u.logisticsLoadProgress >= loadTime) {
+        u.cargo = capacity; u.logisticsPhase = "loading"; u.logisticsLoadProgress = 0;
+      }
+    }
   } else if (u.logisticsPhase === "loading") {
-    const depot = w.nearestSupplyDepot(u.team, {x:u.x,z:u.z}, false);
     if (depot && Math.hypot(depot.x-u.x,depot.z-u.z) < 18) {
-      w.teamResources[u.team] += u.cargo; if (u.team === w.playerTeam) w.resources = w.teamResources[u.team];
-      u.cargo = 0; u.logisticsPhase = "unloading";
-      const next = w.resourcePoints.find(r => r.amount > 0); if (next) u.logisticsTarget = { x: next.x, z: next.z };
+      u.logisticsLoadProgress = (u.logisticsLoadProgress ?? 0) + dt;
+      if (u.logisticsLoadProgress >= unloadTime) {
+        w.teamResources[u.team] += u.cargo; if (u.team === w.playerTeam) w.resources = w.teamResources[u.team];
+        u.cargo = 0; u.logisticsPhase = "unloading"; u.logisticsLoadProgress = 0;
+        const next = w.resourcePoints.find(r => r.amount > 0 && (r.controlledBy == null || r.controlledBy === u.team));
+        if (next) u.logisticsTarget = { x: next.x, z: next.z };
+      }
     }
   }
 }

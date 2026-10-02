@@ -6,12 +6,13 @@ export function createSkirmish(w: World): void {
   w.spawn("hq", 0, P.x, P.z);
   w.spawn("engineer", 0, P.x + 12, P.z - 12);
   w.spawn("engineer", 0, P.x + 18, P.z - 10);
-  const r0 = w.resourcePoints[0] ?? {x:P.x + 35, z:P.z + 35, amount:1000, radius:12};
-  for (const [dx,dz] of [[8,12],[14,14]] as const) { const h=w.spawn("transport",0,P.x+dx,P.z+dz); h.logisticsHome={x:P.x+dx,z:P.z+dz}; h.logisticsTarget={x:r0.x,z:r0.z}; h.mode="patrol"; h.dest=h.logisticsTarget; }
+  // Supply depots are the source of the visible logistics cycle.
+  // No resource helicopter is free at game start: build a depot first.
+
 
   w.spawn("hq", 1, E.x, E.z);
   w.spawn("engineer", 1, E.x - 12, E.z + 12);
   w.spawn("engineer", 1, E.x - 18, E.z + 10);
-  const r1 = w.resourcePoints[w.resourcePoints.length - 1] ?? {x:E.x - 35, z:E.z - 35, amount:1000, radius:12};
-  for (const [dx,dz] of [[-8,-12],[-14,-14]] as const) { const h=w.spawn("transport",1,E.x+dx,E.z+dz); h.logisticsHome={x:E.x+dx,z:E.z+dz}; h.logisticsTarget={x:r1.x,z:r1.z}; h.mode="patrol"; h.dest=h.logisticsTarget; }
+  // Enemy supply arrives the same way once the AI builds its first depot.
+
 }

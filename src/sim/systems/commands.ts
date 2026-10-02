@@ -107,7 +107,24 @@ function apply(w: World, c: Command): void {
       break;
     }
     case "upgrade": {
-      const cost = 140, team = c.team ?? w.playerTeam;
+      const team = c.team ?? w.playerTeam;
+      if (c.upgrade === "producer") {
+        const target = c.ids.map(id => w.byId.get(id)).find((e): e is Entity => !!e && !e.dead && e.team === team && w.canUpgradeProducer(e));
+        const cost = 260;
+        if (!target || w.teamResources[team] < cost || w.teamCredits[team] < cost) break;
+        if (target.upgrading) break;
+        w.teamResources[team] -= cost; w.teamCredits[team] -= cost;
+        target.upgrading = true; target.upgradeProgress = 0; target.upgradeTime = 10; target.upgradeKind = "producer";
+        target.underConstruction = true; target.constructionProgress = 0; target.constructionTime = target.upgradeTime;
+        target.hp = Math.max(1, target.def.hp * 0.35);
+        if (team === w.playerTeam) { w.resources = w.teamResources[team]; w.credits = w.teamCredits[team]; }
+        break;
+      }
+      if (c.upgrade === "supply-depot") {
+        for (const u of c.ids.map(id => w.byId.get(id)).filter((e): e is Entity => !!e && !e.dead && e.team === team && e.kind === "supply")) w.upgradeSupplyDepot(team, u.id);
+        break;
+      }
+      const cost = 140;
       if (w.teamResources[team] < cost || w.teamCredits[team] < cost) break;
       const us = mobile(w, c.ids, team);
       for (const u of us) if (!u.upgrades.has(c.upgrade) && w.teamResources[team] >= cost && w.teamCredits[team] >= cost) { w.teamCredits[team] -= cost; w.teamResources[team] -= cost; u.upgrades.add(c.upgrade); if (c.upgrade === "armor") u.hp += u.def.hp * 0.15; }
@@ -174,8 +191,11 @@ function apply(w: World, c: Command): void {
         if (air.aircraft + producer.productionQueue.filter(k => k === c.kind).length >= air.capacity) break;
       }
       if (w.powerStatus(team).ratio < 0.25 && c.kind !== "inf" && c.kind !== "engineer") break;
-      if ((c.kind === "fighter" || c.kind === "gunship") && !w.hasTech(team, "air")) break;
-      if (["destroyer","submarine","landingcraft"].includes(c.kind) && !w.hasTech(team, "sea-command")) break;
+      if ((c.kind === "fighter") && !w.hasTech(team, "air")) break;
+      if ((c.kind === "gunship") && w.producerLevel(producer) < 2) break;
+      if ((c.kind === "special") && w.producerLevel(producer) < 2) break;
+      if ((c.kind === "artillery") && w.producerLevel(producer) < 2) break;
+      if (["destroyer","submarine"].includes(c.kind) && w.producerLevel(producer) < 2) break;
       w.teamCredits[team] -= def.cost; w.teamResources[team] -= def.cost;
       if (team === w.playerTeam) { w.credits = w.teamCredits[team]; w.resources = w.teamResources[team]; }
       producer.productionQueue.push(c.kind);

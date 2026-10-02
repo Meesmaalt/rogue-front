@@ -4,7 +4,7 @@ import { mulberry32 } from "../sim/rng";
 import type { MapFeatureDef } from "../sim/mapFeatures";
 import type { Point } from "../sim/types";
 
-const SEG = 160;
+const SEG = 96;
 
 export function createTerrain(theme: "desert" | "mountains" | "city" = "desert", features: readonly MapFeatureDef[] = [], bases: readonly (Point & { r: number })[] = []): THREE.Group {
   const rnd = mulberry32(7);
@@ -122,7 +122,7 @@ function makeGrainTexture(): THREE.CanvasTexture {
 }
 
 function createRocks(rnd: () => number, bases: readonly (Point & { r: number })[], features: readonly MapFeatureDef[] = []): THREE.InstancedMesh {
-  const N = 220;
+  const N = 120;
   const rocks = new THREE.InstancedMesh(
     new THREE.DodecahedronGeometry(1, 0),
     new THREE.MeshStandardMaterial({ color: 0x8b7e68, roughness: 0.95, flatShading: true }),
@@ -141,14 +141,14 @@ function createRocks(rnd: () => number, bases: readonly (Point & { r: number })[
     d.updateMatrix();
     rocks.setMatrixAt(k++, d.matrix);
   }
-  rocks.castShadow = true;
-  rocks.receiveShadow = true;
+  rocks.castShadow = false;
+  rocks.receiveShadow = false;
   return rocks;
 }
 
 
 function createDecals(rnd: () => number): THREE.InstancedMesh {
-  const N = 140;
+  const N = 70;
   const geo = new THREE.CircleGeometry(0.55, 12);
   geo.rotateX(-Math.PI / 2);
   const mat = new THREE.MeshBasicMaterial({ color: 0x5e5039, transparent: true, opacity: 0.2, depthWrite: false });
@@ -197,8 +197,8 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
       const mesh = new THREE.Mesh(geo, mat);
       mesh.position.set(f.x, y + h / 2, f.z);
       mesh.rotation.y = f.rotation ?? 0;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
       group.add(mesh);
       continue;
     }
@@ -210,7 +210,7 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
         const c = Math.cos(f.rotation ?? 0), s = Math.sin(f.rotation ?? 0);
         post.position.set(f.x + c * side * (f.width * 0.42), y + 1.75, f.z + s * side * (f.width * 0.42));
         post.rotation.y = f.rotation ?? 0;
-        post.castShadow = true; group.add(post);
+        post.castShadow = false; group.add(post);
       }
       continue;
     }

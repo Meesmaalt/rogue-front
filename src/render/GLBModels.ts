@@ -20,6 +20,9 @@ export async function preloadModels(): Promise<void> {
 }
 
 export function createVisualModel(kind: UnitKind, team: Team): { group: THREE.Group; turret: THREE.Group | null } {
+  const buildingKinds: UnitKind[] = ["hq","bunker","barracks","factory","helipad","airbase","supply","radar","refinery","generator","shipyard","landCommand","airCommand","seaCommand","combatEngineer","landStrategy","airStrategy","seaStrategy"];
+  // Combat units use the optimized procedural military models; building GLBs remain available for richer silhouettes.
+  if (!buildingKinds.includes(kind)) return createModel(kind, team);
   const source = cache.get(kind);
   if (!source) return createModel(kind, team);
   const group = source.clone(true);

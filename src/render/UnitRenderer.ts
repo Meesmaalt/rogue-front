@@ -4,7 +4,7 @@ import { heightAt } from "../sim/heightmap";
 import { wrapAngle } from "../sim/math";
 import { createVisualModel } from "./GLBModels";
 
-interface View { group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; lastAirState?: string }
+interface View { group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group; lastAirState?: string }
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const lerpAngle = (a: number, b: number, t: number) => a + wrapAngle(b - a) * t;
 const frameDtSafe = () => 1 / 60;
@@ -33,12 +33,12 @@ export class UnitRenderer {
       if (!v) {
         const visual = createVisualModel(e.kind, e.team);
         const lod = new THREE.LOD();
-        lod.addLevel(visual.group, e.kind === "inf" ? 48 : e.kind === "transport" ? 60 : 70);
+        lod.addLevel(visual.group, e.kind === "inf" ? 32 : e.kind === "transport" ? 44 : 52);
         const low = new THREE.Group();
         const lowMesh = new THREE.Mesh(new THREE.CylinderGeometry(Math.max(0.5, e.def.radius * 0.65), Math.max(0.65, e.def.radius * 0.75), e.kind === "fighter" ? 0.35 : 0.7, 6), new THREE.MeshStandardMaterial({ color: e.team === 0 ? 0x64744b : 0x704d49, roughness: 1 }));
         lowMesh.castShadow = true;
         low.add(lowMesh);
-        lod.addLevel(low, e.kind === "inf" ? 78 : e.kind === "transport" ? 92 : 105);
+        lod.addLevel(low, e.kind === "inf" ? 54 : e.kind === "transport" ? 66 : 78);
         const m = { group: lod, turret: visual.turret };
         // Mõne GLB puhul puudub rootori/propelleri animatsioon; lisa odav procedural rootori osa.
         if (["heli", "gunship", "transport"].includes(e.kind)) {
@@ -55,16 +55,16 @@ export class UnitRenderer {
           this.rotorParts.set(e.id, rotor);
         }
         const r = Math.max(e.def.radius, 1.2);
-        const ring = new THREE.Mesh(new THREE.RingGeometry(r * 1.05, r * 1.22, 32).rotateX(-Math.PI / 2), this.ringMat);
+        const ring = new THREE.Mesh(new THREE.RingGeometry(r * 1.05, r * 1.22, 16).rotateX(-Math.PI / 2), this.ringMat);
         const tacticalKinds = ["aa", "bunker", "artillery"];
-        const tactical = tacticalKinds.includes(e.kind) ? new THREE.Mesh(new THREE.RingGeometry(Math.max(2, e.firingRange * 0.96), Math.max(2.25, e.firingRange), 64).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x56a8d8, transparent: true, opacity: 0.10, depthWrite: false })) : null;
+        const tactical = tacticalKinds.includes(e.kind) ? new THREE.Mesh(new THREE.RingGeometry(Math.max(2, e.firingRange * 0.96), Math.max(2.25, e.firingRange), 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x56a8d8, transparent: true, opacity: 0.10, depthWrite: false })) : null;
         ring.position.y = 0.3;
         ring.visible = false;
         m.group.add(ring);
         if (tactical) { tactical.position.y = 0.18; m.group.add(tactical); }
         // Enamik üksusi ei vaja dünaamilist shadow-map kirjutamist.
         // Hooneid võib varjutada, liikuvad üksused kasutavad odavamat valgustust.
-        const staticBuilding = ["hq", "barracks", "factory", "helipad", "airbase", "refinery", "supply", "radar", "bunker", "aa", "generator", "shipyard"].includes(e.kind);
+        const staticBuilding = ["hq", "barracks", "factory", "helipad", "airbase", "refinery", "supply", "radar", "bunker", "aa", "generator", "shipyard", "landCommand", "airCommand", "seaCommand", "combatEngineer", "landStrategy", "airStrategy", "seaStrategy"].includes(e.kind);
         visual.group.traverse((o) => {
           const mesh = o as THREE.Mesh;
           if (!mesh.isMesh) return;
@@ -80,7 +80,16 @@ export class UnitRenderer {
       if (!visible) continue;
       const x = lerp(e.px, e.x, alpha), z = lerp(e.pz, e.z, alpha), h = lerpAngle(e.pHeading, e.heading, alpha);
       v.group.position.set(x, heightAt(x, z), z);
-      if (e.underConstruction) {
+      if (e.upgrades.has("producer-2") && !v.upgradeKit) {
+        const kit = new THREE.Group(); kit.name = "ProducerUpgradeKit";
+        const mat = new THREE.MeshStandardMaterial({color:0xd2a53d, roughness:0.65});
+        for (const sx of [-1,1]) { const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.12,1.5,6), mat); mast.position.set(sx*2.2, e.kind === "airbase" ? 2.2 : 3.1, 0); kit.add(mast); }
+        v.group.add(kit); v.upgradeKit = kit;
+      }
+      if (e.upgrading) {
+        const k = Math.max(0.12, Math.min(1, (e.upgradeProgress ?? 0) / Math.max(0.01, e.upgradeTime ?? 1)));
+        v.group.scale.set(0.82 + 0.18*k, 0.65 + 0.35*k, 0.82 + 0.18*k);
+      } else if (e.underConstruction) {
         const k = Math.max(0.12, Math.min(1, e.constructionProgress / Math.max(0.01, e.constructionTime)));
         v.group.scale.set(0.65 + 0.35 * k, 0.2 + 0.8 * k, 0.65 + 0.35 * k);
       } else v.group.scale.set(1, 1, 1);

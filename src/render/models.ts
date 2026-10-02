@@ -35,12 +35,28 @@ export function createModel(kind: UnitKind, team: Team): Model {
       break;
     }
     case "inf": {
-      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.4, 1.3, 8), mat(BODY[team]));
-      b.position.y = 0.65; b.castShadow = true;
-      const h = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 6), mat(BODY[team]));
-      h.position.y = 1.5; h.castShadow = true;
-      g.add(b, h, box(0.12, 0.12, 1.1, DARK, 0.3, 1, 0.5), box(0.3, 0.3, 0.15, ACC[team], 0, 1, -0.4));
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 0.72, 4, 7), mat(BODY[team], 0.95, 0.05));
+      body.position.y = 0.9;
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.27, 8, 6), mat(0x9a8068, 1, 0));
+      head.position.y = 1.65;
+      const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.31, 8, 5, 0, Math.PI*2, 0, Math.PI/2), mat(DARK, 1, 0));
+      helmet.position.y = 1.72;
+      g.add(body, head, helmet);
+      for (const side of [-1,1]) {
+        const leg = box(0.16,0.72,0.18,DARK,side*0.14,0.36,0);
+        leg.rotation.x = side * 0.08; g.add(leg);
+        const arm = box(0.13,0.62,0.13,BODY[team],side*0.42,0.95,0.08);
+        arm.rotation.z = side * 0.16; g.add(arm);
+      }
+      g.add(box(0.12,0.12,1.05,DARK,0.24,1.12,0.45), box(0.32,0.12,0.16,ACC[team],0,1.03,-0.34));
       break;
+    }
+    case "engineer": {
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.75, 4, 7), mat(0x6d6655, 0.95, 0.02)); body.position.y=0.9;
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.27,8,6),mat(0x9a8068,1,0)); head.position.y=1.65;
+      const helmet = new THREE.Mesh(new THREE.CylinderGeometry(0.31,0.28,0.16,8),mat(0xd09a35,0.95,0)); helmet.position.y=1.82;
+      const pack=box(0.42,0.6,0.22,DARK,0,1.0,-0.38);
+      g.add(body,head,helmet,pack,box(0.12,0.12,1.0,DARK,0.28,1.08,0.42)); break;
     }
     case "hq": {
       g.add(box(14, 3, 14, 0x5d5b52, 0, 1.5, 0), box(8, 3, 8, BODY[team], 0, 4.5, 0), box(3, 0.6, 3, ACC[team], 0, 6.4, 0));
@@ -80,11 +96,19 @@ export function createModel(kind: UnitKind, team: Team): Model {
       turret = new THREE.Group(); turret.position.y = 1.5; turret.add(box(1.8,0.7,2.2,BODY[team],0,0.3,0)); barrel(5.8,0.16,0.35,3.2,turret); g.add(turret); break;
     }
     case "transport": {
-      g.add(box(3.2,1.2,4.8,BODY[team],0,2.6,0), box(1.1,0.7,3,DARK,0,1.7,0), box(0.18,1.4,4.2,ACC[team],-1.8,2.4,0), box(0.18,1.4,4.2,ACC[team],1.8,2.4,0)); break;
+      const fus = new THREE.Mesh(new THREE.CapsuleGeometry(1.0,3.6,6,10), mat(BODY[team],0.72,0.12)); fus.rotation.x=Math.PI/2; fus.position.y=2.7;
+      const tail=box(0.25,1.1,2.5,DARK,0,3.35,-2.4);
+      const wing=box(5.8,0.18,1.0,BODY[team],0,2.65,0.15);
+      const tailWing=box(3.0,0.14,0.65,BODY[team],0,3.15,-2.0);
+      const rotor=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,0.35,8),mat(DARK)); rotor.position.y=4.0;
+      g.add(fus,wing,tail,tailWing,rotor); break;
     }
     case "gunship": {
-      g.add(box(2.8,1.1,4.4,BODY[team],0,2.6,0), box(0.45,0.25,7,DARK,0,2.7,0));
-      turret = new THREE.Group(); turret.position.y = 1.8; turret.add(box(1.4,0.45,1.8,ACC[team],0,0.2,0)); barrel(2.6,0.15,0.2,1.7,turret); g.add(turret); break;
+      const fus=new THREE.Mesh(new THREE.CapsuleGeometry(0.75,3.0,6,10),mat(BODY[team],0.72,0.12)); fus.rotation.x=Math.PI/2; fus.position.y=2.65;
+      const wing=box(5.2,0.18,0.65,BODY[team],0,2.55,0.25);
+      const tail=box(0.2,0.9,1.9,DARK,0,3.35,-1.9);
+      turret=new THREE.Group(); turret.position.set(0,2.2,1.2); turret.add(box(0.8,0.35,1.2,ACC[team],0,0,0)); barrel(2.8,0.14,0,1.25,turret);
+      g.add(fus,wing,tail,turret); break;
     }
     case "destroyer": {
       g.add(box(3.2,1.1,12,0x4b5350,0,0.9,0), box(2,1.4,5,0x606762,0,1.8,-1), box(0.7,0.7,2.2,DARK,0,2.5,3), box(0.5,0.5,3,DARK,0,2.3,-4));
@@ -106,6 +130,12 @@ export function createModel(kind: UnitKind, team: Team): Model {
       g.add(box(12,2.5,9,0x555a55,0,1.25,0), box(8,1.8,5,BODY[team],0,3.4,-0.5), box(9,0.5,1,DARK,0,2.5,4.3));
       break;
     }
+    case "landCommand": case "airCommand": case "seaCommand": case "combatEngineer": case "landStrategy": case "airStrategy": case "seaStrategy": {
+      const accent = kind.includes("air") ? 0x5976a8 : kind.includes("sea") ? 0x4b7770 : ACC[team];
+      g.add(box(9,3.2,8,0x5c5b55,0,1.6,0), box(6.5,2.2,5.5,accent,0,4.2,0), box(1.2,3.5,1.2,DARK,0,6.7,0));
+      if (kind.includes("Strategy")) g.add(box(4.5,0.25,1.2,0xd0a33a,0,5.4,2.8));
+      break;
+    }
     case "bunker": {
       const b = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 4.2, 2, 10), mat(0x5d5b52));
       b.position.y = 1; b.castShadow = b.receiveShadow = true;
@@ -118,9 +148,25 @@ export function createModel(kind: UnitKind, team: Team): Model {
       break;
     }
     default: {
-      const c = kind === "fighter" ? 0x6977a8 : kind === "heli" ? BODY[team] : kind === "aa" ? 0x59604d : 0x77705a;
-      g.add(box(kind === "fighter" ? 4.5 : 2.5, kind === "fighter" ? 0.7 : 1.5, kind === "fighter" ? 7 : 2.8, c, 0, kind === "fighter" ? 4 : 0.8, 0));
-      if (kind === "heli" || kind === "aa") { turret = new THREE.Group(); turret.position.y = kind === "heli" ? 2 : 1.8; turret.add(box(1.4,0.5,2.2,ACC[team],0,0.3,0)); g.add(turret); }
+      if (kind === "fighter") {
+        const fus=new THREE.Mesh(new THREE.CapsuleGeometry(0.48,4.0,5,8),mat(0x6977a8,0.62,0.25)); fus.rotation.x=Math.PI/2; fus.position.y=4;
+        const wing=box(6.5,0.18,1.0,0x59657f,0,3.9,0.1);
+        const tail=box(0.18,1.1,2.0,DARK,0,4.6,-2.5);
+        g.add(fus,wing,tail,box(0.55,0.12,0.65,ACC[team],0,4.0,2.0));
+      } else if (kind === "heli") {
+        const fus=new THREE.Mesh(new THREE.CapsuleGeometry(0.75,2.3,6,9),mat(BODY[team],0.78,0.08)); fus.rotation.x=Math.PI/2; fus.position.y=2.45;
+        const tail=box(0.25,0.25,3.2,DARK,0,2.65,-2.45);
+        const boom=box(5.8,0.12,0.3,DARK,0,3.65,0);
+        const rotorM=new THREE.Mesh(new THREE.BoxGeometry(6.0,0.08,0.18),mat(DARK,1,0)); rotorM.position.y=3.72;
+        const rotorM2=rotorM.clone(); rotorM2.rotation.y=Math.PI/2;
+        g.add(fus,tail,boom,rotorM,rotorM2);
+        turret=new THREE.Group(); turret.position.set(0,2.25,1.0); turret.add(box(1.0,0.35,1.1,ACC[team],0,0,0)); barrel(2.2,0.12,0,1.1,turret); g.add(turret);
+      } else if (kind === "aa") {
+        g.add(box(3.0,1.2,4.0,BODY[team],0,0.9,0),box(0.7,0.65,4.5,DARK,-1.75,0.6,0),box(0.7,0.65,4.5,DARK,1.75,0.6,0));
+        turret=new THREE.Group(); turret.position.y=1.65; turret.add(box(1.8,0.5,1.8,BODY[team],0,0.3,0)); barrel(2.6,0.12,0.5,1.6,turret); g.add(turret);
+      } else {
+        g.add(box(2.5,1.5,2.8,kind === "special" ? 0x30383a : BODY[team],0,0.8,0));
+      }
       break;
     }
   }

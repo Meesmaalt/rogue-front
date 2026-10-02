@@ -38,16 +38,17 @@ export class World {
   teamPowerUse: [number, number] = [0, 0];
   teamMorale: [number, number] = [100, 100];
   areaControl: [number, number] = [0, 0];
+  supplyUpgrade: [number, number] = [0, 0];
   readonly bases: readonly BaseDef[];
   readonly resourcePoints: MapResourceDef[];
   readonly teamTechs: [Set<string>, Set<string>] = [new Set(["engineering"]), new Set(["engineering"])];
   get techs(): Set<string> { return this.teamTechs[this.playerTeam]; }
   hasTech(team: Team, tech: string): boolean {
     if (this.teamTechs[team].has(tech)) return true;
-    if (tech === "land-command") return this.hasBuilding(team, "barracks");
-    if (tech === "air") return this.hasBuilding(team, "airbase");
-    if (tech === "air-command") return this.hasBuilding(team, "airbase");
-    if (tech === "sea-command") return this.hasBuilding(team, "shipyard");
+    if (tech === "land-command") return this.hasBuilding(team, "landCommand");
+    if (tech === "air") return this.hasBuilding(team, "airCommand");
+    if (tech === "air-command") return this.hasBuilding(team, "airCommand");
+    if (tech === "sea-command") return this.hasBuilding(team, "seaCommand");
     return false;
   }
   powerStatus(team: Team): { supply: number; use: number; ratio: number } {
@@ -68,9 +69,42 @@ export class World {
     const spec = BUILDINGS[kind];
     if ((spec.limit ?? Infinity) <= this.buildingCount(team, kind)) return false;
     if (spec.requires?.some(req => !this.hasBuilding(team, req))) return false;
-    if (kind !== "generator" && kind !== "supply" && !this.hasBuilding(team, "generator")) return false;
+    if (kind !== "generator" && !this.hasBuilding(team, "generator")) return false;
+    if (["landCommand","airCommand","seaCommand"].includes(kind)) {
+      if (!this.hasBuilding(team, "supply") && !this.hasBuilding(team, "generator")) return false;
+    }
     return this.powerStatus(team).ratio > 0.01 || kind === "generator" || kind === "supply";
   }
+
+
+  /** Returns the buildings currently exposed by the selected command/building branch. */
+  availableBuilds(team: Team, source?: UnitKind): BuildableKind[] {
+    const roots: Record<string, BuildableKind[]> = {
+      hq: ["generator", "supply", "landCommand", "airCommand", "seaCommand"],
+      landCommand: ["barracks", "factory", "combatEngineer", "landStrategy", "supply", "generator"],
+      airCommand: ["helipad", "airbase", "airStrategy", "supply", "generator"],
+      seaCommand: ["shipyard", "seaStrategy", "supply", "generator"],
+      landStrategy: ["barracks", "factory", "combatEngineer", "radar", "bunker", "aa"],
+      airStrategy: ["helipad", "airbase", "radar", "aa"],
+      seaStrategy: ["shipyard", "supply", "radar"],
+      combatEngineer: ["bunker", "aa", "radar"],
+      supply: ["generator", "radar"],
+    };
+    return (roots[source ?? "hq"] ?? []).filter(k => this.canBuildKind(team, k));
+  }
+
+  producerLevel(e: Entity): number { return e.upgrades.has("producer-2") ? 2 : 1; }
+  canUpgradeProducer(e: Entity): boolean {
+    if (e.dead || e.underConstruction || !["barracks","factory","helipad","airbase","shipyard"].includes(e.kind)) return false;
+    return this.producerLevel(e) < 2 && this.hasStrategyForProducer(e.team, e.kind);
+  }
+  hasStrategyForProducer(team: Team, kind: UnitKind): boolean {
+    if (["barracks","factory"].includes(kind)) return this.hasBuilding(team, "landStrategy");
+    if (["helipad","airbase"].includes(kind)) return this.hasBuilding(team, "airStrategy");
+    if (kind === "shipyard") return this.hasBuilding(team, "seaStrategy");
+    return false;
+  }
+
   queue: UnitKind[] = [];
   queueProgress = 0;
   time = 0;
@@ -103,7 +137,7 @@ export class World {
       px: x, pz: z, pHeading: heading, pTurretYaw: 0,
       hp: def.hp, cooldown: this.rng() * 0.5, mode: "idle", dest: null, target: null,
       aggro: team === 1 && def.speed > 0 ? ENEMY_AGGRO : def.range, dead: false,
-      xp: 0, veteran: 0, supply: 100, maxSupply: 100, role: kind === "artillery" ? "siege" : kind === "aa" ? "support" : kind === "fighter" ? "air-superiority" : kind === "gunship" ? "air-ground" : kind === "transport" ? "logistics" : "line", fuel: def.armor === "air" ? 100 : 0, maxFuel: def.armor === "air" ? 100 : 0, ammo: def.armor === "air" ? 6 : kind === "artillery" ? 10 : 0, maxAmmo: def.armor === "air" ? 6 : kind === "artillery" ? 10 : 0, fireMission: null, holdPosition: false, patrolPoints: [], patrolIndex: 0, upgrades: new Set<string>(), cargo: 0, logisticsTarget: null, logisticsHome: null, logisticsPhase: "idle", productionQueue: [], productionProgress: 0, rallyPoint: null, constructionProgress: 1, constructionTime: 0, firingArc: (kind === "bunker" ? Math.PI * 0.62 : kind === "aa" ? Math.PI * 0.9 : kind === "artillery" ? Math.PI * 0.98 : Math.PI * 2), firingRange: def.range, facingLocked: kind === "bunker" || kind === "aa", lastCombatTime: 0, morale: 100, disabledUntil: 0, builderIds: [], underConstruction: false, cargoUnitIds: [], loadedIntoId: null, transportTargetId: null, unloadPoint: null,
+      xp: 0, veteran: 0, supply: 100, maxSupply: 100, role: kind === "artillery" ? "siege" : kind === "aa" ? "support" : kind === "fighter" ? "air-superiority" : kind === "gunship" ? "air-ground" : kind === "transport" ? "logistics" : "line", fuel: def.armor === "air" ? 100 : 0, maxFuel: def.armor === "air" ? 100 : 0, ammo: def.armor === "air" ? 6 : kind === "artillery" ? 10 : 0, maxAmmo: def.armor === "air" ? 6 : kind === "artillery" ? 10 : 0, fireMission: null, holdPosition: false, patrolPoints: [], patrolIndex: 0, upgrades: new Set<string>(), cargo: 0, logisticsTarget: null, logisticsHome: null, logisticsPhase: "idle", productionQueue: [], productionProgress: 0, rallyPoint: null, constructionProgress: 1, constructionTime: 0, upgrading: false, upgradeProgress: 0, upgradeTime: 0, upgradeKind: undefined, firingArc: (kind === "bunker" ? Math.PI * 0.62 : kind === "aa" ? Math.PI * 0.9 : kind === "artillery" ? Math.PI * 0.98 : Math.PI * 2), firingRange: def.range, facingLocked: kind === "bunker" || kind === "aa", lastCombatTime: 0, morale: 100, disabledUntil: 0, builderIds: [], underConstruction: false, cargoUnitIds: [], loadedIntoId: null, transportTargetId: null, unloadPoint: null,
       navPath: [], navPathIndex: 0, flowField: null, stuckTime: 0, stuckX: x, stuckZ: z,
     };
     this.entities.push(e);
@@ -123,7 +157,7 @@ export class World {
       if (a > 0 && b === 0) { rp.controlProgress = Math.min(1, (rp.controlProgress ?? 0) + dt * 0.22 * Math.min(2, a)); if (rp.controlProgress >= 1) rp.controlledBy = 0; }
       else if (b > 0 && a === 0) { rp.controlProgress = Math.max(0, (rp.controlProgress ?? 0) - dt * 0.22 * Math.min(2, b)); if (rp.controlProgress <= 0) rp.controlledBy = 1; }
       else if (a > 0 && b > 0) rp.controlProgress = Math.max(0, Math.min(1, rp.controlProgress ?? (rp.controlledBy === 0 ? 1 : 0)));
-      if (rp.controlledBy !== undefined && rp.controlledBy !== null) { scores[rp.controlledBy] += 1; this.teamCredits[rp.controlledBy] += 2.2 * dt; }
+      if (rp.controlledBy !== undefined && rp.controlledBy !== null) { scores[rp.controlledBy] += 1; }
       if (a > 0 && b > 0) { this.teamMorale[0] = Math.max(0, this.teamMorale[0] - 0.02 * dt); this.teamMorale[1] = Math.max(0, this.teamMorale[1] - 0.02 * dt); }
     }
     this.areaControl = scores;
@@ -233,7 +267,7 @@ export class World {
     if (this.entities.some(e => !e.dead && (e.def.speed === 0 || e.underConstruction) && Math.hypot(e.x - x, e.z - z) < r + e.def.radius + 1.5)) return false;
     if (this.mapFeatures.some(f => featureBlocksMovement(f) && Math.hypot(f.x - x, f.z - z) < r + Math.hypot(f.width, f.depth) * 0.5)) return false;
     if (kind === "refinery" && !this.resourcePoints.some(p => Math.hypot(p.x - x, p.z - z) <= p.radius + r)) return false;
-    if (["supply", "generator", "radar", "helipad", "bunker", "aa", "shipyard"].includes(kind)) return true;
+    if (["supply", "generator", "radar", "helipad", "bunker", "aa", "shipyard", "landCommand", "airCommand", "seaCommand", "combatEngineer", "landStrategy", "airStrategy", "seaStrategy"].includes(kind)) return true;
     return this.bases[team] ? Math.hypot(this.bases[team].x - x, this.bases[team].z - z) < 155 : true;
   }
 
@@ -263,19 +297,62 @@ export class World {
     return { capacity, aircraft, ready };
   }
 
+  supplyDepotStatus(team: Team): { depots: number; active: number; level: number; rate: number } {
+    const depots = this.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === "supply");
+    const active = this.entities.filter(e => !e.dead && e.team === team && e.kind === "transport" && e.supplyDepotId != null).length;
+    const level = depots.reduce((m, d) => Math.max(m, d.supplyLevel ?? 0), 0);
+    return { depots: depots.length, active, level, rate: 1 + level * 0.35 };
+  }
+
+  upgradeSupplyDepot(team: Team, depotId: number): boolean {
+    const depot = this.byId.get(depotId);
+    if (!depot || depot.dead || depot.underConstruction || depot.team !== team || depot.kind !== "supply") return false;
+    const level = depot.supplyLevel ?? 0;
+    if (level >= 3) return false;
+    const cost = 180 + level * 120;
+    if (this.teamResources[team] < cost || this.teamCredits[team] < cost) return false;
+    this.teamResources[team] -= cost; this.teamCredits[team] -= cost;
+    depot.supplyLevel = level + 1;
+    if (team === this.playerTeam) { this.resources = this.teamResources[team]; this.credits = this.teamCredits[team]; }
+    return true;
+  }
+
+  private updateSupplyAirbridge(): void {
+    for (const team of [0,1] as const) {
+      const depots = this.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === "supply");
+      if (!depots.length) continue;
+      const transports = this.entities.filter(e => !e.dead && e.team === team && e.kind === "transport" && e.supplyDepotId != null);
+      for (const depot of depots) {
+        const maxConcurrent = 1 + (depot.supplyLevel ?? 0);
+        const assigned = transports.filter(t => t.supplyDepotId === depot.id).length;
+        if (assigned >= maxConcurrent) continue;
+        const rp = this.resourcePoints
+          .filter(r => r.amount > 0 && (r.controlledBy == null || r.controlledBy === team))
+          .sort((a,b) => Math.hypot(a.x-depot.x,a.z-depot.z) - Math.hypot(b.x-depot.x,b.z-depot.z))[0];
+        if (!rp) continue;
+        const edgeX = team === 0 ? -155 : 155;
+        const edgeZ = team === 0 ? depot.z + 35 : depot.z - 35;
+        const h = this.spawn("transport", team, edgeX, edgeZ);
+        h.supplyDepotId = depot.id;
+        h.logisticsHome = { x: depot.x, z: depot.z };
+        h.logisticsTarget = { x: rp.x, z: rp.z };
+        h.logisticsPhase = "idle";
+        h.logisticsLoadProgress = 0;
+        h.mode = "patrol";
+        h.dest = h.logisticsTarget;
+      }
+    }
+  }
+
   tick(dt: number): void {
     if (this.status !== "running") return;
     for (const e of this.entities) { e.px = e.x; e.pz = e.z; e.pHeading = e.heading; e.pTurretYaw = e.turretYaw; }
     this.time += dt;
-    this.teamCredits[0] += INCOME_PER_SEC * dt; this.teamCredits[1] += INCOME_PER_SEC * dt;
+    this.teamCredits[0] += INCOME_PER_SEC * 0.35 * dt; this.teamCredits[1] += INCOME_PER_SEC * 0.35 * dt;
     this.updateResourceControl(dt);
     this.updateSupply(dt);
     this.powerStatus(0); this.powerStatus(1);
-    // refinery bonus: every completed refinery improves the team's steady income.
-    for (const team of [0, 1] as const) {
-      const refineries = this.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === "refinery").length;
-      if (refineries) { const bonus = INCOME_PER_SEC * 0.35 * refineries * dt; this.teamCredits[team] += bonus; }
-    }
+    this.updateSupplyAirbridge();
     this.credits = this.teamCredits[this.playerTeam];
     this.resources = this.teamResources[this.playerTeam];
     if (this.navDirty) { this.nav.syncBuildings(this.entities); this.navDirty = false; }

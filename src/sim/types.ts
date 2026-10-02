@@ -1,7 +1,7 @@
 import type { FlowField } from "./nav/FlowField";
 import type { MapFeatureDef } from "./mapFeatures";
 export type Team = 0 | 1;
-export type UnitKind = "tank" | "inf" | "bunker" | "hq" | "engineer" | "heli" | "transport" | "gunship" | "fighter" | "artillery" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase" | "supply" | "radar" | "generator" | "destroyer" | "submarine" | "landingcraft" | "special" | "shipyard";
+export type UnitKind = "tank" | "inf" | "bunker" | "hq" | "engineer" | "heli" | "transport" | "gunship" | "fighter" | "artillery" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase" | "supply" | "radar" | "generator" | "destroyer" | "submarine" | "landingcraft" | "special" | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer" | "landStrategy" | "airStrategy" | "seaStrategy";
 export type Mode = "idle" | "move" | "attack" | "amove" | "patrol" | "hold" | "build" | "repair" | "transport-load" | "transport-unload" | "standing" | "sabotage";
 export type AirState = "grounded" | "taxi" | "airborne" | "returning" | "landing" | "rearming";
 export type GameStatus = "running" | "won" | "lost";
@@ -33,6 +33,10 @@ export interface Entity {
   navPath: Point[]; navPathIndex: number; flowField: FlowField | null; stuckTime: number; stuckX: number; stuckZ: number;
   xp: number; veteran: number; supply?: number; maxSupply?: number; role?: "line" | "support" | "siege" | "air-superiority" | "air-ground" | "logistics"; holdPosition: boolean; patrolPoints: Point[]; patrolIndex: number; upgrades: Set<string>; cargo: number; logisticsTarget: Point | null; logisticsHome: Point | null; logisticsPhase: "idle" | "loading" | "unloading"; productionQueue: UnitKind[]; productionProgress: number; rallyPoint: Point | null;
   constructionProgress: number;
+  upgrading?: boolean; upgradeProgress?: number; upgradeTime?: number; upgradeKind?: "producer";
+  logisticsLoadProgress?: number;
+  supplyDepotId?: number | null;
+  supplyLevel?: number;
   strategicTarget?: Point | null; constructionTime: number;
   firingArc: number;
   firingRange: number;
@@ -49,8 +53,8 @@ export type Command = ({
   type: "move"; ids: number[]; x: number; z: number
 } | { type: "amove"; ids: number[]; x: number; z: number } | { type: "attack"; ids: number[]; targetId: number } |
   { type: "stop"; ids: number[] } | { type: "repair"; ids: number[]; targetId: number } | { type: "rally"; ids: number[]; x: number; z: number } | { type: "patrol"; ids: number[]; x: number; z: number } | { type: "hold"; ids: number[] } |
-  { type: "build"; ids: number[]; kind: "bunker" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase" | "supply" | "radar" | "generator" | "shipyard"; x: number; z: number; rotation?: number } |
-  { type: "upgrade"; ids: number[]; upgrade: "armor" | "weapon" | "range" } |
+  { type: "build"; ids: number[]; kind: "bunker" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase" | "supply" | "radar" | "generator" | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer" | "landStrategy" | "airStrategy" | "seaStrategy"; x: number; z: number; rotation?: number } |
+  { type: "upgrade"; ids: number[]; upgrade: "armor" | "weapon" | "range" | "supply-depot" | "producer" } |
   { type: "research"; tech: "air" | "advanced-armor" } | { type: "produce"; kind: UnitKind; producerId?: number } | { type: "load"; ids: number[]; targetId: number } | { type: "unload"; ids: number[]; x: number; z: number } | { type: "fire-mission"; ids: number[]; x: number; z: number } | { type: "standing"; ids: number[]; mode: "hold" | "patrol" | "attack"; x?: number; z?: number } | { type: "predeploy"; ids: number[]; mode: "move" | "attack" | "hold"; x?: number; z?: number }) & { team?: Team };
 
 export type SimEvent =

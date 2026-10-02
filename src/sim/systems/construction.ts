@@ -22,6 +22,7 @@ export function updateConstruction(w: World, dt: number): void {
       const rate = active.length * dt;
       if (rate > 0) {
         building.constructionProgress += rate;
+        if (building.upgrading) building.upgradeProgress = building.constructionProgress;
         for (const b of active) {
           b.mode = "build";
           b.dest = { x: building.x, z: building.z };
@@ -31,6 +32,11 @@ export function updateConstruction(w: World, dt: number): void {
       if (building.constructionProgress >= building.constructionTime) {
         building.constructionProgress = building.constructionTime;
         building.underConstruction = false;
+        if (building.upgrading && building.upgradeKind === "producer") {
+          building.upgrades.add("producer-2");
+          building.upgrading = false; building.upgradeProgress = building.upgradeTime = 0; building.upgradeKind = undefined;
+          building.hp = building.def.hp * 1.15;
+        }
         building.builderIds = [];
         for (const b of builders) {
           if (b.target === building) { b.target = null; b.dest = null; b.mode = "idle"; }
