@@ -33,12 +33,13 @@ const queryMission = queryParams.get("mission");
 const queryRoom = queryParams.get("room");
 const SAVE_PREFIX = "rogue-front.save.v1.";
 
-async function boot(mission: MissionDef, multiplayerRoom?: string): Promise<void> {
+async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDifficulty?: "easy"|"normal"|"hard"): Promise<void> {
   setBases(mission.map.bases);
   await Promise.all([loadHeightmap(mission.map.heightmap, mission.map.maxHeight), preloadModels()]);
 
-  const world = new World(mission.seed, true, mission.map.resources, mission.map.features ?? [], mission.map.bases);
-  const multiplayer = !!multiplayerRoom;
+  const skirmish = !!skirmishDifficulty;
+  const world = new World(mission.seed, !skirmish, mission.map.resources, mission.map.features ?? [], mission.map.bases);
+  const multiplayer = !!multiplayerRoom && !skirmish;
   const net = multiplayer ? new LockstepClient() : null;
   const networkPackets: Array<{ tick: number; commands: import("./sim/types").Command[] }> = [];
   let localTeam: 0 | 1 = 0;
@@ -58,6 +59,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string): Promise<void
     for (let i = 0; i < count; i++) world.spawn(obj.kind, obj.team, obj.x + dx * i, obj.z + dz * i);
   }
   const missionRuntime = new MissionController(mission, world);
+  if (skirmish) { const { createSkirmish } = await import("./sim/scenario"); createSkirmish(world); world.ai.setProfile(skirmishDifficulty === "hard" ? "aggressive" : skirmishDifficulty === "easy" ? "defensive" : "economic", skirmishDifficulty!); }
   if (multiplayer) world.setNetworkMode(0);
 
   const glCanvas = document.getElementById("game") as HTMLCanvasElement;
@@ -65,7 +67,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string): Promise<void
   const fogCanvas = document.getElementById("fog") as HTMLCanvasElement;
   const ctx = createRenderContext(glCanvas);
   ctx.setQuality(loadSettings().quality);
-  ctx.scene.add(createTerrain(mission.map.theme, mission.map.features ?? [], mission.map.bases));
+  ctx.scene.add(createTerrain(mission.map.theme, world.mapFeatures, mission.map.bases));
 
   const cam = new RtsCamera(ctx.camera, heightAt, ctx.sun, topCanvas);
   const units = new UnitRenderer(ctx.scene);
@@ -91,6 +93,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string): Promise<void
   minimap.onJump = (x, z) => cam.jumpTo(x, z);
   minimap.onOrder = (x, z) => commands.moveTo(x, z);
   hud.onProduce = (kind) => { if (running && !paused) world.issue({ type: "produce", kind }); };
+  hud.onBuild = (kind) => { if (running && !paused) commands.startBuild(kind); };
   const saveKey = SAVE_PREFIX + mission.id;
   const hasSave = () => localStorage.getItem(saveKey) !== null;
   const saveGame = () => { localStorage.setItem(saveKey, JSON.stringify(saveWorld(world))); localStorage.setItem("rogue-front.replay.v1." + mission.id, JSON.stringify(replayRecorder.file())); };
@@ -103,7 +106,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string): Promise<void
 
   let running = false;
   const setEnabled = (on: boolean) => { selection.enabled = commands.enabled = minimap.enabled = on; };
-  hud.showBriefing(mission, () => { running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); }, hasSave(), loadGame);
+  hud.showBriefing(skirmish ? { ...mission, name: "Skirmish — " + mission.map.name, briefing: "Hävitaja HQ on ainus võidutingimus. Alustad HQ, inseneri ja kahe transpordikopteriga. Transpordikoptereid kasutad ressursipunktidest varude toomiseks; ehita baas, loo armee ja hävita vastase HQ." } : mission, () => { running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); }, hasSave(), loadGame);
 
   addEventListener("keydown", (e) => { if (e.key.toLowerCase() === loadSettings().keys.pause && running) togglePause(); });
 
@@ -125,13 +128,13 @@ async function boot(mission: MissionDef, multiplayerRoom?: string): Promise<void
         world.tick(dt);
         replayRecorder.step();
       }
-      if (!multiplayer) missionRuntime.tick(dt);
+      if (!multiplayer && !skirmish) missionRuntime.tick(dt);
       if (world.status !== "running") {
         running = false;
         setEnabled(false);
         audio.stopMusic();
         net?.close();
-        if (world.status === "won") MissionController.markCompleted(mission.id);
+        if (world.status === "won" && !skirmish) MissionController.markCompleted(mission.id);
         localStorage.setItem("rogue-front.replay.v1." + mission.id, JSON.stringify(replayRecorder.file()));
         hud.showResult(world.status, world.time);
       }
@@ -149,7 +152,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string): Promise<void
       if (animateWater.uniforms?.time) animateWater.uniforms.time.value += frameDt;
       ctx.post.render();
       fog.draw(world, picker);
-      overlay.draw(world, picker, selection);
+      overlay.draw(world, picker, selection, { point: commands.buildPoint, kind: commands.buildMode, rotation: commands.buildRotation, valid: commands.buildValid });
       minimap.draw();
       hudAcc += frameDt; frames++; fpsAcc += frameDt;
       if (hudAcc > 0.2) {
@@ -164,14 +167,15 @@ async function boot(mission: MissionDef, multiplayerRoom?: string): Promise<void
   loop.start();
 }
 
+const queryMode = queryParams.get("mode");
+const queryDifficulty = queryParams.get("difficulty") as "easy"|"normal"|"hard"|null;
 if (queryMission) {
-  void boot(getMission(queryMission), queryRoom || undefined).catch((err: unknown) => {
+  void boot(getMission(queryMission), queryRoom || undefined, queryMode === "skirmish" ? (queryDifficulty || "normal") : undefined).catch((err: unknown) => {
     console.error(err);
-    hud.showBriefing(MISSIONS[0], () => location.href = "?mission=" + encodeURIComponent(MISSIONS[0].id));
+    hud.showMissionSelect(MISSIONS, MissionController.loadProgress(), (mission) => { location.href = "?mission=" + encodeURIComponent(mission.id); });
   });
 } else {
-  hud.showMissionSelect(MISSIONS, MissionController.loadProgress(), (mission) => {
-    location.href = "?mission=" + encodeURIComponent(mission.id);
-  });
+  hud.showMissionSelect(MISSIONS, MissionController.loadProgress(), (mission) => { location.href = "?mission=" + encodeURIComponent(mission.id); });
+  hud.onSkirmish = (mission,difficulty) => { location.href = "?mission="+encodeURIComponent(mission.id)+"&mode=skirmish&difficulty="+difficulty; };
   hud.onMultiplayer = (mission, room) => { location.href = "?mission=" + encodeURIComponent(mission.id) + "&room=" + encodeURIComponent(room || "ALPHA-01"); };
 }

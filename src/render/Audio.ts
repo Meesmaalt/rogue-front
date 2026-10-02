@@ -28,6 +28,8 @@ export class AudioManager {
     for (const e of events) if (e.type === "fire") this.tone(110 + e.team * 35, .06, "square", .12);
     else if (e.type === "hit") this.tone(75, .05, "sawtooth", .1);
     else if (e.type === "death") this.tone(e.big ? 48 : 62, e.big ? .24 : .12, "sawtooth", e.big ? .2 : .13);
+    else if (e.type === "build-complete") this.tone(520, .12, "sine", .12);
+    else if (e.type === "repair-complete") this.tone(720, .08, "sine", .1);
   }
   private musicTick(): void {
     const notes = [110, 131, 147, 98, 123, 147, 110, 82];

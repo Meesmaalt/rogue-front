@@ -1,6 +1,0 @@
-{
-  "name": "Rogue Front",
-  "description": "A real-time strategy (RTS) game prototype built with Three.js and TypeScript.",
-  "permissions": [],
-  "capabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

@@ -4,6 +4,7 @@ import { UNITS } from "../units";
 import { MAX_QUEUE } from "../constants";
 import { findPath } from "../nav/Pathfinder";
 import { FlowField } from "../nav/FlowField";
+import { BUILDINGS, isBuildable } from "../buildings";
 
 function mobile(w: World, ids: number[], team?: Entity["team"]): Entity[] {
   const out: Entity[] = [];
@@ -49,8 +50,28 @@ function apply(w: World, c: Command): void {
       break;
     }
     case "stop":
-      for (const u of mobile(w, c.ids, c.team)) { u.mode = "idle"; u.dest = null; u.target = null; u.navPath = []; u.navPathIndex = 0; u.flowField = null; u.holdPosition = false; u.patrolPoints = []; }
+      for (const u of mobile(w, c.ids, c.team)) {
+        for (const b of w.entities) if (!b.dead && b.builderIds.includes(u.id)) b.builderIds = b.builderIds.filter(id => id !== u.id);
+        u.mode = "idle"; u.dest = null; u.target = null; u.navPath = []; u.navPathIndex = 0; u.flowField = null; u.holdPosition = false; u.patrolPoints = []; }
       break;
+    case "rally": {
+      for (const b of w.entities) {
+        if (b.dead || b.underConstruction || b.team !== (c.team ?? w.playerTeam)) continue;
+        if (!b.productionQueue.length && !["barracks", "factory", "helipad"].includes(b.kind)) continue;
+        if (!c.ids.includes(b.id)) continue;
+        b.rallyPoint = { x: c.x, z: c.z };
+      }
+      break;
+    }
+    case "repair": {
+      const target = w.byId.get(c.targetId);
+      if (!target || target.dead || target.team !== (c.team ?? w.playerTeam) || target.def.speed > 0 || target.hp >= target.def.hp) break;
+      const engineers = mobile(w, c.ids, c.team).filter(u => u.kind === "engineer");
+      if (!engineers.length) break;
+      target.builderIds = engineers.slice(0, 2).map(u => u.id);
+      for (const u of engineers.slice(0, 2)) { u.mode = "repair"; u.target = target; u.dest = { x: target.x, z: target.z }; }
+      break;
+    }
     case "hold":
       for (const u of mobile(w, c.ids, c.team)) { u.mode = "hold"; u.dest = null; u.target = null; u.holdPosition = true; u.navPath = []; u.flowField = null; }
       break;
@@ -60,33 +81,76 @@ function apply(w: World, c: Command): void {
       break;
     }
     case "build": {
-      const builder = mobile(w, c.ids, c.team).find(u => u.kind === "engineer");
-      const cost = c.kind === "refinery" ? 180 : c.kind === "aa" ? 160 : 120;
-      if (!builder || w.credits < cost || Math.hypot(builder.x-c.x,builder.z-c.z) > 12) break;
-      w.credits -= cost; w.spawn(c.kind, builder.team, c.x, c.z);
+      const team = c.team ?? w.playerTeam;
+      const builder = mobile(w, c.ids, team).find(u => u.kind === "engineer");
+      if (!builder || !isBuildable(c.kind)) break;
+      const spec = BUILDINGS[c.kind];
+      const walletCredits = w.teamCredits[team], walletResources = w.teamResources[team];
+      if (walletResources < spec.cost || walletCredits < spec.cost) break;
+      if (Math.hypot(builder.x - c.x, builder.z - c.z) > 18) break;
+      if (!w.canPlaceBuilding(team, c.kind, c.x, c.z)) break;
+      w.teamCredits[team] -= spec.cost; w.teamResources[team] -= spec.cost;
+      if (team === w.playerTeam) { w.credits = w.teamCredits[team]; w.resources = w.teamResources[team]; }
+      const b = w.spawn(c.kind, team, c.x, c.z);
+      b.underConstruction = true; b.constructionProgress = 0; b.hp = Math.max(1, b.def.hp * 0.15); b.constructionTime = spec.buildTime; b.builderIds = [builder.id]; b.heading = c.rotation ?? b.heading; b.pHeading = b.heading;
+      builder.mode = "build"; builder.target = b; builder.dest = { x: c.x, z: c.z };
       break;
     }
     case "research": {
       const cost = c.tech === "air" ? 240 : 220;
-      if (w.techs.has(c.tech) || w.credits < cost) break;
+      const team = c.team ?? w.playerTeam;
+      if (w.hasTech(team, c.tech) || w.teamCredits[team] < cost || w.teamResources[team] < cost) break;
       const requires = c.tech === "air" ? "engineering" : "engineering";
-      if (!w.techs.has(requires)) break;
-      w.credits -= cost; w.techs.add(c.tech);
+      if (!w.hasTech(team, requires)) break;
+      w.teamCredits[team] -= cost; w.teamResources[team] -= cost; if (team === w.playerTeam) { w.credits = w.teamCredits[team]; w.resources = w.teamResources[team]; } w.teamTechs[team].add(c.tech);
       break;
     }
     case "upgrade": {
-      const cost = 140;
-      if (w.credits < cost) break;
-      const us = mobile(w, c.ids, c.team);
-      for (const u of us) if (!u.upgrades.has(c.upgrade)) { w.credits -= cost; u.upgrades.add(c.upgrade); if (c.upgrade === "armor") u.hp += u.def.hp * 0.15; }
+      const cost = 140, team = c.team ?? w.playerTeam;
+      if (w.teamResources[team] < cost || w.teamCredits[team] < cost) break;
+      const us = mobile(w, c.ids, team);
+      for (const u of us) if (!u.upgrades.has(c.upgrade) && w.teamResources[team] >= cost && w.teamCredits[team] >= cost) { w.teamCredits[team] -= cost; w.teamResources[team] -= cost; u.upgrades.add(c.upgrade); if (c.upgrade === "armor") u.hp += u.def.hp * 0.15; }
+      w.credits = w.teamCredits[w.playerTeam]; w.resources = w.teamResources[w.playerTeam];
+      break;
+    }
+    case "load": {
+      const transport = mobile(w, c.ids, c.team).find(u => u.kind === "transport");
+      const target = w.byId.get(c.targetId);
+      if (!transport || !target || target.dead || target.team !== transport.team || target === transport || target.loadedIntoId !== null) break;
+      if (!["inf", "engineer"].includes(target.kind)) break;
+      const capacity = 8;
+      if (transport.cargoUnitIds.length >= capacity) break;
+      transport.transportTargetId = target.id;
+      transport.mode = "transport-load";
+      transport.dest = { x: target.x, z: target.z };
+      break;
+    }
+    case "fire-mission": {
+      const artillery = mobile(w, c.ids, c.team).filter(u => u.kind === "artillery");
+      for (const u of artillery) { u.fireMission = {x:c.x,z:c.z}; u.mode = "attack"; u.target = null; u.dest = null; }
+      break;
+    }
+    case "unload": {
+      for (const transport of mobile(w, c.ids, c.team).filter(u => u.kind === "transport")) {
+        if (!transport.cargoUnitIds.length) continue;
+        transport.unloadPoint = { x: c.x, z: c.z };
+        transport.mode = "transport-unload";
+        transport.dest = { x: c.x, z: c.z };
+      }
       break;
     }
     case "produce": {
       const def = UNITS[c.kind], team = c.team ?? w.playerTeam, hq = w.hq[team];
-      if (!def.producible || !hq || hq.dead || w.credits < def.cost || w.queue.length >= MAX_QUEUE) break;
-      if ((c.kind === "heli" || c.kind === "fighter") && !w.techs.has("air")) break;
-      w.credits -= def.cost;
-      w.queue.push(c.kind);
+      if (!def.producible || !hq || hq.dead || hq.underConstruction || w.teamResources[team] < def.cost || w.teamCredits[team] < def.cost) break;
+      const producerKind = (c.kind === "inf" || c.kind === "engineer") ? "barracks" : (c.kind === "tank" || c.kind === "artillery") ? "factory" : (c.kind === "heli" || c.kind === "transport" || c.kind === "gunship" || c.kind === "fighter") ? "helipad" : null;
+      if (!producerKind) break;
+      const producer = w.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === producerKind && e.productionQueue.length < MAX_QUEUE).sort((a,b)=>a.productionQueue.length-b.productionQueue.length)[0];
+      if (!producer) break;
+      if ((c.kind === "fighter" || c.kind === "gunship") && !w.hasTech(team, "air")) break;
+      w.teamCredits[team] -= def.cost; w.teamResources[team] -= def.cost;
+      if (team === w.playerTeam) { w.credits = w.teamCredits[team]; w.resources = w.teamResources[team]; }
+      producer.productionQueue.push(c.kind);
+      w.queue = [...producer.productionQueue];
       break;
     }
   }

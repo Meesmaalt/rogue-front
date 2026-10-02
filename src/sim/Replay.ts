@@ -27,7 +27,7 @@ export function worldHash(world: World): string {
   const snapshot = {
     time: Number(world.time.toFixed(6)), credits: Number(world.credits.toFixed(6)), resources: Number(world.resources.toFixed(6)),
     status: world.status, queue: [...world.queue], queueProgress: Number(world.queueProgress.toFixed(6)), rng: world.getRandomState(),
-    entities: world.entities.map((e) => [e.id, e.kind, e.team, Number(e.x.toFixed(4)), Number(e.z.toFixed(4)), Number(e.hp.toFixed(4)), e.mode, e.target?.id ?? 0]),
+    entities: world.entities.map((e) => [e.id, e.kind, e.team, Number(e.x.toFixed(4)), Number(e.z.toFixed(4)), Number(e.hp.toFixed(4)), e.mode, e.target?.id ?? 0, Number(e.cargo.toFixed(3)), e.logisticsPhase]),
   };
   return JSON.stringify(snapshot);
 }

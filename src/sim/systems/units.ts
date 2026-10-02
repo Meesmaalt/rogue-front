@@ -2,29 +2,139 @@ import type { World } from "../World";
 import type { Entity, Point } from "../types";
 import { heightAt } from "../heightmap";
 import { dist2d, turnToward, wrapAngle } from "../math";
-import { fireProjectile } from "./combat";
+import { fireGroundProjectile, fireProjectile } from "./combat";
+import { pointInFeature } from "../mapFeatures";
 import { findPath } from "../nav/Pathfinder";
 
+function inFiringArc(u: Entity, target: Entity): boolean {
+  if (u.firingArc >= Math.PI * 2 - 0.01) return true;
+  const angle = Math.atan2(target.x - u.x, target.z - u.z);
+  const facing = u.heading;
+  const delta = Math.abs(wrapAngle(angle - facing));
+  return delta <= u.firingArc * 0.5;
+}
+
+function hasSpotter(w: World, u: Entity, target: Entity): boolean {
+  if (w.vision.isVisible(u.team, target.x, target.z) && w.entities.some(s => !s.dead && s.team === u.team && (s === u || w.vision.isVisible(u.team,s.x,s.z)))) return true;
+  if (u.kind !== "artillery") return false;
+  return w.entities.some(s => !s.dead && s.team === u.team && s !== u && s.def.speed > 0 && w.vision.isVisible(u.team, s.x, s.z) && Math.hypot(s.x-target.x, s.z-target.z) < 105);
+}
+
 export function nearestEnemy(w: World, u: Entity, range: number): Entity | null {
-  let best: Entity | null = null, bd = range;
+  let best: Entity | null = null, bestScore = Number.POSITIVE_INFINITY;
   for (const e of w.entities) {
-    if (e.dead || e.team === u.team || !w.vision.isVisible(u.team, e.x, e.z)) continue;
-    if (e.def.armor === "air" && u.def.weapon !== "missile") continue;
+    if (e.dead || e.team === u.team || e.underConstruction) continue;
     const d = dist2d(u, e) - e.def.radius;
-    if (d < bd) { bd = d; best = e; }
+    if (d > range) continue;
+    if (!hasSpotter(w, u, e)) continue;
+    if (u.def.weapon !== "missile" && e.def.armor === "air") continue;
+    if ((u.kind === "bunker" || u.kind === "aa") && !inFiringArc(u, e)) continue;
+    let priority = d;
+    if (u.def.weapon === "missile" && e.def.armor === "air") priority -= 22;
+    if (u.kind === "artillery" && e.def.speed === 0) priority -= 16;
+    if (u.kind === "tank" && e.def.speed === 0) priority -= 8;
+    if (e.kind === "refinery" || e.kind === "helipad" || e.kind === "factory" || e.kind === "barracks") priority -= 18;
+    if (e.kind === "hq") priority -= 12;
+    if (priority < bestScore) { bestScore = priority; best = e; }
   }
   return best;
 }
 
+function moveAirTo(u: Entity, target: Point, dt: number, w: World): boolean {
+  const d = Math.hypot(u.x - target.x, u.z - target.z);
+  if (d <= 3.5) return true;
+  const dx = target.x - u.x, dz = target.z - u.z;
+  u.heading = turnToward(u.heading, Math.atan2(dx, dz), u.def.turnRate * dt);
+  u.x += Math.sin(u.heading) * u.def.speed * dt;
+  u.z += Math.cos(u.heading) * u.def.speed * dt;
+  u.y = 10 + Math.sin(w.time * 1.7 + u.id) * 1.5;
+  return false;
+}
+
+function updateTransport(w: World, u: Entity, dt: number): void {
+  if (u.mode === "transport-load") {
+    const target = u.transportTargetId ? w.byId.get(u.transportTargetId) : null;
+    if (!target || target.dead || target.loadedIntoId !== null) { u.mode = "idle"; u.transportTargetId = null; return; }
+    if (!moveAirTo(u, target, dt, w)) { u.dest = { x: target.x, z: target.z }; return; }
+    if (u.cargoUnitIds.length < 8) {
+      target.loadedIntoId = u.id; target.mode = "idle"; target.dest = null; target.target = null;
+      u.cargoUnitIds.push(target.id);
+    }
+    u.transportTargetId = null; u.mode = "idle"; u.dest = null;
+    return;
+  }
+  if (u.mode === "transport-unload") {
+    const point = u.unloadPoint;
+    if (!point) { u.mode = "idle"; return; }
+    if (!moveAirTo(u, point, dt, w)) return;
+    const ids = [...u.cargoUnitIds];
+    ids.forEach((id, i) => {
+      const passenger = w.byId.get(id);
+      if (!passenger || passenger.dead) return;
+      const angle = (i / Math.max(1, ids.length)) * Math.PI * 2;
+      passenger.loadedIntoId = null; passenger.x = point.x + Math.cos(angle) * 3; passenger.z = point.z + Math.sin(angle) * 3;
+      passenger.y = heightAt(passenger.x, passenger.z); passenger.px = passenger.x; passenger.pz = passenger.z; passenger.mode = "idle";
+    });
+    u.cargoUnitIds = []; u.unloadPoint = null; u.mode = "idle"; u.dest = null;
+    return;
+  }
+  if (!u.logisticsTarget || !u.logisticsHome) return;
+  const target = u.logisticsPhase === "unloading" ? u.logisticsHome : u.logisticsTarget;
+  u.dest = target; u.mode = "patrol";
+  if (!moveAirTo(u, target, dt, w)) return;
+  if (u.logisticsPhase === "idle" || u.logisticsPhase === "unloading") {
+    const rp = w.resourcePoints.find(r => Math.hypot(r.x - u.x, r.z - u.z) <= r.radius + 4 && r.amount > 0 && (r.controlledBy == null || r.controlledBy === u.team));
+    if (rp) { u.cargo = Math.min(100, rp.amount); rp.amount -= u.cargo; u.logisticsPhase = "loading"; }
+  } else if (u.logisticsPhase === "loading") {
+    w.teamResources[u.team] += u.cargo; if (u.team === w.playerTeam) w.resources = w.teamResources[u.team];
+    u.cargo = 0; u.logisticsPhase = "unloading";
+    const next = w.resourcePoints.find(r => r.amount > 0); if (next) u.logisticsTarget = { x: next.x, z: next.z };
+  }
+}
+
 export function updateUnits(w: World, dt: number): void {
-  for (const u of w.entities) if (!u.dead) stepUnit(w, u, dt);
+  for (const u of w.entities) if (!u.dead && u.loadedIntoId === null) stepUnit(w, u, dt);
 }
 
 function stepUnit(w: World, u: Entity, dt: number): void {
   const d = u.def;
-  const effectiveRange = d.range * (u.upgrades.has("range") ? 1.2 : 1);
+  if (u.kind === "transport") { updateTransport(w, u, dt); return; }
+  if (u.kind === "engineer" && (u.mode === "build" || u.mode === "repair")) {
+    const target = u.target;
+    if (!target || target.dead) { u.mode = "idle"; u.target = null; u.dest = null; return; }
+    if (Math.hypot(u.x - target.x, u.z - target.z) > 11) {
+      const path = findPath(w.nav, u, target, u.def.radius);
+      u.navPath = path; u.navPathIndex = 1;
+      const p = path[1] ?? target;
+      const dx = p.x - u.x, dz = p.z - u.z, len = Math.hypot(dx,dz) || 1;
+      u.heading = turnToward(u.heading, Math.atan2(dx,dz), d.turnRate * dt);
+      u.x += Math.sin(u.heading) * d.speed * dt * Math.min(1, len / 3);
+      u.z += Math.cos(u.heading) * d.speed * dt * Math.min(1, len / 3);
+      u.y = heightAt(u.x,u.z);
+    }
+    return;
+  }
+  const supplyFactor = u.def.speed === 0 || (u.supply ?? 100) > 20 ? 1 : 0.65;
+  const effectiveRange = d.range * (u.upgrades.has("range") ? 1.2 : 1) * ((u.supply ?? 100) > 10 ? 1 : 0.9);
   u.cooldown = Math.max(0, u.cooldown - dt);
+
+  // Kaudtuli: patarei saab tulistada kindlasse ruutu, kui sõbralik üksus seda piirkonda vaatleb.
+  if (u.kind === "artillery" && u.fireMission && u.cooldown === 0 && (u.ammo ?? 0) > 0) {
+    const p = u.fireMission, d2 = Math.hypot(u.x-p.x,u.z-p.z);
+    const spotter = w.entities.some(s => !s.dead && s.team===u.team && s.def.speed>0 && Math.hypot(s.x-p.x,s.z-p.z)<105 && w.vision.isVisible(u.team,p.x,p.z));
+    if (d2 <= effectiveRange && spotter) { fireGroundProjectile(w,u,p.x,p.z); u.cooldown=d.cooldown*1.4; u.lastCombatTime=w.time; }
+  }
   if (!d.damage && d.speed === 0) return;
+
+  const isAir = d.armor === "air";
+  if (isAir) {
+    const pad = w.entities.find(e => !e.dead && e.team===u.team && e.kind==="helipad" && Math.hypot(e.x-u.x,e.z-u.z)<14);
+    if (pad) { u.fuel=Math.min(u.maxFuel ?? 100,(u.fuel ?? 0)+24*dt); u.ammo=Math.min(u.maxAmmo ?? 6,(u.ammo ?? 0)+1.5*dt); u.hp=Math.min(u.def.hp,u.hp+u.def.hp*0.08*dt); }
+    else { u.fuel=Math.max(0,(u.fuel ?? 0)-dt*(0.65 + (u.kind==="fighter"?0.2:0))); if((u.fuel ?? 0)<=0){ const home=w.entities.find(e=>!e.dead&&e.team===u.team&&e.kind==="helipad"); if(home){u.mode="move";u.target=null;u.dest={x:home.x,z:home.z};} } }
+  } else if (u.kind === "artillery") {
+    const factory = w.entities.find(e=>!e.dead&&e.team===u.team&&e.kind==="factory"&&Math.hypot(e.x-u.x,e.z-u.z)<13);
+    if (factory) { u.ammo=Math.min(u.maxAmmo ?? 10,(u.ammo ?? 0)+1.8*dt); u.hp=Math.min(u.def.hp,u.hp+u.def.hp*0.03*dt); }
+  }
 
   // sihtmärgi valik
   if (u.mode === "attack" && (!u.target || u.target.dead)) { u.target = null; u.mode = "idle"; }
@@ -83,7 +193,12 @@ function stepUnit(w: World, u: Entity, dt: number): void {
       u.heading = turnToward(u.heading, want, d.turnRate * dt);
       const diff = Math.abs(wrapAngle(want - u.heading));
       const slope = (heightAt(u.x + ex * 2, u.z + ez * 2) - u.y) / 2;
-      const sp = d.speed * Math.min(1.3, Math.max(0.35, 1 - slope * 1.2)) * Math.max(0.15, Math.cos(Math.min(diff, 1.5)));
+      const road = w.mapFeatures.some(f => (f.kind === "road" || f.kind === "bridge") && pointInFeature(u.x,u.z,f,1.5));
+      const cover = w.mapFeatures.some(f => f.kind === "cover" && pointInFeature(u.x,u.z,f,1.5));
+      const terrainMod = road ? 1.22 : cover && u.kind === "inf" ? 0.92 : 1;
+      const supplyMove = (u.supply ?? 100) > 10 ? 1 : 0.78;
+      const roleMove = u.role === "siege" ? 0.92 : 1;
+      const sp = d.speed * terrainMod * supplyMove * roleMove * Math.min(1.3, Math.max(0.35, 1 - slope * 1.2)) * Math.max(0.15, Math.cos(Math.min(diff, 1.5)));
       u.x += Math.sin(u.heading) * sp * dt; u.z += Math.cos(u.heading) * sp * dt;
     } else if (sx || sz) {
       u.x += sx * d.speed * 0.4 * dt; u.z += sz * d.speed * 0.4 * dt;
@@ -106,9 +221,12 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     u.turretYaw = turnToward(u.turretYaw, wrapAngle(want), 3 * dt);
     aligned = !target || Math.abs(wrapAngle(want - u.turretYaw)) < 0.12;
   }
-  if (target && aligned && u.cooldown === 0 && d.damage && dist2d(u, target) - target.def.radius <= effectiveRange) {
+  if (target && (u.firingArc >= Math.PI * 2 - 0.01 || inFiringArc(u, target)) && aligned && u.cooldown === 0 && d.damage && ((u.maxAmmo ?? 0)===0 || (u.ammo ?? 0)>0) && dist2d(u, target) - target.def.radius <= effectiveRange && hasSpotter(w, u, target) && w.vision.hasLineOfSight(u,target)) {
     const a = u.heading + (d.turret ? u.turretYaw : 0), m = u.kind === "tank" ? 3.6 : 1;
+    const veteranFactor = 1 + u.veteran * 0.06;
     fireProjectile(w, u, target, u.x + Math.sin(a) * m, u.y + (u.kind === "inf" ? 1 : 2.4), u.z + Math.cos(a) * m);
+    if (w.projectiles.length) w.projectiles[w.projectiles.length - 1].damage *= veteranFactor * supplyFactor;
     u.cooldown = d.cooldown * (0.9 + w.rng() * 0.2);
+    u.lastCombatTime = w.time;
   }
 }

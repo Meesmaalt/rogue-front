@@ -15,7 +15,9 @@ export class Hud {
   onSettings: () => void = () => {};
   onSave: () => void = () => {};
   onLoad: () => void = () => {};
+  onBuild: (kind: "barracks"|"factory"|"helipad"|"refinery"|"bunker"|"aa") => void = () => {};
   onMultiplayer: (mission: MissionDef, room?: string) => void = () => {};
+  onSkirmish: (mission: MissionDef, difficulty: "easy"|"normal"|"hard") => void = () => {};
   private el: Record<string, HTMLElement> = {};
   private buttons: HTMLButtonElement[] = [];
   private pauseButton: HTMLButtonElement | null = null;
@@ -25,17 +27,17 @@ export class Hud {
       <header class="top">
         <div class="panel brand">Rogue Front<small>Kampaania · <span data-r="fps">-- fps</span> · <span data-r="net">üksikmäng</span></small></div>
         <div class="panel obj"><b data-r="missionName">Missioon</b><div data-r="objectiveList">Vali missioon.</div><div class="mission-msg" data-r="missionMsg"></div><div class="warning" data-r="warning"></div></div>
-        <div class="panel controls"><button data-action="pause">Paus</button><button data-action="save">Salvesta</button><button data-action="load">Lae</button><button data-action="settings">Seaded</button></div><div class="panel stat">Krediit<b data-r="cr">0</b><small>Ressurss <span data-r="res">0</span></small><span data-r="clock">0:00</span></div>
+        <div class="panel controls"><button data-action="pause">Paus</button><button data-action="save">Salvesta</button><button data-action="load">Lae</button><button data-action="settings">Seaded</button></div><div class="panel stat">RESSURSS<b data-r="res">0</b><small>Varu <span data-r="cr">0</span></small><span data-r="clock">0:00</span></div>
       </header>
       <footer class="bottom">
         <canvas class="mini" width="176" height="176"></canvas>
         <div class="panel sel">
           <h3 data-r="selT"></h3><p data-r="selP"></p>
-          <div class="help">Vasak hiir: vali (topeltklõps: sama tüüp) · Parem hiir: liigu / ründa · A+parem: ründeliikumine · H: hoia · P: patrull · WASD või nooled: kaamera · Q/E: pööra · Rull: suum · X: peata · Ctrl+1…9: grupp</div>
+          <div class="help">Vasak hiir: vali (topeltklõps: sama tüüp) · Parem hiir: liigu / ründa / paranda / transpordib · A+parem: ründeliikumine · H: hoia · P: patrull · WASD või nooled: kaamera · Q/E: pööra · Rull: suum · X: peata · F+parem: suurtükituli · Ctrl+1…9: grupp</div>
         </div>
         <div class="panel build">
-          ${(["tank", "inf", "engineer", "heli", "fighter"] as UnitKind[]).map((k) => `<button title="Tooda ${UNITS[k].name} (${UNITS[k].cost} krediiti)" data-kind="${k}">${UNITS[k].name} <span>${UNITS[k].cost}</span></button>`).join("")}
-          <div class="qbar"><i data-r="qbar"></i></div><div class="qtxt" data-r="qtxt"></div>
+          ${(["inf", "engineer", "tank", "artillery", "transport", "gunship", "fighter"] as UnitKind[]).map((k) => `<button title="Tooda ${UNITS[k].name} (${UNITS[k].cost} krediiti)" data-kind="${k}">${UNITS[k].name} <span>${UNITS[k].cost}</span></button>`).join("")}
+          <div class="build-sub"><button data-build="barracks">Kasarmu <span>160</span></button><button data-build="factory">Sõidukitehas <span>220</span></button><button data-build="helipad">Helikopteribaas <span>200</span></button><button data-build="refinery">Tankla <span>180</span></button><button data-build="bunker">Punker <span>120</span></button><button data-build="aa">Õhutõrje <span>160</span></button></div><div class="qbar"><i data-r="qbar"></i></div><div class="qtxt" data-r="qtxt"></div>
         </div>
       </footer>
       <div class="screen" data-r="screen" hidden><div class="card"><h1 data-r="scrT"></h1><p data-r="scrP"></p><button data-r="scrB"></button></div></div>`;
@@ -44,11 +46,14 @@ export class Hud {
     this.buttons = [...root.querySelectorAll<HTMLButtonElement>("button[data-kind]")];
     this.pauseButton = root.querySelector<HTMLButtonElement>('[data-action="pause"]');
     this.buttons.forEach((b) => b.addEventListener("click", () => this.onProduce(b.dataset.kind as UnitKind)));
+    root.querySelectorAll<HTMLButtonElement>("button[data-build]").forEach(b=>b.addEventListener("click",()=>this.onBuild(b.dataset.build as "barracks"|"factory"|"helipad"|"refinery"|"bunker"|"aa")));
     root.querySelector('[data-action="pause"]')?.addEventListener("click", () => this.onPause());
     root.querySelector('[data-action="save"]')?.addEventListener("click", () => this.onSave());
     root.querySelector('[data-action="load"]')?.addEventListener("click", () => this.onLoad());
     root.querySelector('[data-action="settings"]')?.addEventListener("click", () => this.onSettings());
   }
+
+  getBuildButtons(): HTMLButtonElement[] { return [...document.querySelectorAll<HTMLButtonElement>("button[data-build]")]; }
 
   setFps(n: number): void { this.el.fps.textContent = n + " fps"; }
   setWarning(text: string): void { this.el.warning.textContent = text; }
@@ -63,11 +68,17 @@ export class Hud {
       this.el.objectiveList.innerHTML = objectives.map((o) => `<div class="objective ${o.complete ? "done" : ""}"><span>${o.complete ? "✓" : "○"} ${o.title}</span>${o.complete ? "" : `<i style="width:${Math.round(o.progress * 100)}%"></i>`}</div>`).join("");
     }
     this.el.missionMsg.textContent = missionMessage;
-    const hq = world.hq[0], q = world.queue;
+    const hq = world.hq[world.playerTeam];
+    const selectedProducer = [...selection].map(id=>world.byId.get(id)).find(e=>e && !e.dead && e.team===world.playerTeam && ["barracks","factory","helipad"].includes(e.kind));
+    const q = selectedProducer?.productionQueue ?? world.queue;
+    const has = (k: "barracks"|"factory"|"helipad") => world.entities.some(e=>!e.dead&&!e.underConstruction&&e.team===world.playerTeam&&e.kind===k);
+    const engineerSelected = [...selection].some(id=>{const e=world.byId.get(id);return !!e&&!e.dead&&e.team===world.playerTeam&&e.kind==="engineer";});
+    const buildCosts: Record<string,number>={barracks:160,factory:220,helipad:200,refinery:180,bunker:120,aa:160};
     for (const b of this.buttons)
-      b.disabled = !running || !hq || hq.dead || world.credits < UNITS[b.dataset.kind as UnitKind].cost || q.length >= MAX_QUEUE;
+      b.disabled = !running || !hq || hq.dead || world.resources < UNITS[b.dataset.kind as UnitKind].cost || world.credits < UNITS[b.dataset.kind as UnitKind].cost || q.length >= MAX_QUEUE || ((b.dataset.kind === "inf" || b.dataset.kind === "engineer") && !has("barracks")) || (b.dataset.kind === "tank" || b.dataset.kind === "artillery") && !has("factory") || ((b.dataset.kind === "heli" || b.dataset.kind === "transport" || b.dataset.kind === "gunship" || b.dataset.kind === "fighter") && !has("helipad"));
     (this.el.qbar as HTMLElement).style.width = q.length ? Math.min(100, (world.queueProgress / UNITS[q[0]].buildTime) * 100) + "%" : "0";
     this.el.qtxt.textContent = q.length ? "Ehitamisel: " + UNITS[q[0]].name + (q.length > 1 ? ` (+${q.length - 1})` : "") : "Järjekord tühi";
+    this.getBuildButtons().forEach((b)=>{const cost=buildCosts[b.dataset.build||""]??999;b.disabled=!running||!engineerSelected||world.resources<cost||world.credits<cost;});
 
     const sel = [...selection].map((id) => world.byId.get(id)).filter((e) => e && !e.dead);
     if (!sel.length) {
@@ -76,7 +87,12 @@ export class Hud {
     } else if (sel.length === 1) {
       const u = sel[0]!;
       this.el.selT.textContent = u.def.name;
-      this.el.selP.innerHTML = `Elud ${Math.ceil(u.hp)} / ${u.def.hp}` + (u.def.damage ? ` · Tugevus ${u.def.damage} · Ulatus ${u.def.range}` : "") +
+      const logistics = u.kind === "transport" ? ` · Ressursilast ${Math.floor(u.cargo)} / 100 · Reisijad ${u.cargoUnitIds.length}/8` : (u.loadedIntoId !== null ? " · Transpordis" : "");
+      const veterancy = u.veteran > 0 ? ` · Veteran ${u.veteran}★ · XP ${u.xp}` : ` · XP ${u.xp}`;
+      const fuel = (u.maxFuel ?? 0) > 0 ? ` · Kütus ${Math.floor(u.fuel ?? 0)}/${u.maxFuel} · laskemoon ${Math.floor(u.ammo ?? 0)}/${u.maxAmmo}` : "";
+      const supply = u.def.speed > 0 ? ` · Varustus ${Math.floor(u.supply ?? 100)}/${u.maxSupply ?? 100}` : "";
+      const sector = (u.kind === "bunker" || u.kind === "aa") ? ` · Tulesektor ${Math.round(u.firingArc * 180 / Math.PI)}°` : u.kind === "artillery" ? ` · Kaudtuli ${Math.round(u.firingRange)} · laskemoon ${Math.floor(u.ammo ?? 0)}/${u.maxAmmo ?? 0}` : "";
+      this.el.selP.innerHTML = `Elud ${Math.ceil(u.hp)} / ${u.def.hp}` + (u.def.damage ? ` · Tugevus ${u.def.damage} · Ulatus ${u.def.range}` : "") + veterancy + supply + fuel + sector + logistics +
         `<div class="hpbar"><i style="width:${(u.hp / u.def.hp) * 100}%"></i></div>`;
     } else {
       const c: Record<string, number> = {};
@@ -87,28 +103,27 @@ export class Hud {
   }
 
   showMissionSelect(missions: readonly MissionDef[], completed: ReadonlySet<string>, onSelect: (mission: MissionDef) => void): void {
-    this.el.scrT.textContent = "Kampaania";
-    this.el.scrP.textContent = "Vali operatsioon. Edenemine salvestatakse sellesse brauserisse.";
-    const old = this.el.scrB;
-    old.hidden = true;
-    const card = old.parentElement!;
-    card.querySelectorAll(".mission-list").forEach((n) => n.remove());
-    const list = document.createElement("div");
-    list.className = "mission-list";
-    const mp = document.createElement("button");
-    mp.className = "mission-choice";
-    mp.innerHTML = "<span>Mitmikmäng 1v1</span><small>LAN / internet · WebSocket lockstep</small>";
-    mp.onclick = () => { const room = prompt("Lobby nimi (nt ALPHA-01):", "ALPHA-01")?.trim(); if (room) this.el.screen.hidden = true, this.onMultiplayer(missions[0]!, room); };
-    card.appendChild(mp);
-    for (const mission of missions) {
-      const b = document.createElement("button");
-      b.className = "mission-choice";
-      b.innerHTML = `<span>${mission.name}</span><small>${completed.has(mission.id) ? "LÕPETATUD" : mission.map.name}</small>`;
-      b.onclick = () => { this.el.screen.hidden = true; onSelect(mission); };
-      list.appendChild(b);
-    }
-    card.appendChild(list);
-    this.el.screen.hidden = false;
+    this.el.scrT.textContent = "Rogue Front";
+    this.el.scrP.textContent = "Vali mängurežiim.";
+    const card=this.el.scrB.parentElement!; this.el.scrB.hidden=true; card.querySelectorAll(".mission-list,.mode-list").forEach(n=>n.remove());
+    const modes=document.createElement("div"); modes.className="mode-list mission-list";
+    const sk=document.createElement("button"); sk.className="mission-choice"; sk.innerHTML="<span>SKIRMISH vs AI</span><small>BAAS · MAJANDUS · EHITUS · LAHING</small>";
+    sk.onclick=()=>this.showSkirmishMaps(missions); modes.appendChild(sk);
+    const camp=document.createElement("button"); camp.className="mission-choice"; camp.innerHTML="<span>KAMPAANIA</span><small>MISSIOONID JA EESMÄRGID</small>";
+    camp.onclick=()=>{modes.remove(); this.showCampaignList(missions,completed,onSelect);}; modes.appendChild(camp);
+    const mp=document.createElement("button"); mp.className="mission-choice"; mp.innerHTML="<span>MITMIKMÄNG 1v1</span><small>LOCKSTEP</small>";
+    mp.onclick=()=>{const room=prompt("Lobby nimi:","ALPHA-01")?.trim(); if(room)this.onMultiplayer(missions[0]!,room);}; modes.appendChild(mp);
+    card.appendChild(modes); this.el.screen.hidden=false;
+  }
+  private showCampaignList(missions: readonly MissionDef[], completed: ReadonlySet<string>, onSelect:(m:MissionDef)=>void):void{
+    const card=this.el.scrB.parentElement!; const list=document.createElement("div"); list.className="mission-list";
+    for(const mission of missions){const b=document.createElement("button");b.className="mission-choice";b.innerHTML=`<span>${mission.name}</span><small>${completed.has(mission.id)?"LÕPETATUD":mission.map.name}</small>`;b.onclick=()=>{this.el.screen.hidden=true;onSelect(mission)};list.appendChild(b)} card.appendChild(list);
+  }
+  private showSkirmishMaps(missions: readonly MissionDef[]):void{
+    const card=this.el.scrB.parentElement!; card.querySelectorAll(".mission-list").forEach(n=>n.remove());
+    this.el.scrT.textContent="SKIRMISH"; this.el.scrP.textContent="Vali kaart ja AI raskus. Alustad HQ, inseneri ja logistikahelikopteritega.";
+    const list=document.createElement("div"); list.className="mission-list";
+    for(const m of missions){const b=document.createElement("button");b.className="mission-choice";b.innerHTML=`<span>${m.map.name}</span><small>${m.map.theme.toUpperCase()}</small>`;b.onclick=()=>{const d=(prompt("AI raskus: easy / normal / hard","normal")||"normal").toLowerCase() as "easy"|"normal"|"hard";this.el.screen.hidden=true;this.onSkirmish(m,(d==="easy"||d==="hard")?d:"normal")};list.appendChild(b)} card.appendChild(list);
   }
 
   showBriefing(mission: MissionDef, onStart: () => void, hasSave = false, onLoad: (() => void) | null = null): void {
