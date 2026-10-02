@@ -7,6 +7,7 @@ import { SIM_STEP } from "../sim/constants";
 type Kind = "fire" | "fire2" | "smoke" | "dust";
 interface Part { m: THREE.Mesh; vx: number; vy: number; vz: number; life: number; t: number; size: number; kind: Kind }
 interface Ping { m: THREE.Mesh; t: number }
+interface Flash { m: THREE.Mesh; light: THREE.PointLight; t: number; life: number; base: number }
 interface DustPart { x:number; y:number; z:number; vx:number; vy:number; vz:number; life:number; t:number; size:number }
 
 /** Renderduse efektid: mürsud, osakesed, plahvatused, ping-markerid. Käivituvad sim-sündmustest. */
@@ -15,6 +16,8 @@ export class Fx {
   private pings: Ping[] = [];
   private shells = new Map<number, THREE.Mesh>();
   private dustParts: DustPart[] = [];
+  private flashes: Flash[] = [];
+  private readonly maxFlashes = 80;
   private readonly dustMax = 256;
   private readonly dustGeo = new THREE.PlaneGeometry(1, 1);
   private readonly dustMat = new THREE.MeshBasicMaterial({ color: 0xb7a77a, transparent: true, opacity: 0.42, depthWrite: false, side: THREE.DoubleSide });
@@ -38,8 +41,14 @@ export class Fx {
 
   handleEvents(events: SimEvent[]): void {
     for (const e of events) {
-      if (e.type === "fire") for (let i = 0; i < 4; i++) this.puff(e.x, e.y, e.z, this.r(4), Math.random() * 3, this.r(4), 0.25, 0.6, "fire");
-      else if (e.type === "hit") for (let i = 0; i < 3; i++) this.puff(e.x, e.y, e.z, this.r(5), Math.random() * 4, this.r(5), 0.3, 0.5, "dust");
+      if (e.type === "fire") {
+        this.muzzleFlash(e.x, e.y, e.z, e.team);
+        for (let i = 0; i < 4; i++) this.puff(e.x, e.y, e.z, this.r(4), Math.random() * 3, this.r(4), 0.25, 0.6, "fire");
+      }
+      else if (e.type === "hit") {
+        for (let i = 0; i < 4; i++) this.puff(e.x, e.y, e.z, this.r(5), Math.random() * 4, this.r(5), 0.3, 0.5, "dust");
+        this.impactSpark(e.x, e.y, e.z);
+      }
       else if (e.type === "death") this.explode(e.x, e.y, e.z, e.big);
       else if (e.type === "build-complete") this.ping(e.x, e.z, 0x66d9a0);
       else if (e.type === "repair-complete") this.ping(e.x, e.z, 0x4ca8ff);
@@ -91,6 +100,20 @@ export class Fx {
       const s = p.kind === "smoke" || p.kind === "dust" ? p.size * (0.6 + k * 1.2) : p.size * (1 - k);
       p.m.scale.setScalar(Math.max(0.01, s));
     }
+    for (let i = this.flashes.length - 1; i >= 0; i--) {
+      const f = this.flashes[i]; f.t += dt;
+      const k = Math.min(1, f.t / f.life);
+      const pulse = Math.sin(k * Math.PI);
+      f.m.scale.setScalar(f.base * (0.75 + pulse * 0.9));
+      f.m.material.opacity = (1 - k) * 0.9;
+      f.light.intensity = pulse * 8;
+      if (k >= 1) {
+        this.scene.remove(f.m); this.scene.remove(f.light);
+        f.m.geometry.dispose(); (f.m.material as THREE.Material).dispose();
+        this.flashes.splice(i, 1);
+      }
+    }
+
     for (let i = this.pings.length - 1; i >= 0; i--) {
       const p = this.pings[i];
       p.t += dt;
@@ -102,6 +125,21 @@ export class Fx {
       p.m.scale.setScalar(1 + k * 2.5);
       (p.m.material as THREE.MeshBasicMaterial).opacity = 1 - k;
     }
+  }
+
+  private muzzleFlash(x: number, y: number, z: number, team: number): void {
+    if (this.flashes.length >= this.maxFlashes) return;
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 6), new THREE.MeshBasicMaterial({ color: team === 0 ? 0xffd37a : 0xff8b4d, transparent: true, opacity: 0.9, depthWrite: false }));
+    m.position.set(x, y, z);
+    const light = new THREE.PointLight(team === 0 ? 0xffc56b : 0xff7040, 0, 10, 2);
+    light.position.copy(m.position);
+    this.scene.add(m, light);
+    this.flashes.push({ m, light, t: 0, life: 0.11, base: 0.8 });
+  }
+
+  private impactSpark(x: number, y: number, z: number): void {
+    if (this.parts.length > 370) return;
+    for (let i = 0; i < 5; i++) this.puff(x, y, z, this.r(6), 1 + Math.random() * 5, this.r(6), 0.18 + Math.random() * 0.18, 0.22 + Math.random() * 0.22, "fire2");
   }
 
   private r(s: number): number { return (Math.random() - 0.5) * s; }

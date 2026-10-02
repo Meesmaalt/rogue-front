@@ -92,7 +92,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
 
   minimap.onJump = (x, z) => cam.jumpTo(x, z);
   minimap.onOrder = (x, z) => commands.moveTo(x, z);
-  hud.onProduce = (kind) => { if (running && !paused) world.issue({ type: "produce", kind }); };
+  hud.onProduce = (kind, producerId) => { if (running && !paused) world.issue({ type: "produce", kind, producerId }); };
   hud.onBuild = (kind) => { if (running && !paused) commands.startBuild(kind); };
   const saveKey = SAVE_PREFIX + mission.id;
   const hasSave = () => localStorage.getItem(saveKey) !== null;
@@ -142,8 +142,9 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     (alpha, frameDt) => {
       cam.update(frameDt);
       selection.prune();
-      units.sync(world, alpha, selection.selected);
       const events = world.drainEvents();
+      units.handleEvents(events);
+      units.sync(world, alpha, selection.selected);
       fx.handleEvents(events);
       audio.events(events);
       fx.syncProjectiles(world, alpha);

@@ -34,7 +34,7 @@ export function createRenderContext(canvas: HTMLCanvasElement): RenderContext {
   scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xffe4bb, 2.8);
   sun.castShadow = profile.shadows;
-  sun.shadow.mapSize.set(profile.shadows ? 2048 : 512, profile.shadows ? 2048 : 512);
+  sun.shadow.mapSize.set(profile.shadows ? 1024 : 512, profile.shadows ? 1024 : 512);
   const sc = sun.shadow.camera;
   sc.left = -125; sc.right = 125; sc.top = 125; sc.bottom = -125; sc.near = 1; sc.far = 430;
   sun.shadow.bias = -0.0004;
@@ -43,14 +43,14 @@ export function createRenderContext(canvas: HTMLCanvasElement): RenderContext {
 
   const water = createWater();
   scene.add(water);
-  const post = new PostFX(renderer, scene, camera, window.innerWidth, window.innerHeight, profile.ssao && profile.post);
+  const post = new PostFX(renderer, scene, camera, window.innerWidth, window.innerHeight, profile.post, profile.ssao);
 
   const setQuality = (quality: GameSettings["quality"]) => {
     profile = chooseVisualProfile(quality);
     renderer.setPixelRatio(profile.pixelRatio);
     renderer.shadowMap.enabled = profile.shadows;
     sun.castShadow = profile.shadows;
-    sun.shadow.mapSize.set(profile.shadows ? 2048 : 512, profile.shadows ? 2048 : 512);
+    sun.shadow.mapSize.set(profile.shadows ? 1024 : 512, profile.shadows ? 1024 : 512);
   };
 
   const resize = () => {

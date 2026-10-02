@@ -8,7 +8,7 @@ const cache = new Map<string, THREE.Group>();
 
 /** GLB pipeline with a deterministic local primitive fallback. Local assets can be dropped in public/models/<kind>.glb. */
 export async function preloadModels(): Promise<void> {
-  const kinds: UnitKind[] = ["tank", "inf", "hq", "bunker", "heli", "transport", "gunship", "fighter", "artillery", "aa", "barracks", "factory", "helipad", "airbase", "supply", "radar", "refinery", "destroyer", "submarine", "landingcraft", "special", "shipyard"];
+  const kinds: UnitKind[] = ["tank", "inf", "hq", "bunker", "heli", "transport", "gunship", "fighter", "artillery", "aa", "barracks", "factory", "helipad", "airbase", "supply", "radar", "refinery", "generator", "destroyer", "submarine", "landingcraft", "special", "shipyard"];
   await Promise.all(kinds.map(async (kind) => {
     try {
       const gltf = await loader.loadAsync(`/models/${kind}.glb`);
@@ -35,5 +35,7 @@ export function createVisualModel(kind: UnitKind, team: Team): { group: THREE.Gr
       return clone;
     });
   });
+  group.userData.unitKind = kind;
+  // Kui GLB-s on rotor/propeller nimega Rotor, saab UnitRenderer seda pöörata.
   return { group, turret: null };
 }

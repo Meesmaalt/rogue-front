@@ -161,7 +161,10 @@ function apply(w: World, c: Command): void {
       if (!def.producible || !hq || hq.dead || hq.underConstruction || w.teamResources[team] < def.cost || w.teamCredits[team] < def.cost) break;
       const producerKind = (c.kind === "inf" || c.kind === "engineer" || c.kind === "special") ? "barracks" : (c.kind === "tank" || c.kind === "artillery") ? "factory" : (c.kind === "heli" || c.kind === "transport" || c.kind === "gunship") ? "helipad" : (c.kind === "fighter" ? "airbase" : (["destroyer","submarine","landingcraft"].includes(c.kind) ? "shipyard" : null));
       if (!producerKind) break;
-      const producer = w.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === producerKind && e.productionQueue.length < MAX_QUEUE).sort((a,b)=>a.productionQueue.length-b.productionQueue.length)[0];
+      const producer = c.producerId !== undefined
+        ? w.byId.get(c.producerId)
+        : w.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === producerKind && e.productionQueue.length < MAX_QUEUE).sort((a,b)=>a.productionQueue.length-b.productionQueue.length)[0];
+      if (producer && (producer.dead || producer.underConstruction || producer.team !== team || producer.kind !== producerKind || producer.productionQueue.length >= MAX_QUEUE)) break;
       if (!producer) break;
       const unitLimits: Partial<Record<string, number>> = { tank: 20, artillery: 8, fighter: 8, gunship: 6, transport: 6, heli: 6, inf: 40, engineer: 8, special: 8, destroyer: 5, submarine: 4, landingcraft: 6 };
       const limit = unitLimits[c.kind];
