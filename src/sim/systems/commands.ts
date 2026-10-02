@@ -57,7 +57,7 @@ function apply(w: World, c: Command): void {
     case "rally": {
       for (const b of w.entities) {
         if (b.dead || b.underConstruction || b.team !== (c.team ?? w.playerTeam)) continue;
-        if (!b.productionQueue.length && !["barracks", "factory", "helipad"].includes(b.kind)) continue;
+        if (!b.productionQueue.length && !["barracks", "factory", "helipad", "airbase"].includes(b.kind)) continue;
         if (!c.ids.includes(b.id)) continue;
         b.rallyPoint = { x: c.x, z: c.z };
       }
@@ -87,6 +87,7 @@ function apply(w: World, c: Command): void {
       const spec = BUILDINGS[c.kind];
       const walletCredits = w.teamCredits[team], walletResources = w.teamResources[team];
       if (walletResources < spec.cost || walletCredits < spec.cost) break;
+      if (!w.canBuildKind(team, c.kind)) break;
       if (Math.hypot(builder.x - c.x, builder.z - c.z) > 18) break;
       if (!w.canPlaceBuilding(team, c.kind, c.x, c.z)) break;
       w.teamCredits[team] -= spec.cost; w.teamResources[team] -= spec.cost;
@@ -114,7 +115,7 @@ function apply(w: World, c: Command): void {
       break;
     }
     case "load": {
-      const transport = mobile(w, c.ids, c.team).find(u => u.kind === "transport");
+      const transport = mobile(w, c.ids, c.team).find(u => u.kind === "transport" || u.kind === "landingcraft");
       const target = w.byId.get(c.targetId);
       if (!transport || !target || target.dead || target.team !== transport.team || target === transport || target.loadedIntoId !== null) break;
       if (!["inf", "engineer"].includes(target.kind)) break;
@@ -130,8 +131,24 @@ function apply(w: World, c: Command): void {
       for (const u of artillery) { u.fireMission = {x:c.x,z:c.z}; u.mode = "attack"; u.target = null; u.dest = null; }
       break;
     }
+    case "standing": {
+      for (const u of mobile(w, c.ids, c.team)) {
+        u.standingOrder = c.mode;
+        if (c.mode === "hold") { u.mode = "hold"; u.holdPosition = true; u.dest = null; u.target = null; }
+        else if (c.mode === "patrol" && c.x !== undefined && c.z !== undefined) { u.mode = "patrol"; u.patrolPoints = [{x:c.x,z:c.z},{x:u.x,z:u.z}]; u.patrolIndex = 0; u.dest = u.patrolPoints[0]; }
+        else if (c.mode === "attack") { u.mode = "amove"; u.dest = c.x !== undefined && c.z !== undefined ? {x:c.x,z:c.z} : null; }
+      }
+      break;
+    }
+    case "predeploy": {
+      for (const b of w.entities.filter(e => !e.dead && e.team === (c.team ?? w.playerTeam) && ["barracks","factory","helipad","airbase","shipyard"].includes(e.kind))) {
+        if (!c.ids.includes(b.id)) continue;
+        b.preDeployOrder = { mode:c.mode, x:c.x, z:c.z };
+      }
+      break;
+    }
     case "unload": {
-      for (const transport of mobile(w, c.ids, c.team).filter(u => u.kind === "transport")) {
+      for (const transport of mobile(w, c.ids, c.team).filter(u => u.kind === "transport" || u.kind === "landingcraft")) {
         if (!transport.cargoUnitIds.length) continue;
         transport.unloadPoint = { x: c.x, z: c.z };
         transport.mode = "transport-unload";
@@ -142,11 +159,20 @@ function apply(w: World, c: Command): void {
     case "produce": {
       const def = UNITS[c.kind], team = c.team ?? w.playerTeam, hq = w.hq[team];
       if (!def.producible || !hq || hq.dead || hq.underConstruction || w.teamResources[team] < def.cost || w.teamCredits[team] < def.cost) break;
-      const producerKind = (c.kind === "inf" || c.kind === "engineer") ? "barracks" : (c.kind === "tank" || c.kind === "artillery") ? "factory" : (c.kind === "heli" || c.kind === "transport" || c.kind === "gunship" || c.kind === "fighter") ? "helipad" : null;
+      const producerKind = (c.kind === "inf" || c.kind === "engineer" || c.kind === "special") ? "barracks" : (c.kind === "tank" || c.kind === "artillery") ? "factory" : (c.kind === "heli" || c.kind === "transport" || c.kind === "gunship") ? "helipad" : (c.kind === "fighter" ? "airbase" : (["destroyer","submarine","landingcraft"].includes(c.kind) ? "shipyard" : null));
       if (!producerKind) break;
       const producer = w.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === producerKind && e.productionQueue.length < MAX_QUEUE).sort((a,b)=>a.productionQueue.length-b.productionQueue.length)[0];
       if (!producer) break;
+      const unitLimits: Partial<Record<string, number>> = { tank: 20, artillery: 8, fighter: 8, gunship: 6, transport: 6, heli: 6, inf: 40, engineer: 8, special: 8, destroyer: 5, submarine: 4, landingcraft: 6 };
+      const limit = unitLimits[c.kind];
+      if (limit !== undefined && w.entities.filter(e => !e.dead && e.team === team && e.kind === c.kind).length + producer.productionQueue.filter(k => k === c.kind).length >= limit) break;
+      if ((c.kind === "fighter" || c.kind === "gunship") && producer.kind === "airbase") {
+        const air = w.airbaseStatus(team);
+        if (air.aircraft + producer.productionQueue.filter(k => k === c.kind).length >= air.capacity) break;
+      }
+      if (w.powerStatus(team).ratio < 0.25 && c.kind !== "inf" && c.kind !== "engineer") break;
       if ((c.kind === "fighter" || c.kind === "gunship") && !w.hasTech(team, "air")) break;
+      if (["destroyer","submarine","landingcraft"].includes(c.kind) && !w.hasTech(team, "sea-command")) break;
       w.teamCredits[team] -= def.cost; w.teamResources[team] -= def.cost;
       if (team === w.playerTeam) { w.credits = w.teamCredits[team]; w.resources = w.teamResources[team]; }
       producer.productionQueue.push(c.kind);

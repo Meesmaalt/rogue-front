@@ -2,10 +2,13 @@ import type { World } from "../World";
 import { UNITS } from "../units";
 import type { Entity, UnitKind } from "../types";
 
-function producerKind(kind: UnitKind): "barracks" | "factory" | "helipad" | null {
+function producerKind(kind: UnitKind): "barracks" | "factory" | "helipad" | "airbase" | "shipyard" | null {
   if (kind === "inf" || kind === "engineer") return "barracks";
   if (kind === "tank" || kind === "artillery") return "factory";
-  if (kind === "heli" || kind === "transport" || kind === "gunship" || kind === "fighter") return "helipad";
+  if (kind === "heli" || kind === "transport" || kind === "gunship") return "helipad";
+  if (kind === "fighter") return "airbase";
+  if (kind === "special") return "barracks";
+  if (kind === "destroyer" || kind === "submarine" || kind === "landingcraft") return "shipyard";
   return null;
 }
 
@@ -15,11 +18,15 @@ function exitPoint(producer: Entity, distance: number): { x: number; z: number }
 }
 
 function spawnProduced(w: World, producer: Entity, kind: UnitKind): void {
-  const p = exitPoint(producer, producer.kind === "helipad" ? 10 : 9);
+  const p = exitPoint(producer, (producer.kind === "helipad" || producer.kind === "airbase") ? 10 : 9);
   const u = w.spawn(kind, producer.team, p.x + (w.rng() - 0.5) * 3, p.z + (w.rng() - 0.5) * 3);
+  if (u.def.armor === "air") { u.airState = "grounded"; u.airMissionHomeId = producer.id; u.airSortieTime = 0; }
+  if (producer.preDeployOrder) { const o = producer.preDeployOrder; u.mode = o.mode === "attack" ? "amove" : o.mode; u.dest = o.x !== undefined && o.z !== undefined ? {x:o.x,z:o.z} : null; if (o.mode === "hold") u.holdPosition = true; }
+  if (kind === "special") { u.supply = 100; }
   if (kind === "transport") {
+    const depot = w.nearestSupplyDepot(producer.team, {x: producer.x, z: producer.z}, false);
     const rp = w.resourcePoints.find(r => r.amount > 0);
-    u.logisticsHome = { x: producer.x, z: producer.z };
+    u.logisticsHome = depot ? { x: depot.x, z: depot.z } : { x: producer.x, z: producer.z };
     u.logisticsTarget = rp ? { x: rp.x, z: rp.z } : null;
     u.mode = rp ? "patrol" : "idle";
     u.dest = u.logisticsTarget;
@@ -32,11 +39,12 @@ function spawnProduced(w: World, producer: Entity, kind: UnitKind): void {
 
 export function updateProduction(w: World, dt: number): void {
   for (const producer of w.entities) {
-    if (producer.dead || producer.underConstruction || !producer.productionQueue.length) continue;
+    if (producer.dead || producer.underConstruction || (producer.disabledUntil ?? 0) > w.time || !producer.productionQueue.length) continue;
     const kind = producer.productionQueue[0];
     const buildingKind = producerKind(kind);
     if (producer.kind !== buildingKind) continue;
-    producer.productionProgress += dt;
+    const powerRatio = w.powerStatus(producer.team).ratio;
+    producer.productionProgress += dt * Math.max(0.2, powerRatio);
     if (producer.productionProgress < UNITS[kind].buildTime) continue;
     producer.productionProgress = 0;
     producer.productionQueue.shift();

@@ -1,0 +1,48 @@
+{
+  "id": "operation-tidebreaker",
+  "name": "Operatsioon Murdlaine",
+  "briefing": "Võta ranniku varustuspunkt, lõika vastase logistika läbi, murra dessandiga tema kaitseliin ja hävita lõpuks peakorter.",
+  "map": {
+    "id": "desert",
+    "name": "Rannikukoridor",
+    "theme": "desert",
+    "heightmap": "/maps/desert.png",
+    "maxHeight": 55,
+    "bases": [
+      {"x": -130, "z": 130, "r": 34},
+      {"x": 130, "z": -130, "r": 34}
+    ],
+    "resources": [
+      {"x": -55, "z": 55, "amount": 1400, "radius": 13},
+      {"x": 5, "z": 5, "amount": 1400, "radius": 13},
+      {"x": 70, "z": -65, "amount": 1400, "radius": 13}
+    ],
+    "objects": [
+      {"kind":"hq","team":0,"x":-130,"z":130},
+      {"kind":"engineer","team":0,"x":-112,"z":112},
+      {"kind":"inf","team":0,"x":-105,"z":105,"count":5,"dx":4,"dz":0},
+      {"kind":"tank","team":0,"x":-96,"z":115,"count":2,"dx":5,"dz":0},
+      {"kind":"hq","team":1,"x":130,"z":-130},
+      {"kind":"engineer","team":1,"x":112,"z":-112,"count":2,"dx":4,"dz":0},
+      {"kind":"barracks","team":1,"x":112,"z":-126},
+      {"kind":"generator","team":1,"x":124,"z":-112},
+      {"kind":"factory","team":1,"x":108,"z":-100},
+      {"kind":"supply","team":1,"x":78,"z":-78},
+      {"kind":"tank","team":1,"x":100,"z":-105,"count":3,"dx":5,"dz":0},
+      {"kind":"inf","team":1,"x":92,"z":-95,"count":7,"dx":4,"dz":0}
+    ]
+  },
+  "seed": 44031,
+  "objectives": [
+    {"id":"secure-depot","title":"Võta esimene varustuspunkt","description":"Kontrolli läänepoolset varustuspunkti.","kind":"capture","primary":true,"point":{"x":-55,"z":55},"radius":15},
+    {"id":"cut-logistics","title":"Lõika logistika läbi","description":"Saboteeri vastase varustusdepoo.","kind":"sabotage","primary":true,"target":{"team":1,"kind":"supply","count":1},"requires":["secure-depot"]},
+    {"id":"hold-corridor","title":"Hoia koridori","description":"Hoia keskne ala 35 sekundit.","kind":"defend","primary":true,"point":{"x":5,"z":5},"radius":18,"duration":35,"requires":["cut-logistics"]},
+    {"id":"destroy-hq","title":"Hävita vaenlase HQ","description":"Lõplik eesmärk: hävita vastase komandopunkt.","kind":"destroy","primary":true,"target":{"team":1,"kind":"hq","count":1},"requires":["hold-corridor"]}
+  ],
+  "triggers": [
+    {"id":"counterattack-1","when":{"objective":"secure-depot"},"once":true,"message":"VAENLANE: esimene vasturünnak on teel."},
+    {"id":"counterattack-2","when":{"objective":"cut-logistics"},"once":true,"message":"VAENLANE: nad koondavad jõud kesksele koridorile.","spawn":{"kind":"tank","team":1,"x":85,"z":-85,"count":3,"spacing":5}},
+    {"id":"air-response","when":{"objective":"hold-corridor"},"once":true,"message":"VAENLANE: õhuvägi reageerib.","spawn":{"kind":"fighter","team":1,"x":112,"z":-112,"count":1}},
+    {"id":"final-wave","when":{"objective":"hold-corridor"},"once":true,"message":"VIIMANE FAAS: vaenlase baas on täielikus häires.","spawn":{"kind":"special","team":1,"x":100,"z":-105,"count":2,"spacing":4}}
+  ]
+}

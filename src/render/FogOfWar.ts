@@ -37,7 +37,7 @@ export class FogOfWar {
       if (u.dead || u.team !== world.playerTeam) continue;
       const p = picker.toScreen(u.x, u.y + 0.5, u.z);
       if (p.z > 1) continue;
-      const base = u.kind === "hq" ? 42 : u.kind === "bunker" ? 34 : u.kind === "tank" ? 30 : 24;
+      const base = u.kind === "hq" ? 42 : u.kind === "bunker" ? 34 : u.kind === "tank" ? 30 : u.kind === "radar" ? 50 : 24;
       const radius = Math.max(12, base * picker.pxPerUnit(u.x, u.y, u.z));
       const g = c.createRadialGradient(p.x, p.y, radius * 0.62, p.x, p.y, radius);
       g.addColorStop(0, "rgba(0,0,0,1)");

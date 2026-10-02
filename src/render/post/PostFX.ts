@@ -7,7 +7,7 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { SSAOPass } from "three/examples/jsm/postprocessing/SSAOPass.js";
 
 const VignetteShader = {
-  uniforms: { tDiffuse: { value: null }, darkness: { value: 0.55 }, offset: { value: 1.08 } },
+  uniforms: { tDiffuse: { value: null }, darkness: { value: 0.18 }, offset: { value: 1.08 } },
   vertexShader: `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
   fragmentShader: `uniform sampler2D tDiffuse; uniform float darkness; uniform float offset; varying vec2 vUv; void main(){vec4 c=texture2D(tDiffuse,vUv);vec2 p=(vUv-0.5)*offset;float d=dot(p,p);float v=smoothstep(0.18,0.62,d);c.rgb*=1.0-v*darkness;gl_FragColor=c;}`,
 };
@@ -30,7 +30,7 @@ export class PostFX {
       this.ssao = ssao;
       this.composer.addPass(ssao);
     }
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(width, height), 0.18, 0.7, 0.82);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(width, height), 0.10, 0.55, 0.88);
     this.composer.addPass(this.bloom);
     this.vignette = new ShaderPass(VignetteShader);
     this.composer.addPass(this.vignette);

@@ -32,7 +32,9 @@ export class CommandController {
       if (!this.enabled) return;
       if (this.buildMode && (e.button === 0 || e.button === 2)) {
         if (this.buildValid && this.buildPoint) {
-          const engineer = this.selection.selectedIds().map(id=>this.world.byId.get(id)).find(u=>u && u.team===this.world.playerTeam && u.kind==="engineer" && !u.dead);
+          const selectedEngineer = this.selection.selectedIds().map(id=>this.world.byId.get(id)).find(u=>u && u.team===this.world.playerTeam && u.kind==="engineer" && !u.dead);
+          const hq = this.world.hq[this.world.playerTeam];
+          const engineer = selectedEngineer ?? this.world.entities.filter(u=>u.team===this.world.playerTeam && u.kind==="engineer" && !u.dead).sort((a,b)=>Math.hypot((a.x-(hq?.x ?? 0)),(a.z-(hq?.z ?? 0)))-Math.hypot((b.x-(hq?.x ?? 0)),(b.z-(hq?.z ?? 0))))[0];
           if (engineer) { this.world.issue({type:"build",ids:[engineer.id],kind:this.buildMode,x:this.buildPoint.x,z:this.buildPoint.z,rotation:this.buildRotation}); this.fx.ping(this.buildPoint.x,this.buildPoint.z,0xf2a33a); }
         }
         this.cancelBuild(el); return;
@@ -60,7 +62,7 @@ export class CommandController {
       const enemy = this.picker.pickEntity(e.clientX, e.clientY, this.world.playerTeam === 0 ? 1 : 0);
       const rallyBuildings = this.selection.selectedIds().filter(id => {
         const b = this.world.byId.get(id);
-        return !!b && !b.dead && !b.underConstruction && b.team === this.world.playerTeam && ["barracks", "factory", "helipad"].includes(b.kind);
+        return !!b && !b.dead && !b.underConstruction && b.team === this.world.playerTeam && ["barracks", "factory", "helipad", "airbase"].includes(b.kind);
       });
       if (!enemy && rallyBuildings.length) {
         const p = this.picker.groundAt(e.clientX, e.clientY);
@@ -97,7 +99,9 @@ export class CommandController {
   private updateBuildPreview(x: number, y: number): void {
     if (!this.buildMode) return;
     const p = this.picker.groundAt(x,y);
-    const engineer = this.selection.selectedIds().map(id=>this.world.byId.get(id)).find(u=>u && u.team===this.world.playerTeam && u.kind==="engineer" && !u.dead);
+    const selectedEngineer = this.selection.selectedIds().map(id=>this.world.byId.get(id)).find(u=>u && u.team===this.world.playerTeam && u.kind==="engineer" && !u.dead);
+          const hq = this.world.hq[this.world.playerTeam];
+          const engineer = selectedEngineer ?? this.world.entities.filter(u=>u.team===this.world.playerTeam && u.kind==="engineer" && !u.dead).sort((a,b)=>Math.hypot((a.x-(hq?.x ?? 0)),(a.z-(hq?.z ?? 0)))-Math.hypot((b.x-(hq?.x ?? 0)),(b.z-(hq?.z ?? 0))))[0];
     const spec = BUILDINGS[this.buildMode];
     this.buildPoint = p;
     this.buildValid = !!engineer && this.world.resources >= spec.cost && this.world.credits >= spec.cost && this.world.canPlaceBuilding(this.world.playerTeam, this.buildMode, p.x, p.z);

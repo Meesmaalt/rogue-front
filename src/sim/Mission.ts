@@ -22,7 +22,7 @@ export class MissionController {
     this.mission = mission;
     this.objectives = mission.objectives.map((def) => ({
       def, complete: false, progress: 0, holdTime: 0,
-      initialTargets: def.kind === "destroy" ? this.countTargets(def) : 0,
+      initialTargets: (def.kind === "destroy" || def.kind === "sabotage") ? this.countTargets(def) : 0,
     }));
   }
 
@@ -36,6 +36,14 @@ export class MissionController {
 
   get messageText(): string { return this.messageTimer > 0 ? this.message : ""; }
 
+  get activePhase(): number {
+    let phase = 1;
+    for (const o of this.objectives) {
+      if (o.def.requires?.length && o.def.requires.every(id => this.objectiveComplete(id))) phase = Math.max(phase, this.objectives.indexOf(o) + 1);
+    }
+    return phase;
+  }
+
   summary(): Array<{ title: string; description: string; complete: boolean; progress: number }> {
     return this.objectives.map((o) => ({
       title: o.def.title, description: o.def.description, complete: o.complete, progress: o.progress,
@@ -45,6 +53,7 @@ export class MissionController {
   private updateObjective(state: ObjectiveState, dt: number): void {
     if (state.complete) { state.progress = 1; return; }
     const d = state.def;
+    if (d.requires?.some(id => !this.objectiveComplete(id))) { state.progress = 0; return; }
     switch (d.kind) {
       case "destroy": {
         const destroyed = Math.max(0, state.initialTargets - this.countTargets(d));
@@ -66,6 +75,22 @@ export class MissionController {
         else state.holdTime = 0;
         state.progress = Math.min(1, state.holdTime / Math.max(0.01, d.duration ?? 1));
         state.complete = state.holdTime >= (d.duration ?? 1);
+        break;
+      }
+      case "capture": {
+        const point = d.point;
+        const rp = point ? this.world.resourcePoints.find(r => Math.hypot(r.x-point.x,r.z-point.z) <= (d.radius ?? 12)) : null;
+        state.progress = rp?.controlledBy === 0 ? 1 : 0;
+        state.complete = state.progress >= 1;
+        break;
+      }
+      case "sabotage": {
+        const remaining = this.world.entities.filter(e => !e.dead && e.team === (d.target?.team ?? 1) && (!d.target?.kind || e.kind === d.target.kind) && (e.disabledUntil ?? 0) <= this.world.time).length;
+        const initial = Math.max(1, state.initialTargets);
+        const done = Math.max(0, initial - remaining);
+        const required = Math.max(1, d.target?.count ?? 1);
+        state.progress = Math.min(1, done / required);
+        state.complete = done >= required;
         break;
       }
       case "survive":
@@ -139,5 +164,5 @@ export class MissionController {
 }
 
 export function missionObjectiveKindLabel(kind: MissionObjectiveKind): string {
-  return ({ destroy: "Hävita", defend: "Kaitse", reach: "Jõua", survive: "Ela üle" })[kind];
+  return ({ destroy: "Hävita", defend: "Kaitse", reach: "Jõua", survive: "Ela üle", capture: "Hõiva", sabotage: "Saboteeri" })[kind];
 }

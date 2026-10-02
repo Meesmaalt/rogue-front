@@ -4,7 +4,7 @@ import type { UnitDef, UnitKind } from "./types";
 const NUM: (keyof UnitDef)[] = ["hp", "speed", "turnRate", "range", "damage", "cooldown", "radius", "height", "cost", "buildTime", "projectileSpeed"];
 const BOOL: (keyof UnitDef)[] = ["producible", "turret"];
 const STR: (keyof UnitDef)[] = ["armor", "weapon"];
-const KINDS: UnitKind[] = ["tank", "inf", "bunker", "hq", "engineer", "heli", "transport", "gunship", "fighter", "artillery", "aa", "refinery", "barracks", "factory", "helipad"];
+const KINDS: UnitKind[] = ["tank", "inf", "bunker", "hq", "engineer", "heli", "transport", "gunship", "fighter", "artillery", "aa", "refinery", "barracks", "factory", "helipad", "airbase", "supply", "radar", "generator", "destroyer", "submarine", "landingcraft", "special", "shipyard"];
 
 export function parseUnits(data: unknown): Record<UnitKind, UnitDef> {
   const obj = data as Record<string, Record<string, unknown>>;

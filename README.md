@@ -59,3 +59,7 @@ The skirmish layer now has team-specific tech, refinery income scaling, target p
 
 ## Phase 19 — Combined Arms
 The RTS core now includes terrain-aware line of sight, resource-zone control, artillery fire missions, aircraft fuel/rearm, multi-producer queues and scouting/flanking AI. See `docs/PHASE19-COMBINED-ARMS.md`.
+
+
+## Phase 31–34
+Naval warfare, Sea Command, special forces, standing orders and pre-deployment orders are included.

@@ -1,6 +1,6 @@
 import type { Point, UnitKind } from "./types";
 
-export type BuildableKind = "barracks" | "factory" | "helipad" | "refinery" | "bunker" | "aa";
+export type BuildableKind = "barracks" | "factory" | "helipad" | "airbase" | "refinery" | "supply" | "radar" | "bunker" | "aa" | "generator" | "shipyard";
 
 export interface BuildingSpec {
   kind: BuildableKind;
@@ -9,15 +9,24 @@ export interface BuildingSpec {
   footprint: number;
   repairPerSec: number;
   maxBuilders: number;
+  requires?: BuildableKind[];
+  powerUse?: number;
+  powerSupply?: number;
+  limit?: number;
 }
 
 export const BUILDINGS: Record<BuildableKind, BuildingSpec> = {
-  barracks: { kind: "barracks", cost: 160, buildTime: 8, footprint: 7, repairPerSec: 28, maxBuilders: 2 },
-  factory: { kind: "factory", cost: 220, buildTime: 11, footprint: 9, repairPerSec: 24, maxBuilders: 2 },
-  helipad: { kind: "helipad", cost: 200, buildTime: 9, footprint: 9, repairPerSec: 24, maxBuilders: 2 },
-  refinery: { kind: "refinery", cost: 180, buildTime: 8, footprint: 8, repairPerSec: 26, maxBuilders: 2 },
-  bunker: { kind: "bunker", cost: 120, buildTime: 7, footprint: 6, repairPerSec: 34, maxBuilders: 2 },
-  aa: { kind: "aa", cost: 160, buildTime: 8, footprint: 6, repairPerSec: 30, maxBuilders: 2 },
+  barracks: { kind: "barracks", cost: 160, buildTime: 8, footprint: 7, repairPerSec: 28, maxBuilders: 2, requires: ["generator"], powerUse: 10, limit: 2 },
+  factory: { kind: "factory", cost: 220, buildTime: 11, footprint: 9, repairPerSec: 24, maxBuilders: 2, requires: ["barracks"], powerUse: 18, limit: 2 },
+  helipad: { kind: "helipad", cost: 200, buildTime: 9, footprint: 9, repairPerSec: 24, maxBuilders: 2, requires: ["barracks"], powerUse: 12, limit: 2 },
+  airbase: { kind: "airbase", cost: 320, buildTime: 14, footprint: 13, repairPerSec: 22, maxBuilders: 3, requires: ["helipad"], powerUse: 20, limit: 1 },
+  supply: { kind: "supply", cost: 130, buildTime: 7, footprint: 6, repairPerSec: 32, maxBuilders: 2, powerUse: 6, limit: 3 },
+  radar: { kind: "radar", cost: 190, buildTime: 9, footprint: 6, repairPerSec: 25, maxBuilders: 2, requires: ["supply"], powerUse: 15, limit: 2 },
+  refinery: { kind: "refinery", cost: 180, buildTime: 8, footprint: 8, repairPerSec: 26, maxBuilders: 2, powerUse: 8, limit: 3 },
+  bunker: { kind: "bunker", cost: 120, buildTime: 7, footprint: 6, repairPerSec: 34, maxBuilders: 2, requires: ["barracks"], powerUse: 5, limit: 5 },
+  aa: { kind: "aa", cost: 160, buildTime: 8, footprint: 6, repairPerSec: 30, maxBuilders: 2, requires: ["radar"], powerUse: 15, limit: 4 },
+  generator: { kind: "generator", cost: 140, buildTime: 7, footprint: 6, repairPerSec: 30, maxBuilders: 2, powerSupply: 100, limit: 4 },
+  shipyard: { kind: "shipyard", cost: 360, buildTime: 15, footprint: 12, repairPerSec: 20, maxBuilders: 3, requires: ["supply"], powerUse: 22, limit: 1 },
 };
 
 export function isBuildable(kind: UnitKind): kind is BuildableKind {
