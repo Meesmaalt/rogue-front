@@ -181,7 +181,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
 const queryMode = queryParams.get("mode");
 const queryDifficulty = queryParams.get("difficulty") as "easy"|"normal"|"hard"|null;
 if (queryMission) {
-  const queryFaction = (params.get("faction") as FactionId | null) ?? (localStorage.getItem("rogue-front.faction") as FactionId | null) ?? "usa";
+  const queryFaction = (queryParams.get("faction") as FactionId | null) ?? (localStorage.getItem("rogue-front.faction") as FactionId | null) ?? "usa";
   const bootFaction = (FACTION_LIST.includes(queryFaction as FactionId) ? queryFaction : "usa") as FactionId;
   void boot(getMission(queryMission), queryRoom || undefined, queryMode === "skirmish" ? (queryDifficulty || "normal") : undefined, bootFaction).catch((err: unknown) => {
     console.error(err);
