@@ -44,6 +44,42 @@ export function generateBaseFeatures(bases: readonly (Point & { r: number })[]):
     out.push({ id: `base-${team}-main-road`, kind: "road", x: b.x + sideX * roadLength * 0.35, z: b.z + sideZ * roadLength * 0.35, width: 7, depth: roadLength, rotation: roadAngle, blocksMovement: false, label: "Baasi peatee" });
     // Gate pad visually marks the actual entrance without blocking it.
     out.push({ id: `base-${team}-gate`, kind: "gate", x: b.x + sideX * half, z: b.z + sideZ * Math.min(6, half * 0.2), width: 8, depth: 4, rotation: roadAngle, blocksMovement: false, label: "Peavärav" });
+
+    // Visual density props (tents, crates, sandbag nests) – do not block movement
+    const perpX = -sideZ, perpZ = sideX;
+    const tentSpots = [
+      { ox: -10, oz: 8 }, { ox: -14, oz: 4 }, { ox: 11, oz: 7 },
+      { ox: 8, oz: -9 }, { ox: -8, oz: -10 }, { ox: 13, oz: -5 },
+    ];
+    tentSpots.forEach((s, i) => {
+      out.push({
+        id: `base-${team}-tent-${i}`,
+        kind: "cover",
+        x: b.x + s.ox * perpX * 0.15 + s.ox * 0.85,
+        z: b.z + s.oz * perpZ * 0.15 + s.oz * 0.85,
+        width: 4.5 + (i % 2),
+        depth: 3.5,
+        height: 2.4,
+        rotation: (i * 0.7) % Math.PI,
+        blocksMovement: false,
+        label: "Telk",
+      });
+    });
+    // Crate stacks near HQ
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + 0.4;
+      out.push({
+        id: `base-${team}-crate-${i}`,
+        kind: "cover",
+        x: b.x + Math.cos(a) * 9,
+        z: b.z + Math.sin(a) * 9,
+        width: 2.2,
+        depth: 2.2,
+        height: 1.6,
+        blocksMovement: false,
+        label: "Kastid",
+      });
+    }
   }
   return out;
 }

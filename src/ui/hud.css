@@ -21,11 +21,46 @@
 .hpbar { height: 6px; background: #0c0f10; margin-top: 2px; }
 .hpbar i { display: block; height: 100%; background: var(--ally); }
 .help { margin-top: auto; font-size: 12px; line-height: 1.5; color: var(--muted); }
-.build { display: flex; flex-direction: column; gap: 6px; width: 190px; }
+.build { display: flex; flex-direction: column; gap: 4px; width: 280px; min-width: 240px; }
+.build.tactical { width: 320px; }
 .build button { font: 700 17px var(--disp); color: var(--text); background: var(--steel2); border: 1px solid var(--line); padding: 9px 12px; cursor: pointer; display: flex; justify-content: space-between; text-align: left; }
 .build button span { font: 500 14px var(--body); color: var(--amber); }
 .build button:hover:not(:disabled) { background: #364549; }
 .build button:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Real War tactical tabs */
+.tab-bar { display: flex; gap: 2px; }
+.tab-bar .tab {
+  flex: 1;
+  font: 700 13px/1 var(--disp);
+  letter-spacing: .06em;
+  padding: 8px 4px;
+  background: #1a2224;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  cursor: pointer;
+  text-align: center;
+}
+.tab-bar .tab:hover { color: var(--text); border-color: #5a6568; }
+.tab-bar .tab.active {
+  background: var(--steel2);
+  color: var(--amber);
+  border-color: var(--amber);
+}
+.tab-panels { min-height: 120px; }
+.tab-panel { display: none; gap: 4px; }
+.tab-panel.active { display: grid; grid-template-columns: 1fr 1fr; }
+.tab-panel[data-panel="builds"].active { display: block; }
+.unit-btn {
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 2px;
+  padding: 8px 10px !important;
+  min-height: 56px;
+}
+.unit-btn .unit-icon { font-size: 18px; line-height: 1; color: var(--amber); }
+.unit-btn .unit-name { font: 700 14px/1.1 var(--disp); color: var(--text); }
+.unit-btn .unit-cost { font: 500 12px var(--body) !important; color: var(--amber) !important; }
 button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .qbar { height: 5px; background: #0c0f10; }
 .qbar i { display: block; height: 100%; width: 0; background: var(--amber); }
@@ -37,7 +72,7 @@ button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .screen p { font-size: 17px; line-height: 1.55; margin: 0 0 12px; color: #cfd2c4; max-width: 46ch; }
 .screen button { font: 700 22px var(--disp); background: var(--amber); color: #1a1409; border: 0; padding: 12px 28px; cursor: pointer; margin-top: 8px; }
 .screen button:hover { background: #ffb64f; }
-@media (max-width: 760px) { .build { width: 140px; } .help { display: none; } .mini { width: 120px; height: 120px; } .sel { min-height: 120px; } }
+@media (max-width: 760px) { .build { width: 200px; } .help { display: none; } .mini { width: 120px; height: 120px; } .sel { min-height: 120px; } }
 
 .objective { position: relative; margin-top: 4px; font-size: 12px; color: var(--muted); padding-bottom: 3px; }
 .objective.done { color: #a9d8b6; }

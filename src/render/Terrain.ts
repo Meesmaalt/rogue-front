@@ -19,23 +19,25 @@ export function createTerrain(theme: "desert" | "mountains" | "city" = "desert",
   const nrm = geo.attributes.normal;
   const col = new Float32Array(pos.count * 3);
   const c = new THREE.Color();
+  // Brighter Real War-style desert / mountain / city palettes
   const palette = theme === "mountains"
-    ? [0x8c877d, 0x716d68, 0x55524e, 0x77736a, 0x5d6559]
+    ? [0xa8a094, 0x8a857c, 0x6a6660, 0x9a9588, 0x7a8570]
     : theme === "city"
-      ? [0x666b69, 0x515756, 0x3f4544, 0x77756f, 0x53615a]
-      : [0xb59c66, 0xa08a56, 0x7d725f, 0x8b8a7e, 0x8a8c52];
+      ? [0x7a8078, 0x656c68, 0x505854, 0x8a8880, 0x6a7568]
+      : [0xd4b878, 0xc4a868, 0xa09070, 0xc8c0a0, 0xb0b070];
   const [sand, dust, rock, pad, scrub] = palette.map((v) => new THREE.Color(v));
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i), n = nrm.getY(i);
     const nz = Math.sin(x * 0.31) * Math.cos(z * 0.27) * 0.5 + 0.5;
-    c.copy(sand).lerp(dust, nz * 0.7 + rnd() * 0.15);
+    c.copy(sand).lerp(dust, nz * 0.55 + rnd() * 0.12);
     const sl = Math.max(0, 0.9 - n) * 4.5;
-    if (sl > 0) c.lerp(rock, Math.min(1, sl));
-    if (y > 13) c.lerp(rock, Math.min(0.8, (y - 13) / 10));
-    if (y < -3) c.lerp(scrub, Math.min(0.6, (-3 - y) / 6));
+    if (sl > 0) c.lerp(rock, Math.min(0.85, sl));
+    if (y > 13) c.lerp(rock, Math.min(0.7, (y - 13) / 10));
+    if (y < -3) c.lerp(scrub, Math.min(0.5, (-3 - y) / 6));
     for (const b of (bases.length ? bases : getBases())) {
       const d = Math.hypot(x - b.x, z - b.z);
-      if (d < b.r * 0.8) c.lerp(pad, 0.6 * (1 - d / (b.r * 0.8)));
+      // Clear paved base pad like Real War bases
+      if (d < b.r * 0.85) c.lerp(pad, 0.72 * (1 - d / (b.r * 0.85)));
     }
     col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
   }
@@ -172,14 +174,14 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
   for (const f of features) {
     const y = heightAt(f.x, f.z);
     if (f.kind === "road" || f.kind === "bridge") {
-      const geo = new THREE.BoxGeometry(f.width, f.kind === "bridge" ? 0.7 : 0.12, f.depth);
+      const geo = new THREE.BoxGeometry(f.width, f.kind === "bridge" ? 0.7 : 0.18, f.depth);
       const mat = new THREE.MeshStandardMaterial({
-        color: f.kind === "bridge" ? 0x6b6254 : 0x4c4b47,
-        roughness: 0.95,
-        metalness: f.kind === "bridge" ? 0.12 : 0,
+        color: f.kind === "bridge" ? 0x8a7a60 : 0x9a9078,
+        roughness: 0.92,
+        metalness: f.kind === "bridge" ? 0.12 : 0.02,
       });
       const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(f.x, y + (f.kind === "bridge" ? 0.28 : 0.04), f.z);
+      mesh.position.set(f.x, y + (f.kind === "bridge" ? 0.28 : 0.06), f.z);
       mesh.rotation.y = f.rotation ?? 0;
       mesh.receiveShadow = true;
       group.add(mesh);
@@ -187,18 +189,38 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
       continue;
     }
     if (f.kind === "building" || f.kind === "wall" || f.kind === "chokepoint") {
-      const h = f.height ?? (f.kind === "wall" ? 5 : f.kind === "chokepoint" ? 3 : 8);
+      const h = f.height ?? (f.kind === "wall" ? 3.2 : f.kind === "chokepoint" ? 2.8 : 8);
+      if (f.kind === "wall") {
+        // Sandbag / Hesco-style barrier – readable military look instead of dark slabs
+        const bagMat = new THREE.MeshStandardMaterial({ color: 0xc4b48a, roughness: 0.95, metalness: 0.02, flatShading: true });
+        const topMat = new THREE.MeshStandardMaterial({ color: 0xa89870, roughness: 0.92, metalness: 0.04, flatShading: true });
+        const layers = 3;
+        const layerH = h / layers;
+        for (let layer = 0; layer < layers; layer++) {
+          const shrink = layer * 0.15;
+          const bag = new THREE.Mesh(
+            new THREE.BoxGeometry(Math.max(1, f.width - shrink), layerH * 0.92, Math.max(0.8, f.depth - shrink * 0.3)),
+            layer === layers - 1 ? topMat : bagMat,
+          );
+          bag.position.set(f.x, y + layerH * (layer + 0.5), f.z);
+          bag.rotation.y = f.rotation ?? 0;
+          bag.castShadow = true;
+          bag.receiveShadow = true;
+          group.add(bag);
+        }
+        continue;
+      }
       const geo = new THREE.BoxGeometry(f.width, h, f.depth);
       const mat = new THREE.MeshStandardMaterial({
-        color: f.kind === "wall" ? 0x57524a : f.kind === "chokepoint" ? 0x6e5e4c : 0x55595a,
+        color: f.kind === "chokepoint" ? 0x8a7a60 : 0x6a7068,
         roughness: 0.88,
         metalness: 0.04,
       });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.position.set(f.x, y + h / 2, f.z);
       mesh.rotation.y = f.rotation ?? 0;
-      mesh.castShadow = false;
-      mesh.receiveShadow = false;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
       group.add(mesh);
       continue;
     }
@@ -215,13 +237,35 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
       continue;
     }
     if (f.kind === "cover") {
-      const geo = new THREE.BoxGeometry(f.width, f.height ?? 1.8, f.depth);
-      const mat = new THREE.MeshStandardMaterial({ color: 0x756b58, roughness: 0.95 });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(f.x, y + (f.height ?? 1.8) / 2, f.z);
-      mesh.rotation.y = f.rotation ?? 0;
-      mesh.castShadow = true;
-      group.add(mesh);
+      const h = f.height ?? 1.8;
+      const rot = f.rotation ?? 0;
+      if (h >= 2.0) {
+        // Tent: peaked roof + body
+        const body = new THREE.Mesh(
+          new THREE.BoxGeometry(f.width * 0.95, h * 0.55, f.depth * 0.95),
+          new THREE.MeshStandardMaterial({ color: 0x8a7e60, roughness: 0.92, flatShading: true }),
+        );
+        body.position.set(f.x, y + h * 0.28, f.z);
+        body.rotation.y = rot;
+        body.castShadow = true;
+        group.add(body);
+        const roof = new THREE.Mesh(
+          new THREE.ConeGeometry(Math.max(f.width, f.depth) * 0.62, h * 0.55, 4),
+          new THREE.MeshStandardMaterial({ color: 0x9a8a68, roughness: 0.9, flatShading: true }),
+        );
+        roof.position.set(f.x, y + h * 0.72, f.z);
+        roof.rotation.y = rot + Math.PI / 4;
+        roof.castShadow = true;
+        group.add(roof);
+      } else {
+        // Crate stack
+        const crateMat = new THREE.MeshStandardMaterial({ color: 0x8a7a50, roughness: 0.88, flatShading: true });
+        const crate = new THREE.Mesh(new THREE.BoxGeometry(f.width, h, f.depth), crateMat);
+        crate.position.set(f.x, y + h / 2, f.z);
+        crate.rotation.y = rot;
+        crate.castShadow = true;
+        group.add(crate);
+      }
     }
   }
   return group;

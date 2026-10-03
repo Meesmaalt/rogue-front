@@ -28,20 +28,18 @@ function hasSpotter(w: World, u: Entity, target: Entity): boolean {
 
 export function nearestEnemy(w: World, u: Entity, range: number): Entity | null {
   let best: Entity | null = null, bestScore = Number.POSITIVE_INFINITY;
-  const range2 = (range + 12) * (range + 12); // loose early-out
-  for (const e of w.entities) {
-    if (e.dead || e.team === u.team || e.underConstruction) continue;
+  const searchR = range + 14;
+  w.spatial.queryRadius(u.x, u.z, searchR, (e) => {
+    if (e.dead || e.team === u.team || e.underConstruction || e === u) return;
     const dx = e.x - u.x, dz = e.z - u.z;
     const distSq = dx * dx + dz * dz;
-    if (distSq > range2) continue;
-    if (e.def.stealth && u.kind !== "radar" && distSq > 144) continue;
+    if (e.def.stealth && u.kind !== "radar" && distSq > 144) return;
     const d = Math.sqrt(distSq) - e.def.radius;
-    if (d > range) continue;
-    if (!hasSpotter(w, u, e)) continue;
-    if (u.def.weapon !== "missile" && e.def.armor === "air") continue;
-    if ((u.kind === "bunker" || u.kind === "aa") && !inFiringArc(u, e)) continue;
+    if (d > range) return;
+    if (!hasSpotter(w, u, e)) return;
+    if (u.def.weapon !== "missile" && e.def.armor === "air") return;
+    if ((u.kind === "bunker" || u.kind === "aa") && !inFiringArc(u, e)) return;
     let priority = d;
-    // Logistics denial & high-value targets (clearer strategy than original Real War)
     if (u.def.weapon === "missile" && e.def.armor === "air") priority -= 22;
     if (u.kind === "artillery" && e.def.speed === 0) priority -= 16;
     if (u.kind === "tank" && e.def.speed === 0) priority -= 8;
@@ -51,7 +49,7 @@ export function nearestEnemy(w: World, u: Entity, range: number): Entity | null 
     if (e.kind === "refinery" || e.kind === "helipad" || e.kind === "airbase" || e.kind === "factory" || e.kind === "barracks") priority -= 18;
     if (e.kind === "hq") priority -= 12;
     if (priority < bestScore) { bestScore = priority; best = e; }
-  }
+  });
   return best;
 }
 
@@ -202,7 +200,15 @@ function stepUnit(w: World, u: Entity, dt: number): void {
   const isAir = d.armor === "air";
   if (isAir) {
     const home = u.airMissionHomeId ? w.byId.get(u.airMissionHomeId) : null;
-    const pad = home && !home.dead ? home : w.entities.find(e => !e.dead && e.team===u.team && (e.kind==="helipad" || e.kind==="airbase") && Math.hypot(e.x-u.x,e.z-u.z)<14);
+    let pad = home && !home.dead ? home : null;
+    if (!pad) {
+      w.spatial.queryRadius(u.x, u.z, 14, (e) => {
+        if (!e.dead && e.team === u.team && (e.kind === "helipad" || e.kind === "airbase")) {
+          pad = e;
+          return true;
+        }
+      });
+    }
     const atPad = !!pad && Math.hypot(pad.x-u.x,pad.z-u.z)<14;
     if (atPad) {
       u.fuel=Math.min(u.maxFuel ?? 100,(u.fuel ?? 0)+34*dt); u.ammo=Math.min(u.maxAmmo ?? 6,(u.ammo ?? 0)+2.2*dt); u.hp=Math.min(u.def.hp,u.hp+u.def.hp*0.08*dt);
@@ -225,11 +231,17 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     if (factory) { u.ammo=Math.min(u.maxAmmo ?? 10,(u.ammo ?? 0)+1.8*dt); u.hp=Math.min(u.def.hp,u.hp+u.def.hp*0.03*dt); }
   }
 
-  // sihtmärgi valik
+  // sihtmärgi valik – throttle retarget (~every 4 ticks staggered by id)
   if (u.mode === "attack" && (!u.target || u.target.dead)) { u.target = null; u.mode = "idle"; }
   if (u.mode !== "attack") {
     const lim = u.mode === "move" ? effectiveRange : Math.max(effectiveRange, u.aggro);
-    if (!u.target || u.target.dead || dist2d(u, u.target) - u.target.def.radius > lim * 1.15) u.target = nearestEnemy(w, u, lim);
+    const needNew = !u.target || u.target.dead || dist2d(u, u.target) - u.target.def.radius > lim * 1.15;
+    if (needNew) {
+      const tick = Math.floor(w.time * 30);
+      if ((tick + u.id) % 4 === 0 || !u.target || u.target.dead) {
+        u.target = nearestEnemy(w, u, lim);
+      }
+    }
   }
   const t = u.target;
   if (t && !w.vision.isVisible(u.team, t.x, t.z)) {
@@ -254,20 +266,20 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     const isAir = d.armor === "air";
     if (isAir && u.airState === "grounded") return;
     let sx = 0, sz = 0;
-    // Stronger separation than classic Real War – less unit stacking
+    // Spatial separation – only nearby cells (was O(n²) over all entities)
     const sepRange = d.radius + 10;
     const sepRange2 = sepRange * sepRange;
-    for (const o of w.entities) {
-      if (o === u || o.dead) continue;
+    w.spatial.queryRadius(u.x, u.z, sepRange, (o) => {
+      if (o === u || o.dead) return;
       const ox = u.x - o.x, oz = u.z - o.z;
       const d2 = ox * ox + oz * oz;
-      if (d2 > sepRange2 || d2 < 1e-4) continue;
+      if (d2 > sepRange2 || d2 < 1e-4) return;
       const m = d.radius + o.def.radius + 0.85;
       if (d2 < m * m) {
         const dd = Math.sqrt(d2), k = ((m - dd) / m) * (o.def.speed === 0 ? 3.4 : 1.25);
         sx += (ox / dd) * k; sz += (oz / dd) * k;
       }
-    }
+    });
     let dx = 0, dz = 0, moving = false;
     if (goal) {
       const gx = goal.x - u.x, gz = goal.z - u.z, gd = Math.hypot(gx, gz);

@@ -33,12 +33,20 @@ export class UnitRenderer {
       if (!v) {
         const visual = createVisualModel(e.kind, e.team);
         const lod = new THREE.LOD();
-        lod.addLevel(visual.group, e.kind === "inf" ? 32 : e.kind === "transport" ? 44 : 52);
-        const low = new THREE.Group();
-        const lowMesh = new THREE.Mesh(new THREE.CylinderGeometry(Math.max(0.5, e.def.radius * 0.65), Math.max(0.65, e.def.radius * 0.75), e.kind === "fighter" ? 0.35 : 0.7, 6), new THREE.MeshStandardMaterial({ color: e.team === 0 ? 0x64744b : 0x704d49, roughness: 1 }));
-        lowMesh.castShadow = true;
-        low.add(lowMesh);
-        lod.addLevel(low, e.kind === "inf" ? 54 : e.kind === "transport" ? 66 : 78);
+        const isBuilding = e.def.speed === 0 || e.def.building === true;
+        // Buildings always keep full model – the green hex LOD was the main "looks unfinished" culprit
+        lod.addLevel(visual.group, isBuilding ? 200 : (e.kind === "inf" ? 36 : e.kind === "transport" ? 48 : 56));
+        if (!isBuilding) {
+          const low = new THREE.Group();
+          const lowMesh = new THREE.Mesh(
+            new THREE.BoxGeometry(Math.max(1.2, e.def.radius * 1.4), e.kind === "fighter" ? 0.5 : 1.1, Math.max(1.4, e.def.radius * 1.8)),
+            new THREE.MeshStandardMaterial({ color: e.team === 0 ? 0x6a7a58 : 0x805850, roughness: 0.95, flatShading: true }),
+          );
+          lowMesh.position.y = 0.55;
+          lowMesh.castShadow = true;
+          low.add(lowMesh);
+          lod.addLevel(low, e.kind === "inf" ? 60 : e.kind === "transport" ? 72 : 85);
+        }
         const m = { group: lod, turret: visual.turret };
         // Mõne GLB puhul puudub rootori/propelleri animatsioon; lisa odav procedural rootori osa.
         if (["heli", "gunship", "transport"].includes(e.kind)) {

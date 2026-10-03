@@ -24,5 +24,5 @@ export function chooseVisualProfile(quality: "low" | "medium" | "high" = "high")
 export function configureColorManagement(renderer: THREE.WebGLRenderer): void {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.22;
 }

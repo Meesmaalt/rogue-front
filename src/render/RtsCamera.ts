@@ -2,8 +2,9 @@ import * as THREE from "three";
 
 /** RTS-kaamera: WASD/nooled/serv liigutavad, Q/E pöörab, rull suumib. */
 export class RtsCamera {
+  // Real War-like isometric: shallower pitch, closer default zoom
   x = -105; z = 105; yaw = -Math.PI / 4;
-  dist = 110; targetDist = 110; pitch = 0.95;
+  dist = 78; targetDist = 78; pitch = 0.72;
   groundY = 0;
   private keys = new Set<string>();
   private mouse = { x: -1, y: -1 };
@@ -21,7 +22,7 @@ export class RtsCamera {
     document.addEventListener("mouseleave", () => { this.mouse.x = this.mouse.y = -1; });
     el.addEventListener("wheel", (e) => {
       e.preventDefault();
-      this.targetDist = Math.max(40, Math.min(220, this.targetDist * (1 + Math.sign(e.deltaY) * 0.12)));
+      this.targetDist = Math.max(36, Math.min(160, this.targetDist * (1 + Math.sign(e.deltaY) * 0.11)));
     }, { passive: false });
   }
 

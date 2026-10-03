@@ -24,15 +24,17 @@ export function createRenderContext(canvas: HTMLCanvasElement): RenderContext {
   configureColorManagement(renderer);
 
   const scene = new THREE.Scene();
-  const haze = new THREE.Color(0xb8ab88);
+  // Real War desert haze – warm sand, not muddy grey
+  const haze = new THREE.Color(0xd4c49a);
   scene.background = haze;
-  scene.fog = new THREE.Fog(haze, 150, 520);
+  scene.fog = new THREE.Fog(haze, 120, 380);
   scene.add(createSky());
 
-  const camera = new THREE.PerspectiveCamera(45, 1, 1, 900);
-  const hemi = new THREE.HemisphereLight(0xbcd0e0, 0x70634f, 1.35);
+  const camera = new THREE.PerspectiveCamera(42, 1, 1, 900);
+  // Brighter ambient so buildings read clearly
+  const hemi = new THREE.HemisphereLight(0xfff0d0, 0x8a7350, 1.65);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffe4bb, 2.8);
+  const sun = new THREE.DirectionalLight(0xffe8c0, 3.2);
   sun.castShadow = profile.shadows;
   sun.shadow.mapSize.set(profile.shadows ? 1024 : 512, profile.shadows ? 1024 : 512);
   const sc = sun.shadow.camera;
@@ -40,6 +42,10 @@ export function createRenderContext(canvas: HTMLCanvasElement): RenderContext {
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.32;
   scene.add(sun, sun.target);
+  // Soft fill from the opposite side so silhouettes stay readable
+  const fill = new THREE.DirectionalLight(0xb8c8e0, 0.55);
+  fill.position.set(-40, 50, -30);
+  scene.add(fill);
 
   const water = createWater();
   scene.add(water);

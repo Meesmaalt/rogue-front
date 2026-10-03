@@ -59,37 +59,108 @@ export function createModel(kind: UnitKind, team: Team): Model {
       g.add(body,head,helmet,pack,box(0.12,0.12,1.0,DARK,0.28,1.08,0.42)); break;
     }
     case "hq": {
-      g.add(box(14, 3, 14, 0x5d5b52, 0, 1.5, 0), box(8, 3, 8, BODY[team], 0, 4.5, 0), box(3, 0.6, 3, ACC[team], 0, 6.4, 0));
-      const a = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 8, 6), mat(DARK));
-      a.position.set(2.5, 10, 2.5); a.castShadow = true;
-      g.add(a);
+      // Multi-block command post with antenna and flag mast – readable silhouette
+      g.add(box(16, 2.2, 14, 0x6a6658, 0, 1.1, 0));
+      g.add(box(11, 3.4, 10, BODY[team], 0, 3.9, -0.5));
+      g.add(box(6, 2.2, 6, 0x5a5848, 0, 6.6, -0.8));
+      g.add(box(4, 0.5, 4, ACC[team], 0, 7.9, -0.8));
+      // Antenna
+      const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 9, 6), mat(DARK));
+      ant.position.set(4.5, 10.5, 3.5); ant.castShadow = true; g.add(ant);
+      // Side annex
+      g.add(box(5, 2.4, 4, 0x5c5a4e, -7, 2.4, 3));
+      g.add(box(3.5, 1.6, 3, BODY[team], 6.5, 2.0, -3));
+      // Entrance ramp
+      g.add(box(3.5, 0.4, 2.5, 0x7a7560, 0, 0.35, 7.5));
       break;
     }
     case "barracks": {
-      g.add(box(8,3,7,0x6b6758,0,1.5,0), box(6,1,5,ACC[team],0,3.5,0), box(1.2,2,0.4,DARK,0,1,3.55)); break;
+      g.add(box(10, 2.8, 7.5, 0x6b6758, 0, 1.4, 0));
+      g.add(box(9, 0.35, 6.5, 0x8a8070, 0, 2.95, 0));
+      g.add(box(3.5, 1.4, 2.5, ACC[team], -2.5, 3.8, 0));
+      // Door + windows
+      g.add(box(1.4, 2.0, 0.25, DARK, 0, 1.1, 3.85));
+      g.add(box(1.2, 0.9, 0.15, 0x3a4550, -3.2, 1.8, 3.8));
+      g.add(box(1.2, 0.9, 0.15, 0x3a4550, 3.2, 1.8, 3.8));
+      break;
     }
     case "factory": {
-      g.add(box(10,4,9,0x5a5a55,0,2,0), box(7,2,5,BODY[team],0,5,0), box(2,1,1.5,DARK,0,4.8,4.2)); break;
+      g.add(box(12, 3.5, 10, 0x5a5a55, 0, 1.75, 0));
+      g.add(box(8, 2.5, 6, BODY[team], 0, 4.6, -0.5));
+      // Smokestack
+      g.add(box(1.4, 5.5, 1.4, DARK, 3.5, 5.5, 2.5));
+      g.add(box(1.1, 0.4, 1.1, 0x444440, 3.5, 8.4, 2.5));
+      // Bay door
+      g.add(box(4.5, 2.8, 0.3, 0x3a3a38, 0, 1.5, 5.1));
+      g.add(box(2, 1.2, 1.5, DARK, -4, 4.2, 3.5));
+      break;
     }
     case "helipad": {
-      g.add(box(10,1,10,0x4c514c,0,0.5,0), box(6,0.2,6,ACC[team],0,1.1,0)); break;
+      // Concrete pad + H marking + small control hut
+      g.add(box(12, 0.35, 12, 0x6a7068, 0, 0.18, 0));
+      g.add(box(9, 0.12, 9, 0x5a6058, 0, 0.4, 0));
+      // H mark
+      g.add(box(0.7, 0.08, 3.2, 0xf0e8c0, 0, 0.48, 0));
+      g.add(box(2.4, 0.08, 0.7, 0xf0e8c0, 0, 0.48, 0));
+      // Control hut
+      g.add(box(3.5, 2.2, 3, 0x5c5a4e, 5.5, 1.2, -5));
+      g.add(box(2.5, 0.25, 2.2, ACC[team], 5.5, 2.4, -5));
+      break;
     }
     case "refinery": {
-      g.add(box(8,4,8,0x6b624e,0,2,0), box(2,5,2,DARK,-2,6,0), box(2,4,2,DARK,2,5.5,0)); break;
+      g.add(box(9, 2.8, 8, 0x6b624e, 0, 1.4, 0));
+      // Tanks
+      const tankGeo = new THREE.CylinderGeometry(1.6, 1.6, 4.5, 10);
+      for (const [tx, tz] of [[-2.5, 1.5], [2.5, 1.5]] as const) {
+        const t = new THREE.Mesh(tankGeo, mat(0x4a5048, 0.7, 0.2));
+        t.position.set(tx, 3.5, tz); t.castShadow = true; g.add(t);
+      }
+      g.add(box(2, 1.5, 2, DARK, 0, 2.5, -3));
+      break;
     }
     case "airbase": {
-      g.add(box(13,0.8,12,0x4f544d,0,0.4,0), box(9,0.25,8,ACC[team],0,0.9,0), box(7,2.4,3.5,0x68645a,0,2.1,-3.4), box(2.2,2.6,2.2,DARK,-4,1.8,2.2), box(2.2,2.6,2.2,DARK,4,1.8,2.2)); break;
+      // Runway strip + hangar + tower
+      g.add(box(16, 0.3, 14, 0x5a6058, 0, 0.15, 0));
+      g.add(box(12, 0.12, 3.5, 0x8a8878, 0, 0.32, 0)); // runway stripe
+      g.add(box(0.4, 0.1, 2.8, 0xf0e8c0, 0, 0.38, 0));
+      // Hangar
+      g.add(box(9, 3.5, 6, 0x5c5a50, 0, 1.85, -4.5));
+      g.add(box(8, 0.4, 5.5, 0x6a6858, 0, 3.8, -4.5));
+      // Tower
+      g.add(box(2.8, 5.5, 2.8, BODY[team], 5.5, 2.9, 4));
+      g.add(box(3.2, 0.9, 3.2, ACC[team], 5.5, 5.9, 4));
+      break;
     }
     case "supply": {
-      g.add(box(7,3.2,6,0x6b6758,0,1.6,0), box(5.5,1.2,4.8,BODY[team],0,3.7,0), box(0.5,2.5,0.5,DARK,-2.2,4.8,0), box(0.5,2.5,0.5,DARK,2.2,4.8,0)); break;
+      // Warehouse + stacked crates look
+      g.add(box(8, 3.0, 6.5, 0x6b6758, 0, 1.5, 0));
+      g.add(box(6.5, 1.0, 5, BODY[team], 0, 3.5, 0));
+      g.add(box(1.5, 2.2, 0.3, DARK, 0, 1.2, 3.35));
+      // Crate stacks outside
+      g.add(box(1.4, 1.2, 1.4, 0x8a7a50, 4.2, 0.7, 2.5));
+      g.add(box(1.2, 1.0, 1.2, 0x7a6a48, 4.2, 1.8, 2.5));
+      g.add(box(1.4, 1.2, 1.4, 0x8a7a50, -4.2, 0.7, 2.2));
+      break;
     }
     case "generator": {
-      g.add(box(6, 3.5, 6, 0x55534b, 0, 1.75, 0), box(3.8, 2.2, 3.8, BODY[team], 0, 4.2, 0));
-      for (const x of [-2.1, 2.1]) g.add(box(0.5, 3, 0.5, DARK, x, 4.8, 0));
+      g.add(box(6.5, 2.8, 6.5, 0x55534b, 0, 1.4, 0));
+      g.add(box(4.5, 1.8, 4.5, BODY[team], 0, 3.6, 0));
+      // Exhaust stacks
+      for (const x of [-1.8, 1.8]) {
+        const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 3.2, 8), mat(DARK));
+        stack.position.set(x, 5.2, 0); stack.castShadow = true; g.add(stack);
+      }
+      g.add(box(2.5, 0.8, 1.5, 0x6a6555, 0, 1.0, 3.5));
       break;
     }
     case "radar": {
-      g.add(box(5.5,2.5,5.5,0x62635e,0,1.25,0)); const mast=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.25,6,8),mat(DARK)); mast.position.y=5; g.add(mast); const dish=new THREE.Mesh(new THREE.SphereGeometry(1.5,12,8,0,Math.PI*2,0,Math.PI/2),mat(ACC[team])); dish.position.set(0,6.4,0); dish.rotation.x=Math.PI/2; g.add(dish); break;
+      g.add(box(5.5, 2.2, 5.5, 0x62635e, 0, 1.1, 0));
+      const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 7, 8), mat(DARK));
+      mast.position.y = 5.5; mast.castShadow = true; g.add(mast);
+      const dish = new THREE.Mesh(new THREE.SphereGeometry(1.8, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(ACC[team], 0.5, 0.3));
+      dish.position.set(0, 7.2, 0); dish.rotation.x = -0.4; g.add(dish);
+      g.add(box(1.5, 1.2, 1.5, 0x4a4a48, 2.2, 1.0, 2.2));
+      break;
     }
     case "artillery": {
       g.add(box(2.8,1.2,4.2,BODY[team],0,0.9,0), box(0.55,0.7,4.8,DARK,-1.8,0.65,0), box(0.55,0.7,4.8,DARK,1.8,0.65,0));
@@ -132,8 +203,18 @@ export function createModel(kind: UnitKind, team: Team): Model {
     }
     case "landCommand": case "airCommand": case "seaCommand": case "combatEngineer": case "landStrategy": case "airStrategy": case "seaStrategy": {
       const accent = kind.includes("air") ? 0x5976a8 : kind.includes("sea") ? 0x4b7770 : ACC[team];
-      g.add(box(9,3.2,8,0x5c5b55,0,1.6,0), box(6.5,2.2,5.5,accent,0,4.2,0), box(1.2,3.5,1.2,DARK,0,6.7,0));
-      if (kind.includes("Strategy")) g.add(box(4.5,0.25,1.2,0xd0a33a,0,5.4,2.8));
+      g.add(box(10, 2.8, 8.5, 0x5c5b55, 0, 1.4, 0));
+      g.add(box(7.5, 2.4, 6, accent, 0, 4.0, -0.3));
+      g.add(box(4, 1.2, 4, 0x4a4840, 0, 5.8, -0.3));
+      // Antenna / dish
+      const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 4.5, 6), mat(DARK));
+      mast.position.set(2.5, 7.5, 1.5); mast.castShadow = true; g.add(mast);
+      if (kind.includes("air")) {
+        const dish = new THREE.Mesh(new THREE.SphereGeometry(1.1, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), mat(accent, 0.5, 0.3));
+        dish.position.set(2.5, 8.8, 1.5); dish.rotation.x = -0.5; g.add(dish);
+      }
+      if (kind.includes("Strategy")) g.add(box(4.5, 0.3, 1.3, 0xd0a33a, 0, 5.5, 3.2));
+      g.add(box(1.6, 2.0, 0.3, DARK, 0, 1.1, 4.35));
       break;
     }
     case "bunker": {

@@ -63,46 +63,48 @@ export class Vision {
   }
 
   /**
-   * Cheap LOS: terrain height samples + pre-filtered blocking features.
-   * Dynamic buildings are checked only when the ray is long enough to matter.
+   * Cheap LOS for combat: height samples + optional feature block.
+   * Building occlusion only on long rays (rare for short-range fire).
    */
   hasLineOfSight(a: Entity, b: Entity): boolean {
     const dx = b.x - a.x;
     const dz = b.z - a.z;
     const d = Math.hypot(dx, dz);
-    if (d < 3) return true;
+    if (d < 4) return true;
 
     const ay = a.y + Math.max(1.2, a.def.height * 0.7);
     const by = b.y + Math.max(1.2, b.def.height * 0.65);
-    // Coarser sampling: ~every 4–5 m instead of every 3 m
-    const steps = Math.max(3, Math.ceil(d / 4.5));
+    // ~6 m steps – enough for gameplay, half the cost of fine sampling
+    const steps = Math.max(2, Math.ceil(d / 6));
     const inv = 1 / steps;
+    const checkFeatures = d > 16 && this.blockingFeatures.length > 0;
+    const nFeat = this.blockingFeatures.length;
 
     for (let i = 1; i < steps; i++) {
       const t = i * inv;
       const x = a.x + dx * t;
       const z = a.z + dz * t;
-      const terrain = heightAt(x, z) + 0.8;
-      const ray = ay + (by - ay) * t;
-      if (terrain > ray) return false;
-
-      // Features only when ray is reasonably long
-      if (d > 12) {
-        for (let fi = 0; fi < this.blockingFeatures.length; fi++) {
+      if (heightAt(x, z) + 0.8 > ay + (by - ay) * t) return false;
+      if (checkFeatures) {
+        for (let fi = 0; fi < nFeat; fi++) {
           if (pointInFeature(x, z, this.blockingFeatures[fi], 0.35)) return false;
         }
       }
     }
 
-    // Dynamic buildings: only check if ray > 18 m (most short combat LOS ignore them)
-    if (d > 18 && this.buildings.length) {
+    // Buildings only for long-range shots
+    if (d > 24 && this.buildings.length) {
+      const nB = this.buildings.length;
       for (let i = 1; i < steps; i++) {
         const t = i * inv;
         const x = a.x + dx * t;
         const z = a.z + dz * t;
-        for (const e of this.buildings) {
+        for (let bi = 0; bi < nB; bi++) {
+          const e = this.buildings[bi];
           if (e === a || e === b || e.dead) continue;
-          if (Math.hypot(e.x - x, e.z - z) < e.def.radius + 0.5) return false;
+          const bx = e.x - x, bz = e.z - z;
+          const r = e.def.radius + 0.5;
+          if (bx * bx + bz * bz < r * r) return false;
         }
       }
     }
@@ -110,28 +112,27 @@ export class Vision {
   }
 
   /**
-   * Vision update is throttled to every 2 ticks (~15 Hz) for the full reveal
-   * after the first frame. Visible cells still decay every tick so fog feels responsive.
+   * Vision reveal throttled to every 3 ticks (~10 Hz). Fog decay still runs each tick.
    */
   update(entities: readonly Entity[]): void {
     this.tickCounter++;
-    // Always decay current-visible → explored
     for (const team of [0, 1] as const) {
       const c = this.states[team];
       for (let i = 0; i < c.length; i++) if (c[i] === 2) c[i] = 1;
     }
 
-    // Full reveal on first call and every 2nd tick thereafter
-    if (this.tickCounter > 1 && this.tickCounter % 2 !== 0) return;
+    if (this.tickCounter > 1 && this.tickCounter % 3 !== 0) return;
 
-    // Collect buildings once
     this.buildings = [];
     for (const e of entities) {
       if (!e.dead && e.def.speed === 0) this.buildings.push(e);
     }
 
+    // Stagger unit reveals by id across frames when many units
+    const stagger = this.tickCounter % 2;
     for (const u of entities) {
       if (u.dead) continue;
+      if (u.def.speed > 0 && (u.id & 1) !== stagger && this.tickCounter > 3) continue;
       const radius = this.getVisionRadius(u);
       this.reveal(u.team, u.x, u.z, radius, u);
     }
@@ -172,7 +173,8 @@ export class Vision {
     const r = Math.ceil(radius / this.cellSize);
     const cells = this.states[team];
     const r2 = radius * radius;
-    const nearR2 = (this.cellSize * 1.8) * (this.cellSize * 1.8);
+    const nearR2 = (this.cellSize * 2.2) * (this.cellSize * 2.2);
+    const ay = source.y + Math.max(1.2, source.def.height * 0.7);
 
     for (let dz = -r; dz <= r; dz++) {
       for (let dx = -r; dx <= r; dx++) {
@@ -180,40 +182,29 @@ export class Vision {
         const iz = c.z + dz;
         if (!this.inBounds(ix, iz)) continue;
         const p = this.cellToWorld(ix, iz);
-        const dist2 = (p.x - x) ** 2 + (p.z - z) ** 2;
+        const dist2 = (p.x - x) * (p.x - x) + (p.z - z) * (p.z - z);
         if (dist2 > r2) continue;
 
-        // Very close cells: always visible (no LOS cost)
+        // Close: free
         if (dist2 < nearR2) {
           cells[this.index(ix, iz)] = 2;
           continue;
         }
 
-        // Medium range: cheap height-only LOS (skip feature/building checks)
-        if (dist2 < 22 * 22) {
-          const dummyY = heightAt(p.x, p.z);
-          const ay = source.y + Math.max(1.2, source.def.height * 0.7);
-          const by = dummyY + 1.5;
-          const steps = 3;
-          let blocked = false;
-          for (let i = 1; i < steps; i++) {
-            const t = i / steps;
-            const sx = x + (p.x - x) * t;
-            const sz = z + (p.z - z) * t;
-            if (heightAt(sx, sz) + 0.8 > ay + (by - ay) * t) {
-              blocked = true;
-              break;
-            }
+        // All ranges: height-only LOS (2–3 samples). Features handled in combat LOS only.
+        const by = heightAt(p.x, p.z) + 1.5;
+        const steps = dist2 < 400 ? 2 : 3;
+        let blocked = false;
+        for (let i = 1; i < steps; i++) {
+          const t = i / steps;
+          const sx = x + (p.x - x) * t;
+          const sz = z + (p.z - z) * t;
+          if (heightAt(sx, sz) + 0.8 > ay + (by - ay) * t) {
+            blocked = true;
+            break;
           }
-          if (!blocked) cells[this.index(ix, iz)] = 2;
-          continue;
         }
-
-        // Far cells: full LOS
-        const dummy = { ...source, x: p.x, z: p.z, y: heightAt(p.x, p.z) } as Entity;
-        if (this.hasLineOfSight(source, dummy)) {
-          cells[this.index(ix, iz)] = 2;
-        }
+        if (!blocked) cells[this.index(ix, iz)] = 2;
       }
     }
   }

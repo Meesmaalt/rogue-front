@@ -17,13 +17,17 @@ export class GameLoop {
     this.last = performance.now();
     const tick = (now: number) => {
       this.raf = requestAnimationFrame(tick);
-      const frame = Math.min(0.25, (now - this.last) / 1000);
+      const frame = Math.min(0.1, (now - this.last) / 1000);
       this.last = now;
       this.acc += frame;
-      while (this.acc >= this.step) {
+      // Cap sim steps per frame – prevents death spiral when a frame is slow
+      let steps = 0;
+      while (this.acc >= this.step && steps < 3) {
         this.update(this.step);
         this.acc -= this.step;
+        steps++;
       }
+      if (this.acc >= this.step) this.acc = this.step * 0.99;
       this.render(this.acc / this.step, frame);
     };
     this.raf = requestAnimationFrame(tick);

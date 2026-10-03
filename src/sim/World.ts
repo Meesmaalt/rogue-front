@@ -15,6 +15,7 @@ import type { MapFeatureDef } from "./mapFeatures";
 import { featureBlocksMovement } from "./mapFeatures";
 import { buildFootprint, isBuildable, BUILDINGS, type BuildableKind } from "./buildings";
 import { generateBaseFeatures } from "./baseLayout";
+import { SpatialHash } from "./SpatialHash";
 /** Mängu olek ja fikseeritud sammuga simulatsioon. Ei sõltu renderdusest ega brauserist. */
 export class World {
   readonly entities: Entity[] = [];
@@ -27,6 +28,8 @@ export class World {
   readonly intel: [Map<number, IntelContact>, Map<number, IntelContact>] = [new Map(), new Map()];
   readonly nav: NavGrid;
   readonly vision: Vision;
+  /** Spatial index rebuilt each tick for nearest/separation queries. */
+  readonly spatial = new SpatialHash(16);
   private navDirty = false;
   events: SimEvent[] = [];
   pending: Command[] = [];
@@ -51,18 +54,30 @@ export class World {
     if (tech === "sea-command") return this.hasBuilding(team, "seaCommand");
     return false;
   }
+  private powerCacheTime = -1;
+  private powerCache: [{ supply: number; use: number; ratio: number }, { supply: number; use: number; ratio: number }] | null = null;
+
   powerStatus(team: Team): { supply: number; use: number; ratio: number } {
-    let supply = 25, use = 0;
-    for (const e of this.entities) {
-      if (e.dead || e.underConstruction || e.team !== team || !e.def.building) continue;
-      if ((e.disabledUntil ?? 0) > this.time) continue;
-      if (e.kind === "generator") supply += BUILDINGS.generator.powerSupply ?? 0;
-      const spec = isBuildable(e.kind) ? BUILDINGS[e.kind] : null;
-      use += spec?.powerUse ?? 0;
+    // Cache for the duration of the current sim tick
+    if (this.powerCache && this.powerCacheTime === this.time) {
+      return this.powerCache[team];
     }
-    const ratio = use <= 0 ? 1 : Math.min(1, supply / use);
-    this.teamPower[team] = supply; this.teamPowerUse[team] = use;
-    return { supply, use, ratio };
+    const compute = (t: Team) => {
+      let supply = 25, use = 0;
+      for (const e of this.entities) {
+        if (e.dead || e.underConstruction || e.team !== t || !e.def.building) continue;
+        if ((e.disabledUntil ?? 0) > this.time) continue;
+        if (e.kind === "generator") supply += BUILDINGS.generator.powerSupply ?? 0;
+        const spec = isBuildable(e.kind) ? BUILDINGS[e.kind] : null;
+        use += spec?.powerUse ?? 0;
+      }
+      const ratio = use <= 0 ? 1 : Math.min(1, supply / use);
+      this.teamPower[t] = supply; this.teamPowerUse[t] = use;
+      return { supply, use, ratio };
+    };
+    this.powerCache = [compute(0), compute(1)];
+    this.powerCacheTime = this.time;
+    return this.powerCache[team];
   }
   buildingCount(team: Team, kind: BuildableKind): number { return this.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === kind).length; }
   canBuildKind(team: Team, kind: BuildableKind): boolean {
@@ -169,6 +184,8 @@ export class World {
 
   /** Updates last-known enemy positions. Contacts are shared through the command network. */
   private updateIntel(): void {
+    // Throttle: intel is strategic, 5 Hz is plenty
+    if (Math.floor(this.time * 30) % 6 !== 0) return;
     for (const team of [0, 1] as const) {
       const contacts = this.intel[team];
       for (const [id, c] of contacts) {
@@ -177,10 +194,11 @@ export class World {
       for (const enemy of this.entities) {
         if (enemy.dead || enemy.team === team) continue;
         if (!this.vision.isVisible(team, enemy.x, enemy.z)) continue;
-        const observer = this.vision.observerFor(team, enemy.x, enemy.z, this.entities);
-        if (!observer) continue;
-        const shared = this.hasCommandLink(team, observer);
-        contacts.set(enemy.id, { entityId: enemy.id, team: enemy.team, kind: enemy.kind, x: enemy.x, z: enemy.z, lastSeen: this.time, shared });
+        // Skip expensive observer LOS – visibility grid is enough for intel contacts
+        contacts.set(enemy.id, {
+          entityId: enemy.id, team: enemy.team, kind: enemy.kind,
+          x: enemy.x, z: enemy.z, lastSeen: this.time, shared: true,
+        });
       }
     }
   }
@@ -368,6 +386,8 @@ export class World {
     this.teamCredits[this.playerTeam] = this.credits;
     this.teamResources[this.playerTeam] = this.resources;
     if (!this.networkMode) this.ai.update(this, dt);
+    // Spatial hash once per tick – powers nearestEnemy + separation
+    this.spatial.rebuild(this.entities);
     updateUnits(this, dt);
     updateProjectiles(this, dt);
     let removedBuilding = false;

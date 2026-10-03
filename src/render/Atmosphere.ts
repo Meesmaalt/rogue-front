@@ -5,7 +5,7 @@ export function createSky(): THREE.Mesh {
   const mat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthWrite: false,
-    uniforms: { top: { value: new THREE.Color(0x7398ad) }, horizon: { value: new THREE.Color(0xe1d1aa) } },
+    uniforms: { top: { value: new THREE.Color(0x8eb4c8) }, horizon: { value: new THREE.Color(0xf0e0b0) } },
     vertexShader: `varying vec3 vWorld; void main(){vWorld=(modelMatrix*vec4(position,1.0)).xyz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
     fragmentShader: `uniform vec3 top; uniform vec3 horizon; varying vec3 vWorld; void main(){float h=clamp(normalize(vWorld).y*0.5+0.5,0.0,1.0);gl_FragColor=vec4(mix(horizon,top,pow(h,0.65)),1.0);}`,
   });

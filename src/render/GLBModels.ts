@@ -20,25 +20,7 @@ export async function preloadModels(): Promise<void> {
 }
 
 export function createVisualModel(kind: UnitKind, team: Team): { group: THREE.Group; turret: THREE.Group | null } {
-  const buildingKinds: UnitKind[] = ["hq","bunker","barracks","factory","helipad","airbase","supply","radar","refinery","generator","shipyard","landCommand","airCommand","seaCommand","combatEngineer","landStrategy","airStrategy","seaStrategy"];
-  // Combat units use the optimized procedural military models; building GLBs remain available for richer silhouettes.
-  if (!buildingKinds.includes(kind)) return createModel(kind, team);
-  const source = cache.get(kind);
-  if (!source) return createModel(kind, team);
-  const group = source.clone(true);
-  group.traverse((o) => {
-    const m = o as THREE.Mesh;
-    if (!m.isMesh) return;
-    m.castShadow = true;
-    m.receiveShadow = true;
-    const materials = Array.isArray(m.material) ? m.material : [m.material];
-    m.material = materials.map((base) => {
-      const clone = base.clone() as THREE.MeshStandardMaterial;
-      if (clone.color) clone.color.multiply(new THREE.Color(team === 0 ? 0.95 : 0.72, team === 0 ? 1 : 0.76, team === 0 ? 0.95 : 0.72));
-      return clone;
-    });
-  });
-  group.userData.unitKind = kind;
-  // Kui GLB-s on rotor/propeller nimega Rotor, saab UnitRenderer seda pöörata.
-  return { group, turret: null };
+  // Prefer detailed procedural military silhouettes for consistent Real-War-like readability.
+  // GLB assets remain loaded for future use but procedural wins until art pass is complete.
+  return createModel(kind, team);
 }

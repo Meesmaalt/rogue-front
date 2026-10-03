@@ -6,6 +6,14 @@ import { UNITS } from "../sim/units";
 import { MAX_QUEUE } from "../sim/constants";
 
 const fmt = (s: number) => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
+const unitIcon = (k: UnitKind): string => {
+  const icons: Partial<Record<UnitKind, string>> = {
+    inf: "⚔", engineer: "🔧", special: "★", tank: "▣", artillery: "⌖",
+    heli: "✈", transport: "⇪", gunship: "⚡", fighter: "▲",
+    destroyer: "⚓", submarine: "◎", landingcraft: "▭",
+  };
+  return icons[k] ?? "•";
+};
 const rootButton = (_hud: Hud, selector: string) => document.querySelector<HTMLButtonElement>(selector);
 
 /** HTML/CSS HUD: ressursid, valiku info, tootmispaneel, minikaardi konteiner, alustus-/lõpuekraan. */
@@ -28,6 +36,7 @@ export class Hud {
   private pauseButton: HTMLButtonElement | null = null;
   private selectedIds: number[] = [];
   private selectedProducerId: number | null = null;
+  private activeTab: "land" | "air" | "sea" | "builds" = "land";
 
   constructor(root: HTMLElement) {
     root.innerHTML = `
@@ -53,9 +62,60 @@ export class Hud {
           </div>
           <div class="help">Vasak hiir: vali · Parem: liigu/ründa · A+parem: ründeliikumine · H: hoia · P: patrull · WASD: kaamera · Rull: suum · X: peata · F+parem: suurtükituli · Ctrl+1–9: grupp</div>
         </div>
-        <div class="panel build">
-          ${(["inf", "engineer", "special", "tank", "artillery", "transport", "heli", "gunship", "fighter", "destroyer", "submarine", "landingcraft"] as UnitKind[]).map((k) => { const producer = ["inf","engineer","special"].includes(k) ? "barracks" : ["tank","artillery"].includes(k) ? "factory" : ["transport","heli","gunship"].includes(k) ? "helipad" : k === "fighter" ? "airbase" : "shipyard"; return `<button title="Tooda ${UNITS[k].name} (${UNITS[k].cost} krediiti)" data-kind="${k}" data-producer="${producer}">${UNITS[k].name} <span>${UNITS[k].cost}</span></button>`; }).join("")}
-          <div class="build-sub"><div class="tree-label" data-r="treeLabel">EHITUSPUU: HQ</div><button data-upgrade-producer hidden>Uuenda tootjat</button><button data-upgrade-supply hidden>Uuenda varustusladu</button><button data-cancel-produce hidden title="Tühista viimane järjekorras (75% tagasi)">Tühista viimane</button><button data-build="generator">Generaator <span>140</span></button><button data-build="barracks">Kasarmu <span>160</span></button><button data-build="factory">Sõidukitehas <span>220</span></button><button data-build="helipad">Helikopteribaas <span>200</span></button><button data-build="airbase">Lennuväli <span>320</span></button><button data-build="refinery">Rafineerimistehas <span>180</span></button><button data-build="supply">Varustusladu <span>130</span></button><button data-build="radar">Radar <span>190</span></button><button data-build="bunker">Punker <span>120</span></button><button data-build="aa">Õhutõrje <span>160</span></button><button data-build="shipyard">Laevatehas <span>360</span></button><button data-build="landCommand">Maa juhtimiskeskus <span>100</span></button><button data-build="airCommand">Õhu juhtimiskeskus <span>120</span></button><button data-build="seaCommand">Mere juhtimiskeskus <span>120</span></button><button data-build="combatEngineer">Insenerikeskus <span>150</span></button><button data-build="landStrategy">Maa strateegiakeskus <span>240</span></button><button data-build="airStrategy">Õhu strateegiakeskus <span>260</span></button><button data-build="seaStrategy">Mere strateegiakeskus <span>260</span></button></div><div class="qbar"><i data-r="qbar"></i></div><div class="qtxt" data-r="qtxt"></div>
+        <div class="panel build tactical">
+          <div class="tab-bar">
+            <button class="tab active" data-tab="land">LAND</button>
+            <button class="tab" data-tab="air">AIR</button>
+            <button class="tab" data-tab="sea">SEA</button>
+            <button class="tab" data-tab="builds">BUILDS</button>
+          </div>
+          <div class="tab-panels">
+            <div class="tab-panel active" data-panel="land">
+              ${(["inf", "engineer", "special", "tank", "artillery"] as UnitKind[]).map((k) => {
+                const producer = ["inf","engineer","special"].includes(k) ? "barracks" : "factory";
+                return `<button class="unit-btn" title="Tooda ${UNITS[k].name} (${UNITS[k].cost})" data-kind="${k}" data-producer="${producer}" data-tab-unit="land"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span></button>`;
+              }).join("")}
+            </div>
+            <div class="tab-panel" data-panel="air">
+              ${(["heli", "transport", "gunship", "fighter"] as UnitKind[]).map((k) => {
+                const producer = k === "fighter" ? "airbase" : "helipad";
+                return `<button class="unit-btn" title="Tooda ${UNITS[k].name} (${UNITS[k].cost})" data-kind="${k}" data-producer="${producer}" data-tab-unit="air"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span></button>`;
+              }).join("")}
+            </div>
+            <div class="tab-panel" data-panel="sea">
+              ${(["destroyer", "submarine", "landingcraft"] as UnitKind[]).map((k) => {
+                return `<button class="unit-btn" title="Tooda ${UNITS[k].name} (${UNITS[k].cost})" data-kind="${k}" data-producer="shipyard" data-tab-unit="sea"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span></button>`;
+              }).join("")}
+            </div>
+            <div class="tab-panel" data-panel="builds">
+              <div class="build-sub">
+                <div class="tree-label" data-r="treeLabel">EHITUSPUU: HQ</div>
+                <button data-upgrade-producer hidden>Uuenda tootjat</button>
+                <button data-upgrade-supply hidden>Uuenda varustusladu</button>
+                <button data-cancel-produce hidden title="Tühista viimane (75% tagasi)">Tühista viimane</button>
+                <button data-build="generator">Generaator <span>140</span></button>
+                <button data-build="barracks">Kasarmu <span>160</span></button>
+                <button data-build="factory">Sõidukitehas <span>220</span></button>
+                <button data-build="helipad">Helikopteribaas <span>200</span></button>
+                <button data-build="airbase">Lennuväli <span>320</span></button>
+                <button data-build="refinery">Rafineerimistehas <span>180</span></button>
+                <button data-build="supply">Varustusladu <span>130</span></button>
+                <button data-build="radar">Radar <span>190</span></button>
+                <button data-build="bunker">Punker <span>120</span></button>
+                <button data-build="aa">Õhutõrje <span>160</span></button>
+                <button data-build="shipyard">Laevatehas <span>360</span></button>
+                <button data-build="landCommand">Maa juhtimiskeskus <span>100</span></button>
+                <button data-build="airCommand">Õhu juhtimiskeskus <span>120</span></button>
+                <button data-build="seaCommand">Mere juhtimiskeskus <span>120</span></button>
+                <button data-build="combatEngineer">Insenerikeskus <span>150</span></button>
+                <button data-build="landStrategy">Maa strateegiakeskus <span>240</span></button>
+                <button data-build="airStrategy">Õhu strateegiakeskus <span>260</span></button>
+                <button data-build="seaStrategy">Mere strateegiakeskus <span>260</span></button>
+              </div>
+            </div>
+          </div>
+          <div class="qbar"><i data-r="qbar"></i></div>
+          <div class="qtxt" data-r="qtxt"></div>
         </div>
       </footer>
       <div class="screen" data-r="screen" hidden><div class="card"><h1 data-r="scrT"></h1><p data-r="scrP"></p><button data-r="scrB"></button></div></div>`;
@@ -63,7 +123,10 @@ export class Hud {
     this.minimapCanvas = root.querySelector(".mini") as HTMLCanvasElement;
     this.buttons = [...root.querySelectorAll<HTMLButtonElement>("button[data-kind]")];
     this.pauseButton = root.querySelector<HTMLButtonElement>('[data-action="pause"]');
-    this.buttons.forEach((b) => b.addEventListener("click", () => this.onProduce(b.dataset.kind as UnitKind, Number(b.dataset.producerId))));
+    this.buttons.forEach((b) => b.addEventListener("click", () => {
+      const pid = b.dataset.producerId ? Number(b.dataset.producerId) : undefined;
+      this.onProduce(b.dataset.kind as UnitKind, pid);
+    }));
     root.querySelectorAll<HTMLButtonElement>("button[data-build]").forEach(b=>b.addEventListener("click",()=>this.onBuild(b.dataset.build as "barracks"|"factory"|"helipad"|"airbase"|"refinery"|"supply"|"radar"|"bunker"|"aa"|"generator"|"shipyard"|"landCommand"|"airCommand"|"seaCommand"|"combatEngineer"|"landStrategy"|"airStrategy"|"seaStrategy")));
     root.querySelector<HTMLButtonElement>("button[data-upgrade-producer]")?.addEventListener("click",()=>this.onUpgradeProducer([...this.selectedIds]));
     root.querySelector<HTMLButtonElement>("button[data-upgrade-supply]")?.addEventListener("click",()=>this.onUpgradeSupply([...this.selectedIds]));
@@ -78,6 +141,14 @@ export class Hud {
       b.addEventListener("click", () => {
         const mode = b.dataset.stance as "attack" | "hold" | "patrol";
         if (this.selectedIds.length) this.onStance([...this.selectedIds], mode);
+      });
+    });
+    root.querySelectorAll<HTMLButtonElement>("button.tab[data-tab]").forEach((b) => {
+      b.addEventListener("click", () => {
+        const tab = b.dataset.tab as "land" | "air" | "sea" | "builds";
+        this.activeTab = tab;
+        root.querySelectorAll("button.tab").forEach((t) => t.classList.toggle("active", (t as HTMLButtonElement).dataset.tab === tab));
+        root.querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("active", (p as HTMLElement).dataset.panel === tab));
       });
     });
   }
@@ -111,17 +182,38 @@ export class Hud {
     const selectedProducer = [...selection].map(id=>world.byId.get(id)).find(e=>e && !e.dead && e.team===world.playerTeam && ["barracks","factory","helipad","airbase","shipyard"].includes(e.kind));
     this.selectedProducerId = selectedProducer?.id ?? null;
     const q = selectedProducer?.productionQueue ?? [];
-    this.buttons.forEach((b) => { const visible = !!selectedProducer && b.dataset.producer === selectedProducer.kind; b.style.display = visible ? "" : "none"; if (visible) b.dataset.producerId = String(selectedProducer!.id); });
+    const has = (k: "barracks"|"factory"|"helipad"|"airbase"|"shipyard") => world.entities.some(e=>!e.dead&&!e.underConstruction&&e.team===world.playerTeam&&e.kind===k);
+    const findProducer = (kind: string) => {
+      if (selectedProducer && selectedProducer.kind === kind) return selectedProducer;
+      return world.entities
+        .filter(e => !e.dead && !e.underConstruction && e.team === world.playerTeam && e.kind === kind)
+        .sort((a, b) => a.productionQueue.length - b.productionQueue.length)[0] ?? null;
+    };
+    // Unit buttons always visible inside their tab; wire to best available producer
+    this.buttons.forEach((b) => {
+      b.style.display = "";
+      const pKind = b.dataset.producer!;
+      const prod = findProducer(pKind);
+      if (prod) b.dataset.producerId = String(prod.id);
+      else delete b.dataset.producerId;
+    });
     const cancelBtn = rootButton(this, "button[data-cancel-produce]");
     if (cancelBtn) {
       cancelBtn.hidden = !selectedProducer || q.length === 0;
       cancelBtn.disabled = !running || !selectedProducer || q.length === 0;
     }
-    const has = (k: "barracks"|"factory"|"helipad"|"airbase"|"shipyard") => world.entities.some(e=>!e.dead&&!e.underConstruction&&e.team===world.playerTeam&&e.kind===k);
     const engineerSelected = [...selection].some(id=>{const e=world.byId.get(id);return !!e&&!e.dead&&e.team===world.playerTeam&&e.kind==="engineer";}) || world.entities.some(e=>!e.dead&&e.team===world.playerTeam&&e.kind==="engineer");
     const buildCosts: Record<string,number>={generator:140,barracks:160,factory:220,helipad:200,airbase:320,refinery:180,supply:130,radar:190,bunker:120,aa:160,shipyard:360,landCommand:100,airCommand:120,seaCommand:120,combatEngineer:150,landStrategy:240,airStrategy:260,seaStrategy:260};
-    for (const b of this.buttons)
-      b.disabled = !running || !hq || hq.dead || world.resources < UNITS[b.dataset.kind as UnitKind].cost || world.credits < UNITS[b.dataset.kind as UnitKind].cost || q.length >= MAX_QUEUE || ((b.dataset.kind === "inf" || b.dataset.kind === "engineer" || b.dataset.kind === "special") && !has("barracks")) || (b.dataset.kind === "tank" || b.dataset.kind === "artillery") && !has("factory") || ((b.dataset.kind === "heli" || b.dataset.kind === "transport" || b.dataset.kind === "gunship") && !has("helipad")) || (b.dataset.kind === "fighter" && !has("airbase")) || (["destroyer","submarine","landingcraft"].includes(b.dataset.kind ?? "") && !has("shipyard"));
+    for (const b of this.buttons) {
+      const kind = b.dataset.kind as UnitKind;
+      const cost = UNITS[kind].cost;
+      const pKind = b.dataset.producer as "barracks"|"factory"|"helipad"|"airbase"|"shipyard";
+      const prod = findProducer(pKind);
+      const queueFull = (prod?.productionQueue.length ?? 0) >= MAX_QUEUE;
+      b.disabled = !running || !hq || hq.dead || !prod || queueFull
+        || world.resources < cost || world.credits < cost
+        || !has(pKind);
+    }
     (this.el.qbar as HTMLElement).style.width = q.length ? Math.min(100, (world.queueProgress / UNITS[q[0]].buildTime) * 100) + "%" : "0";
     if (selectedProducer) {
       const pre = selectedProducer.preDeployOrder;
@@ -132,7 +224,9 @@ export class Hud {
         ` · Tase ${world.producerLevel(selectedProducer)}` + rallyTxt + preTxt +
         " · Shift+parem: pre-deploy";
     } else {
-      this.el.qtxt.textContent = "Vali Command Center või tootmishoone";
+      this.el.qtxt.textContent = this.activeTab === "builds"
+        ? "Vali insener + ehita (BUILDS)"
+        : "Tooda üksusi — vajad vastavat tootmishoonet";
     }
     const producerUpgrade = rootButton(this, "button[data-upgrade-producer]");
     if (producerUpgrade) { producerUpgrade.hidden=!selectedProducer; producerUpgrade.textContent=selectedProducer?.upgrading ? `Uuendamine… ${Math.ceil((selectedProducer.upgradeTime??10)-(selectedProducer.upgradeProgress??0))}s` : (selectedProducer && world.producerLevel(selectedProducer)>=2 ? "Tootja MAX" : "Uuenda tootjat (260) + ehitusaeg"); producerUpgrade.disabled=!running||!selectedProducer||!!selectedProducer.upgrading||!world.canUpgradeProducer(selectedProducer)||world.resources<260||world.credits<260; }
