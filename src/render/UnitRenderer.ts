@@ -32,21 +32,9 @@ export class UnitRenderer {
       let v = this.views.get(e.id);
       if (!v) {
         const visual = createVisualModel(e.kind, e.team);
+        // No box / hex LOD – always keep the full procedural model at every camera distance.
         const lod = new THREE.LOD();
-        const isBuilding = e.def.speed === 0 || e.def.building === true;
-        // Buildings always keep full model – the green hex LOD was the main "looks unfinished" culprit
-        lod.addLevel(visual.group, isBuilding ? 200 : (e.kind === "inf" ? 36 : e.kind === "transport" ? 48 : 56));
-        if (!isBuilding) {
-          const low = new THREE.Group();
-          const lowMesh = new THREE.Mesh(
-            new THREE.BoxGeometry(Math.max(1.2, e.def.radius * 1.4), e.kind === "fighter" ? 0.5 : 1.1, Math.max(1.4, e.def.radius * 1.8)),
-            new THREE.MeshStandardMaterial({ color: e.team === 0 ? 0x6a7a58 : 0x805850, roughness: 0.95, flatShading: true }),
-          );
-          lowMesh.position.y = 0.55;
-          lowMesh.castShadow = true;
-          low.add(lowMesh);
-          lod.addLevel(low, e.kind === "inf" ? 60 : e.kind === "transport" ? 72 : 85);
-        }
+        lod.addLevel(visual.group, 5000);
         const m = { group: lod, turret: visual.turret };
         // Mõne GLB puhul puudub rootori/propelleri animatsioon; lisa odav procedural rootori osa.
         if (["heli", "gunship", "transport"].includes(e.kind)) {
@@ -95,12 +83,15 @@ export class UnitRenderer {
         v.group.add(kit); v.upgradeKit = kit;
       }
       if (e.upgrading) {
-        const k = Math.max(0.12, Math.min(1, (e.upgradeProgress ?? 0) / Math.max(0.01, e.upgradeTime ?? 1)));
-        v.group.scale.set(0.82 + 0.18*k, 0.65 + 0.35*k, 0.82 + 0.18*k);
+        const k = Math.max(0.2, Math.min(1, (e.upgradeProgress ?? 0) / Math.max(0.01, e.upgradeTime ?? 1)));
+        v.group.scale.set(0.9 + 0.1 * k, 0.85 + 0.15 * k, 0.9 + 0.1 * k);
       } else if (e.underConstruction) {
-        const k = Math.max(0.12, Math.min(1, e.constructionProgress / Math.max(0.01, e.constructionTime)));
-        v.group.scale.set(0.65 + 0.35 * k, 0.2 + 0.8 * k, 0.65 + 0.35 * k);
-      } else v.group.scale.set(1, 1, 1);
+        // Keep full silhouette – only slight growth; no flat green slab
+        const k = Math.max(0.25, Math.min(1, e.constructionProgress / Math.max(0.01, e.constructionTime)));
+        v.group.scale.set(0.88 + 0.12 * k, 0.75 + 0.25 * k, 0.88 + 0.12 * k);
+      } else {
+        v.group.scale.set(1, 1, 1);
+      }
       const animT = performance.now() * 0.001 + v.phase;
       const recoil = this.recoilById.get(e.id) ?? 0;
       v.recoil = Math.max(0, recoil - frameDtSafe());
@@ -141,10 +132,26 @@ export class UnitRenderer {
         if (v.turret) v.turret.position.z = -kick * 1.8;
       } else if (v.turret) v.turret.position.z *= 0.75;
 
-      // Tootmise/ehituse visuaalne aktiivsus: pooleliolev ehitis pulseerib, valmis hoone jääb stabiilseks.
+      // Construction progress bar above building (removed when finished)
+      const barName = "ConstructBar";
+      let bar = v.group.getObjectByName(barName) as THREE.Mesh | undefined;
       if (e.underConstruction) {
-        const pulse = 0.97 + Math.sin(animT * 8) * 0.03;
-        v.group.scale.x *= pulse; v.group.scale.z *= pulse;
+        const k = Math.max(0.05, Math.min(1, e.constructionProgress / Math.max(0.01, e.constructionTime)));
+        if (!bar) {
+          const geo = new THREE.BoxGeometry(1, 0.18, 0.18);
+          const mat = new THREE.MeshBasicMaterial({ color: 0xf2c14b });
+          bar = new THREE.Mesh(geo, mat);
+          bar.name = barName;
+          bar.position.y = e.def.height + 1.2;
+          v.group.add(bar);
+        }
+        bar.visible = true;
+        bar.scale.x = Math.max(0.15, k) * (e.def.radius * 1.6);
+        bar.position.y = e.def.height + 1.2;
+      } else if (bar) {
+        v.group.remove(bar);
+        bar.geometry.dispose();
+        (bar.material as THREE.Material).dispose();
       } else if (e.productionQueue.length > 0) {
         const pulse = 1 + Math.sin(animT * 6) * 0.012;
         v.group.scale.x *= pulse; v.group.scale.z *= pulse;
