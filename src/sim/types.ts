@@ -1,7 +1,13 @@
 import type { FlowField } from "./nav/FlowField";
 import type { MapFeatureDef } from "./mapFeatures";
 export type Team = 0 | 1;
-export type UnitKind = "tank" | "inf" | "bunker" | "hq" | "engineer" | "heli" | "transport" | "gunship" | "fighter" | "artillery" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase" | "supply" | "radar" | "generator" | "destroyer" | "submarine" | "landingcraft" | "special" | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer" | "landStrategy" | "airStrategy" | "seaStrategy";
+export type UnitKind =
+  | "tank" | "apc" | "ifv" | "inf" | "bunker" | "hq" | "engineer"
+  | "heli" | "transport" | "gunship" | "fighter" | "interceptor" | "bomber"
+  | "artillery" | "mlrs" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase"
+  | "supply" | "radar" | "generator" | "destroyer" | "submarine" | "landingcraft" | "special"
+  | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer"
+  | "landStrategy" | "airStrategy" | "seaStrategy";
 export type Mode = "idle" | "move" | "attack" | "amove" | "patrol" | "hold" | "build" | "repair" | "transport-load" | "transport-unload" | "standing" | "sabotage";
 export type AirState = "grounded" | "taxi" | "airborne" | "returning" | "landing" | "rearming";
 export type GameStatus = "running" | "won" | "lost";

@@ -4,12 +4,14 @@ import type { MissionDef } from "../sim/types";
 import type { UnitKind } from "../sim/types";
 import { UNITS } from "../sim/units";
 import { MAX_QUEUE } from "../sim/constants";
+import type { FactionId } from "../sim/factions";
+import { FACTIONS, FACTION_LIST, factionLandUnits, factionAirUnits, factionSeaUnits } from "../sim/factions";
 
 const fmt = (s: number) => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
 const unitIcon = (k: UnitKind): string => {
   const icons: Partial<Record<UnitKind, string>> = {
-    inf: "⚔", engineer: "🔧", special: "★", tank: "▣", artillery: "⌖",
-    heli: "✈", transport: "⇪", gunship: "⚡", fighter: "▲",
+    inf: "⚔", engineer: "🔧", special: "★", tank: "▣", apc: "▢", ifv: "▣", artillery: "⌖", mlrs: "⇈",
+    heli: "✈", transport: "⇪", gunship: "⚡", fighter: "▲", interceptor: "◆", bomber: "⬤",
     destroyer: "⚓", submarine: "◎", landingcraft: "▭",
   };
   return icons[k] ?? "•";
@@ -31,6 +33,8 @@ export class Hud {
   onCancelProduce: (producerId: number) => void = () => {};
   onMultiplayer: (mission: MissionDef, room?: string) => void = () => {};
   onSkirmish: (mission: MissionDef, difficulty: "easy"|"normal"|"hard") => void = () => {};
+  selectedFaction: FactionId = "usa";
+  onFaction: (id: FactionId) => void = () => {};
   private el: Record<string, HTMLElement> = {};
   private buttons: HTMLButtonElement[] = [];
   private pauseButton: HTMLButtonElement | null = null;
@@ -71,20 +75,20 @@ export class Hud {
           </div>
           <div class="tab-panels">
             <div class="tab-panel active" data-panel="land">
-              ${(["inf", "engineer", "special", "tank", "artillery"] as UnitKind[]).map((k) => {
+              ${factionLandUnits("usa").filter(k => UNITS[k]).map((k) => {
                 const producer = ["inf","engineer","special"].includes(k) ? "barracks" : "factory";
-                return `<button class="unit-btn" title="Tooda ${UNITS[k].name} (${UNITS[k].cost})" data-kind="${k}" data-producer="${producer}" data-tab-unit="land"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span></button>`;
+                return `<button class="unit-btn" title="Tooda ${UNITS[k].name} (${UNITS[k].cost})" data-kind="${k}" data-producer="${producer}" data-tab-unit="land"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name" data-unit-label="${k}">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span></button>`;
               }).join("")}
             </div>
             <div class="tab-panel" data-panel="air">
-              ${(["heli", "transport", "gunship", "fighter"] as UnitKind[]).map((k) => {
-                const producer = k === "fighter" ? "airbase" : "helipad";
-                return `<button class="unit-btn" title="Tooda ${UNITS[k].name} (${UNITS[k].cost})" data-kind="${k}" data-producer="${producer}" data-tab-unit="air"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span></button>`;
+              ${factionAirUnits("usa").filter(k => UNITS[k]).map((k) => {
+                const producer = ["fighter","interceptor","bomber"].includes(k) ? "airbase" : "helipad";
+                return `<button class="unit-btn" title="Tooda ${UNITS[k].name} (${UNITS[k].cost})" data-kind="${k}" data-producer="${producer}" data-tab-unit="air"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name" data-unit-label="${k}">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span></button>`;
               }).join("")}
             </div>
             <div class="tab-panel" data-panel="sea">
-              ${(["destroyer", "submarine", "landingcraft"] as UnitKind[]).map((k) => {
-                return `<button class="unit-btn" title="Tooda ${UNITS[k].name} (${UNITS[k].cost})" data-kind="${k}" data-producer="shipyard" data-tab-unit="sea"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span></button>`;
+              ${factionSeaUnits("usa").filter(k => UNITS[k]).map((k) => {
+                return `<button class="unit-btn" title="Tooda ${UNITS[k].name} (${UNITS[k].cost})" data-kind="${k}" data-producer="shipyard" data-tab-unit="sea"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name" data-unit-label="${k}">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span></button>`;
               }).join("")}
             </div>
             <div class="tab-panel" data-panel="builds">
@@ -190,7 +194,17 @@ export class Hud {
         .sort((a, b) => a.productionQueue.length - b.productionQueue.length)[0] ?? null;
     };
     // Unit buttons always visible inside their tab; wire to best available producer
+    // Faction-specific unit names on buttons + selection panel
+    document.querySelectorAll<HTMLElement>("[data-unit-label]").forEach((el) => {
+      const k = el.dataset.unitLabel as UnitKind;
+      if (k && UNITS[k]) el.textContent = world.unitDisplayName(k);
+    });
     this.buttons.forEach((b) => {
+      const k = b.dataset.kind as UnitKind;
+      if (k && UNITS[k]) {
+        const nm = world.unitDisplayName(k);
+        b.title = `Tooda ${nm} (${UNITS[k].cost})`;
+      }
       b.style.display = "";
       const pKind = b.dataset.producer!;
       const prod = findProducer(pKind);
@@ -246,7 +260,7 @@ export class Hud {
       this.el.selP.textContent = "Vali üksusi hiire vasaku nupuga või tõmba kast.";
     } else if (sel.length === 1) {
       const u = sel[0]!;
-      this.el.selT.textContent = u.def.name;
+      this.el.selT.textContent = world.unitDisplayName(u.kind, u.team);
       const disabled = (u.disabledUntil ?? 0) > world.time ? ` · SABOTEERITUD ${Math.ceil((u.disabledUntil! - world.time))}s` : "";
       const logistics = u.kind === "transport" ? (u.supplyDepotId != null ? ` · VARUSTUSHELIKOPTER · Last ${Math.floor(u.cargo)} · ${u.logisticsPhase}` : ` · TRANSPORT · Reisijad ${u.cargoUnitIds.length}/8`) : (u.loadedIntoId !== null ? " · Transpordis" : "");
       const veterancy = u.veteran > 0 ? ` · Veteran ${u.veteran}★ · XP ${u.xp}` : ` · XP ${u.xp}`;
@@ -257,7 +271,7 @@ export class Hud {
         `<div class="hpbar"><i style="width:${(u.hp / u.def.hp) * 100}%"></i></div>`;
     } else {
       const c: Record<string, number> = {};
-      sel.forEach((u) => (c[u!.def.name] = (c[u!.def.name] || 0) + 1));
+      sel.forEach((u) => { const n = world.unitDisplayName(u!.kind, u!.team); c[n] = (c[n] || 0) + 1; });
       this.el.selT.textContent = sel.length + " üksust";
       this.el.selP.textContent = Object.entries(c).map(([k, v]) => `${v} × ${k}`).join(", ");
     }
@@ -282,9 +296,26 @@ export class Hud {
   }
   private showSkirmishMaps(missions: readonly MissionDef[]):void{
     const card=this.el.scrB.parentElement!; card.querySelectorAll(".mission-list").forEach(n=>n.remove());
-    this.el.scrT.textContent="SKIRMISH"; this.el.scrP.textContent="Vali kaart ja AI raskus. Alustad HQ + 2 inseneriga. Ehita generaator ja varustusladu — logistikahelikopterid toovad automaatselt varustust. Laienda, tooda armee ja hävita vaenlase HQ.";
+    this.el.scrT.textContent="SKIRMISH";
+    this.el.scrP.textContent="1) Vali rahvus  2) Vali kaart  3) AI raskus. Igal rahvusel on oma tehnika nimed (Abrams / T-90M / Type 99A jne).";
     const list=document.createElement("div"); list.className="mission-list";
-    for(const m of missions){const b=document.createElement("button");b.className="mission-choice";b.innerHTML=`<span>${m.map.name}</span><small>${m.map.theme.toUpperCase()}</small>`;b.onclick=()=>{const d=(prompt("AI raskus: easy / normal / hard","normal")||"normal").toLowerCase() as "easy"|"normal"|"hard";this.el.screen.hidden=true;this.onSkirmish(m,(d==="easy"||d==="hard")?d:"normal")};list.appendChild(b)} card.appendChild(list);
+    // Nation row
+    const nationRow=document.createElement("div"); nationRow.className="mission-list"; nationRow.style.marginBottom="10px";
+    for(const id of FACTION_LIST){
+      const f=FACTIONS[id];
+      const b=document.createElement("button"); b.className="mission-choice"+(this.selectedFaction===id?" active-faction":"");
+      b.innerHTML=`<span>${f.name}</span><small>${f.short} · ${f.unitNames.tank}</small>`;
+      b.onclick=()=>{ this.selectedFaction=id; this.onFaction(id); this.showSkirmishMaps(missions); };
+      nationRow.appendChild(b);
+    }
+    card.appendChild(nationRow);
+    for(const m of missions){
+      const b=document.createElement("button"); b.className="mission-choice";
+      b.innerHTML=`<span>${m.map.name}</span><small>${m.map.theme.toUpperCase()} · ${FACTIONS[this.selectedFaction].short}</small>`;
+      b.onclick=()=>{const d=(prompt("AI raskus: easy / normal / hard","normal")||"normal").toLowerCase() as "easy"|"normal"|"hard";this.el.screen.hidden=true;this.onFaction(this.selectedFaction);this.onSkirmish(m,(d==="easy"||d==="hard")?d:"normal")};
+      list.appendChild(b);
+    }
+    card.appendChild(list);
   }
 
   showBriefing(mission: MissionDef, onStart: () => void, hasSave = false, onLoad: (() => void) | null = null): void {

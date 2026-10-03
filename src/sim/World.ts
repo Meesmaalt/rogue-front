@@ -16,6 +16,8 @@ import { featureBlocksMovement } from "./mapFeatures";
 import { buildFootprint, isBuildable, BUILDINGS, type BuildableKind } from "./buildings";
 import { generateBaseFeatures } from "./baseLayout";
 import { SpatialHash } from "./SpatialHash";
+import type { FactionId } from "./factions";
+import { factionUnitName } from "./factions";
 /** Mängu olek ja fikseeritud sammuga simulatsioon. Ei sõltu renderdusest ega brauserist. */
 export class World {
   readonly entities: Entity[] = [];
@@ -30,6 +32,8 @@ export class World {
   readonly vision: Vision;
   /** Spatial index rebuilt each tick for nearest/separation queries. */
   readonly spatial = new SpatialHash(16);
+  playerFaction: FactionId = "usa";
+  enemyFaction: FactionId = "russia";
   private navDirty = false;
   events: SimEvent[] = [];
   pending: Command[] = [];
@@ -283,12 +287,19 @@ export class World {
   canPlaceBuilding(team: Team, kind: UnitKind, x: number, z: number): boolean {
     if (!isBuildable(kind) || !this.canBuildKind(team, kind)) return false;
     const r = buildFootprint(kind);
-    if (!this.nav.isWalkableWorld(x, z, r * 0.65)) return false;
-    if (this.entities.some(e => !e.dead && (e.def.speed === 0 || e.underConstruction) && Math.hypot(e.x - x, e.z - z) < r + e.def.radius + 1.5)) return false;
-    if (this.mapFeatures.some(f => featureBlocksMovement(f) && Math.hypot(f.x - x, f.z - z) < r + Math.hypot(f.width, f.depth) * 0.5)) return false;
+    // Soft walkability – allow gentle slopes so crater edges don't block builds
+    if (!this.nav.isWalkableWorld(x, z, r * 0.45)) return false;
+    if (this.entities.some(e => !e.dead && (e.def.speed === 0 || e.underConstruction) && Math.hypot(e.x - x, e.z - z) < r + e.def.radius + 1.2)) return false;
+    // Only hard walls/chokepoints block; roads/gates/cover never do
+    if (this.mapFeatures.some(f => (f.kind === "wall" || f.kind === "chokepoint") && Math.hypot(f.x - x, f.z - z) < r + Math.max(f.width, f.depth) * 0.45)) return false;
     if (kind === "refinery" && !this.resourcePoints.some(p => Math.hypot(p.x - x, p.z - z) <= p.radius + r)) return false;
     if (["supply", "generator", "radar", "helipad", "bunker", "aa", "shipyard", "landCommand", "airCommand", "seaCommand", "combatEngineer", "landStrategy", "airStrategy", "seaStrategy"].includes(kind)) return true;
     return this.bases[team] ? Math.hypot(this.bases[team].x - x, this.bases[team].z - z) < 155 : true;
+  }
+
+  unitDisplayName(kind: UnitKind, team?: Team): string {
+    const faction = (team ?? this.playerTeam) === this.playerTeam ? this.playerFaction : this.enemyFaction;
+    return factionUnitName(faction, kind, UNITS[kind].name);
   }
 
   buildingProgress(e: Entity): number { return e.underConstruction ? Math.max(0, Math.min(1, e.constructionProgress / Math.max(0.01, e.constructionTime))) : 1; }

@@ -2,6 +2,8 @@ import "./style.css";
 import * as THREE from "three";
 import { GameLoop } from "./core/GameLoop";
 import { SIM_STEP } from "./sim/constants";
+import type { FactionId } from "./sim/factions";
+import { FACTION_LIST } from "./sim/factions";
 import { World } from "./sim/World";
 import { heightAt, loadHeightmap, setBases, ensureHeightCache } from "./sim/heightmap";
 import { createRenderContext } from "./render/Renderer";
@@ -33,7 +35,7 @@ const queryMission = queryParams.get("mission");
 const queryRoom = queryParams.get("room");
 const SAVE_PREFIX = "rogue-front.save.v1.";
 
-async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDifficulty?: "easy"|"normal"|"hard"): Promise<void> {
+async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDifficulty?: "easy"|"normal"|"hard", faction: FactionId = "usa"): Promise<void> {
   setBases(mission.map.bases);
   await Promise.all([loadHeightmap(mission.map.heightmap, mission.map.maxHeight), preloadModels()]);
   ensureHeightCache(); // rebuild cache now that heightmap + bases are final
@@ -60,6 +62,9 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     for (let i = 0; i < count; i++) world.spawn(obj.kind, obj.team, obj.x + dx * i, obj.z + dz * i);
   }
   const missionRuntime = new MissionController(mission, world);
+  world.playerFaction = faction;
+  // Enemy gets a different nation for variety
+  world.enemyFaction = (FACTION_LIST.find(f => f !== faction) ?? "russia") as FactionId;
   if (skirmish) { const { createSkirmish } = await import("./sim/scenario"); createSkirmish(world); world.ai.setProfile(skirmishDifficulty === "hard" ? "aggressive" : skirmishDifficulty === "easy" ? "defensive" : "economic", skirmishDifficulty!); }
   if (multiplayer) world.setNetworkMode(0);
 
@@ -176,12 +181,17 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
 const queryMode = queryParams.get("mode");
 const queryDifficulty = queryParams.get("difficulty") as "easy"|"normal"|"hard"|null;
 if (queryMission) {
-  void boot(getMission(queryMission), queryRoom || undefined, queryMode === "skirmish" ? (queryDifficulty || "normal") : undefined).catch((err: unknown) => {
+  const queryFaction = (params.get("faction") as FactionId | null) ?? (localStorage.getItem("rogue-front.faction") as FactionId | null) ?? "usa";
+  const bootFaction = (FACTION_LIST.includes(queryFaction as FactionId) ? queryFaction : "usa") as FactionId;
+  void boot(getMission(queryMission), queryRoom || undefined, queryMode === "skirmish" ? (queryDifficulty || "normal") : undefined, bootFaction).catch((err: unknown) => {
     console.error(err);
     hud.showMissionSelect(MISSIONS, MissionController.loadProgress(), (mission) => { location.href = "?mission=" + encodeURIComponent(mission.id); });
   });
 } else {
   hud.showMissionSelect(MISSIONS, MissionController.loadProgress(), (mission) => { location.href = "?mission=" + encodeURIComponent(mission.id); });
-  hud.onSkirmish = (mission,difficulty) => { location.href = "?mission="+encodeURIComponent(mission.id)+"&mode=skirmish&difficulty="+difficulty; };
+  hud.onFaction = (id) => { try { localStorage.setItem("rogue-front.faction", id); } catch { /* ignore */ } };
+  const storedFaction = (localStorage.getItem("rogue-front.faction") as FactionId | null);
+  if (storedFaction && FACTION_LIST.includes(storedFaction)) hud.selectedFaction = storedFaction;
+  hud.onSkirmish = (mission,difficulty) => { location.href = "?mission="+encodeURIComponent(mission.id)+"&mode=skirmish&difficulty="+difficulty+"&faction="+encodeURIComponent(hud.selectedFaction); };
   hud.onMultiplayer = (mission, room) => { location.href = "?mission=" + encodeURIComponent(mission.id) + "&room=" + encodeURIComponent(room || "ALPHA-01"); };
 }

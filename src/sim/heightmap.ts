@@ -52,18 +52,24 @@ const smooth = (a: number, b: number, x: number): number => {
 };
 
 function rawH(x: number, z: number): number {
+  // Gentler rolling dunes – less crater-like bowls
   return (
-    Math.sin(x * 0.021 + 1.7) * Math.cos(z * 0.017) * 9 +
-    Math.sin(x * 0.047 + z * 0.039) * 3.2 +
-    Math.sin(x * 0.11) * Math.sin(z * 0.093 + 2) * 1.1 +
-    Math.cos((x + z) * 0.008) * 6
+    Math.sin(x * 0.018 + 1.7) * Math.cos(z * 0.015) * 5.5 +
+    Math.sin(x * 0.038 + z * 0.032) * 2.0 +
+    Math.sin(x * 0.09) * Math.sin(z * 0.08 + 2) * 0.7 +
+    Math.cos((x + z) * 0.007) * 3.5
   );
 }
 
 function proceduralHeight(x: number, z: number): number {
   let h = rawH(x, z);
-  for (const b of activeBases) h *= smooth(b.r * 0.6, b.r * 1.5, Math.hypot(x - b.x, z - b.z));
-  h += smooth(165, 200, Math.max(Math.abs(x), Math.abs(z))) * 26;
+  // Flatten bases more smoothly (wider blend, less abrupt bowl rim)
+  for (const b of activeBases) {
+    const d = Math.hypot(x - b.x, z - b.z);
+    h *= smooth(b.r * 0.85, b.r * 2.1, d);
+  }
+  // Softer map-edge rise
+  h += smooth(175, 210, Math.max(Math.abs(x), Math.abs(z))) * 14;
   return h;
 }
 

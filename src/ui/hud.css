@@ -100,3 +100,5 @@ button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .stance-bar button { font: 600 12px var(--body); padding: 4px 8px; background: var(--steel2); border: 1px solid var(--line); color: var(--text); cursor: pointer; }
 .stance-bar button:hover { border-color: var(--amber); }
 .stance-bar button.active { background: #3a4a3a; border-color: #6a9a6a; color: #c8e8c8; }
+
+.mission-choice.active-faction { border-color: var(--amber); background: #3a4a3a; }

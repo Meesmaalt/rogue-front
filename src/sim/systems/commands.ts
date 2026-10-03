@@ -95,19 +95,39 @@ function apply(w: World, c: Command): void {
     }
     case "build": {
       const team = c.team ?? w.playerTeam;
-      const builder = mobile(w, c.ids, team).find(u => u.kind === "engineer");
+      // Prefer selected engineers; fall back to nearest friendly engineer
+      let builders = mobile(w, c.ids, team).filter(u => u.kind === "engineer");
+      if (!builders.length) {
+        const nearest = w.entities
+          .filter(e => !e.dead && e.team === team && e.kind === "engineer" && e.loadedIntoId === null)
+          .sort((a, b) => Math.hypot(a.x - c.x, a.z - c.z) - Math.hypot(b.x - c.x, b.z - c.z))[0];
+        if (nearest) builders = [nearest];
+      }
+      const builder = builders[0];
       if (!builder || !isBuildable(c.kind)) break;
       const spec = BUILDINGS[c.kind];
       const walletCredits = w.teamCredits[team], walletResources = w.teamResources[team];
       if (walletResources < spec.cost || walletCredits < spec.cost) break;
       if (!w.canBuildKind(team, c.kind)) break;
-      if (Math.hypot(builder.x - c.x, builder.z - c.z) > 18) break;
+      // No range gate – foundation is placed and engineer walks to it (Real War style)
       if (!w.canPlaceBuilding(team, c.kind, c.x, c.z)) break;
       w.teamCredits[team] -= spec.cost; w.teamResources[team] -= spec.cost;
       if (team === w.playerTeam) { w.credits = w.teamCredits[team]; w.resources = w.teamResources[team]; }
       const b = w.spawn(c.kind, team, c.x, c.z);
-      b.underConstruction = true; b.constructionProgress = 0; b.hp = Math.max(1, b.def.hp * 0.15); b.constructionTime = spec.buildTime; b.builderIds = [builder.id]; b.heading = c.rotation ?? b.heading; b.pHeading = b.heading;
-      builder.mode = "build"; builder.target = b; builder.dest = { x: c.x, z: c.z };
+      b.underConstruction = true;
+      b.constructionProgress = 0;
+      b.hp = Math.max(1, b.def.hp * 0.15);
+      b.constructionTime = spec.buildTime;
+      b.builderIds = builders.slice(0, spec.maxBuilders).map(u => u.id);
+      b.heading = c.rotation ?? b.heading;
+      b.pHeading = b.heading;
+      for (const eng of builders.slice(0, spec.maxBuilders)) {
+        eng.mode = "build";
+        eng.target = b;
+        eng.dest = { x: c.x, z: c.z };
+        eng.navPath = [];
+        eng.navPathIndex = 0;
+      }
       break;
     }
     case "research": {
@@ -189,25 +209,26 @@ function apply(w: World, c: Command): void {
     case "produce": {
       const def = UNITS[c.kind], team = c.team ?? w.playerTeam, hq = w.hq[team];
       if (!def.producible || !hq || hq.dead || hq.underConstruction || w.teamResources[team] < def.cost || w.teamCredits[team] < def.cost) break;
-      const producerKind = (c.kind === "inf" || c.kind === "engineer" || c.kind === "special") ? "barracks" : (c.kind === "tank" || c.kind === "artillery") ? "factory" : (c.kind === "heli" || c.kind === "transport" || c.kind === "gunship") ? "helipad" : (c.kind === "fighter" ? "airbase" : (["destroyer","submarine","landingcraft"].includes(c.kind) ? "shipyard" : null));
+      const producerKind = (c.kind === "inf" || c.kind === "engineer" || c.kind === "special") ? "barracks" : (["tank","apc","ifv","artillery","mlrs"].includes(c.kind)) ? "factory" : (["heli","transport","gunship"].includes(c.kind)) ? "helipad" : (["fighter","interceptor","bomber"].includes(c.kind) ? "airbase" : (["destroyer","submarine","landingcraft"].includes(c.kind) ? "shipyard" : null));
       if (!producerKind) break;
       const producer = c.producerId !== undefined
         ? w.byId.get(c.producerId)
         : w.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === producerKind && e.productionQueue.length < MAX_QUEUE).sort((a,b)=>a.productionQueue.length-b.productionQueue.length)[0];
       if (producer && (producer.dead || producer.underConstruction || producer.team !== team || producer.kind !== producerKind || producer.productionQueue.length >= MAX_QUEUE)) break;
       if (!producer) break;
-      const unitLimits: Partial<Record<string, number>> = { tank: 20, artillery: 8, fighter: 8, gunship: 6, transport: 6, heli: 6, inf: 40, engineer: 8, special: 8, destroyer: 5, submarine: 4, landingcraft: 6 };
+      const unitLimits: Partial<Record<string, number>> = { tank: 18, apc: 16, ifv: 14, artillery: 8, mlrs: 6, fighter: 8, interceptor: 6, bomber: 4, gunship: 6, transport: 6, heli: 6, inf: 40, engineer: 8, special: 8, destroyer: 5, submarine: 4, landingcraft: 6 };
       const limit = unitLimits[c.kind];
       if (limit !== undefined && w.entities.filter(e => !e.dead && e.team === team && e.kind === c.kind).length + producer.productionQueue.filter(k => k === c.kind).length >= limit) break;
-      if ((c.kind === "fighter" || c.kind === "gunship") && producer.kind === "airbase") {
+      if ((c.kind === "fighter" || c.kind === "interceptor" || c.kind === "bomber" || c.kind === "gunship") && producer.kind === "airbase") {
         const air = w.airbaseStatus(team);
         if (air.aircraft + producer.productionQueue.filter(k => k === c.kind).length >= air.capacity) break;
       }
       if (w.powerStatus(team).ratio < 0.25 && c.kind !== "inf" && c.kind !== "engineer") break;
-      if ((c.kind === "fighter") && !w.hasTech(team, "air")) break;
+      if ((c.kind === "fighter" || c.kind === "interceptor" || c.kind === "bomber") && !w.hasTech(team, "air")) break;
       if ((c.kind === "gunship") && w.producerLevel(producer) < 2) break;
       if ((c.kind === "special") && w.producerLevel(producer) < 2) break;
-      if ((c.kind === "artillery") && w.producerLevel(producer) < 2) break;
+      if ((c.kind === "artillery" || c.kind === "mlrs") && w.producerLevel(producer) < 2) break;
+      if ((c.kind === "interceptor" || c.kind === "bomber") && w.producerLevel(producer) < 2) break;
       if (["destroyer","submarine"].includes(c.kind) && w.producerLevel(producer) < 2) break;
       w.teamCredits[team] -= def.cost; w.teamResources[team] -= def.cost;
       if (team === w.playerTeam) { w.credits = w.teamCredits[team]; w.resources = w.teamResources[team]; }

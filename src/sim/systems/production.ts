@@ -3,11 +3,10 @@ import { UNITS } from "../units";
 import type { Entity, UnitKind } from "../types";
 
 function producerKind(kind: UnitKind): "barracks" | "factory" | "helipad" | "airbase" | "shipyard" | null {
-  if (kind === "inf" || kind === "engineer") return "barracks";
-  if (kind === "tank" || kind === "artillery") return "factory";
+  if (kind === "inf" || kind === "engineer" || kind === "special") return "barracks";
+  if (kind === "tank" || kind === "apc" || kind === "ifv" || kind === "artillery" || kind === "mlrs") return "factory";
   if (kind === "heli" || kind === "transport" || kind === "gunship") return "helipad";
-  if (kind === "fighter") return "airbase";
-  if (kind === "special") return "barracks";
+  if (kind === "fighter" || kind === "interceptor" || kind === "bomber") return "airbase";
   if (kind === "destroyer" || kind === "submarine" || kind === "landingcraft") return "shipyard";
   return null;
 }
