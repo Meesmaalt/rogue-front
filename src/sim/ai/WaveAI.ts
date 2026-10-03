@@ -287,6 +287,10 @@ export class WaveAI {
 
   private launchAttack(w: World): void {
     const priorityKinds = ["supply", "generator", "refinery", "factory", "barracks", "helipad", "airbase", "hq"];
+    // Keep logistics interdiction as standing doctrine
+    for (const u of w.entities.filter(e => !e.dead && e.team === 1 && e.def.speed > 0 && e.kind !== "engineer")) {
+      if (!u.priorityFocus) u.priorityFocus = this.personality === "economic" ? "supply" : (this.rngPick(w) < 0.5 ? "supply" : "generator");
+    }
     let target: Entity | null = null;
     for (const kind of priorityKinds) {
       target = w.entities.find(e =>

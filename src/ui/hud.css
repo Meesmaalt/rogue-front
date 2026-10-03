@@ -102,3 +102,25 @@ button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .stance-bar button.active { background: #3a4a3a; border-color: #6a9a6a; color: #c8e8c8; }
 
 .mission-choice.active-faction { border-color: var(--amber); background: #3a4a3a; }
+
+.tree-hint { font: 11px var(--body); color: var(--muted); margin: 2px 0 6px; }
+.build-buttons { display: flex; flex-wrap: wrap; gap: 4px; }
+.build-buttons button { display: flex; flex-direction: column; align-items: flex-start; min-width: 110px; font: 600 12px var(--body); padding: 6px 8px; background: var(--steel2); border: 1px solid var(--line); color: var(--text); cursor: pointer; }
+.build-buttons button:hover:not(:disabled) { border-color: var(--amber); }
+.build-buttons button:disabled { opacity: 0.45; cursor: not-allowed; }
+.build-buttons .unit-cost { color: var(--amber); font-size: 11px; }
+.build-buttons .lock-reason { color: #c07070; font: 10px var(--body); margin-top: 2px; }
+
+.pwr-bar { display: inline-block; width: 48px; height: 6px; background: #2a2e32; border-radius: 2px; margin-left: 6px; vertical-align: middle; overflow: hidden; }
+.pwr-bar i { display: block; height: 100%; width: 0; background: #6a9a6a; }
+.pwr-bar i.over { background: #c05050; }
+.logistics-row b.log-ok { color: #8dca8d; }
+.logistics-row b.log-bad { color: #e08070; }
+.priority-bar, .predeploy-bar { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; align-items: center; }
+.priority-bar button, .predeploy-bar button { font: 600 11px var(--body); padding: 3px 7px; background: var(--steel2); border: 1px solid var(--line); color: var(--text); cursor: pointer; }
+.priority-bar button:hover, .predeploy-bar button:hover { border-color: var(--amber); }
+.pre-label { font: 11px var(--body); color: var(--muted); margin-right: 4px; }
+.power-low { color: #e07070 !important; }
+
+.formation-bar { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; align-items: center; }
+.formation-bar button.active { border-color: var(--amber); background: #3a4a3a; }

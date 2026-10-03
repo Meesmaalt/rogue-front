@@ -17,7 +17,7 @@ import { buildFootprint, isBuildable, BUILDINGS, type BuildableKind } from "./bu
 import { generateBaseFeatures } from "./baseLayout";
 import { SpatialHash } from "./SpatialHash";
 import type { FactionId } from "./factions";
-import { factionUnitName } from "./factions";
+import { FACTIONS, factionUnitName } from "./factions";
 /** Mängu olek ja fikseeritud sammuga simulatsioon. Ei sõltu renderdusest ega brauserist. */
 export class World {
   readonly entities: Entity[] = [];
@@ -152,7 +152,14 @@ export class World {
   }
 
   spawn(kind: UnitKind, team: Team, x: number, z: number): Entity {
-    const def = UNITS[kind], y = heightAt(x, z), heading = team ? -Math.PI / 4 : Math.PI * 0.75;
+    const baseDef = UNITS[kind];
+    const faction = team === this.playerTeam ? this.playerFaction : this.enemyFaction;
+    const b = FACTIONS[faction].bonuses;
+    // Per-faction slight stat skew (clone def so shared UNITS table stays pristine)
+    const def = baseDef.speed > 0 || baseDef.damage > 0
+      ? { ...baseDef, hp: Math.round(baseDef.hp * b.armorMul), speed: baseDef.speed * b.speedMul, damage: Math.round(baseDef.damage * b.damageMul), cost: Math.round(baseDef.cost * b.buildCostMul) }
+      : baseDef;
+    const y = heightAt(x, z), heading = team ? -Math.PI / 4 : Math.PI * 0.75;
     const e: Entity = {
       id: this.nextId++, kind, team, def, x, y, z, heading, turretYaw: 0,
       px: x, pz: z, pHeading: heading, pTurretYaw: 0,

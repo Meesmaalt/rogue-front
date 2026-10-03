@@ -15,24 +15,40 @@ function mobile(w: World, ids: number[], team?: Entity["team"]): Entity[] {
   return out;
 }
 
-/** Wider, staggered formation – less stacking than classic Real War. */
-function formation(n: number, x: number, z: number): Point[] {
+/** Formation layouts: box (default), line, wedge, column. */
+export type FormationKind = "box" | "line" | "wedge" | "column";
+let activeFormation: FormationKind = "box";
+export function setFormation(kind: FormationKind): void { activeFormation = kind; }
+export function getFormation(): FormationKind { return activeFormation; }
+
+function formation(n: number, x: number, z: number, kind: FormationKind = activeFormation): Point[] {
   if (n <= 1) return [{ x, z }];
-  const cols = Math.ceil(Math.sqrt(n * 1.15));
-  const rows = Math.ceil(n / cols);
   const sp = n <= 4 ? 5.5 : n <= 9 ? 6.2 : 7;
   const out: Point[] = [];
-  for (let i = 0; i < n; i++) {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const stagger = (row % 2) * (sp * 0.35);
-    out.push({
-      x: x + (col - (cols - 1) / 2) * sp + stagger,
-      z: z + (row - (rows - 1) / 2) * sp * 0.9,
-    });
+  if (kind === "line") {
+    for (let i = 0; i < n; i++) out.push({ x: x + (i - (n - 1) / 2) * sp, z });
+  } else if (kind === "column") {
+    for (let i = 0; i < n; i++) out.push({ x, z: z + (i - (n - 1) / 2) * sp * 0.85 });
+  } else if (kind === "wedge") {
+    let row = 0, placed = 0;
+    while (placed < n) {
+      const inRow = row + 1;
+      for (let c = 0; c < inRow && placed < n; c++, placed++) {
+        out.push({ x: x + (c - (inRow - 1) / 2) * sp, z: z + row * sp * 0.8 });
+      }
+      row++;
+    }
+  } else {
+    const cols = Math.ceil(Math.sqrt(n * 1.15));
+    for (let i = 0; i < n; i++) {
+      const col = i % cols, row = Math.floor(i / cols);
+      const stagger = (row % 2) * (sp * 0.35);
+      out.push({ x: x + (col - (cols - 1) / 2) * sp + stagger, z: z + (row - (rowsSafe(cols, n) - 1) / 2) * sp * 0.9 });
+    }
   }
   return out;
 }
+function rowsSafe(cols: number, n: number): number { return Math.ceil(n / cols); }
 
 export function applyCommands(w: World): void {
   const cmds = w.pending;
@@ -46,13 +62,26 @@ function apply(w: World, c: Command): void {
     case "amove": {
       const us = mobile(w, c.ids, c.team), pts = formation(us.length, c.x, c.z);
       const field = new FlowField(w.nav, { x: c.x, z: c.z });
+      const append = !!(c as { append?: boolean }).append;
       us.forEach((u, i) => {
-        u.mode = c.type === "move" ? "move" : "amove"; u.dest = pts[i];
-        u.navPath = c.type === "move" ? findPath(w.nav, u, pts[i], u.def.radius) : [];
-        u.navPathIndex = 1;
-        u.flowField = field;
-        u.stuckTime = 0; u.stuckX = u.x; u.stuckZ = u.z;
-        if (c.type === "move") u.target = null;
+        if (append && (u.mode === "move" || u.mode === "amove" || u.mode === "patrol") && u.dest) {
+          // Shift-click: queue waypoint
+          if (!u.patrolPoints.length && u.dest) u.patrolPoints = [{ x: u.dest.x, z: u.dest.z }];
+          u.patrolPoints.push({ x: pts[i].x, z: pts[i].z });
+          u.mode = "patrol";
+          u.patrolIndex = 0;
+          if (!u.dest) u.dest = pts[i];
+        } else {
+          u.mode = c.type === "move" ? "move" : "amove";
+          u.dest = pts[i];
+          u.patrolPoints = [];
+          u.patrolIndex = 0;
+          u.navPath = c.type === "move" ? findPath(w.nav, u, pts[i], u.def.radius) : [];
+          u.navPathIndex = 1;
+          u.flowField = field;
+          u.stuckTime = 0; u.stuckX = u.x; u.stuckZ = u.z;
+          if (c.type === "move") u.target = null;
+        }
       });
       break;
     }
@@ -196,6 +225,22 @@ function apply(w: World, c: Command): void {
         b.preDeployOrder = { mode:c.mode, x:c.x, z:c.z };
       }
       break;
+
+    case "priority": {
+      const us = mobile(w, c.ids, c.team);
+      for (const u of us) {
+        u.priorityFocus = c.focus;
+        u.mode = "amove";
+        // Head toward nearest matching enemy structure
+        const targets = w.entities.filter(e => !e.dead && e.team !== u.team && e.kind === c.focus);
+        if (targets.length) {
+          targets.sort((a,b) => Math.hypot(a.x-u.x,a.z-u.z) - Math.hypot(b.x-u.x,b.z-u.z));
+          u.target = targets[0];
+          u.dest = { x: targets[0].x, z: targets[0].z };
+        }
+      }
+      break;
+    }
     }
     case "unload": {
       for (const transport of mobile(w, c.ids, c.team).filter(u => u.kind === "transport" || u.kind === "landingcraft")) {

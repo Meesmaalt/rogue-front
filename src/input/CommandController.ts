@@ -86,7 +86,7 @@ export class CommandController {
         if (selectedTransports.length && selectedTransports.some(id => (this.world.byId.get(id)?.cargoUnitIds.length ?? 0) > 0)) {
           this.world.issue({ type: "unload", ids: selectedTransports, x: p.x, z: p.z });
           this.fx.ping(p.x, p.z, 0x55b7ff);
-        } else this.moveTo(p.x, p.z);
+        } else this.moveTo(p.x, p.z, e.shiftKey);
       }
     });
     addEventListener("keydown", (e) => {
@@ -116,10 +116,12 @@ export class CommandController {
 
   private cancelBuild(el: HTMLElement): void { this.fireMissionMode=false; this.buildMode=null; this.buildPoint=null; this.buildValid=false; el.style.cursor="crosshair"; }
 
-  moveTo(x: number, z: number): void {
+  moveTo(x: number, z: number, append = false): void {
     if (!this.enabled) return;
-    this.world.issue({ type: "move", ids: this.ids(), x, z });
-    this.fx.ping(x, z, 0xf2a33a);
+    const cmd: import("../sim/types").Command = { type: "move", ids: this.ids(), x, z };
+    if (append) (cmd as { append?: boolean }).append = true;
+    this.world.issue(cmd);
+    this.fx.ping(x, z, append ? 0x9b7cff : 0xf2a33a);
   }
 
   private ids(): number[] {

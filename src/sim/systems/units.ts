@@ -48,6 +48,8 @@ export function nearestEnemy(w: World, u: Entity, range: number): Entity | null 
     if (e.kind === "transport" && e.supplyDepotId != null) priority -= 20;
     if (e.kind === "refinery" || e.kind === "helipad" || e.kind === "airbase" || e.kind === "factory" || e.kind === "barracks") priority -= 18;
     if (e.kind === "hq") priority -= 12;
+    // Real War priority orders: focus supply / power / AA when set
+    if (u.priorityFocus && e.kind === u.priorityFocus) priority -= 80;
     if (priority < bestScore) { bestScore = priority; best = e; }
   });
   return best;

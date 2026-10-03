@@ -14,6 +14,8 @@ export interface FactionDef {
   landExtra: UnitKind[];
   airExtra: UnitKind[];
   seaExtra: UnitKind[];
+  /** Small asymmetric bonuses (not pay-to-win). */
+  bonuses: { armorMul: number; speedMul: number; damageMul: number; buildCostMul: number };
 }
 
 const USA: FactionDef = {
@@ -45,6 +47,7 @@ const USA: FactionDef = {
   landExtra: ["apc", "ifv", "mlrs"],
   airExtra: ["interceptor", "bomber"],
   seaExtra: [],
+  bonuses: { armorMul: 1.05, speedMul: 1.0, damageMul: 1.0, buildCostMul: 1.0 }, // USA: slightly tougher
 };
 
 const RUSSIA: FactionDef = {
@@ -52,6 +55,7 @@ const RUSSIA: FactionDef = {
   name: "Russia",
   short: "RUS",
   color: 0xb05040,
+  bonuses: { armorMul: 1.08, speedMul: 0.96, damageMul: 1.04, buildCostMul: 0.95 }, // RUS: armor + punch, slower, cheaper
   unitNames: {
     inf: "Motor Rifle Squad",
     engineer: "Combat Engineer",
@@ -83,6 +87,7 @@ const CHINA: FactionDef = {
   name: "China",
   short: "CHN",
   color: 0xc0a030,
+  bonuses: { armorMul: 1.0, speedMul: 1.04, damageMul: 0.98, buildCostMul: 0.92 }, // CHN: faster, cheaper, slightly less damage
   unitNames: {
     inf: "PLA Infantry",
     engineer: "Combat Engineer",
@@ -132,4 +137,8 @@ export function factionAirUnits(faction: FactionId): UnitKind[] {
 
 export function factionSeaUnits(_faction: FactionId): UnitKind[] {
   return ["destroyer", "submarine", "landingcraft"];
+}
+
+export function factionForTeam(w: { playerTeam: 0|1; playerFaction: FactionId; enemyFaction: FactionId }, team: 0|1): FactionId {
+  return team === w.playerTeam ? w.playerFaction : w.enemyFaction;
 }
