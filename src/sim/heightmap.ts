@@ -10,10 +10,25 @@ const DEFAULT_BASES: readonly BaseDef[] = [
 let activeBases: readonly BaseDef[] = DEFAULT_BASES;
 let activeHeightmap: HeightmapSource | null = null;
 
+/** Cached height grid (2 m cells) — built once after bases/heightmap are set. */
+const CACHE_CELL = 2;
+const CACHE_HALF = MAP_SIZE / 2;
+const CACHE_CELLS = Math.round(MAP_SIZE / CACHE_CELL);
+let heightCache: Float32Array | null = null;
+let cacheValid = false;
+
 export const BASES = DEFAULT_BASES;
 export function getBases(): readonly BaseDef[] { return activeBases; }
-export function setBases(bases: readonly BaseDef[]): void { activeBases = bases.length ? bases : DEFAULT_BASES; }
-export function resetHeightmap(): void { activeHeightmap = null; activeBases = DEFAULT_BASES; }
+export function setBases(bases: readonly BaseDef[]): void {
+  activeBases = bases.length ? bases : DEFAULT_BASES;
+  cacheValid = false;
+}
+export function resetHeightmap(): void {
+  activeHeightmap = null;
+  activeBases = DEFAULT_BASES;
+  cacheValid = false;
+  heightCache = null;
+}
 
 export async function loadHeightmap(url: string, maxHeight = 80): Promise<void> {
   const image = new Image();
@@ -28,6 +43,7 @@ export async function loadHeightmap(url: string, maxHeight = 80): Promise<void> 
   const gray = new Uint8Array(size * size);
   for (let i = 0; i < gray.length; i++) gray[i] = data[i * 4];
   activeHeightmap = { width: size, height: size, data: gray, maxHeight };
+  cacheValid = false;
 }
 
 const smooth = (a: number, b: number, x: number): number => {
@@ -63,6 +79,42 @@ function sampleHeightmap(x: number, z: number): number {
   return a * (1 - tz) + b * tz;
 }
 
-export function heightAt(x: number, z: number): number {
+function computeRaw(x: number, z: number): number {
   return activeHeightmap ? sampleHeightmap(x, z) : proceduralHeight(x, z);
+}
+
+/** Build / rebuild the 2 m height cache. Call once after bases or heightmap change. */
+export function ensureHeightCache(): void {
+  if (cacheValid && heightCache) return;
+  if (!heightCache) heightCache = new Float32Array(CACHE_CELLS * CACHE_CELLS);
+  for (let iz = 0; iz < CACHE_CELLS; iz++) {
+    for (let ix = 0; ix < CACHE_CELLS; ix++) {
+      const x = -CACHE_HALF + (ix + 0.5) * CACHE_CELL;
+      const z = -CACHE_HALF + (iz + 0.5) * CACHE_CELL;
+      heightCache[iz * CACHE_CELLS + ix] = computeRaw(x, z);
+    }
+  }
+  cacheValid = true;
+}
+
+/**
+ * Fast height lookup. Uses bilinear interpolation on the cached grid when available.
+ * Falls back to exact procedural / heightmap sample if cache not ready.
+ */
+export function heightAt(x: number, z: number): number {
+  if (!cacheValid || !heightCache) {
+    return computeRaw(x, z);
+  }
+  // bilinear sample of cache
+  const fx = (x + CACHE_HALF) / CACHE_CELL - 0.5;
+  const fz = (z + CACHE_HALF) / CACHE_CELL - 0.5;
+  const x0 = Math.max(0, Math.min(CACHE_CELLS - 1, Math.floor(fx)));
+  const z0 = Math.max(0, Math.min(CACHE_CELLS - 1, Math.floor(fz)));
+  const x1 = Math.min(CACHE_CELLS - 1, x0 + 1);
+  const z1 = Math.min(CACHE_CELLS - 1, z0 + 1);
+  const tx = fx - x0;
+  const tz = fz - z0;
+  const a = heightCache[z0 * CACHE_CELLS + x0] * (1 - tx) + heightCache[z0 * CACHE_CELLS + x1] * tx;
+  const b = heightCache[z1 * CACHE_CELLS + x0] * (1 - tx) + heightCache[z1 * CACHE_CELLS + x1] * tx;
+  return a * (1 - tz) + b * tz;
 }

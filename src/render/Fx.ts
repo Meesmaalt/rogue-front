@@ -52,6 +52,11 @@ export class Fx {
       else if (e.type === "death") this.explode(e.x, e.y, e.z, e.big);
       else if (e.type === "build-complete") this.ping(e.x, e.z, 0x66d9a0);
       else if (e.type === "repair-complete") this.ping(e.x, e.z, 0x4ca8ff);
+      else if (e.type === "supply-delivered") {
+        // Golden ring + dust – clear feedback that logistics just paid out
+        this.ping(e.x, e.z, 0xf2a33a);
+        for (let i = 0; i < 5; i++) this.puff(e.x, 2, e.z, this.r(6), Math.random() * 3, this.r(6), 0.35, 0.7, "dust");
+      }
     }
   }
 

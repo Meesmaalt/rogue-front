@@ -15,26 +15,40 @@ function inFiringArc(u: Entity, target: Entity): boolean {
 }
 
 function hasSpotter(w: World, u: Entity, target: Entity): boolean {
-  if (w.vision.isVisible(u.team, target.x, target.z) && w.entities.some(s => !s.dead && s.team === u.team && (s === u || w.vision.isVisible(u.team,s.x,s.z)))) return true;
+  // Fast path: if the target cell is currently visible to the team, any living friendly is enough.
+  if (w.vision.isVisible(u.team, target.x, target.z)) return true;
+  // Artillery can fire with a forward spotter within 105 m
   if (u.kind !== "artillery") return false;
-  return w.entities.some(s => !s.dead && s.team === u.team && s !== u && s.def.speed > 0 && w.vision.isVisible(u.team, s.x, s.z) && Math.hypot(s.x-target.x, s.z-target.z) < 105);
+  for (const s of w.entities) {
+    if (s.dead || s.team !== u.team || s === u || s.def.speed === 0) continue;
+    if (Math.hypot(s.x - target.x, s.z - target.z) < 105 && w.vision.isVisible(u.team, s.x, s.z)) return true;
+  }
+  return false;
 }
 
 export function nearestEnemy(w: World, u: Entity, range: number): Entity | null {
   let best: Entity | null = null, bestScore = Number.POSITIVE_INFINITY;
+  const range2 = (range + 12) * (range + 12); // loose early-out
   for (const e of w.entities) {
     if (e.dead || e.team === u.team || e.underConstruction) continue;
-    if (e.def.stealth && u.kind !== "radar" && Math.hypot(e.x-u.x,e.z-u.z) > 12) continue;
-    const d = dist2d(u, e) - e.def.radius;
+    const dx = e.x - u.x, dz = e.z - u.z;
+    const distSq = dx * dx + dz * dz;
+    if (distSq > range2) continue;
+    if (e.def.stealth && u.kind !== "radar" && distSq > 144) continue;
+    const d = Math.sqrt(distSq) - e.def.radius;
     if (d > range) continue;
     if (!hasSpotter(w, u, e)) continue;
     if (u.def.weapon !== "missile" && e.def.armor === "air") continue;
     if ((u.kind === "bunker" || u.kind === "aa") && !inFiringArc(u, e)) continue;
     let priority = d;
+    // Logistics denial & high-value targets (clearer strategy than original Real War)
     if (u.def.weapon === "missile" && e.def.armor === "air") priority -= 22;
     if (u.kind === "artillery" && e.def.speed === 0) priority -= 16;
     if (u.kind === "tank" && e.def.speed === 0) priority -= 8;
-    if (e.kind === "refinery" || e.kind === "helipad" || e.kind === "airbase" || e.kind === "supply" || e.kind === "factory" || e.kind === "barracks") priority -= 18;
+    if (e.kind === "supply") priority -= 28;
+    if (e.kind === "generator") priority -= 24;
+    if (e.kind === "transport" && e.supplyDepotId != null) priority -= 20;
+    if (e.kind === "refinery" || e.kind === "helipad" || e.kind === "airbase" || e.kind === "factory" || e.kind === "barracks") priority -= 18;
     if (e.kind === "hq") priority -= 12;
     if (priority < bestScore) { bestScore = priority; best = e; }
   }
@@ -112,9 +126,10 @@ function updateTransport(w: World, u: Entity, dt: number): void {
   if (!moveAirTo(u, target, dt, w)) return;
   const depot = u.supplyDepotId != null ? w.byId.get(u.supplyDepotId) : null;
   const level = depot?.supplyLevel ?? 0;
-  const capacity = 100 + level * 50;
-  const loadTime = Math.max(2.5, 7.5 - level * 1.25);
-  const unloadTime = Math.max(1.5, 4 - level * 0.5);
+  // Real War style: each successful logistics run delivers a meaningful supply drop
+  const capacity = 120 + level * 55;
+  const loadTime = Math.max(2.2, 6.5 - level * 1.1);
+  const unloadTime = Math.max(1.2, 3.2 - level * 0.45);
   if (u.logisticsPhase === "idle" || u.logisticsPhase === "unloading") {
     const rp = w.resourcePoints.find(r => Math.hypot(r.x - u.x, r.z - u.z) <= r.radius + 4 && r.amount > 0 && (r.controlledBy == null || r.controlledBy === u.team));
     if (rp) {
@@ -127,7 +142,10 @@ function updateTransport(w: World, u: Entity, dt: number): void {
     if (depot && Math.hypot(depot.x-u.x,depot.z-u.z) < 18) {
       u.logisticsLoadProgress = (u.logisticsLoadProgress ?? 0) + dt;
       if (u.logisticsLoadProgress >= unloadTime) {
-        w.teamResources[u.team] += u.cargo; if (u.team === w.playerTeam) w.resources = w.teamResources[u.team];
+        const amount = u.cargo;
+        w.teamResources[u.team] += amount;
+        if (u.team === w.playerTeam) w.resources = w.teamResources[u.team];
+        w.events.push({ type: "supply-delivered", team: u.team, x: u.x, z: u.z, amount });
         u.cargo = 0; u.logisticsPhase = "unloading"; u.logisticsLoadProgress = 0;
         const next = w.resourcePoints.find(r => r.amount > 0 && (r.controlledBy == null || r.controlledBy === u.team));
         if (next) u.logisticsTarget = { x: next.x, z: next.z };
@@ -236,11 +254,17 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     const isAir = d.armor === "air";
     if (isAir && u.airState === "grounded") return;
     let sx = 0, sz = 0;
+    // Stronger separation than classic Real War – less unit stacking
+    const sepRange = d.radius + 10;
+    const sepRange2 = sepRange * sepRange;
     for (const o of w.entities) {
       if (o === u || o.dead) continue;
-      const ox = u.x - o.x, oz = u.z - o.z, m = d.radius + o.def.radius + 0.6, d2 = ox * ox + oz * oz;
-      if (d2 < m * m && d2 > 1e-4) {
-        const dd = Math.sqrt(d2), k = ((m - dd) / m) * (o.def.speed === 0 ? 3 : 1);
+      const ox = u.x - o.x, oz = u.z - o.z;
+      const d2 = ox * ox + oz * oz;
+      if (d2 > sepRange2 || d2 < 1e-4) continue;
+      const m = d.radius + o.def.radius + 0.85;
+      if (d2 < m * m) {
+        const dd = Math.sqrt(d2), k = ((m - dd) / m) * (o.def.speed === 0 ? 3.4 : 1.25);
         sx += (ox / dd) * k; sz += (oz / dd) * k;
       }
     }
@@ -280,7 +304,7 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     const moved = Math.hypot(u.x - u.stuckX, u.z - u.stuckZ);
     if (moving && moved < 0.15 * dt) u.stuckTime += dt;
     else if (moved > 0.5) { u.stuckTime = 0; u.stuckX = u.x; u.stuckZ = u.z; }
-    if (u.stuckTime > 0.8 && goal && !isAir) {
+    if (u.stuckTime > 1.2 && goal && !isAir) {
       u.navPath = findPath(w.nav, u, goal, u.def.radius); u.navPathIndex = 1;
       u.stuckTime = 0; u.stuckX = u.x; u.stuckZ = u.z;
     }

@@ -62,12 +62,19 @@ export class CommandController {
       const enemy = this.picker.pickEntity(e.clientX, e.clientY, this.world.playerTeam === 0 ? 1 : 0);
       const rallyBuildings = this.selection.selectedIds().filter(id => {
         const b = this.world.byId.get(id);
-        return !!b && !b.dead && !b.underConstruction && b.team === this.world.playerTeam && ["barracks", "factory", "helipad", "airbase"].includes(b.kind);
+        return !!b && !b.dead && !b.underConstruction && b.team === this.world.playerTeam &&
+          ["barracks", "factory", "helipad", "airbase", "shipyard"].includes(b.kind);
       });
       if (!enemy && rallyBuildings.length) {
         const p = this.picker.groundAt(e.clientX, e.clientY);
-        this.world.issue({ type: "rally", ids: rallyBuildings, x: p.x, z: p.z });
-        this.fx.ping(p.x, p.z, 0x9b7cff);
+        if (e.shiftKey) {
+          // Shift+right-click on map with producer selected = pre-deploy (orders for units still in queue)
+          this.world.issue({ type: "predeploy", ids: rallyBuildings, mode: "attack", x: p.x, z: p.z });
+          this.fx.ping(p.x, p.z, 0xf2a33a);
+        } else {
+          this.world.issue({ type: "rally", ids: rallyBuildings, x: p.x, z: p.z });
+          this.fx.ping(p.x, p.z, 0x9b7cff);
+        }
         return;
       }
       if (this.attackMoveMode && !enemy) { this.world.issue({ type: "amove", ids: this.ids(), x: this.picker.groundAt(e.clientX,e.clientY).x, z: this.picker.groundAt(e.clientX,e.clientY).z }); this.attackMoveMode = false; el.style.cursor = "crosshair"; return; }

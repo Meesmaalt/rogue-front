@@ -55,14 +55,15 @@ export type Command = ({
   { type: "stop"; ids: number[] } | { type: "repair"; ids: number[]; targetId: number } | { type: "rally"; ids: number[]; x: number; z: number } | { type: "patrol"; ids: number[]; x: number; z: number } | { type: "hold"; ids: number[] } |
   { type: "build"; ids: number[]; kind: "bunker" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase" | "supply" | "radar" | "generator" | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer" | "landStrategy" | "airStrategy" | "seaStrategy"; x: number; z: number; rotation?: number } |
   { type: "upgrade"; ids: number[]; upgrade: "armor" | "weapon" | "range" | "supply-depot" | "producer" } |
-  { type: "research"; tech: "air" | "advanced-armor" } | { type: "produce"; kind: UnitKind; producerId?: number } | { type: "load"; ids: number[]; targetId: number } | { type: "unload"; ids: number[]; x: number; z: number } | { type: "fire-mission"; ids: number[]; x: number; z: number } | { type: "standing"; ids: number[]; mode: "hold" | "patrol" | "attack"; x?: number; z?: number } | { type: "predeploy"; ids: number[]; mode: "move" | "attack" | "hold"; x?: number; z?: number }) & { team?: Team };
+  { type: "research"; tech: "air" | "advanced-armor" } | { type: "produce"; kind: UnitKind; producerId?: number } | { type: "cancel-produce"; producerId: number } | { type: "load"; ids: number[]; targetId: number } | { type: "unload"; ids: number[]; x: number; z: number } | { type: "fire-mission"; ids: number[]; x: number; z: number } | { type: "standing"; ids: number[]; mode: "hold" | "patrol" | "attack"; x?: number; z?: number } | { type: "predeploy"; ids: number[]; mode: "move" | "attack" | "hold"; x?: number; z?: number }) & { team?: Team };
 
 export type SimEvent =
   | { type: "fire"; team: Team; x: number; y: number; z: number; sourceId?: number }
   | { type: "hit"; x: number; y: number; z: number }
   | { type: "build-complete"; team: Team; x: number; y: number; z: number; kind: UnitKind }
   | { type: "repair-complete"; team: Team; x: number; y: number; z: number; kind: UnitKind }
-  | { type: "death"; x: number; y: number; z: number; big: boolean; kind?: UnitKind };
+  | { type: "death"; x: number; y: number; z: number; big: boolean; kind?: UnitKind }
+  | { type: "supply-delivered"; team: Team; x: number; z: number; amount: number };
 
 
 export type MissionObjectiveKind = "destroy" | "defend" | "reach" | "survive" | "capture" | "sabotage";

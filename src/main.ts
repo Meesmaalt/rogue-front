@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { GameLoop } from "./core/GameLoop";
 import { SIM_STEP } from "./sim/constants";
 import { World } from "./sim/World";
-import { heightAt, loadHeightmap, setBases } from "./sim/heightmap";
+import { heightAt, loadHeightmap, setBases, ensureHeightCache } from "./sim/heightmap";
 import { createRenderContext } from "./render/Renderer";
 import { createTerrain } from "./render/Terrain";
 import { RtsCamera } from "./render/RtsCamera";
@@ -36,6 +36,7 @@ const SAVE_PREFIX = "rogue-front.save.v1.";
 async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDifficulty?: "easy"|"normal"|"hard"): Promise<void> {
   setBases(mission.map.bases);
   await Promise.all([loadHeightmap(mission.map.heightmap, mission.map.maxHeight), preloadModels()]);
+  ensureHeightCache(); // rebuild cache now that heightmap + bases are final
 
   const skirmish = !!skirmishDifficulty;
   const world = new World(mission.seed, !skirmish, mission.map.resources, mission.map.features ?? [], mission.map.bases);
@@ -96,6 +97,8 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   hud.onBuild = (kind) => { if (running && !paused) commands.startBuild(kind); };
   hud.onUpgradeSupply = (ids) => { if (running && !paused) world.issue({ type: "upgrade", ids, upgrade: "supply-depot" }); };
   hud.onUpgradeProducer = (ids) => { if (running && !paused) world.issue({ type: "upgrade", ids, upgrade: "producer" }); };
+  hud.onStance = (ids, mode) => { if (running && !paused) world.issue({ type: "standing", ids, mode }); };
+  hud.onCancelProduce = (producerId) => { if (running && !paused) world.issue({ type: "cancel-produce", producerId }); };
   const saveKey = SAVE_PREFIX + mission.id;
   const hasSave = () => localStorage.getItem(saveKey) !== null;
   const saveGame = () => { localStorage.setItem(saveKey, JSON.stringify(saveWorld(world))); localStorage.setItem("rogue-front.replay.v1." + mission.id, JSON.stringify(replayRecorder.file())); };
@@ -108,7 +111,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
 
   let running = false;
   const setEnabled = (on: boolean) => { selection.enabled = commands.enabled = minimap.enabled = on; };
-  hud.showBriefing(skirmish ? { ...mission, name: "Skirmish — " + mission.map.name, briefing: "Hävitaja HQ on ainus võidutingimus. Alustad HQ, inseneri ja kahe transpordikopteriga. Transpordikoptereid kasutad ressursipunktidest varude toomiseks; ehita baas, loo armee ja hävita vastase HQ." } : mission, () => { running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); }, hasSave(), loadGame);
+  hud.showBriefing(skirmish ? { ...mission, name: "Skirmish — " + mission.map.name, briefing: "Võit: hävita vaenlase HQ.\n\n1) Ehita generaator + varustusladu\n2) Logistikahelikopterid toovad automaatselt varustust\n3) Ehita juhtimiskeskus → kasarmu/tehas\n4) Laienda ettepoole, kaitse oma ladusid, ründa vaenlase logistikat\n\nStantsid: Ründa / Hoia / Patrull. Energia puudujääk aeglustab tootmist." } : mission, () => { running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); }, hasSave(), loadGame);
 
   addEventListener("keydown", (e) => { if (e.key.toLowerCase() === loadSettings().keys.pause && running) togglePause(); });
 

@@ -15,9 +15,22 @@ function mobile(w: World, ids: number[], team?: Entity["team"]): Entity[] {
   return out;
 }
 
+/** Wider, staggered formation – less stacking than classic Real War. */
 function formation(n: number, x: number, z: number): Point[] {
-  const cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n / cols), sp = 5, out: Point[] = [];
-  for (let i = 0; i < n; i++) out.push({ x: x + ((i % cols) - (cols - 1) / 2) * sp, z: z + (Math.floor(i / cols) - (rows - 1) / 2) * sp });
+  if (n <= 1) return [{ x, z }];
+  const cols = Math.ceil(Math.sqrt(n * 1.15));
+  const rows = Math.ceil(n / cols);
+  const sp = n <= 4 ? 5.5 : n <= 9 ? 6.2 : 7;
+  const out: Point[] = [];
+  for (let i = 0; i < n; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const stagger = (row % 2) * (sp * 0.35);
+    out.push({
+      x: x + (col - (cols - 1) / 2) * sp + stagger,
+      z: z + (row - (rows - 1) / 2) * sp * 0.9,
+    });
+  }
   return out;
 }
 
@@ -199,6 +212,25 @@ function apply(w: World, c: Command): void {
       w.teamCredits[team] -= def.cost; w.teamResources[team] -= def.cost;
       if (team === w.playerTeam) { w.credits = w.teamCredits[team]; w.resources = w.teamResources[team]; }
       producer.productionQueue.push(c.kind);
+      w.queue = [...producer.productionQueue];
+      break;
+    }
+    case "cancel-produce": {
+      const producer = w.byId.get(c.producerId);
+      if (!producer || producer.dead || producer.team !== (c.team ?? w.playerTeam)) break;
+      if (!producer.productionQueue.length) break;
+      const cancelled = producer.productionQueue.pop()!;
+      const def = UNITS[cancelled];
+      // Refund 75% – better than original Real War (often 0 refund)
+      const refund = Math.floor(def.cost * 0.75);
+      const team = producer.team;
+      w.teamCredits[team] += refund;
+      w.teamResources[team] += refund;
+      if (team === w.playerTeam) {
+        w.credits = w.teamCredits[team];
+        w.resources = w.teamResources[team];
+      }
+      if (producer.productionQueue.length === 0) producer.productionProgress = 0;
       w.queue = [...producer.productionQueue];
       break;
     }

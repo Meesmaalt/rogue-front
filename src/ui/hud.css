@@ -51,3 +51,17 @@ button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .warning{color:#ff8168;font:700 12px var(--disp);margin-top:4px;min-height:14px}.controls{pointer-events:auto}.controls button{font-family:var(--body)}
 
 .build-sub{display:grid;grid-template-columns:1fr 1fr;gap:4px}.build-sub button{font-size:12px;padding:6px 7px}.build-sub span{color:var(--amber)}
+
+/* Real War style resource panel */
+.stat.resources { min-width: 160px; }
+.stat.resources .res-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.stat.resources .res-label { font: 600 11px/1 var(--body); color: var(--muted); letter-spacing: .06em; }
+.stat.resources b { display: inline; font: 700 24px/1 var(--disp); color: var(--text); }
+.stat.resources b.power-low { color: #ff8168; }
+.stat.resources small { display: block; margin-top: 4px; font-size: 12px; color: var(--muted); }
+
+/* Stance buttons */
+.stance-bar { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+.stance-bar button { font: 600 12px var(--body); padding: 4px 8px; background: var(--steel2); border: 1px solid var(--line); color: var(--text); cursor: pointer; }
+.stance-bar button:hover { border-color: var(--amber); }
+.stance-bar button.active { background: #3a4a3a; border-color: #6a9a6a; color: #c8e8c8; }

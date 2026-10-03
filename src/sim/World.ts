@@ -1,6 +1,6 @@
 import type { Command, Entity, GameStatus, Projectile, SimEvent, Team, UnitKind, MapResourceDef, IntelContact } from "./types";
 import { UNITS } from "./units";
-import { getBases, heightAt, type BaseDef } from "./heightmap";
+import { getBases, heightAt, ensureHeightCache, type BaseDef } from "./heightmap";
 import { Rng } from "./rng";
 import { ENEMY_AGGRO, INCOME_PER_SEC, STARTING_CREDITS, STARTING_RESOURCES } from "./constants";
 import { applyCommands } from "./systems/commands";
@@ -119,6 +119,8 @@ export class World {
   constructor(seed = 1, private readonly objectiveDriven = false, resources: readonly MapResourceDef[] = [], features: readonly MapFeatureDef[] = [], bases: readonly BaseDef[] = []) {
     this.rngState = new Rng(seed);
     this.bases = bases.length ? bases.map((b) => ({ ...b })) : getBases();
+    // Build height cache once bases are known (huge win for LOS / movement)
+    ensureHeightCache();
     this.mapFeatures = [...features.map((f) => ({ ...f })), ...generateBaseFeatures(this.bases)];
     this.rng = () => this.rngState.next();
     this.nav = new NavGrid([], this.mapFeatures);
