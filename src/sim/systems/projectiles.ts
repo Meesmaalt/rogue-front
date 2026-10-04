@@ -12,29 +12,33 @@ export function updateProjectiles(w: World, dt: number): void {
     const d = Math.hypot(dx, dy, dz);
     const step = p.speed * dt;
 
-    // Ballistic loft for slower shells (cannon / artillery), flat for bullets/missiles
-    const ballistic = p.speed < 100 && (p.splash ?? 0) >= 0;
+    const ballistic = p.speed < 100;
     if (d <= step + 0.35 || d < 0.4) {
-      if (p.target && !p.target.dead) damage(w, p.target, p.damage);
-      else {
+      const hitOpts = { weapon: p.weapon, fromX: p.x, fromZ: p.z, sourceId: p.sourceId };
+      if (p.target && !p.target.dead) {
+        damage(w, p.target, p.damage, hitOpts);
+      } else {
         for (const e of w.entities) {
           if (e.dead || e.team === p.team) continue;
           const d2 = Math.hypot(e.x - p.tx, e.z - p.tz);
           if (d2 <= (p.splash ?? 0) + e.def.radius * 0.5) {
-            damage(w, e, p.damage * Math.max(0.2, 1 - d2 / Math.max(1, (p.splash ?? 1) * 1.5)));
+            damage(w, e, p.damage * Math.max(0.2, 1 - d2 / Math.max(1, (p.splash ?? 1) * 1.5)), hitOpts);
           }
         }
       }
       const shooter = w.byId.get(p.sourceId);
-      if (shooter && p.target?.dead) { shooter.xp += 1; shooter.veteran = Math.min(5, Math.floor(shooter.xp / 2)); }
+      if (shooter && p.target?.dead) {
+        shooter.xp += 1;
+        shooter.veteran = Math.min(5, Math.floor(shooter.xp / 2));
+        // Small morale boost for a kill
+        shooter.morale = Math.min(100, (shooter.morale ?? 100) + 4);
+      }
       ps.splice(i, 1);
     } else {
       let vx = (dx / d) * p.speed;
       let vy = (dy / d) * p.speed;
       let vz = (dz / d) * p.speed;
-      // Gentle arc: peak mid-flight for tank/arty shells
       if (ballistic && d > 8) {
-        const progress = 1 - Math.min(1, d / Math.max(d + step, 1)); // rough
         const loft = Math.sin(Math.min(1, (Math.hypot(dx, dz) / Math.max(p.speed * 1.2, 1)) * Math.PI)) * Math.min(12, Math.hypot(dx, dz) * 0.08);
         vy += loft * 0.35;
       }
@@ -42,7 +46,6 @@ export function updateProjectiles(w: World, dt: number): void {
       p.x += vx * dt;
       p.y += vy * dt;
       p.z += vz * dt;
-      // Don't fly underground
       const floor = heightAt(p.x, p.z) + 0.15;
       if (p.y < floor) p.y = floor;
     }

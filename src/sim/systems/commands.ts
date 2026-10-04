@@ -1,4 +1,5 @@
 import type { World } from "../World";
+import { assignAirMission } from "./airDoctrine";
 import type { Command, Entity, Point } from "../types";
 import { UNITS } from "../units";
 import { MAX_QUEUE } from "../constants";
@@ -214,6 +215,7 @@ function apply(w: World, c: Command): void {
       for (const u of mobile(w, c.ids, c.team)) {
         u.standingOrder = c.mode;
         if (c.mode === "hold") { u.mode = "hold"; u.holdPosition = true; u.dest = null; u.target = null; }
+        else if (c.mode === "holdfire") { u.mode = "hold"; u.holdPosition = true; u.dest = null; u.target = null; }
         else if (c.mode === "patrol" && c.x !== undefined && c.z !== undefined) { u.mode = "patrol"; u.patrolPoints = [{x:c.x,z:c.z},{x:u.x,z:u.z}]; u.patrolIndex = 0; u.dest = u.patrolPoints[0]; }
         else if (c.mode === "attack") { u.mode = "amove"; u.dest = c.x !== undefined && c.z !== undefined ? {x:c.x,z:c.z} : null; }
       }
@@ -237,6 +239,13 @@ function apply(w: World, c: Command): void {
           u.target = targets[0];
           u.dest = { x: targets[0].x, z: targets[0].z };
         }
+      }
+      break;
+    }
+    case "air-mission": {
+      for (const u of mobile(w, c.ids, c.team)) {
+        if (u.def.armor !== "air" && u.def.category !== "heli") continue;
+        assignAirMission(u, c.mission, c.x != null && c.z != null ? { x: c.x, z: c.z } : null);
       }
       break;
     }

@@ -1,21 +1,36 @@
 import type { UnitKind } from "./types";
 
-/** Playable nations – each has its own equipment names for the same roles. */
+/** Playable nations – equipment names + doctrine skew (Wargame identity). */
 export type FactionId = "usa" | "russia" | "china";
+
+export interface FactionDoctrine {
+  /** Multipliers applied at spawn (kept mild). */
+  armorMul: number;
+  speedMul: number;
+  damageMul: number;
+  buildCostMul: number;
+  /** Optics range multiplier (USA recon/sensor edge). */
+  opticsMul: number;
+  /** Ammo/fuel resupply rate in supply radius. */
+  supplyEfficiency: number;
+  /** Morale recovery and resist. */
+  moraleMul: number;
+  /** Preferred AI composition weights. */
+  prefer: Partial<Record<UnitKind, number>>;
+}
 
 export interface FactionDef {
   id: FactionId;
   name: string;
   short: string;
   color: number;
-  /** Display name override per unit kind (fallback = units.json name). */
   unitNames: Partial<Record<UnitKind, string>>;
-  /** Extra producible kinds this faction unlocks beyond the shared core. */
   landExtra: UnitKind[];
   airExtra: UnitKind[];
   seaExtra: UnitKind[];
-  /** Small asymmetric bonuses (not pay-to-win). */
-  bonuses: { armorMul: number; speedMul: number; damageMul: number; buildCostMul: number };
+  bonuses: FactionDoctrine;
+  /** One-line doctrine blurb for briefing UI. */
+  doctrineBlurb: string;
 }
 
 const USA: FactionDef = {
@@ -47,7 +62,17 @@ const USA: FactionDef = {
   landExtra: ["apc", "ifv", "mlrs"],
   airExtra: ["interceptor", "bomber"],
   seaExtra: [],
-  bonuses: { armorMul: 1.05, speedMul: 1.0, damageMul: 1.0, buildCostMul: 1.0 }, // USA: slightly tougher
+  bonuses: {
+    armorMul: 1.04,
+    speedMul: 1.0,
+    damageMul: 1.0,
+    buildCostMul: 1.06,
+    opticsMul: 1.18,
+    supplyEfficiency: 1.1,
+    moraleMul: 1.08,
+    prefer: { fighter: 1.3, interceptor: 1.2, ifv: 1.15, gunship: 1.1, tank: 1.0 },
+  },
+  doctrineBlurb: "Kvaliteet, optika ja õhuvõime. Kallim, aga näeb esimesena.",
 };
 
 const RUSSIA: FactionDef = {
@@ -55,7 +80,6 @@ const RUSSIA: FactionDef = {
   name: "Russia",
   short: "RUS",
   color: 0xb05040,
-  bonuses: { armorMul: 1.08, speedMul: 0.96, damageMul: 1.04, buildCostMul: 0.95 }, // RUS: armor + punch, slower, cheaper
   unitNames: {
     inf: "Motor Rifle Squad",
     engineer: "Combat Engineer",
@@ -80,6 +104,17 @@ const RUSSIA: FactionDef = {
   landExtra: ["apc", "ifv", "mlrs"],
   airExtra: ["interceptor", "bomber"],
   seaExtra: [],
+  bonuses: {
+    armorMul: 1.1,
+    speedMul: 0.95,
+    damageMul: 1.06,
+    buildCostMul: 0.92,
+    opticsMul: 0.92,
+    supplyEfficiency: 0.95,
+    moraleMul: 1.0,
+    prefer: { tank: 1.25, artillery: 1.3, mlrs: 1.2, aa: 1.25, inf: 1.1 },
+  },
+  doctrineBlurb: "Raske soomus, suurtükivägi ja AA. Odavam mass, aeglasem manööver.",
 };
 
 const CHINA: FactionDef = {
@@ -87,7 +122,6 @@ const CHINA: FactionDef = {
   name: "China",
   short: "CHN",
   color: 0xc0a030,
-  bonuses: { armorMul: 1.0, speedMul: 1.04, damageMul: 0.98, buildCostMul: 0.92 }, // CHN: faster, cheaper, slightly less damage
   unitNames: {
     inf: "PLA Infantry",
     engineer: "Combat Engineer",
@@ -112,6 +146,17 @@ const CHINA: FactionDef = {
   landExtra: ["apc", "ifv", "mlrs"],
   airExtra: ["interceptor", "bomber"],
   seaExtra: [],
+  bonuses: {
+    armorMul: 1.0,
+    speedMul: 1.06,
+    damageMul: 0.98,
+    buildCostMul: 0.9,
+    opticsMul: 1.0,
+    supplyEfficiency: 1.15,
+    moraleMul: 0.98,
+    prefer: { ifv: 1.25, apc: 1.2, mlrs: 1.25, inf: 1.15, fighter: 1.05 },
+  },
+  doctrineBlurb: "Mobiilsus, IFV/APC tihedus, odav logistika. Rocket arty kaal.",
 };
 
 export const FACTIONS: Record<FactionId, FactionDef> = {
@@ -126,12 +171,11 @@ export function factionUnitName(faction: FactionId, kind: UnitKind, fallback: st
   return FACTIONS[faction].unitNames[kind] ?? fallback;
 }
 
-/** Core land / air / sea production lists for a faction. */
 export function factionLandUnits(_faction: FactionId): UnitKind[] {
   return ["inf", "engineer", "special", "tank", "apc", "ifv", "artillery", "mlrs"];
 }
 
-export function factionAirUnits(faction: FactionId): UnitKind[] {
+export function factionAirUnits(_faction: FactionId): UnitKind[] {
   return ["heli", "gunship", "transport", "fighter", "interceptor", "bomber"];
 }
 
@@ -139,6 +183,9 @@ export function factionSeaUnits(_faction: FactionId): UnitKind[] {
   return ["destroyer", "submarine", "landingcraft"];
 }
 
-export function factionForTeam(w: { playerTeam: 0|1; playerFaction: FactionId; enemyFaction: FactionId }, team: 0|1): FactionId {
+export function factionForTeam(
+  w: { playerTeam: 0 | 1; playerFaction: FactionId; enemyFaction: FactionId },
+  team: 0 | 1,
+): FactionId {
   return team === w.playerTeam ? w.playerFaction : w.enemyFaction;
 }

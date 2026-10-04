@@ -23,14 +23,11 @@ export class FogOfWar {
   }
 
   draw(world: World, picker: Picker): void {
-    // Redraw fog every 2nd frame – still looks smooth, half the cost
-    this.frame++;
-    if (this.frame % 2 === 1) return;
-
-    const c = this.ctx, w = innerWidth, h = innerHeight;
+    // Draw every frame to avoid flicker (skipping frames caused visible strobing)
+    const c = this.ctx, w = this.canvas.width, h = this.canvas.height;
     c.clearRect(0, 0, w, h);
 
-    c.fillStyle = "rgba(5,8,9,.42)";
+    c.fillStyle = "rgba(5,8,9,.38)";
     c.fillRect(0, 0, w, h);
 
     c.save();

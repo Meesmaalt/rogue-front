@@ -11,6 +11,9 @@ import { updateConstruction } from "./systems/construction";
 import { WaveAI } from "./ai/WaveAI";
 import { NavGrid } from "./nav/NavGrid";
 import { Vision } from "./Vision";
+import { updateSensors, isSpottedBy } from "./systems/sensors";
+import { updateMorale } from "./systems/morale";
+import { updateTacticalSupply, isTacticallySupplied, ensureLogisticsPools } from "./systems/tacticalSupply";
 import type { MapFeatureDef } from "./mapFeatures";
 import { featureBlocksMovement } from "./mapFeatures";
 import { buildFootprint, isBuildable, BUILDINGS, type BuildableKind } from "./buildings";
@@ -156,8 +159,18 @@ export class World {
     const faction = team === this.playerTeam ? this.playerFaction : this.enemyFaction;
     const b = FACTIONS[faction].bonuses;
     // Per-faction slight stat skew (clone def so shared UNITS table stays pristine)
-    const def = baseDef.speed > 0 || baseDef.damage > 0
-      ? { ...baseDef, hp: Math.round(baseDef.hp * b.armorMul), speed: baseDef.speed * b.speedMul, damage: Math.round(baseDef.damage * b.damageMul), cost: Math.round(baseDef.cost * b.buildCostMul) }
+    const def = baseDef.speed > 0 || baseDef.damage > 0 || baseDef.building
+      ? {
+          ...baseDef,
+          hp: Math.round(baseDef.hp * b.armorMul),
+          speed: baseDef.speed * b.speedMul,
+          damage: Math.round(baseDef.damage * b.damageMul),
+          cost: Math.round(baseDef.cost * b.buildCostMul),
+          opticsRange: (baseDef.opticsRange ?? 40) * (b.opticsMul ?? 1),
+          armorFront: baseDef.armorFront != null ? Math.round(baseDef.armorFront * b.armorMul) : baseDef.armorFront,
+          armorSide: baseDef.armorSide != null ? Math.round(baseDef.armorSide * b.armorMul) : baseDef.armorSide,
+          armorRear: baseDef.armorRear != null ? Math.round(baseDef.armorRear * b.armorMul) : baseDef.armorRear,
+        }
       : baseDef;
     const y = heightAt(x, z), heading = team ? -Math.PI / 4 : Math.PI * 0.75;
     const e: Entity = {
@@ -165,9 +178,10 @@ export class World {
       px: x, pz: z, pHeading: heading, pTurretYaw: 0,
       hp: def.hp, cooldown: this.rng() * 0.5, mode: "idle", dest: null, target: null,
       aggro: team === 1 && def.speed > 0 ? ENEMY_AGGRO : def.range, dead: false,
-      xp: 0, veteran: 0, supply: 100, maxSupply: 100, role: kind === "artillery" ? "siege" : kind === "aa" ? "support" : kind === "fighter" ? "air-superiority" : kind === "gunship" ? "air-ground" : kind === "transport" ? "logistics" : "line", fuel: def.armor === "air" ? 100 : 0, maxFuel: def.armor === "air" ? 100 : 0, ammo: def.armor === "air" ? 6 : kind === "artillery" ? 10 : 0, maxAmmo: def.armor === "air" ? 6 : kind === "artillery" ? 10 : 0, fireMission: null, holdPosition: false, patrolPoints: [], patrolIndex: 0, upgrades: new Set<string>(), cargo: 0, logisticsTarget: null, logisticsHome: null, logisticsPhase: "idle", productionQueue: [], productionProgress: 0, rallyPoint: null, constructionProgress: 1, constructionTime: 0, upgrading: false, upgradeProgress: 0, upgradeTime: 0, upgradeKind: undefined, firingArc: (kind === "bunker" ? Math.PI * 0.62 : kind === "aa" ? Math.PI * 0.9 : kind === "artillery" ? Math.PI * 0.98 : Math.PI * 2), firingRange: def.range, facingLocked: kind === "bunker" || kind === "aa", lastCombatTime: 0, morale: 100, disabledUntil: 0, builderIds: [], underConstruction: false, cargoUnitIds: [], loadedIntoId: null, transportTargetId: null, unloadPoint: null,
+      xp: 0, veteran: 0, spottedUntil: [0, 0], suppression: 0, supply: 100, maxSupply: 100, role: kind === "artillery" ? "siege" : kind === "aa" ? "support" : kind === "fighter" ? "air-superiority" : kind === "gunship" ? "air-ground" : kind === "transport" ? "logistics" : "line", fuel: def.armor === "air" ? 100 : 0, maxFuel: def.armor === "air" ? 100 : 0, ammo: def.armor === "air" ? 6 : kind === "artillery" ? 10 : 0, maxAmmo: def.armor === "air" ? 6 : kind === "artillery" ? 10 : 0, fireMission: null, holdPosition: false, patrolPoints: [], patrolIndex: 0, upgrades: new Set<string>(), cargo: 0, logisticsTarget: null, logisticsHome: null, logisticsPhase: "idle", productionQueue: [], productionProgress: 0, rallyPoint: null, constructionProgress: 1, constructionTime: 0, upgrading: false, upgradeProgress: 0, upgradeTime: 0, upgradeKind: undefined, firingArc: (kind === "bunker" ? Math.PI * 0.62 : kind === "aa" ? Math.PI * 0.9 : kind === "artillery" ? Math.PI * 0.98 : Math.PI * 2), firingRange: def.range, facingLocked: kind === "bunker" || kind === "aa", lastCombatTime: 0, morale: 100, disabledUntil: 0, builderIds: [], underConstruction: false, cargoUnitIds: [], loadedIntoId: null, transportTargetId: null, unloadPoint: null,
       navPath: [], navPathIndex: 0, flowField: null, stuckTime: 0, stuckX: x, stuckZ: z,
     };
+    ensureLogisticsPools(e);
     this.entities.push(e);
     this.byId.set(e.id, e);
     if (kind === "hq") this.hq[team] = e;
@@ -193,25 +207,11 @@ export class World {
     this.credits = this.teamCredits[this.playerTeam];
   }
 
-  /** Updates last-known enemy positions. Contacts are shared through the command network. */
+  /** Wargame-style sensors + last-known contacts. */
   private updateIntel(): void {
-    // Throttle: intel is strategic, 5 Hz is plenty
-    if (Math.floor(this.time * 30) % 6 !== 0) return;
-    for (const team of [0, 1] as const) {
-      const contacts = this.intel[team];
-      for (const [id, c] of contacts) {
-        if (this.time - c.lastSeen > 75) contacts.delete(id);
-      }
-      for (const enemy of this.entities) {
-        if (enemy.dead || enemy.team === team) continue;
-        if (!this.vision.isVisible(team, enemy.x, enemy.z)) continue;
-        // Skip expensive observer LOS – visibility grid is enough for intel contacts
-        contacts.set(enemy.id, {
-          entityId: enemy.id, team: enemy.team, kind: enemy.kind,
-          x: enemy.x, z: enemy.z, lastSeen: this.time, shared: true,
-        });
-      }
-    }
+    // ~6–7 Hz is enough for detection
+    if (Math.floor(this.time * 30) % 5 !== 0) return;
+    updateSensors(this);
   }
 
   private hasCommandLink(team: Team, observer: Entity): boolean {
@@ -227,22 +227,8 @@ export class World {
     return this.getIntel(team, true).filter(c => this.time - c.lastSeen <= maxAge);
   }
 
-  /** Connected supply network: HQ is the root; completed depots extend the network. */
-  private connectedSupplyNodes(team: Team): Entity[] {
-    const nodes = this.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && ["hq", "supply"].includes(e.kind));
-    const root = nodes.filter(e => e.kind === "hq");
-    const connected: Entity[] = [...root];
-    const seen = new Set(root.map(e => e.id));
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const depot of nodes.filter(e => e.kind === "supply" && !seen.has(e.id))) {
-        if (connected.some(n => Math.hypot(n.x - depot.x, n.z - depot.z) <= (n.kind === "hq" ? 105 : 82))) {
-          connected.push(depot); seen.add(depot.id); changed = true;
-        }
-      }
-    }
-    return connected;
+  isSpottedByTeam(entity: { spottedUntil: [number, number] }, team: Team): boolean {
+    return (entity.spottedUntil[team] ?? 0) > this.time;
   }
 
   nearestSupplyDepot(team: Team, p: {x:number;z:number}, connectedOnly = false): Entity | null {
@@ -252,11 +238,27 @@ export class World {
   }
 
   isInSupply(e: Entity): boolean {
-    if (e.def.speed === 0) return true;
-    const nodes = this.connectedSupplyNodes(e.team);
-    if (nodes.some(h => Math.hypot(h.x - e.x, h.z - e.z) <= (h.kind === "hq" ? 62 : 48))) return true;
-    const logistics = this.entities.some(h => !h.dead && h.team === e.team && h.kind === "transport" && Math.hypot(h.x-e.x,h.z-e.z) <= 18 && h.cargo > 0);
-    return logistics;
+    return isTacticallySupplied(this, e);
+  }
+
+  /** Connected HQ + supply depots (for chain / airbridge). */
+  connectedSupplyNodes(team: Team): Entity[] {
+    const hq = this.hq[team];
+    if (!hq || hq.dead) return [];
+    const nodes: Entity[] = [hq];
+    const seen = new Set<number>([hq.id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const depot of this.entities) {
+        if (depot.dead || depot.underConstruction || depot.team !== team || depot.kind !== "supply") continue;
+        if (seen.has(depot.id)) continue;
+        if (nodes.some(n => Math.hypot(n.x - depot.x, n.z - depot.z) <= (n.kind === "hq" ? 105 : 82))) {
+          nodes.push(depot); seen.add(depot.id); changed = true;
+        }
+      }
+    }
+    return nodes;
   }
 
   supplyRouteStatus(team: Team): { connected: number; total: number } {
@@ -266,13 +268,7 @@ export class World {
   }
 
   private updateSupply(dt: number): void {
-    for (const e of this.entities) {
-      if (e.dead || e.def.speed === 0 || e.kind === "transport") continue;
-      const supplied = this.isInSupply(e);
-      const rate = e.role === "siege" ? 1.7 : e.def.armor === "air" ? 2.2 : 0.7;
-      const supply = e.supply ?? 100, maxSupply = e.maxSupply ?? 100;
-      e.supply = supplied ? Math.min(maxSupply, supply + 18 * dt) : Math.max(0, supply - rate * dt);
-    }
+    updateTacticalSupply(this, dt);
   }
 
   sabotageBuilding(target: Entity, duration = 25): void {
@@ -395,7 +391,6 @@ export class World {
     this.resources = this.teamResources[this.playerTeam];
     if (this.navDirty) { this.nav.syncBuildings(this.entities); this.navDirty = false; }
     this.vision.update(this.entities);
-    this.updateIntel();
     applyCommands(this);
     this.teamCredits[this.playerTeam] = this.credits;
     this.teamResources[this.playerTeam] = this.resources;
@@ -406,7 +401,9 @@ export class World {
     if (!this.networkMode) this.ai.update(this, dt);
     // Spatial hash once per tick – powers nearestEnemy + separation
     this.spatial.rebuild(this.entities);
+    this.updateIntel();
     updateUnits(this, dt);
+    updateMorale(this, dt);
     updateProjectiles(this, dt);
     let removedBuilding = false;
     for (let i = this.entities.length - 1; i >= 0; i--) {

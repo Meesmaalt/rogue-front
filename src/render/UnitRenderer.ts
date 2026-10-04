@@ -11,6 +11,7 @@ const frameDtSafe = () => 1 / 60;
 
 /** Sünkroonib sim-entiteedid three.js objektidega (interpoleeritud positsioon, kalle maastikule, valikurõngad). */
 export class UnitRenderer {
+  private intelGhosts = new Map<number, THREE.Mesh>();
   private views = new Map<number, View>();
   private rotorParts = new Map<number, THREE.Object3D>();
   private recoilById = new Map<number, number>();
@@ -71,7 +72,7 @@ export class UnitRenderer {
         v = { group: m.group, turret: m.turret, ring, tactical, kind: e.kind, phase: (e.id * 0.731) % 6.28, recoil: 0 };
         this.views.set(e.id, v);
       }
-      const visible = e.team === world.playerTeam || world.vision.isVisible(world.playerTeam, e.x, e.z);
+      const visible = e.team === world.playerTeam || world.isSpottedByTeam(e, world.playerTeam) || world.vision.isVisible(world.playerTeam, e.x, e.z);
       v.group.visible = visible;
       if (!visible) continue;
       const x = lerp(e.px, e.x, alpha), z = lerp(e.pz, e.z, alpha), h = lerpAngle(e.pHeading, e.heading, alpha);
@@ -132,29 +133,64 @@ export class UnitRenderer {
         if (v.turret) v.turret.position.z = -kick * 1.8;
       } else if (v.turret) v.turret.position.z *= 0.75;
 
-      // Construction progress bar above building (removed when finished)
+      // Construction progress bar – always strip when finished (search all children)
       const barName = "ConstructBar";
-      let bar = v.group.getObjectByName(barName) as THREE.Mesh | undefined;
       if (e.underConstruction) {
         const k = Math.max(0.05, Math.min(1, e.constructionProgress / Math.max(0.01, e.constructionTime)));
+        let bar = v.group.getObjectByName(barName) as THREE.Mesh | undefined;
         if (!bar) {
           const geo = new THREE.BoxGeometry(1, 0.18, 0.18);
           const mat = new THREE.MeshBasicMaterial({ color: 0xf2c14b });
           bar = new THREE.Mesh(geo, mat);
           bar.name = barName;
-          bar.position.y = e.def.height + 1.2;
           v.group.add(bar);
         }
         bar.visible = true;
-        bar.scale.x = Math.max(0.15, k) * (e.def.radius * 1.6);
-        bar.position.y = e.def.height + 1.2;
-      } else if (bar) {
-        v.group.remove(bar);
-        bar.geometry.dispose();
-        (bar.material as THREE.Material).dispose();
-      } else if (e.productionQueue.length > 0) {
-        const pulse = 1 + Math.sin(animT * 6) * 0.012;
-        v.group.scale.x *= pulse; v.group.scale.z *= pulse;
+        bar.scale.set(Math.max(0.15, k) * (e.def.radius * 1.6), 1, 1);
+        bar.position.set(0, e.def.height + 1.2, 0);
+      } else {
+        // Remove any leftover bars (construction complete)
+        const leftovers: THREE.Object3D[] = [];
+        v.group.traverse((o) => { if (o.name === barName) leftovers.push(o); });
+        for (const o of leftovers) {
+          o.parent?.remove(o);
+          const mesh = o as THREE.Mesh;
+          mesh.geometry?.dispose();
+          (mesh.material as THREE.Material | undefined)?.dispose();
+        }
+        if (e.productionQueue.length > 0) {
+          const pulse = 1 + Math.sin(animT * 6) * 0.012;
+          v.group.scale.x *= pulse; v.group.scale.z *= pulse;
+        }
+      }
+
+      // Status icons (player units only): out of supply / routing / low ammo
+      if (e.team === world.playerTeam && e.def.speed > 0) {
+        const icons: { name: string; color: number; on: boolean }[] = [
+          { name: "StOutSupply", color: 0xe05030, on: !world.isInSupply(e) },
+          { name: "StRouting", color: 0xffcc33, on: (e.morale ?? 100) < 22 || (e.suppression ?? 0) > 80 },
+          { name: "StNoAmmo", color: 0xaaaaaa, on: (e.maxAmmo ?? 0) > 0 && (e.ammo ?? 0) <= 0 },
+        ];
+        let slot = 0;
+        for (const ic of icons) {
+          let mesh = v.group.getObjectByName(ic.name) as THREE.Mesh | undefined;
+          if (ic.on) {
+            if (!mesh) {
+              mesh = new THREE.Mesh(
+                new THREE.SphereGeometry(0.28, 6, 6),
+                new THREE.MeshBasicMaterial({ color: ic.color, depthTest: false }),
+              );
+              mesh.name = ic.name;
+              mesh.renderOrder = 10;
+              v.group.add(mesh);
+            }
+            mesh.visible = true;
+            mesh.position.set(-0.7 + slot * 0.55, e.def.height + 1.6, 0);
+            slot++;
+          } else if (mesh) {
+            mesh.visible = false;
+          }
+        }
       }
       if (e.kind === "tank") {
         const f = 2, sa = Math.sin(h), ca = Math.cos(h);
@@ -180,4 +216,47 @@ export class UnitRenderer {
       this.recoilById.delete(id);
     }
   }
+
+  /** Last-known enemy positions (Wargame contact ghosts). */
+  syncIntelGhosts(world: World): void {
+    const team = world.playerTeam;
+    const contacts = world.getIntel(team, true);
+    const seen = new Set<number>();
+    for (const c of contacts) {
+      const age = world.time - c.lastSeen;
+      if (age > 60) continue;
+      const live = world.byId.get(c.entityId);
+      // If currently spotted, real model is shown – skip ghost
+      if (live && !live.dead && world.isSpottedByTeam(live, team)) continue;
+      seen.add(c.entityId);
+      let m = this.intelGhosts.get(c.entityId);
+      if (!m) {
+        const geo = new THREE.CylinderGeometry(1.2, 1.2, 0.35, 10);
+        const mat = new THREE.MeshBasicMaterial({
+          color: 0xc05050,
+          transparent: true,
+          opacity: 0.45,
+          depthWrite: false,
+        });
+        m = new THREE.Mesh(geo, mat);
+        this.scene.add(m);
+        this.intelGhosts.set(c.entityId, m);
+      }
+      const fade = Math.max(0.15, 1 - age / 60);
+      (m.material as THREE.MeshBasicMaterial).opacity = 0.2 + fade * 0.35;
+      const y = live && !live.dead ? live.y : 0;
+      m.position.set(c.x, y + 0.5, c.z);
+      m.visible = true;
+      m.scale.setScalar(c.kind === "tank" || c.kind === "ifv" ? 1.4 : c.kind === "inf" ? 0.7 : 1);
+    }
+    for (const [id, m] of this.intelGhosts) {
+      if (!seen.has(id)) {
+        this.scene.remove(m);
+        m.geometry.dispose();
+        (m.material as THREE.Material).dispose();
+        this.intelGhosts.delete(id);
+      }
+    }
+  }
+
 }

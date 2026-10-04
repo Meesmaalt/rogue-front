@@ -61,4 +61,10 @@ export class SelectionController {
   }
   selectedIds(): number[] { return [...this.selected]; }
 
+  /** Select all player units of a domain filter. */
+  selectFilter(pred: (e: Entity) => boolean, add = false): void {
+    const list = this.world.entities.filter(e => !e.dead && e.team === this.world.playerTeam && e.def.speed > 0 && pred(e));
+    this.set(list, add);
+  }
 }
+

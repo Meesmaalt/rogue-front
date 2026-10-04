@@ -1,0 +1,120 @@
+{
+  "id": "tutorial-logistics",
+  "name": "Õpetus: Logistika ja combined arms",
+  "briefing": "RW baas + WRD lahing.\n\n1) Ehita GENERAATOR (energia)\n2) Ehita VARUSTUSLADU (õhusild toob raha)\n3) Ehita MAAVÄE JUHTIMISKESKUS → kasarmu/tehas\n4) Tooda recon/special, siis tankid\n5) Hoia üksused SUPPLY raadiuses (ammo/kütus)\n6) Ründa vaenlase ladu — mitte ainult tanke\n\nOptika: kes näeb, tulistab. Flank tapab. Ilma AA-ta surevad kopterid.",
+  "seed": 42,
+  "map": {
+    "id": "tutorial-plain",
+    "name": "Harjutusväli",
+    "theme": "desert",
+    "heightmap": "/maps/city.png",
+    "maxHeight": 18,
+    "bases": [
+      {
+        "x": -110,
+        "z": 110,
+        "r": 36
+      },
+      {
+        "x": 110,
+        "z": -110,
+        "r": 36
+      }
+    ],
+    "objects": [
+      {
+        "kind": "hq",
+        "team": 0,
+        "x": -110,
+        "z": 110
+      },
+      {
+        "kind": "engineer",
+        "team": 0,
+        "x": -95,
+        "z": 100
+      },
+      {
+        "kind": "engineer",
+        "team": 0,
+        "x": -100,
+        "z": 95
+      },
+      {
+        "kind": "hq",
+        "team": 1,
+        "x": 110,
+        "z": -110
+      },
+      {
+        "kind": "engineer",
+        "team": 1,
+        "x": 95,
+        "z": -100
+      },
+      {
+        "kind": "generator",
+        "team": 1,
+        "x": 95,
+        "z": -120
+      },
+      {
+        "kind": "supply",
+        "team": 1,
+        "x": 120,
+        "z": -95
+      }
+    ],
+    "resources": [
+      {
+        "x": -40,
+        "z": 40,
+        "amount": 600,
+        "radius": 12
+      },
+      {
+        "x": 40,
+        "z": -40,
+        "amount": 600,
+        "radius": 12
+      },
+      {
+        "x": 0,
+        "z": 0,
+        "amount": 400,
+        "radius": 10
+      }
+    ],
+    "features": []
+  },
+  "objectives": [
+    {
+      "id": "destroy-enemy-supply",
+      "title": "Hävita vaenlase varustusladu",
+      "description": "Ehita gen → supply → land command → üksused. Seejärel lõika vaenlase logistika.",
+      "kind": "destroy",
+      "primary": true,
+      "target": {
+        "kind": "supply",
+        "team": 1,
+        "count": 1
+      }
+    },
+    {
+      "id": "destroy-hq",
+      "title": "Hävita vaenlase HQ",
+      "description": "Võit pärast logistika lõikamist.",
+      "kind": "destroy",
+      "primary": true,
+      "requires": [
+        "destroy-enemy-supply"
+      ],
+      "target": {
+        "kind": "hq",
+        "team": 1,
+        "count": 1
+      }
+    }
+  ],
+  "triggers": []
+}

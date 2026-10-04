@@ -24,12 +24,23 @@ export class AudioManager {
     this.musicTimer = window.setInterval(() => this.musicTick(), 1200);
   }
   stopMusic(): void { if (this.musicTimer !== null) { clearInterval(this.musicTimer); this.musicTimer = null; } }
-  events(events: readonly SimEvent[]): void {
-    for (const e of events) if (e.type === "fire") this.tone(110 + e.team * 35, .06, "square", .12);
-    else if (e.type === "hit") this.tone(75, .05, "sawtooth", .1);
-    else if (e.type === "death") this.tone(e.big ? 48 : 62, e.big ? .24 : .12, "sawtooth", e.big ? .2 : .13);
-    else if (e.type === "build-complete") this.tone(520, .12, "sine", .12);
-    else if (e.type === "repair-complete") this.tone(720, .08, "sine", .1);
+  private lastUnderAttack = 0;
+  events(events: readonly SimEvent[], playerTeam = 0): void {
+    for (const e of events) {
+      if (e.type === "fire") this.tone(110 + e.team * 35, .06, "square", .12);
+      else if (e.type === "hit") this.tone(75, .05, "sawtooth", .1);
+      else if (e.type === "death") {
+        this.tone(e.big ? 48 : 62, e.big ? .24 : .12, "sawtooth", e.big ? .2 : .13);
+        // Own unit death → under attack sting (throttled)
+        if (performance.now() - this.lastUnderAttack > 4000) {
+          this.lastUnderAttack = performance.now();
+          this.tone(90, .08, "square", .14);
+          this.tone(60, .18, "sawtooth", .12);
+        }
+      }
+      else if (e.type === "build-complete") this.tone(520, .12, "sine", .12);
+      else if (e.type === "repair-complete") this.tone(720, .08, "sine", .1);
+    }
   }
   private musicTick(): void {
     const notes = [110, 131, 147, 98, 123, 147, 110, 82];

@@ -139,6 +139,13 @@ export class Vision {
   }
 
   getVisionRadius(u: Entity): number {
+    // Schema v2 optics drive fog reveal (Wargame-style recon value)
+    if (u.def.opticsRange) {
+      const base = u.def.opticsRange;
+      if (u.kind === "hq") return Math.max(base, 48);
+      if (u.kind === "radar") return Math.max(base, 90);
+      return base;
+    }
     if (u.kind === "hq") return 48;
     if (u.kind === "bunker") return 38;
     if (u.kind === "artillery") return 34;

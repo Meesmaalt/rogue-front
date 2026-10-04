@@ -124,3 +124,7 @@ button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 
 .formation-bar { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; align-items: center; }
 .formation-bar button.active { border-color: var(--amber); background: #3a4a3a; }
+
+.air-mission-bar { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; align-items: center; }
+.air-mission-bar button { font: 600 11px var(--body); padding: 3px 7px; background: #2a3540; border: 1px solid var(--line); color: var(--text); cursor: pointer; }
+.air-mission-bar button:hover { border-color: #6af; }

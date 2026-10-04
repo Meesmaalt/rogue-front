@@ -106,6 +106,20 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   hud.onPriority = (ids, focus) => { if (running && !paused) world.issue({ type: "priority", ids, focus }); };
   hud.onPreDeploy = (ids, mode) => { if (running && !paused) world.issue({ type: "predeploy", ids, mode }); };
   hud.onFormation = (kind) => { import("./sim/systems/commands").then(m => m.setFormation(kind)); };
+  hud.onAirMission = (ids, mission) => {
+    if (!running || paused) return;
+    // CAP around camera center / unit centroid; others need map click later – use centroid
+    let x = 0, z = 0, n = 0;
+    for (const id of ids) {
+      const e = world.byId.get(id);
+      if (e) { x += e.x; z += e.z; n++; }
+    }
+    if (n) { x /= n; z /= n; }
+    // CAP orbit near own HQ if no better point
+    const hq = world.hq[world.playerTeam];
+    if (mission === "cap" && hq) { x = (x + hq.x) / 2; z = (z + hq.z) / 2; }
+    world.issue({ type: "air-mission", ids, mission, x, z });
+  };
   hud.onCancelProduce = (producerId) => { if (running && !paused) world.issue({ type: "cancel-produce", producerId }); };
   const saveKey = SAVE_PREFIX + mission.id;
   const hasSave = () => localStorage.getItem(saveKey) !== null;
@@ -119,9 +133,19 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
 
   let running = false;
   const setEnabled = (on: boolean) => { selection.enabled = commands.enabled = minimap.enabled = on; };
-  hud.showBriefing(skirmish ? { ...mission, name: "Skirmish — " + mission.map.name, briefing: "Võit: hävita vaenlase HQ.\n\n1) Ehita generaator + varustusladu\n2) Logistikahelikopterid toovad automaatselt varustust\n3) Ehita juhtimiskeskus → kasarmu/tehas\n4) Laienda ettepoole, kaitse oma ladusid, ründa vaenlase logistikat\n\nStantsid: Ründa / Hoia / Patrull. Energia puudujääk aeglustab tootmist." } : mission, () => { running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); }, hasSave(), loadGame);
+  const facBlur = FACTIONS[world.playerFaction]?.doctrineBlurb ?? "";
+  hud.showBriefing(skirmish ? { ...mission, name: "Skirmish — " + mission.map.name, briefing: "Võit: hävita vaenlase HQ.\n\nREAL WAR baas:\n1) Generaator → varustusladu (õhusild)\n2) Land/Air/Sea Command → tootjad\n3) Energia puudujääk aeglustab tootmist\n\nWARGAME lahing:\n• Optika/recon — kes näeb, tulistab\n• Supply raadius — ammo/kütus; forward ladu risk\n• Flank ja moraal loevad\n• Õhk: CAP / Strike / SEAD; ilma AA-ta kaotad\n\nDoktriin: " + facBlur + "\n\nKlahvid: F1 soomus F2 jala F3 õhk F4 toetus · Ctrl+1-9 grupid" } : mission, () => { running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); }, hasSave(), loadGame);
 
-  addEventListener("keydown", (e) => { if (e.key.toLowerCase() === loadSettings().keys.pause && running) togglePause(); });
+  addEventListener("keydown", (e) => {
+    if (e.key.toLowerCase() === loadSettings().keys.pause && running) togglePause();
+    if (!running || paused) return;
+    const k = e.key.toLowerCase();
+    // Quick filters (Wargame-style selection aids)
+    if (k === "f1") selection.selectFilter(u => ["tank","ifv","apc"].includes(u.kind));
+    if (k === "f2") selection.selectFilter(u => ["inf","special","engineer"].includes(u.kind));
+    if (k === "f3") selection.selectFilter(u => u.def.armor === "air" || ["heli","gunship","fighter","interceptor","bomber"].includes(u.kind));
+    if (k === "f4") selection.selectFilter(u => ["artillery","mlrs","aa"].includes(u.kind));
+  });
 
   let frames = 0, fpsAcc = 0, hudAcc = 1;
   const loop = new GameLoop(
@@ -158,8 +182,9 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       const events = world.drainEvents();
       units.handleEvents(events);
       units.sync(world, alpha, selection.selected);
+      units.syncIntelGhosts(world);
       fx.handleEvents(events);
-      audio.events(events);
+      audio.events(events, world.playerTeam);
       fx.syncProjectiles(world, alpha);
       fx.update(frameDt);
       const animateWater = ctx.water.material as THREE.ShaderMaterial;

@@ -3,6 +3,10 @@ import type { Entity, Point } from "../types";
 import { heightAt } from "../heightmap";
 import { dist2d, turnToward, wrapAngle } from "../math";
 import { fireGroundProjectile, fireProjectile } from "./combat";
+import { isSpottedBy } from "./sensors";
+import { moraleSpeedMul, moraleAccuracyMul, moraleState } from "./morale";
+import { outOfFuel, outOfAmmo } from "./tacticalSupply";
+import { updateAirDoctrine } from "./airDoctrine";
 import { pointInFeature } from "../mapFeatures";
 import { findPath } from "../nav/Pathfinder";
 
@@ -31,6 +35,8 @@ export function nearestEnemy(w: World, u: Entity, range: number): Entity | null 
   const searchR = range + 14;
   w.spatial.queryRadius(u.x, u.z, searchR, (e) => {
     if (e.dead || e.team === u.team || e.underConstruction || e === u) return;
+    // Auto-acquire only spotted contacts (Wargame); keeps recon valuable
+    if (!isSpottedBy(e, u.team, w.time) && u.mode !== "attack") return;
     const dx = e.x - u.x, dz = e.z - u.z;
     const distSq = dx * dx + dz * dz;
     if (e.def.stealth && u.kind !== "radar" && distSq > 144) return;
@@ -219,6 +225,7 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     }
     if (u.airState === "grounded" || u.airState === "rearming") return;
     if (u.airState === "taxi") { u.airState = "airborne"; }
+    if (u.airState === "airborne" || u.airState === "returning") updateAirDoctrine(w, u, dt);
     if (!atPad) {
       u.fuel=Math.max(0,(u.fuel ?? 0)-dt*(0.65 + (u.kind==="fighter"?0.2:0)));
       if ((u.fuel ?? 0) < (u.maxFuel ?? 100)*0.22 && u.airState !== "returning") {
@@ -234,7 +241,10 @@ function stepUnit(w: World, u: Entity, dt: number): void {
   }
 
   // sihtmärgi valik – throttle retarget (~every 4 ticks staggered by id)
-  if (u.mode === "attack" && (!u.target || u.target.dead)) { u.target = null; u.mode = "idle"; }
+  if (u.mode === "attack" && (!u.target || u.target.dead)) {
+    u.target = nearestEnemy(w, u, Math.max(effectiveRange, u.aggro));
+    if (!u.target) u.mode = "idle";
+  }
   if (u.mode !== "attack") {
     const lim = u.mode === "move" ? effectiveRange : Math.max(effectiveRange, u.aggro);
     const needNew = !u.target || u.target.dead || dist2d(u, u.target) - u.target.def.radius > lim * 1.15;
@@ -246,9 +256,9 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     }
   }
   const t = u.target;
-  if (t && !w.vision.isVisible(u.team, t.x, t.z)) {
+  // Explicit attack orders keep the target even through fog; auto-acquire still needs vision
+  if (t && !w.vision.isVisible(u.team, t.x, t.z) && u.mode !== "attack" && u.mode !== "amove") {
     u.target = null;
-    if (u.mode === "attack") u.mode = "idle";
   }
   if (u.mode === "patrol" && u.dest && Math.hypot(u.x-u.dest.x,u.z-u.dest.z) < 3) {
     u.patrolIndex = (u.patrolIndex + 1) % u.patrolPoints.length; u.dest = u.patrolPoints[u.patrolIndex]; u.navPath = []; u.navPathIndex = 0;
@@ -308,7 +318,8 @@ function stepUnit(w: World, u: Entity, dt: number): void {
       const terrainMod = road ? 1.22 : cover && u.kind === "inf" ? 0.92 : 1;
       const supplyMove = (u.supply ?? 100) > 10 ? 1 : 0.78;
       const roleMove = u.role === "siege" ? 0.92 : 1;
-      const sp = d.speed * terrainMod * supplyMove * roleMove * Math.min(1.3, Math.max(0.35, 1 - slope * 1.2)) * Math.max(0.15, Math.cos(Math.min(diff, 1.5)));
+      const fuelMul = outOfFuel(u) ? 0 : 1;
+      const sp = d.speed * terrainMod * supplyMove * roleMove * moraleSpeedMul(u) * fuelMul * Math.min(1.3, Math.max(0.35, 1 - slope * 1.2)) * Math.max(0.15, Math.cos(Math.min(diff, 1.5)));
       u.x += Math.sin(u.heading) * sp * dt; u.z += Math.cos(u.heading) * sp * dt;
     } else if (sx || sz) {
       u.x += sx * d.speed * 0.4 * dt; u.z += sz * d.speed * 0.4 * dt;
@@ -324,16 +335,46 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     }
   }
 
-  // torn ja tuli
+  // Aim + fire
+  // - Turret units (tank, ifv, aa): can shoot on the move once turret is on target
+  // - Hull-aim units (inf, special, apc, artillery, mlrs): must face target; artillery/mlrs should be nearly stopped
+  const stab = d.stabilizer ?? (d.turret ? "full" : "none");
+  const canFireOnMove = stab === "full";
+  const mustStopToFire = stab === "none" && ["artillery", "mlrs"].includes(u.kind);
+  const isMovingFast = !!goal && d.speed > 0;
+
   let aligned = true;
-  if (d.turret) {
-    const want = target ? Math.atan2(target.x - u.x, target.z - u.z) - u.heading : 0;
-    u.turretYaw = turnToward(u.turretYaw, wrapAngle(want), 3 * dt);
-    aligned = !target || Math.abs(wrapAngle(want - u.turretYaw)) < 0.12;
+  if (target) {
+    const absWant = Math.atan2(target.x - u.x, target.z - u.z);
+    if (d.turret) {
+      const want = wrapAngle(absWant - u.heading);
+      u.turretYaw = turnToward(u.turretYaw, want, (u.kind === "tank" ? 2.4 : 3.2) * dt);
+      aligned = Math.abs(wrapAngle(want - u.turretYaw)) < 0.14;
+    } else {
+      // Hull must turn toward target (infantry, fixed guns)
+      if (inRange || u.mode === "attack" || u.mode === "hold") {
+        u.heading = turnToward(u.heading, absWant, d.turnRate * dt);
+      }
+      aligned = Math.abs(wrapAngle(absWant - u.heading)) < 0.2;
+    }
   }
-  if (target && (u.firingArc >= Math.PI * 2 - 0.01 || inFiringArc(u, target)) && aligned && u.cooldown === 0 && d.damage && ((u.maxAmmo ?? 0)===0 || (u.ammo ?? 0)>0) && dist2d(u, target) - target.def.radius <= effectiveRange && hasSpotter(w, u, target) && w.vision.hasLineOfSight(u,target)) {
+
+  const stationaryOk = !mustStopToFire || !isMovingFast;
+  const moveOk = canFireOnMove || !isMovingFast || (inRange && !mustStopToFire);
+  const rangeOk = !!target && dist2d(u, target) - target.def.radius <= effectiveRange;
+
+  // Must have LOS; for auto-fire also require Wargame "spotted" (attack orders keep target)
+  const spotted = target ? isSpottedBy(target, u.team, w.time) : false;
+  const canShootTarget = target && (spotted || u.mode === "attack" || u.mode === "amove");
+  if (target && canShootTarget && rangeOk && aligned && stationaryOk && moveOk && u.cooldown === 0 && d.damage
+      && moraleState(u) !== "routing"
+      && !outOfAmmo(u)
+      && u.standingOrder !== "holdfire"
+      && ((u.maxAmmo ?? 0) === 0 || (u.ammo ?? 0) > 0)
+      && (u.firingArc >= Math.PI * 2 - 0.01 || inFiringArc(u, target))
+      && hasSpotter(w, u, target)
+      && (u.mode === "attack" || u.mode === "amove" || w.vision.hasLineOfSight(u, target))) {
     const a = u.heading + (d.turret ? u.turretYaw : 0);
-    // Muzzle offset by unit type (barrel tip for tanks, chest for infantry)
     const muzzle =
       u.kind === "tank" || u.kind === "ifv" ? 4.2 :
       u.kind === "artillery" || u.kind === "mlrs" ? 3.2 :
@@ -346,10 +387,10 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     const veteranFactor = 1 + u.veteran * 0.06;
     const moraleFactor = 0.65 + (w.teamMorale[u.team] / 100) * 0.35;
     fireProjectile(w, u, target, u.x + Math.sin(a) * muzzle, u.y + muzzleY, u.z + Math.cos(a) * muzzle);
-    if (w.projectiles.length) w.projectiles[w.projectiles.length - 1].damage *= veteranFactor * supplyFactor * moraleFactor;
-    // Reload: tanks feel heavier; infantry slightly irregular
+    if (w.projectiles.length) w.projectiles[w.projectiles.length - 1].damage *= veteranFactor * supplyFactor * moraleFactor * moraleAccuracyMul(u);
     const reloadJitter = u.kind === "tank" || u.kind === "artillery" ? (0.95 + w.rng() * 0.12) : (0.85 + w.rng() * 0.3);
     u.cooldown = d.cooldown * reloadJitter;
     u.lastCombatTime = w.time;
   }
 }
+

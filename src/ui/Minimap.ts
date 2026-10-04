@@ -1,11 +1,45 @@
 import type { World } from "../sim/World";
 import type { Picker } from "../input/Picker";
+import type { Entity } from "../sim/types";
 import { MAP_SIZE, heightAt } from "../sim/heightmap";
 import { featureBlocksMovement } from "../sim/mapFeatures";
 
 const S = 176;
 
-/** Minikaart: maastik, üksused, kaamera nähtav ala. Vasak klõps = kaamera, parem klõps = liikumiskäsk. */
+function unitColor(u: Entity, playerTeam: 0 | 1): string {
+  if (u.team !== playerTeam) {
+    // Enemy: role-tinted reds
+    if (u.kind === "supply" || u.kind === "generator") return "#f0a050";
+    if (u.kind === "aa") return "#ff6688";
+    if (u.def.armor === "air" || u.def.category === "heli") return "#ff4466";
+    if (u.kind === "tank" || u.kind === "ifv") return "#e0553f";
+    if (u.def.speed === 0) return "#c04030";
+    return "#e07060";
+  }
+  // Friendly role colors (Wargame minimap readability)
+  if (u.kind === "hq") return "#ffe08a";
+  if (u.kind === "supply") return "#9dca6a";
+  if (u.kind === "generator") return "#f2d06b";
+  if (u.kind === "aa") return "#c07cff";
+  if (u.kind === "radar") return "#7ec8ff";
+  if (u.def.armor === "air" || u.def.category === "heli" || ["fighter","interceptor","bomber","heli","gunship"].includes(u.kind)) return "#55d0ff";
+  if (u.kind === "tank" || u.kind === "ifv" || u.kind === "apc") return "#46b3e6";
+  if (u.kind === "artillery" || u.kind === "mlrs") return "#e8a838";
+  if (u.kind === "inf" || u.kind === "special" || u.kind === "engineer") return "#7ecf9a";
+  if (u.def.speed === 0) return "#8ab0c8";
+  return "#46b3e6";
+}
+
+function unitSize(u: Entity): number {
+  if (u.kind === "hq") return 7;
+  if (u.def.speed === 0) return u.kind === "supply" || u.kind === "generator" ? 5 : 4.5;
+  if (u.kind === "tank") return 4.2;
+  if (u.def.armor === "air") return 3.5;
+  if (u.kind === "inf" || u.kind === "special") return 2.2;
+  return 3;
+}
+
+/** Minikaart: rollivärvid, intel, kaamera. */
 export class Minimap {
   enabled = false;
   onJump: (x: number, z: number) => void = () => {};
@@ -13,6 +47,10 @@ export class Minimap {
   private ctx: CanvasRenderingContext2D;
   private base: HTMLCanvasElement;
   private dragging = false;
+  private frame = 0;
+  /** Throttle full fog fill (expensive nested loop). */
+  private fogCache: HTMLCanvasElement | null = null;
+  private fogFrame = -10;
 
   constructor(private readonly canvas: HTMLCanvasElement, private readonly world: World, private readonly picker: Picker) {
     this.ctx = canvas.getContext("2d")!;
@@ -30,8 +68,9 @@ export class Minimap {
 
   draw(): void {
     const c = this.ctx;
+    this.frame++;
     c.drawImage(this.base, 0, 0);
-    // Kaardi põhistruktuur jääb minimapil nähtavaks ka siis, kui üksused on udus.
+
     for (const f of this.world.mapFeatures) {
       const [mx, my] = this.w2m(f.x, f.z);
       c.save(); c.translate(mx, my); c.rotate(f.rotation ?? 0);
@@ -39,34 +78,87 @@ export class Minimap {
       c.fillRect(-f.width / MAP_SIZE * S / 2, -f.depth / MAP_SIZE * S / 2, f.width / MAP_SIZE * S, f.depth / MAP_SIZE * S);
       c.restore();
     }
-    // Fog of war: uurimata on täiesti peidus, uuritud ala on tume, nähtav ala jääb vabaks.
-    const cellW = S / this.world.vision.width, cellH = S / this.world.vision.height;
-    for (let iz = 0; iz < this.world.vision.height; iz++) for (let ix = 0; ix < this.world.vision.width; ix++) {
-      const p = this.world.vision.cellToWorld(ix, iz);
-      const state = this.world.vision.stateAt(this.world.playerTeam, p.x, p.z);
-      if (state === 2) continue;
-      const x = (p.x + MAP_SIZE / 2) / MAP_SIZE * S;
-      const y = (p.z + MAP_SIZE / 2) / MAP_SIZE * S;
-      c.fillStyle = state === 0 ? "rgba(5,8,9,.86)" : "rgba(5,8,9,.48)";
-      c.fillRect(x, y, cellW + .5, cellH + .5);
+
+    // Fog – rebuild every 3rd frame into cache
+    if (this.frame - this.fogFrame >= 3 || !this.fogCache) {
+      this.fogFrame = this.frame;
+      if (!this.fogCache) {
+        this.fogCache = document.createElement("canvas");
+        this.fogCache.width = this.fogCache.height = S;
+      }
+      const fc = this.fogCache.getContext("2d")!;
+      fc.clearRect(0, 0, S, S);
+      const cellW = S / this.world.vision.width, cellH = S / this.world.vision.height;
+      for (let iz = 0; iz < this.world.vision.height; iz++) {
+        for (let ix = 0; ix < this.world.vision.width; ix++) {
+          const p = this.world.vision.cellToWorld(ix, iz);
+          const state = this.world.vision.stateAt(this.world.playerTeam, p.x, p.z);
+          if (state === 2) continue;
+          const x = (p.x + MAP_SIZE / 2) / MAP_SIZE * S;
+          const y = (p.z + MAP_SIZE / 2) / MAP_SIZE * S;
+          fc.fillStyle = state === 0 ? "rgba(5,8,9,.86)" : "rgba(5,8,9,.48)";
+          fc.fillRect(x, y, cellW + 0.5, cellH + 0.5);
+        }
+      }
     }
-    // Viimane teadaolev vaenlase asukoht jääb kaardile mõneks ajaks nähtavaks.
-    for (const c of this.world.getIntel(this.world.playerTeam, true)) {
-      if (this.world.vision.isVisible(this.world.playerTeam, c.x, c.z)) continue;
-      const age = this.world.time - c.lastSeen;
+    c.drawImage(this.fogCache, 0, 0);
+
+    // Intel contacts (X marks)
+    for (const contact of this.world.getIntel(this.world.playerTeam, true)) {
+      if (this.world.vision.isVisible(this.world.playerTeam, contact.x, contact.z)) continue;
+      const live = this.world.byId.get(contact.entityId);
+      if (live && this.world.isSpottedByTeam(live, this.world.playerTeam)) continue;
+      const age = this.world.time - contact.lastSeen;
       const alpha = Math.max(0.12, 0.62 - age / 55);
-      const [mx, my] = this.w2m(c.x, c.z);
-      c.save();
-      c.strokeStyle = `rgba(224,85,63,${alpha})`; c.lineWidth = 1.5;
-      c.beginPath(); c.moveTo(mx - 3, my - 3); c.lineTo(mx + 3, my + 3); c.moveTo(mx + 3, my - 3); c.lineTo(mx - 3, my + 3); c.stroke();
-      c.restore();
+      const [mx, my] = this.w2m(contact.x, contact.z);
+      c.strokeStyle = `rgba(224,85,63,${alpha})`;
+      c.lineWidth = 1.5;
+      c.beginPath();
+      c.moveTo(mx - 3, my - 3); c.lineTo(mx + 3, my + 3);
+      c.moveTo(mx + 3, my - 3); c.lineTo(mx - 3, my + 3);
+      c.stroke();
     }
+
+    // Units – role colors; enemy only if spotted or vision
     for (const u of this.world.entities) {
-      if (u.dead || (u.team === 1 && !this.world.vision.isVisible(this.world.playerTeam, u.x, u.z))) continue;
-      const [mx, my] = this.w2m(u.x, u.z), s = u.def.speed === 0 ? 6 : u.kind === "tank" ? 4 : 2.5;
-      c.fillStyle = u.team ? "#e0553f" : "#46b3e6";
-      c.fillRect(mx - s / 2, my - s / 2, s, s);
+      if (u.dead) continue;
+      if (u.team !== this.world.playerTeam) {
+        const spotted = this.world.isSpottedByTeam(u, this.world.playerTeam) || this.world.vision.isVisible(this.world.playerTeam, u.x, u.z);
+        if (!spotted) continue;
+      }
+      const [mx, my] = this.w2m(u.x, u.z);
+      const s = unitSize(u);
+      c.fillStyle = unitColor(u, this.world.playerTeam);
+      if (u.def.speed === 0) {
+        // Buildings as diamonds / squares
+        c.fillRect(mx - s / 2, my - s / 2, s, s);
+        if (u.kind === "supply" || u.kind === "generator") {
+          c.strokeStyle = "rgba(255,255,255,.5)";
+          c.lineWidth = 1;
+          c.strokeRect(mx - s / 2, my - s / 2, s, s);
+        }
+      } else if (u.def.armor === "air" || u.def.category === "heli") {
+        // Air: triangle
+        c.beginPath();
+        c.moveTo(mx, my - s * 0.7);
+        c.lineTo(mx + s * 0.55, my + s * 0.45);
+        c.lineTo(mx - s * 0.55, my + s * 0.45);
+        c.closePath();
+        c.fill();
+      } else {
+        c.beginPath();
+        c.arc(mx, my, s * 0.45, 0, Math.PI * 2);
+        c.fill();
+      }
+      // Out of supply pulse for friendlies
+      if (u.team === this.world.playerTeam && u.def.speed > 0 && !this.world.isInSupply(u)) {
+        c.strokeStyle = "rgba(240,80,60,.85)";
+        c.lineWidth = 1;
+        c.strokeRect(mx - s * 0.6, my - s * 0.6, s * 1.2, s * 1.2);
+      }
     }
+
+    // Camera frustum
     c.strokeStyle = "rgba(255,255,255,.85)";
     c.lineWidth = 1;
     c.beginPath();
