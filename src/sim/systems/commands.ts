@@ -60,7 +60,12 @@ function apply(w: World, c: Command): void {
     case "formation": {w.teamFormations[c.team??w.playerTeam]=c.kind;break;}
     case "move":
     case "amove": {
-      const us = mobile(w, c.ids, c.team), pts = formation(us.length, c.x, c.z,w.teamFormations[c.team??w.playerTeam]);
+      const us = mobile(w,c.ids,c.team);
+      const center=us.reduce((p,u)=>({x:p.x+u.x/Math.max(1,us.length),z:p.z+u.z/Math.max(1,us.length)}),{x:0,z:0});
+      const angle=Math.atan2(c.x-center.x,c.z-center.z),cos=Math.cos(angle),sin=Math.sin(angle);
+      const pts=formation(us.length,c.x,c.z,w.teamFormations[c.team??w.playerTeam]).map(p=>({x:c.x+(p.x-c.x)*cos+(p.z-c.z)*sin,z:c.z-(p.x-c.x)*sin+(p.z-c.z)*cos}));
+      const lateral=(p:Point)=>p.x*cos-p.z*sin;
+      us.sort((a,b)=>lateral(a)-lateral(b)||a.id-b.id);pts.sort((a,b)=>lateral(a)-lateral(b));
       const field = new FlowField(w.nav, { x: c.x, z: c.z });
       const append = !!(c as { append?: boolean }).append;
       us.forEach((u, i) => {

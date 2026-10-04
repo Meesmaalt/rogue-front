@@ -1,10 +1,11 @@
 import * as THREE from "three";
+import {MAP_SIZE} from "../sim/heightmap";
 
 /** RTS-kaamera: WASD/nooled/serv liigutavad, Q/E pöörab, rull suumib. */
 export class RtsCamera {
   // Real War-like isometric: shallower pitch, closer default zoom
   x = -105; z = 105; yaw = -Math.PI / 4;
-  dist = 78; targetDist = 78; pitch = 0.72;
+  dist = 150; targetDist = 150; pitch = 0.83;
   groundY = 0;
   private keys = new Set<string>();
   private mouse = { x: -1, y: -1 };
@@ -22,13 +23,13 @@ export class RtsCamera {
     document.addEventListener("mouseleave", () => { this.mouse.x = this.mouse.y = -1; });
     el.addEventListener("wheel", (e) => {
       e.preventDefault();
-      this.targetDist = Math.max(36, Math.min(160, this.targetDist * (1 + Math.sign(e.deltaY) * 0.11)));
+      this.targetDist = Math.max(58, Math.min(360, this.targetDist * (1 + Math.sign(e.deltaY) * 0.11)));
     }, { passive: false });
   }
 
   jumpTo(x: number, z: number): void {
-    this.x = clamp(x, -185, 185);
-    this.z = clamp(z, -185, 185);
+    this.x = clamp(x, -MAP_SIZE/2+15, MAP_SIZE/2-15);
+    this.z = clamp(z, -MAP_SIZE/2+15, MAP_SIZE/2-15);
   }
 
   update(dt: number): void {
@@ -42,8 +43,8 @@ export class RtsCamera {
     if (k.has("e")) this.yaw += 1.6 * dt;
 
     const sp = (40 + this.dist * 0.9) * dt, s = Math.sin(this.yaw), c = Math.cos(this.yaw);
-    this.x = clamp(this.x + (-s * f + c * r) * sp, -185, 185);
-    this.z = clamp(this.z + (-c * f - s * r) * sp, -185, 185);
+    this.x = clamp(this.x + (-s * f + c * r) * sp, -MAP_SIZE/2+15, MAP_SIZE/2-15);
+    this.z = clamp(this.z + (-c * f - s * r) * sp, -MAP_SIZE/2+15, MAP_SIZE/2-15);
     this.dist += (this.targetDist - this.dist) * Math.min(1, dt * 8);
 
     this.groundY = this.heightAt(this.x, this.z);

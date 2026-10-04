@@ -30,9 +30,6 @@ export function assignAirMission(
 ): void {
   u.airMission = mission;
   u.airMissionPoint = point ? { x: point.x, z: point.z } : null;
-  if (u.airState === "grounded") {
-    u.airState = "taxi";
-  }
   if (mission === "cap") {
     u.mode = "patrol";
     if (point) {

@@ -29,6 +29,7 @@ export class Vision {
     return {states:[Array.from(this.states[0]),Array.from(this.states[1])],tickCounter:this.tickCounter};
   }
   restore(s: ReturnType<Vision["snapshot"]>, entities: readonly Entity[]): void {
+    if(s.states[0].length!==this.states[0].length){this.reset();this.tickCounter=0;this.update(entities);return;}
     this.states[0].set(s.states[0]); this.states[1].set(s.states[1]); this.tickCounter=s.tickCounter;
     this.buildings=entities.filter(e=>!e.dead&&e.def.speed===0);
   }

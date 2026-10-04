@@ -1,0 +1,7 @@
+{
+  "infantry": {"acceleration": 9, "braking": 14, "forestSpeed": 0.88},
+  "tracked": {"acceleration": 2.6, "braking": 5.5, "forestSpeed": 0.64},
+  "wheeled": {"acceleration": 3.5, "braking": 6.5, "forestSpeed": 0.52},
+  "helicopter": {"altitude": 30, "acceleration": 5.0, "braking": 7.0, "climbRate": 6.0, "descentRate": 5.5, "maxBank": 0.38, "takeoffTime": 3.0},
+  "aircraft": {"altitude": 80, "acceleration": 6.0, "braking": 8.0, "climbRate": 10.0, "descentRate": 9.0, "maxBank": 0.75, "minimumSpeed": 0.65, "takeoffTime": 6.0}
+}

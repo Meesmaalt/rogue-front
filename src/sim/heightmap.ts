@@ -1,5 +1,5 @@
 /** Kaardi kõrgusväli. Puhas matemaatika, EI impordi three.js-i. */
-export const MAP_SIZE = 400;
+export const MAP_SIZE = 640;
 export interface BaseDef { x: number; z: number; r: number }
 export interface HeightmapSource { width: number; height: number; data: Uint8Array; maxHeight: number }
 
@@ -85,7 +85,7 @@ function proceduralHeight(x: number, z: number): number {
     h *= smooth(b.r * 0.85, b.r * 2.1, d);
   }
   // Softer map-edge rise
-  h += smooth(175, 210, Math.max(Math.abs(x), Math.abs(z))) * (terrainProfile ? 2 : 14);
+  h += smooth(MAP_SIZE*.44, MAP_SIZE*.525, Math.max(Math.abs(x), Math.abs(z))) * (terrainProfile ? 2 : 14);
   return h;
 }
 

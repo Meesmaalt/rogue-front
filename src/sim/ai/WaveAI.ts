@@ -1,3 +1,4 @@
+import {MAP_SIZE} from "../heightmap";
 import type { World } from "../World";
 import type { UnitKind } from "../types";
 import { BUILDINGS } from "../buildings";
@@ -255,7 +256,7 @@ export class WaveAI {
       if(count(kind)>=max||!w.canBuildKind(1,kind)||w.teamCredits[1]<BUILDINGS[kind].cost||w.teamResources[1]<BUILDINGS[kind].cost)continue;
       for(const radius of [22,38,54,70])for(let i=0;i<16;i++){
         const angle=i*Math.PI/8;const x=base.x+Math.cos(angle)*radius,z=base.z+Math.sin(angle)*radius;
-        if(Math.abs(x)>178||Math.abs(z)>178||!w.canPlaceBuilding(1,kind,x,z))continue;
+        if(Math.abs(x)>MAP_SIZE/2-22||Math.abs(z)>MAP_SIZE/2-22||!w.canPlaceBuilding(1,kind,x,z))continue;
         w.issue({type:"build",ids:[eng.id],kind,x,z,team:1});return;
       }
     }

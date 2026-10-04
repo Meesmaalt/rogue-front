@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import {createCivilianBuilding} from "./Architecture";
 import { getBases, MAP_SIZE, heightAt } from "../sim/heightmap";
 import { mulberry32 } from "../sim/rng";
 import { pointInFeature, type MapFeatureDef } from "../sim/mapFeatures";
@@ -195,17 +196,7 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       if(f.appearance === "farmhouse") {
-        const house=new THREE.Group();house.position.set(f.x,y,f.z);house.rotation.y=f.rotation??0;
-        mesh.position.set(0,h/2,0);mesh.rotation.y=0;mesh.material=new THREE.MeshStandardMaterial({color:0xc6bfa7,roughness:.95});house.add(mesh);
-        const roof=new THREE.Mesh(new THREE.CylinderGeometry(1,1,f.depth+1,3),new THREE.MeshStandardMaterial({color:0x796153,map:roofTexture(),roughness:.95}));
-        roof.rotation.x=Math.PI/2;roof.rotation.z=Math.PI;roof.scale.set(f.width*.65,1,2);roof.position.y=h+.7;roof.castShadow=true;house.add(roof);
-        const windowMat=new THREE.MeshStandardMaterial({color:0x344749,roughness:.5});
-        for(const side of [-1,1])for(const dx of [-.28,.28]){const win=new THREE.Mesh(new THREE.BoxGeometry(1.1,1,.12),windowMat);win.position.set(dx*f.width,h*.6,side*(f.depth/2+.04));house.add(win);}
-        const door=new THREE.Mesh(new THREE.BoxGeometry(1.2,2,.13),new THREE.MeshStandardMaterial({color:0x6a5c43}));door.position.set(0,1,f.depth/2+.05);house.add(door);
-        const chimney=new THREE.Mesh(new THREE.BoxGeometry(.65,1.8,.7),new THREE.MeshStandardMaterial({color:0x918577,roughness:1}));chimney.position.set(f.width*.28,h+1.5,-f.depth*.2);chimney.castShadow=true;house.add(chimney);
-        const trimMat=new THREE.MeshStandardMaterial({color:0xb0ae99,roughness:.95});
-        for(const side of [-1,1])for(const dx of [-.28,.28]){const sash=new THREE.Mesh(new THREE.BoxGeometry(.07,1.1,.14),trimMat);sash.position.set(dx*f.width,h*.6,side*(f.depth/2+.08));house.add(sash);}
-        group.add(house);
+        const house=createCivilianBuilding(f.width,f.depth,h,Number(f.id.split("-").at(-1))||0);house.position.set(f.x,y,f.z);house.rotation.y=f.rotation??0;group.add(house);mesh.geometry.dispose();(mesh.material as THREE.Material).dispose();
       } else group.add(mesh);
       continue;
     }
@@ -293,11 +284,3 @@ function fieldTexture():THREE.CanvasTexture {
   c.putImageData(data,0,0);const t=new THREE.CanvasTexture(canvas);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(3,3);t.anisotropy=8;cachedFieldTexture=t;return t;
 }
 
-let cachedRoofTexture:THREE.CanvasTexture|undefined;
-function roofTexture():THREE.CanvasTexture {
-  if(cachedRoofTexture)return cachedRoofTexture;
-  const canvas=document.createElement("canvas");canvas.width=canvas.height=128;const c=canvas.getContext("2d")!,rnd=mulberry32(521);
-  c.fillStyle="#dfd9d1";c.fillRect(0,0,128,128);
-  for(let y=0;y<128;y+=8)for(let x=-8;x<128;x+=16){const offset=(y/8%2)*8,v=Math.floor(180+rnd()*65);c.fillStyle=`rgb(${v},${v},${v})`;c.fillRect(x+offset,y,15,7);}
-  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(3,3);texture.anisotropy=8;cachedRoofTexture=texture;return texture;
-}

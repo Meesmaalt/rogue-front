@@ -1,6 +1,6 @@
 import type { Command, Entity, GameStatus, Projectile, SimEvent, Team, UnitKind, MapResourceDef, IntelContact } from "./types";
 import { UNITS } from "./units";
-import { getBases, heightAt, ensureHeightCache, type BaseDef } from "./heightmap";
+import { getBases, heightAt, MAP_SIZE, ensureHeightCache, type BaseDef } from "./heightmap";
 import { Rng } from "./rng";
 import { ENEMY_AGGRO, INCOME_PER_SEC, STARTING_CREDITS, STARTING_RESOURCES, AIR_CARGO_INCOME_PER_SEC, AIR_CARGO_LOAD, AIR_CARGO_INTERVAL, RESOURCE_FACILITY_STARTUP, RESOURCE_FACILITY_MAX_STOCK, RESOURCE_FACILITY_PRODUCTION, ROAD_TRUCK_CARGO, ROAD_TRUCK_INTERVAL, ROAD_TRUCK_MAX_PER_DEPOT } from "./constants";
 import { applyCommands } from "./systems/commands";
@@ -528,7 +528,7 @@ export class World {
 
   canPlaceBuilding(team: Team, kind: UnitKind, x: number, z: number): boolean {
     if (!isBuildable(kind) || !this.canBuildKind(team, kind)) return false;
-    if(Math.abs(x)+buildFootprint(kind)>190||Math.abs(z)+buildFootprint(kind)>190)return false;
+    if(Math.abs(x)+buildFootprint(kind)>MAP_SIZE/2-10||Math.abs(z)+buildFootprint(kind)>MAP_SIZE/2-10)return false;
     const r = buildFootprint(kind);
     // Soft walkability – allow gentle slopes so crater edges don't block builds
     if (!this.nav.isWalkableWorld(x, z, r * 0.45)) return false;
@@ -645,7 +645,7 @@ export class World {
       const amount = Math.min(AIR_CARGO_LOAD, Math.floor(this.airCargoPool[team]));
       this.airCargoPool[team] -= amount;
       this.airCargoLastSpawn[team] = this.time;
-      const edgeX = team === 0 ? -185 : 185;
+      const edgeX = team === 0 ? -MAP_SIZE/2+15 : MAP_SIZE/2-15;
       const plane = this.spawn("cargoPlane", team, edgeX, base.z + (this.rng() - 0.5) * 40);
       plane.cargo = amount;
       plane.logisticsHome = { x: base.x, z: base.z };
@@ -740,7 +740,7 @@ export class World {
           .filter(r => r.amount > 0 && r.active && r.controlledBy === team)
           .sort((a,b) => Math.hypot(a.x-depot.x,a.z-depot.z) - Math.hypot(b.x-depot.x,b.z-depot.z))[0];
         if (!rp) continue;
-        const edgeX = team === 0 ? -155 : 155;
+        const edgeX = team === 0 ? -MAP_SIZE/2+30 : MAP_SIZE/2-30;
         const edgeZ = team === 0 ? depot.z + 35 : depot.z - 35;
         const h = this.spawn("transport", team, edgeX, edgeZ);
         h.supplyDepotId = depot.id;

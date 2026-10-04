@@ -15,7 +15,7 @@ describe("NavGrid", () => {
   });
   it("uses a 2m grid over the 400m map", () => {
     const n = new NavGrid();
-    expect(n.width).toBe(200); expect(n.height).toBe(200); expect(n.cellSize).toBe(2);
+    expect(n.width).toBe(320); expect(n.height).toBe(320); expect(n.cellSize).toBe(2);
   });
 
   it("marks static buildings as blocked", () => {

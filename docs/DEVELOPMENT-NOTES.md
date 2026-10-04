@@ -4,4 +4,4 @@ Kasutaja 04.10.2026 suunis: brauser on oluline. Keskenduda ühele kaardile (Rohe
 
 Kontrollimise eelistus: arendusel on prioriteet. Piirduda kompileerimise ning lühikese esmase kontrolliga. Suuremaid või korduvaid päris läbimänge/regressioonijookse kasutada ainult konkreetse vea või olulise riski lahendamiseks. Koodianalüüsist tehtud järeldust tuleb eristada päriselt kontrollitud käitumisest.
 
-Viimane sisuline ülevaade: ROHEORG-RELEASE.md. Mängu pole tervikuna valmis kuulutatud. Kõige suurem järgmine vajadus on keskkonna ja mudelite detail, mängijalt saadav ühe kaardi tunnetuse tagasiside ning kitsaskohtade ja valiku/käsutagasiside viimistlemine.
+Viimane sisuline ülevaade: ARCHITECTURE-MOTION-RELEASE.md (hooned, 640 m kaart ja liikumine). Mängu pole tervikuna valmis kuulutatud. Kõige suurem järgmine vajadus on keskkonna ja mudelite detail, mängijalt saadav ühe kaardi tunnetuse tagasiside ning kitsaskohtade ja valiku/käsutagasiside viimistlemine.

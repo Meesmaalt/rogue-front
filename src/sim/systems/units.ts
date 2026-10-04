@@ -1,6 +1,7 @@
 import type { World } from "../World";
 import type { Entity, Point } from "../types";
-import { heightAt } from "../heightmap";
+import mobility from "../../data/mobility.json";
+import { heightAt, MAP_SIZE } from "../heightmap";
 import { dist2d, turnToward, wrapAngle } from "../math";
 import { fireProjectile } from "./combat";
 import { isSpottedBy } from "./sensors";
@@ -168,16 +169,35 @@ function moveSeaTo(u: Entity, target: Point, dt: number): boolean {
   return false;
 }
 
+/** Kinematic flight is simulated: inertia, bank, climb and approach are saved state. */
 function moveAirTo(u: Entity, target: Point, dt: number, w: World): boolean {
-  if(outOfFuel(u))return false;
-  const d = Math.hypot(u.x - target.x, u.z - target.z);
-  if (d <= 3.5) return true;
-  const dx = target.x - u.x, dz = target.z - u.z;
-  u.heading = turnToward(u.heading, Math.atan2(dx, dz), u.def.turnRate * dt);
-  const componentSpeed = u.components ? Math.max(0.30, 1 - (u.components.engine ?? 0) / 180 - (u.components.tracks ?? 0) / 260) : 1;
-  u.x += Math.sin(u.heading) * u.def.speed * componentSpeed * dt;
-  u.z += Math.cos(u.heading) * u.def.speed * componentSpeed * dt;
-  u.y = 10 + Math.sin(w.time * 1.7 + u.id) * 1.5;
+  const helicopter=u.def.category==="heli",profile=helicopter?mobility.helicopter:mobility.aircraft;
+  const ground=heightAt(u.x,u.z),distance=Math.hypot(target.x-u.x,target.z-u.z);
+  const cargoLanding=u.kind==="cargoPlane"&&u.cargo>0;
+  const landing=u.airState==="returning"||cargoLanding||["transport-load","transport-unload"].includes(u.mode)||u.kind==="transport"&&u.supplyDepotId!=null;
+  const final=landing&&(helicopter||u.airLandingPhase==="final"||cargoLanding&&distance<80);
+  const desiredAltitude=ground+(final?Math.min(profile.altitude,Math.max(0,(distance-8)*.24)):u.airState==="returning"?20:profile.altitude+(u.airMission==="cap"&&!helicopter?15:0));
+  const oldY=u.y;
+  u.y+=Math.max(-profile.descentRate*dt,Math.min(profile.climbRate*dt,desiredAltitude-u.y));
+  if(distance<(helicopter?2.5:8)&&landing&&u.y-ground<3){u.motionSpeed=0;if(landing)u.y=ground;u.flightBank=(u.flightBank??0)*Math.max(0,1-dt*4);return true;}
+  if(!helicopter&&!landing&&distance<18){u.flightOrbitCenter={...target};u.dest=null;u.mode="idle";}
+  const desiredHeading=Math.atan2(target.x-u.x,target.z-u.z),oldHeading=u.heading;
+  const speed=u.motionSpeed??0;
+  const turnRate=helicopter?u.def.turnRate:final?Math.max(1.2,u.def.turnRate):Math.min(u.def.turnRate,.65+12/Math.max(15,speed));
+  u.heading=turnToward(u.heading,desiredHeading,turnRate*dt);
+  const delta=wrapAngle(u.heading-oldHeading)/dt;
+  const bank=Math.max(-profile.maxBank,Math.min(profile.maxBank,-delta*(helicopter?.18:.48)));
+  u.flightBank=(u.flightBank??0)+(bank-(u.flightBank??0))*Math.min(1,dt*3);
+  u.flightPitch=(u.flightPitch??0)+(Math.max(-.22,Math.min(.22,-(u.y-oldY)/Math.max(1,speed*dt)))-(u.flightPitch??0))*Math.min(1,dt*3);
+  const desiredSpeed=outOfFuel(u)?0:helicopter?Math.min(u.def.speed,Math.sqrt(Math.max(0,distance-2)*profile.braking)):final?Math.min(u.def.speed*.48,Math.max(4,distance*.8)):u.def.speed*Math.max(mobility.aircraft.minimumSpeed,1-Math.abs(u.flightBank??0)*.35);
+  const acceleration=desiredSpeed>speed?profile.acceleration:profile.braking;
+  u.motionSpeed=speed+Math.max(-acceleration*dt,Math.min(acceleration*dt,desiredSpeed-speed));
+  const step=Math.min(final||helicopter?distance:Infinity,u.motionSpeed*dt);
+  const heading=final?desiredHeading:u.heading;
+  u.x+=Math.sin(heading)*step;u.z+=Math.cos(heading)*step;
+  const limit=MAP_SIZE/2-8;
+  if(Math.abs(u.x)>limit||Math.abs(u.z)>limit){u.heading=turnToward(u.heading,Math.atan2(-u.x,-u.z),turnRate*dt*3);u.x=Math.max(-limit,Math.min(limit,u.x));u.z=Math.max(-limit,Math.min(limit,u.z));}
+  void w;
   return false;
 }
 
@@ -215,14 +235,14 @@ function updateCargoPlane(w: World, u: Entity, dt: number): void {
     u.cargo = 0;
     u.logisticsPhase = "loading";
     // Turn around and leave the map.
-    const exitX = u.team === 0 ? 190 : -190;
+    const exitX = u.team === 0 ? MAP_SIZE/2-10 : -MAP_SIZE/2+10;
     u.dest = { x: exitX, z: base.z };
     return;
   }
   if (u.logisticsPhase === "loading") {
-    if (!moveAirTo(u, u.dest ?? {x: u.team === 0 ? 190 : -190, z: base.z}, dt, w)) return;
+    moveAirTo(u, u.dest ?? {x: u.team === 0 ? MAP_SIZE/2-10 : -MAP_SIZE/2+10, z: base.z}, dt, w);
     // Reaching the edge removes the flight from the battlefield.
-    if (Math.abs(u.x) > 178) u.dead = true;
+    if (Math.abs(u.x) > MAP_SIZE/2-22) u.dead = true;
   }
 }
 
@@ -364,7 +384,7 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     const pad=home&&!home.dead&&!home.underConstruction?home:[...pads].sort((a,b)=>dist2d(u,a)-dist2d(u,b))[0]??null;
     if(pad)u.airMissionHomeId=pad.id;
     const atPad=!!pad&&dist2d(u,pad)<14;
-    if(atPad && (u.airState==="returning"||u.airState==="landing")){u.airState="rearming";u.mode="idle";u.dest=null;u.target=null;}
+    if(atPad && u.y-heightAt(u.x,u.z)<4 && (u.airState==="returning"||u.airState==="landing")){u.airState="rearming";u.motionSpeed=0;u.y=heightAt(u.x,u.z);u.airLandingPhase=undefined;u.mode="idle";u.dest=null;u.target=null;}
     if(atPad&&pad&&(u.airState==="rearming"||u.airState==="grounded")){
       const depot=w.nearestSupplyDepot(u.team,pad,false);
       if(depot&&dist2d(depot,pad)<80&&w.productionOperational(pad).operational){
@@ -377,21 +397,33 @@ function stepUnit(w: World, u: Entity, dt: number): void {
       if((u.ammo??0)>=(u.maxAmmo??0)*.95&&(u.fuel??0)>=(u.maxFuel??0)*.95)u.airState="grounded";
     }
     if(u.airState==="grounded"){
-      if(pad&&w.productionOperational(pad).operational&&(u.fuel??0)>(u.maxFuel??0)*.3&&(u.ammo??0)>0&&["attack","amove","move","patrol"].includes(u.mode))u.airState="taxi";
+      if(pad&&w.productionOperational(pad).operational&&(u.fuel??0)>(u.maxFuel??0)*.3&&(u.ammo??0)>0&&["attack","amove","move","patrol"].includes(u.mode)) {u.airState="taxi";u.airSortieTime=0;}
       else return;
     }
     if(u.airState==="rearming")return;
-    if(u.airState==="taxi"){u.airState="airborne";u.airSortieCount=(u.airSortieCount??0)+1;u.airSortieTime=0;}
+    if(u.airState==="taxi"){
+      u.airSortieTime=(u.airSortieTime??0)+dt;const duration=helicopter?mobility.helicopter.takeoffTime:mobility.aircraft.takeoffTime;
+      if(!helicopter){u.x+=Math.sin(u.heading)*3*dt;u.z+=Math.cos(u.heading)*3*dt;}u.y=heightAt(u.x,u.z);
+      if(u.airSortieTime<duration)return;
+      u.airState="airborne";u.airSortieCount=(u.airSortieCount??0)+1;u.airSortieTime=0;u.airLandingPhase=undefined;
+    }
     u.airSortieTime=(u.airSortieTime??0)+dt;
     if(u.airState==="airborne") updateAirDoctrine(w,u,dt);
     const reason=(u.fuel??0)<(u.maxFuel??0)*.22?"fuel":(u.ammo??0)<=0?"ammo":u.hp<u.def.hp*.35?"damage":null;
-    if(reason&&u.airState!=="returning"){u.airState="returning";u.airReturnReason=reason;}
+    if(reason&&u.airState!=="returning"){u.airState="returning";u.airReturnReason=reason;u.airLandingPhase="approach";}
+    if((u.fuel??0)<=0){u.hp=0;u.dead=true;w.lossValue[u.team]+=u.def.cost;return;}
     if(u.airState==="returning"){
       u.target=null;u.mode="move";u.dest=pad?{x:pad.x,z:pad.z}:null;
-      if(pad)moveAirTo(u,pad,dt,w);
+      if(pad){
+        if(!helicopter && u.airLandingPhase!=="final"){
+          const approach={x:pad.x-Math.sin(pad.heading)*70,z:pad.z-Math.cos(pad.heading)*70};
+          if(dist2d(u,approach)>18){moveAirTo(u,approach,dt,w);return;}
+          u.airLandingPhase="final";
+        }
+        moveAirTo(u,pad,dt,w);
+      }
       return;
     }
-    if((u.fuel??0)<=0){u.hp=0;u.dead=true;w.lossValue[u.team]+=u.def.cost;return;}
   }
 
   // sihtmärgi valik – throttle retarget (~every 4 ticks staggered by id)
@@ -450,6 +482,15 @@ function stepUnit(w: World, u: Entity, dt: number): void {
   if (d.speed > 0) {
     const isAir = d.armor === "air";
     if (isAir && u.airState === "grounded") return;
+    if(isAir){
+      if(d.category!=="heli"&&target)goal={x:target.x,z:target.z};
+      if(d.category!=="heli"){
+        if(goal)u.flightOrbitCenter=undefined;
+        else {const center=u.flightOrbitCenter??{x:u.x,z:u.z};u.flightOrbitCenter=center;const angle=w.time*.22+u.id;goal={x:center.x+Math.sin(angle)*45,z:center.z+Math.cos(angle)*45};}
+      }
+      if(goal)moveAirTo(u,goal,dt,w);
+      else {u.motionSpeed=Math.max(0,(u.motionSpeed??0)-mobility.helicopter.braking*dt);u.y+=Math.max(-4*dt,Math.min(4*dt,heightAt(u.x,u.z)+mobility.helicopter.altitude-u.y));u.flightBank=(u.flightBank??0)*Math.max(0,1-dt*4);}
+    }
     if(u.def.domain==="sea") {if(goal&&!outOfFuel(u))moveSeaTo(u,goal,dt);}
     let sx = 0, sz = 0;
     // Spatial separation – only nearby cells (was O(n²) over all entities)
@@ -472,7 +513,7 @@ function stepUnit(w: World, u: Entity, dt: number): void {
       if (goal === u.dest && gd < 2.5 && u.mode!=="patrol") { u.mode = "idle"; u.dest = null; u.navPath = []; u.navPathIndex = 0; u.flowField = null; }
       else { dx = gx / gd; dz = gz / gd; moving = true; }
     }
-    if (moving && u.def.domain!=="sea") {
+    if (moving && !isAir && u.def.domain!=="sea") {
       let navDx = dx, navDz = dz;
       if (u.navPath.length) {
         while (u.navPathIndex < u.navPath.length && Math.hypot(u.x - u.navPath[u.navPathIndex].x, u.z - u.navPath[u.navPathIndex].z) < .18) u.navPathIndex++;
@@ -489,18 +530,27 @@ function stepUnit(w: World, u: Entity, dt: number): void {
       const slope = (heightAt(u.x + ex * 2, u.z + ez * 2) - u.y) / 2;
       const road = w.mapFeatures.some(f => (f.kind === "road" || f.kind === "bridge") && pointInFeature(u.x,u.z,f,1.5));
       const cover = w.mapFeatures.some(f => f.kind === "cover" && f.appearance!=="field" && pointInFeature(u.x,u.z,f,1.5));
-      const terrainMod = road ? 1.22 : cover && u.kind === "inf" ? 0.92 : 1;
+      const terrainMod = road ? 1.22 : cover ? d.category==="infantry" ? mobility.infantry.forestSpeed : mobility.tracked.forestSpeed : 1;
       const supplyMove = (u.supply ?? 100) > 10 ? 1 : 0.78;
       const roleMove = u.role === "siege" ? 0.92 : 1;
       const fuelMul = outOfFuel(u) ? 0 : 1;
       const componentMove=u.components?Math.max(.15,1-u.components.engine/160-u.components.tracks/180):1;
       const sp = d.speed * componentMove * combatSpeedFactor * terrainMod * supplyMove * roleMove * moraleSpeedMul(u) * fuelMul * Math.min(1.3, Math.max(0.35, 1 - slope * 1.2)) * (d.category === "infantry" ? 1 : Math.max(0, Math.cos(diff)));
-      const nx=u.x+ex*sp*dt,nz=u.z+ez*sp*dt;
+      const profile=d.category==="infantry"?mobility.infantry:["apc","reconVehicle","logiTruck"].includes(u.kind)?mobility.wheeled:mobility.tracked;
+      const distanceToWaypoint=u.navPathIndex<u.navPath.length?Math.hypot(u.x-u.navPath[u.navPathIndex].x,u.z-u.navPath[u.navPathIndex].z):goal?dist2d(u,goal):0;
+      const desiredSpeed=Math.min(sp,Math.sqrt(Math.max(0,goal?dist2d(u,goal)-1:0)*2*profile.braking));
+      const currentSpeed=u.motionSpeed??0;u.motionSpeed=currentSpeed+Math.max(-profile.braking*dt,Math.min(profile.acceleration*dt,desiredSpeed-currentSpeed));
+      const travel=Math.min(distanceToWaypoint,u.motionSpeed*dt);
+      const nx=u.x+ex*travel,nz=u.z+ez*travel;
       if(isAir || u.navPath.length && w.nav.isWalkableWorld(nx,nz,d.radius)) {u.x=nx;u.z=nz;}
-      else if(!isAir){const px=u.x+navDx*sp*dt,pz=u.z+navDz*sp*dt;if(u.navPath.length&&w.nav.isWalkableWorld(px,pz,d.radius)){u.x=px;u.z=pz;}else u.stuckTime+=dt;}
+      else if(!isAir){const px=u.x+navDx*travel,pz=u.z+navDz*travel;if(u.navPath.length&&w.nav.isWalkableWorld(px,pz,d.radius)){u.x=px;u.z=pz;}else u.stuckTime+=dt;}
     }
-    u.x = Math.max(-190, Math.min(190, u.x)); u.z = Math.max(-190, Math.min(190, u.z));
-    u.y = isAir ? 10 + Math.sin(w.time * 1.7 + u.id) * 1.5 : heightAt(u.x, u.z);
+    if(!goal&&!isAir){
+      u.motionSpeed=Math.max(0,(u.motionSpeed??0)-mobility.tracked.braking*dt);
+      if((u.motionSpeed??0)>.25){const nx=u.x+Math.sin(u.heading)*u.motionSpeed!*dt,nz=u.z+Math.cos(u.heading)*u.motionSpeed!*dt;if(w.nav.isWalkableWorld(nx,nz,d.radius)){u.x=nx;u.z=nz;}else u.motionSpeed=0;}
+    }
+    const limit=MAP_SIZE/2-10;u.x=Math.max(-limit,Math.min(limit,u.x));u.z=Math.max(-limit,Math.min(limit,u.z));
+    if(!isAir)u.y=heightAt(u.x,u.z);
     const moved = Math.hypot(u.x - u.stuckX, u.z - u.stuckZ);
     if (moving && moved < 0.15 * dt) u.stuckTime += dt;
     else if (moved > 0.5) { u.stuckTime = 0; u.stuckX = u.x; u.stuckZ = u.z; }
@@ -516,7 +566,7 @@ function stepUnit(w: World, u: Entity, dt: number): void {
   const stab = d.stabilizer ?? (d.turret ? "full" : "none");
   const canFireOnMove = stab === "full";
   const mustStopToFire = stab === "none" && ["artillery", "mlrs", "mortar"].includes(u.kind);
-  const isMovingFast = !!goal && d.speed > 0;
+  const isMovingFast = (u.motionSpeed??0)>.6 || !!goal && d.speed > 0;
 
   let aligned = true;
   if (target) {

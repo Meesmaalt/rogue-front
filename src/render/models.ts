@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import {createBuildingModel} from "./Architecture";
 import {mergeGeometries} from "three/addons/utils/BufferGeometryUtils.js";
 import type { Team, UnitKind } from "../sim/types";
 import type { FactionId } from "../sim/factions";
@@ -248,12 +249,13 @@ function addBuildingFactionDetails(g: THREE.Group, faction: FactionId, kind: Uni
 
 /** Detailed procedural military models – readable silhouettes at RTS scale. */
 export function createModel(kind: UnitKind, team: Team, faction: FactionId = team === 0 ? "usa" : "russia"): Model {
+  const architecture=createBuildingModel(kind,team,faction);if(architecture)return architecture;
   const g = new THREE.Group();
   let turret: THREE.Group | null = null;
   const body = BODY[team], acc = ACC[team];
 
   // New unit families use deliberately distinct silhouettes so tactical roles remain readable even before bespoke GLB art.
-  const infantryKinds = new Set(["inf","atInf","mgInf","reconInf","sniper","manpad","atgm","engineer","combatEngineer"]);
+  const infantryKinds = new Set(["inf","atInf","mgInf","reconInf","sniper","manpad","atgm","engineer"]);
   if (infantryKinds.has(kind)) {
     // Phase 74: render a complete squad. The renderer hides individual members as casualties occur.
     const role = kind === "sniper" ? "sniper" : kind === "reconInf" ? "recon" : kind === "mgInf" ? "mg" : kind === "manpad" ? "manpad" : kind === "atInf" || kind === "atgm" ? "at" : kind.includes("Engineer") || kind.includes("engineer") ? "engineer" : "rifle";

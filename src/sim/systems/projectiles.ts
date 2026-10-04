@@ -7,7 +7,7 @@ export function updateProjectiles(w: World, dt: number): void {
   for (let i = ps.length - 1; i >= 0; i--) {
     const p = ps[i];
     if (p.target && !p.target.dead) { p.tx = p.target.x; p.tz = p.target.z; }
-    const ty = heightAt(p.tx, p.tz) + (p.target ? p.target.def.height * 0.45 : 0.25);
+    const ty = (p.target?.def.armor === "air" ? p.target.y : heightAt(p.tx,p.tz)) + (p.target ? p.target.def.height * 0.45 : 0.25);
     const dx = p.tx - p.x, dy = ty - p.y, dz = p.tz - p.z;
     const d = Math.hypot(dx, dy, dz);
     const step = p.speed * dt;

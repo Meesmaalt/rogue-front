@@ -160,7 +160,7 @@ export class UnitRenderer {
       const x = lerp(e.px, e.x, alpha), z = lerp(e.pz, e.z, alpha), h = lerpAngle(e.pHeading, e.heading, alpha);
       const ground = heightAt(x,z);
       const flying = e.def.armor === "air" && e.airState !== "grounded" && e.airState !== "rearming" && e.airState !== "taxi";
-      v.group.position.set(x, flying ? Math.max(ground+8,e.y) : ground, z);
+      v.group.position.set(x, flying ? e.y : ground, z);
       const shadow = v.group.getObjectByName("ContactShadow");
       if(shadow) shadow.position.y = ground-v.group.position.y+.045;
       if ((e.squadMaxMembers ?? 0) > 0) {
@@ -249,7 +249,7 @@ export class UnitRenderer {
         gun.position.z = Number(gun.userData.restZ) - Math.sin(v.recoil * Math.PI) * 0.24;
       }
       const gear = v.group.getObjectByName("LandingGear");
-      if (gear) gear.visible = !["airborne", "returning"].includes(e.airState ?? "grounded");
+      if (gear) gear.visible = e.y-ground<12;
 
       // Construction progress bar – always strip when finished (search all children)
       const barName = "ConstructBar";
@@ -318,7 +318,16 @@ export class UnitRenderer {
         // must not flip a vehicle onto its side.
         const tilt = (angle: number) => Math.max(-0.35,Math.min(0.35,angle));
         v.group.rotation.set(tilt(-Math.atan2(hf - hb, 2 * f)), h, tilt(Math.atan2(hr - hl, 3)), "YXZ");
+      } else if(e.def.armor === "air")v.group.rotation.set(e.flightPitch??0,h,e.flightBank??0,"YXZ");
+      else if(e.def.speed>0&&e.def.category!=="infantry"){
+        const sa=Math.sin(h),ca=Math.cos(h),length=2;
+        const pitch=-Math.atan2(heightAt(x+sa*length,z+ca*length)-heightAt(x-sa*length,z-ca*length),length*2);
+        const roll=Math.atan2(heightAt(x+ca,z-sa)-heightAt(x-ca,z+sa),2);
+        v.group.rotation.set(Math.max(-.3,Math.min(.3,pitch)),h,Math.max(-.3,Math.min(.3,roll)),"YXZ");
       } else v.group.rotation.y = h;
+      if(shadow&&e.def.armor==="air"){
+        const inverse=v.group.quaternion.clone().invert();shadow.position.set(0,ground-v.group.position.y+.045,0).applyQuaternion(inverse);shadow.quaternion.copy(inverse);
+      }
       if (v.turret) v.turret.rotation.y = lerpAngle(e.pTurretYaw, e.turretYaw, alpha);
       v.ring.visible = selected.has(e.id);
       if (v.tactical) v.tactical.visible = selected.has(e.id);
