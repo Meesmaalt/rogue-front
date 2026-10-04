@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { GameLoop } from "./core/GameLoop";
 import { SIM_STEP } from "./sim/constants";
 import type { FactionId } from "./sim/factions";
-import { FACTION_LIST } from "./sim/factions";
+import { FACTION_LIST, FACTIONS } from "./sim/factions";
 import { World } from "./sim/World";
 import { heightAt, loadHeightmap, setBases, ensureHeightCache } from "./sim/heightmap";
 import { createRenderContext } from "./render/Renderer";
