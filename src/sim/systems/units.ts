@@ -332,12 +332,24 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     aligned = !target || Math.abs(wrapAngle(want - u.turretYaw)) < 0.12;
   }
   if (target && (u.firingArc >= Math.PI * 2 - 0.01 || inFiringArc(u, target)) && aligned && u.cooldown === 0 && d.damage && ((u.maxAmmo ?? 0)===0 || (u.ammo ?? 0)>0) && dist2d(u, target) - target.def.radius <= effectiveRange && hasSpotter(w, u, target) && w.vision.hasLineOfSight(u,target)) {
-    const a = u.heading + (d.turret ? u.turretYaw : 0), m = u.kind === "tank" ? 3.6 : 1;
+    const a = u.heading + (d.turret ? u.turretYaw : 0);
+    // Muzzle offset by unit type (barrel tip for tanks, chest for infantry)
+    const muzzle =
+      u.kind === "tank" || u.kind === "ifv" ? 4.2 :
+      u.kind === "artillery" || u.kind === "mlrs" ? 3.2 :
+      u.kind === "aa" ? 2.4 :
+      u.kind === "inf" || u.kind === "special" ? 0.9 : 1.4;
+    const muzzleY =
+      u.kind === "inf" || u.kind === "special" || u.kind === "engineer" ? 1.35 :
+      u.kind === "tank" ? 2.55 :
+      u.kind === "artillery" ? 3.0 : 2.2;
     const veteranFactor = 1 + u.veteran * 0.06;
     const moraleFactor = 0.65 + (w.teamMorale[u.team] / 100) * 0.35;
-    fireProjectile(w, u, target, u.x + Math.sin(a) * m, u.y + (u.kind === "inf" ? 1 : 2.4), u.z + Math.cos(a) * m);
+    fireProjectile(w, u, target, u.x + Math.sin(a) * muzzle, u.y + muzzleY, u.z + Math.cos(a) * muzzle);
     if (w.projectiles.length) w.projectiles[w.projectiles.length - 1].damage *= veteranFactor * supplyFactor * moraleFactor;
-    u.cooldown = d.cooldown * (0.9 + w.rng() * 0.2);
+    // Reload: tanks feel heavier; infantry slightly irregular
+    const reloadJitter = u.kind === "tank" || u.kind === "artillery" ? (0.95 + w.rng() * 0.12) : (0.85 + w.rng() * 0.3);
+    u.cooldown = d.cooldown * reloadJitter;
     u.lastCombatTime = w.time;
   }
 }

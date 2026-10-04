@@ -225,13 +225,12 @@ function apply(w: World, c: Command): void {
         b.preDeployOrder = { mode:c.mode, x:c.x, z:c.z };
       }
       break;
-
+    }
     case "priority": {
       const us = mobile(w, c.ids, c.team);
       for (const u of us) {
         u.priorityFocus = c.focus;
         u.mode = "amove";
-        // Head toward nearest matching enemy structure
         const targets = w.entities.filter(e => !e.dead && e.team !== u.team && e.kind === c.focus);
         if (targets.length) {
           targets.sort((a,b) => Math.hypot(a.x-u.x,a.z-u.z) - Math.hypot(b.x-u.x,b.z-u.z));
@@ -240,7 +239,6 @@ function apply(w: World, c: Command): void {
         }
       }
       break;
-    }
     }
     case "unload": {
       for (const transport of mobile(w, c.ids, c.team).filter(u => u.kind === "transport" || u.kind === "landingcraft")) {
