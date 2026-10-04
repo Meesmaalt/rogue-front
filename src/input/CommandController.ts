@@ -14,6 +14,7 @@ export class CommandController {
   buildRotation = 0;
   buildPoint: { x: number; z: number } | null = null;
   fireMissionMode = false;
+  private airOrder: {ids:number[];mission:"cap"|"strike"|"sead"|"ground"}|null=null;
   buildValid = false;
 
   constructor(
@@ -31,18 +32,22 @@ export class CommandController {
     el.addEventListener("mousedown", (e) => {
       if (!this.enabled) return;
       if (this.buildMode && (e.button === 0 || e.button === 2)) {
+        e.stopImmediatePropagation();e.preventDefault();
+        if(e.button===2){this.cancelBuild(el);return;}
+        this.updateBuildPreview(e.clientX,e.clientY);
         if (this.buildValid && this.buildPoint) {
           const selectedEngineer = this.selection.selectedIds().map(id=>this.world.byId.get(id)).find(u=>u && u.team===this.world.playerTeam && u.kind==="engineer" && !u.dead);
           const hq = this.world.hq[this.world.playerTeam];
           const engineer = selectedEngineer ?? this.world.entities.filter(u=>u.team===this.world.playerTeam && u.kind==="engineer" && !u.dead).sort((a,b)=>Math.hypot((a.x-(hq?.x ?? 0)),(a.z-(hq?.z ?? 0)))-Math.hypot((b.x-(hq?.x ?? 0)),(b.z-(hq?.z ?? 0))))[0];
-          if (engineer) { this.world.issue({type:"build",ids:[engineer.id],kind:this.buildMode,x:this.buildPoint.x,z:this.buildPoint.z,rotation:this.buildRotation}); this.fx.ping(this.buildPoint.x,this.buildPoint.z,0xf2a33a); }
+          if (engineer) { this.world.issue({type:"build",ids:[engineer.id],kind:this.buildMode,x:this.buildPoint.x,z:this.buildPoint.z,rotation:this.buildRotation}); this.fx.ping(this.buildPoint.x,this.buildPoint.z,0xf2a33a);this.cancelBuild(el); }
         }
-        this.cancelBuild(el); return;
+        return;
       }
       if (e.button !== 2) return;
+      if (this.airOrder) {const p=this.picker.groundAt(e.clientX,e.clientY);this.world.issue({type:"air-mission",...this.airOrder,x:p.x,z:p.z});this.fx.ping(p.x,p.z,0x55b7ff);this.airOrder=null;return;}
       if (this.fireMissionMode) {
         const p = this.picker.groundAt(e.clientX,e.clientY);
-        const ids = this.ids().filter(id => this.world.byId.get(id)?.kind === "artillery");
+        const ids = this.ids().filter(id => ["artillery","mortar","mlrs"].includes(this.world.byId.get(id)?.kind ?? ""));
         if (ids.length) { this.world.issue({type:"fire-mission",ids,x:p.x,z:p.z}); this.fx.ping(p.x,p.z,0xff7a33); }
         this.fireMissionMode=false; el.style.cursor="crosshair"; return;
       }
@@ -54,7 +59,7 @@ export class CommandController {
         return;
       }
       const engineers = this.selection.selectedIds().filter(id => { const u=this.world.byId.get(id); return !!u && !u.dead && u.team===this.world.playerTeam && u.kind==="engineer"; });
-      if (friendly && friendly.def.speed === 0 && friendly.hp < friendly.def.hp && engineers.length) {
+      if (friendly && (friendly.hp < friendly.def.hp || (friendly.components && Object.values(friendly.components).some(v=>v>0))) && engineers.length) {
         this.world.issue({ type: "repair", ids: engineers, targetId: friendly.id });
         this.fx.ping(friendly.x, friendly.z, 0x66d9a0);
         return;
@@ -88,18 +93,22 @@ export class CommandController {
           this.fx.ping(p.x, p.z, 0x55b7ff);
         } else this.moveTo(p.x, p.z, e.shiftKey);
       }
-    });
+    },true);
     addEventListener("keydown", (e) => {
       if (!this.enabled) return;
+      if(e.key==="Escape"){this.airOrder=null;this.attackMoveMode=false;this.cancelBuild(el);return;}
       const k=e.key.toLowerCase(), keys = loadSettings().keys;
       if (k === keys.stop) this.world.issue({ type: "stop", ids: this.ids() });
       if (k === keys.attackMove) { this.attackMoveMode = true; el.style.cursor = "crosshair"; }
       if (k === keys.hold) this.world.issue({ type: "hold", ids: this.ids() });
       if (k === keys.patrol) { const q=this.picker.groundAt(innerWidth/2, innerHeight/2); this.world.issue({ type:"patrol", ids:this.ids(), x:q.x, z:q.z }); }
-      if (k === "f") { const hasArtillery=this.ids().some(id=>this.world.byId.get(id)?.kind==="artillery"); if(hasArtillery){this.fireMissionMode=true;el.style.cursor="crosshair";} }
+      if (k === "f") { const hasArtillery=this.ids().some(id=>["artillery","mortar","mlrs"].includes(this.world.byId.get(id)?.kind??"")); if(hasArtillery){this.fireMissionMode=true;el.style.cursor="crosshair";} }
+      if (k === "l") { const depots=this.selection.selectedIds().filter(id=>this.world.byId.get(id)?.kind==="supply"); if(depots.length) this.world.issue({type:"logistics-route",ids:depots,x:0,z:0,clear:true}); }
       if (this.buildMode && k === "r") { this.buildRotation = (this.buildRotation + Math.PI / 2) % (Math.PI * 2); }
     });
   }
+
+  startAirMission(ids:number[],mission:"cap"|"strike"|"sead"|"ground"):void {this.airOrder={ids:[...ids],mission};}
 
   startBuild(kind: BuildableKind): void { this.buildMode=kind; this.buildRotation=0; this.buildPoint=null; this.buildValid=false; }
 

@@ -50,6 +50,7 @@ const USA: FactionDef = {
     heli: "AH-64 Apache",
     gunship: "AH-1Z Viper",
     transport: "CH-47 Chinook",
+    cargoPlane: "C-130J Super Hercules",
     fighter: "F-16C Viper",
     interceptor: "F-22 Raptor",
     bomber: "B-1B Lancer",
@@ -57,11 +58,12 @@ const USA: FactionDef = {
     submarine: "Virginia SSN",
     landingcraft: "LCAC",
     aa: "NASAMS",
+    atInf: "Javelin AT Team", mgInf: "Ranger MG Team", reconInf: "Scout Squad", sniper: "Scout Snipers", mortar: "120mm Mortar", manpad: "Stinger Team", atgm: "TOW Team", reconVehicle: "M1127 Stryker RV", lightTank: "M8 AGS", tankDestroyer: "Stryker ATGM", spaa: "M-SHORAD", casHeli: "AH-1Z CAS", ecm: "EA-18G Growler", multirole: "F-35A", attackAircraft: "A-10C", frigate: "Constellation FFG", missileBoat: "LCS Missile Boat",
     bunker: "Hardened Bunker",
   },
-  landExtra: ["apc", "ifv", "mlrs"],
-  airExtra: ["interceptor", "bomber"],
-  seaExtra: [],
+  landExtra: ["apc", "ifv", "atInf", "mgInf", "reconInf", "sniper", "mortar", "manpad", "atgm", "reconVehicle", "lightTank", "tankDestroyer", "spaa", "mlrs"],
+  airExtra: ["interceptor", "bomber", "casHeli", "ecm", "multirole", "attackAircraft"],
+  seaExtra: ["frigate", "missileBoat"],
   bonuses: {
     armorMul: 1.04,
     speedMul: 1.0,
@@ -70,7 +72,7 @@ const USA: FactionDef = {
     opticsMul: 1.18,
     supplyEfficiency: 1.1,
     moraleMul: 1.08,
-    prefer: { fighter: 1.3, interceptor: 1.2, ifv: 1.15, gunship: 1.1, tank: 1.0 },
+    prefer: { fighter: 1.3, interceptor: 1.2, ifv: 1.15, reconVehicle: 1.25, ecm: 1.2, multirole: 1.25, gunship: 1.1, tank: 1.0 },
   },
   doctrineBlurb: "Kvaliteet, optika ja õhuvõime. Kallim, aga näeb esimesena.",
 };
@@ -92,6 +94,7 @@ const RUSSIA: FactionDef = {
     heli: "Ka-52 Alligator",
     gunship: "Mi-28 Havoc",
     transport: "Mi-26 Halo",
+    cargoPlane: "Il-76 Candid",
     fighter: "Su-35S Flanker-E",
     interceptor: "MiG-31BM",
     bomber: "Tu-22M3 Backfire",
@@ -99,11 +102,12 @@ const RUSSIA: FactionDef = {
     submarine: "Yasen-class SSN",
     landingcraft: "Zubr LCAC",
     aa: "Pantsir-S1",
+    atInf: "Kornet AT Team", mgInf: "PKM Team", reconInf: "Recon Squad", sniper: "SVD Snipers", mortar: "120mm Mortar", manpad: "Igla-S Team", atgm: "Kornet Team", reconVehicle: "BRDM Recon", lightTank: "Sprut-SDM1", tankDestroyer: "Khrizantema", spaa: "Tunguska-M1", casHeli: "Mi-28 CAS", ecm: "Su-30SM Jammer", multirole: "Su-35 Multirole", attackAircraft: "Su-25SM3", frigate: "Admiral Gorshkov FFG", missileBoat: "Molniya Missile Boat",
     bunker: "Fortified Bunker",
   },
-  landExtra: ["apc", "ifv", "mlrs"],
-  airExtra: ["interceptor", "bomber"],
-  seaExtra: [],
+  landExtra: ["apc", "ifv", "atInf", "mgInf", "reconInf", "sniper", "mortar", "manpad", "atgm", "reconVehicle", "lightTank", "tankDestroyer", "spaa", "mlrs"],
+  airExtra: ["interceptor", "bomber", "casHeli", "ecm", "multirole", "attackAircraft"],
+  seaExtra: ["frigate", "missileBoat"],
   bonuses: {
     armorMul: 1.1,
     speedMul: 0.95,
@@ -112,7 +116,7 @@ const RUSSIA: FactionDef = {
     opticsMul: 0.92,
     supplyEfficiency: 0.95,
     moraleMul: 1.0,
-    prefer: { tank: 1.25, artillery: 1.3, mlrs: 1.2, aa: 1.25, inf: 1.1 },
+    prefer: { tank: 1.25, artillery: 1.3, mlrs: 1.2, atgm: 1.25, spaa: 1.25, mortar: 1.15, inf: 1.1 },
   },
   doctrineBlurb: "Raske soomus, suurtükivägi ja AA. Odavam mass, aeglasem manööver.",
 };
@@ -134,6 +138,7 @@ const CHINA: FactionDef = {
     heli: "Z-10",
     gunship: "Z-19",
     transport: "Z-8G",
+    cargoPlane: "Y-9 Cargo",
     fighter: "J-10C",
     interceptor: "J-20",
     bomber: "H-6K",
@@ -141,11 +146,12 @@ const CHINA: FactionDef = {
     submarine: "Type 093 SSN",
     landingcraft: "Type 726 LCAC",
     aa: "HQ-16",
+    atInf: "HJ-12 AT Team", mgInf: "QJY-88 Team", reconInf: "Scout Squad", sniper: "QBU Snipers", mortar: "120mm Mortar", manpad: "FN-6 Team", atgm: "HJ-10 Team", reconVehicle: "ZBL-08 Recon", lightTank: "ZTQ-15", tankDestroyer: "AFT-10", spaa: "PGZ-09", casHeli: "Z-10 CAS", ecm: "J-16D", multirole: "J-20 Multirole", attackAircraft: "Q-5L Strike", frigate: "Type 054B FFG", missileBoat: "Type 022 Houbei",
     bunker: "Hardened Bunker",
   },
-  landExtra: ["apc", "ifv", "mlrs"],
-  airExtra: ["interceptor", "bomber"],
-  seaExtra: [],
+  landExtra: ["apc", "ifv", "atInf", "mgInf", "reconInf", "sniper", "mortar", "manpad", "atgm", "reconVehicle", "lightTank", "tankDestroyer", "spaa", "mlrs"],
+  airExtra: ["interceptor", "bomber", "casHeli", "ecm", "multirole", "attackAircraft"],
+  seaExtra: ["frigate", "missileBoat"],
   bonuses: {
     armorMul: 1.0,
     speedMul: 1.06,
@@ -154,7 +160,7 @@ const CHINA: FactionDef = {
     opticsMul: 1.0,
     supplyEfficiency: 1.15,
     moraleMul: 0.98,
-    prefer: { ifv: 1.25, apc: 1.2, mlrs: 1.25, inf: 1.15, fighter: 1.05 },
+    prefer: { ifv: 1.25, apc: 1.2, mlrs: 1.25, lightTank: 1.2, atInf: 1.15, inf: 1.15, fighter: 1.05 },
   },
   doctrineBlurb: "Mobiilsus, IFV/APC tihedus, odav logistika. Rocket arty kaal.",
 };
@@ -172,15 +178,15 @@ export function factionUnitName(faction: FactionId, kind: UnitKind, fallback: st
 }
 
 export function factionLandUnits(_faction: FactionId): UnitKind[] {
-  return ["inf", "engineer", "special", "tank", "apc", "ifv", "artillery", "mlrs"];
+  return ["inf", "engineer", "special", "atInf", "mgInf", "reconInf", "sniper", "mortar", "manpad", "atgm", "tank", "lightTank", "tankDestroyer", "reconVehicle", "apc", "ifv", "spaa", "artillery", "mlrs"];
 }
 
 export function factionAirUnits(_faction: FactionId): UnitKind[] {
-  return ["heli", "gunship", "transport", "fighter", "interceptor", "bomber"];
+  return ["heli", "gunship", "casHeli", "transport", "fighter", "interceptor", "bomber", "ecm", "multirole", "attackAircraft"];
 }
 
 export function factionSeaUnits(_faction: FactionId): UnitKind[] {
-  return ["destroyer", "submarine", "landingcraft"];
+  return ["destroyer", "submarine", "landingcraft", "frigate", "missileBoat"];
 }
 
 export function factionForTeam(

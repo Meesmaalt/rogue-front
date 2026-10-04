@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-04",
+  "build": "production",
+  "viewport": [
+    1440,
+    1000
+  ],
+  "menuToSkirmish": true,
+  "buildGeneratorWithUI": true,
+  "completedGeneratorRestoredAfterLoad": true,
+  "pageErrors": [],
+  "renderer": "Chromium headless / software WebGL",
+  "fullCampaignPlaythrough": false,
+  "twoClientMultiplayer": false
+}

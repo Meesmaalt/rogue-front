@@ -24,7 +24,7 @@ export class Picker {
     let best: Entity | null = null, bs = 0;
     for (const e of this.world.entities) {
       if (e.dead || e.team !== team) continue;
-      if (team !== this.world.playerTeam && !this.world.vision.isVisible(this.world.playerTeam, e.x, e.z)) continue;
+      if (team !== this.world.playerTeam && !this.world.isSpottedByTeam(e, this.world.playerTeam)) continue;
       const cy = e.y + e.def.height * 0.5, p = this.toScreen(e.x, cy, e.z);
       if (p.z > 1) continue;
       const lim = 12 + e.def.radius * this.pxPerUnit(e.x, cy, e.z), d = Math.hypot(p.x - mx, p.y - my);

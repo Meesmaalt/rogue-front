@@ -1,0 +1,18 @@
+PHASE 83-85 — OPERATIONAL WARFARE BLOCK
+
+Phase 83 — Strategic map layer
+- Added persistent operational sectors derived from bases and resource facilities.
+- Sectors track control, contest state, combat strength, threat and supply reach.
+- Objectives are selected by strategic value and enemy pressure instead of nearest-unit distance.
+
+Phase 84 — Operational AI
+- Added OperationalCommander above the existing tactical AI.
+- AI now maintains reserve, evaluates threat vs strength, selects sectors, attacks/defends/withdraws and sends groups toward objectives.
+- Tactical AI remains responsible for individual-unit reactions.
+
+Phase 85 — FOB / forward staging
+- Added FOBManager for forward supply facilities.
+- FOB level changes staging radius and capacity.
+- Forward supply nodes are registered as operational staging areas and can be queried by future deployment UI.
+
+No compile/test run by request.

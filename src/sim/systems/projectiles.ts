@@ -12,12 +12,24 @@ export function updateProjectiles(w: World, dt: number): void {
     const d = Math.hypot(dx, dy, dz);
     const step = p.speed * dt;
 
-    const ballistic = p.speed < 100;
+    const ballistic = p.speed < 100 || p.weapon === "cannon" && (p.splash ?? 0) >= 6;
     if (d <= step + 0.35 || d < 0.4) {
       const hitOpts = { weapon: p.weapon, fromX: p.x, fromZ: p.z, sourceId: p.sourceId };
       if (p.target && !p.target.dead) {
-        damage(w, p.target, p.damage, hitOpts);
+        const pp = p as typeof p & { hitChance?: number; penetration?: number; impactDamage?: number };
+        const chance = pp.hitChance ?? 1;
+        if (w.rng() <= chance) {
+          const face = pp.face ?? "front";
+          const armor = face === "front" ? (p.target.def.armorFront ?? 8) : face === "rear" ? (p.target.def.armorRear ?? 4) : (p.target.def.armorSide ?? 6);
+          const pen = pp.penetration ?? 0;
+          const ratio = pen / Math.max(1, armor);
+          const penMul = p.weapon === "bullet" ? Math.max(0.12, ratio >= 1 ? 0.85 + ratio * 0.05 : 0.45 * ratio) : Math.max(0.18, Math.min(1.45, 0.55 + ratio * 0.58));
+          damage(w, p.target, (pp.impactDamage ?? p.damage) * penMul, hitOpts);
+        } else {
+          p.target.suppression = Math.min(100, (p.target.suppression ?? 0) + 2.5 + (p.weapon === "missile" ? 2 : 0));
+        }
       } else {
+        // Area-fire shells suppress and damage everything inside the impact ellipse.
         for (const e of w.entities) {
           if (e.dead || e.team === p.team) continue;
           const d2 = Math.hypot(e.x - p.tx, e.z - p.tz);

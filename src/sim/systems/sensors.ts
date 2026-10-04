@@ -1,5 +1,7 @@
 import type { World } from "../World";
 import type { Entity, Team } from "../types";
+import { pointInFeature } from "../mapFeatures";
+import { heightAt } from "../heightmap";
 
 const SIZE_DETECT: Record<string, number> = {
   small: -8,
@@ -16,6 +18,33 @@ const OPTICS_MUL: Record<string, number> = {
   exceptional: 1.75,
 };
 
+/** Phase 76: tactical cover score at a point. Sandbags/crates/tents give light cover; walls/buildings are hard cover. */
+export function coverValueAt(w: World, x: number, z: number): number {
+  let value = 0;
+  for (const f of w.mapFeatures) {
+    if (!pointInFeature(x, z, f, 0.25)) continue;
+    if (f.kind === "cover") value = Math.max(value, (f.height ?? 1.5) >= 2 ? 22 : 16);
+    else if (f.kind === "wall" || f.kind === "chokepoint") value = Math.max(value, 28);
+    else if (f.kind === "building") value = Math.max(value, 34);
+  }
+  return value;
+}
+
+/** Extra terrain ridge check used by sensors; Vision already performs the main reveal grid calculation. */
+export function terrainLineOfSight(a: Entity, b: Entity): boolean {
+  const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
+  if (d < 5) return true;
+  const ay = a.y + Math.max(1.2, a.def.height * 0.7);
+  const by = b.y + Math.max(1.2, b.def.height * 0.65);
+  const steps = Math.max(2, Math.ceil(d / 8));
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps;
+    const x = a.x + dx * t, z = a.z + dz * t;
+    if (heightAt(x, z) + 0.9 > ay + (by - ay) * t) return false;
+  }
+  return true;
+}
+
 /**
  * Wargame-style detection: does observer spot target right now?
  * Score uses optics, stealth, size, distance, movement, cover (forest features).
@@ -25,8 +54,10 @@ export function detectionScore(observer: Entity, target: Entity, coverPenalty = 
   const baseRange = (observer.def.opticsRange ?? 40) * (OPTICS_MUL[optics] ?? 1);
   // Radar buildings / radar units get bonus vs air
   let range = baseRange;
-  if (observer.kind === "radar" || observer.def.category === "building" && observer.kind === "radar") {
-    range = Math.max(range, 110);
+  if (observer.kind === "radar") {
+    const level = observer.buildingLevel ?? 1;
+    const levelMul = level >= 3 ? 1.35 : level >= 2 ? 1.15 : 1;
+    range = Math.max(range, 110 * levelMul);
   }
   if (target.def.armor === "air" || target.def.category === "heli" || target.def.category === "air") {
     if (observer.kind === "radar" || observer.kind === "aa" || observer.def.weapon === "missile") range *= 1.35;
@@ -63,19 +94,22 @@ export function updateSensors(w: World): void {
   // Decay is implicit via timestamps
 
   for (const observer of w.entities) {
-    if (observer.dead || observer.underConstruction) continue;
+    if (observer.dead || observer.underConstruction || observer.loadedIntoId!=null || (observer.disabledUntil??0)>w.time) continue;
     if (observer.def.speed === 0 && observer.kind !== "radar" && observer.kind !== "bunker" && observer.kind !== "aa" && observer.kind !== "hq") {
       // Most buildings don't spot except radar/bunker/aa/hq
       if (!["radar", "bunker", "aa", "hq"].includes(observer.kind)) continue;
     }
 
     const team = observer.team as Team;
-    const range = (observer.def.opticsRange ?? 40) * 1.2;
+    const range = observer.kind==="radar" ? Math.max(observer.def.opticsRange??40,110*(1+((observer.buildingLevel??1)-1)*.175))*1.35 : (observer.def.opticsRange??40)*(OPTICS_MUL[observer.def.optics??"normal"]??1)*1.35;
 
     w.spatial.queryRadius(observer.x, observer.z, range, (target) => {
-      if (target.dead || target.team === team) return;
-      if (!canSpot(observer, target)) return;
-      const dur = observer.kind === "radar" ? SPOT_DURATION_RADAR : SPOT_DURATION;
+      if (target.dead || target.loadedIntoId!=null || target.team === team) return;
+      if (!w.vision.hasLineOfSight(observer, target)) return;
+      const cover = coverValueAt(w, target.x, target.z);
+      if (!canSpot(observer, target, cover)) return;
+      const radarLevel = observer.kind === "radar" ? (observer.buildingLevel ?? 1) : 1;
+      const dur = observer.kind === "radar" ? SPOT_DURATION_RADAR * (radarLevel >= 3 ? 1.45 : radarLevel >= 2 ? 1.2 : 1) : SPOT_DURATION;
       const until = now + dur;
       if (until > target.spottedUntil[team]) target.spottedUntil[team] = until;
 

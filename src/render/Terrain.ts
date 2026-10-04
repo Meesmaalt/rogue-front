@@ -69,7 +69,7 @@ export function createTerrain(theme: "desert" | "mountains" | "city" = "desert",
   return group;
 }
 
-function makeSplatMap(geo: THREE.BufferGeometry, normals: THREE.BufferAttribute): THREE.CanvasTexture {
+function makeSplatMap(geo: THREE.BufferGeometry, normals: THREE.BufferAttribute | THREE.InterleavedBufferAttribute): THREE.CanvasTexture {
   const cv = document.createElement("canvas"); cv.width = cv.height = 256;
   const g = cv.getContext("2d")!; const im = g.createImageData(256, 256);
   const pos = geo.attributes.position;
@@ -173,6 +173,14 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
   group.name = "map-features";
   for (const f of features) {
     const y = heightAt(f.x, f.z);
+    if (f.kind === "water") {
+      const geo = new THREE.BoxGeometry(f.width, 0.18, f.depth);
+      const mat = new THREE.MeshStandardMaterial({ color: 0x405b68, roughness: 0.25, metalness: 0.18, transparent: true, opacity: 0.9 });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(f.x, y - 0.55, f.z); mesh.rotation.y = f.rotation ?? 0; mesh.receiveShadow = true;
+      group.add(mesh);
+      continue;
+    }
     if (f.kind === "road" || f.kind === "bridge") {
       const geo = new THREE.BoxGeometry(f.width, f.kind === "bridge" ? 0.7 : 0.18, f.depth);
       const mat = new THREE.MeshStandardMaterial({

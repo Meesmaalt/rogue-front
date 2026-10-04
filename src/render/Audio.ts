@@ -25,7 +25,7 @@ export class AudioManager {
   }
   stopMusic(): void { if (this.musicTimer !== null) { clearInterval(this.musicTimer); this.musicTimer = null; } }
   private lastUnderAttack = 0;
-  events(events: readonly SimEvent[], playerTeam = 0): void {
+  events(events: readonly SimEvent[], _playerTeam = 0): void {
     for (const e of events) {
       if (e.type === "fire") this.tone(110 + e.team * 35, .06, "square", .12);
       else if (e.type === "hit") this.tone(75, .05, "sawtooth", .1);

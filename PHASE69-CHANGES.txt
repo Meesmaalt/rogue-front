@@ -1,0 +1,13 @@
+PHASE 69 — BUILDING LEVELS / VISUAL UPGRADES
+
+- Production buildings now have 3 levels.
+- Level 1: basic units.
+- Level 2: expanded/modernized units.
+- Level 3: elite/advanced systems.
+- Upgrade costs: 260 to level 2, 420 to level 3.
+- Upgrade duration increases at level 3.
+- Production speed: 1.0 / 1.35 / 1.65.
+- Production is hard-gated by building level in both HUD and simulation.
+- Buildings visibly gain upgrade structures; level 3 adds a tower/dish kit.
+- Building level is persisted in saves.
+- Existing producer-2 saves remain compatible as level 2.

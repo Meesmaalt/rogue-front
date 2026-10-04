@@ -1,0 +1,6 @@
+Rogue Front original stylized 3D art and camouflage textures.
+Source: scripts/art/build-models.mjs and scripts/art/paint-camouflage.py.
+No third-party model or texture packs are embedded in this directory.
+Platform names identify approximate equipment silhouettes; these are not
+manufacturer-provided models or an assertion of exact technical accuracy.
+These assets are supplied as part of the Rogue Front project, under its license.

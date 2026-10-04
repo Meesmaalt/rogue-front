@@ -67,6 +67,14 @@ export class NavGrid {
       this.blocked[i] = slope > NAV_SLOPE_LIMIT ? 1 : 0;
     }
     for (const f of features) {
+      if (f.kind === "bridge") {
+        const minX = Math.max(0, Math.floor((f.x - Math.hypot(f.width, f.depth) / 2) / this.cellSize + this.width / 2) - 1);
+        const maxX = Math.min(this.width - 1, Math.ceil((f.x + Math.hypot(f.width, f.depth) / 2) / this.cellSize + this.width / 2) + 1);
+        const minZ = Math.max(0, Math.floor((f.z - Math.hypot(f.width, f.depth) / 2) / this.cellSize + this.height / 2) - 1);
+        const maxZ = Math.min(this.height - 1, Math.ceil((f.z + Math.hypot(f.width, f.depth) / 2) / this.cellSize + this.height / 2) + 1);
+        for (let iz=minZ; iz<=maxZ; iz++) for (let ix=minX; ix<=maxX; ix++) { const p=this.cellToWorld(ix,iz); if (pointInFeature(p.x,p.z,f,this.cellSize*0.45)) this.blocked[this.index(ix,iz)] = 0; }
+        continue;
+      }
       if (!featureBlocksMovement(f)) continue;
       const minX = Math.max(0, Math.floor((f.x - Math.hypot(f.width, f.depth) / 2) / this.cellSize + this.width / 2) - 1);
       const maxX = Math.min(this.width - 1, Math.ceil((f.x + Math.hypot(f.width, f.depth) / 2) / this.cellSize + this.width / 2) + 1);

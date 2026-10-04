@@ -1,0 +1,8 @@
+PHASE 67 – VEHICLE FAMILIES / VISUAL IDENTITY
+
+- Renderer now passes player/enemy faction into procedural model creation.
+- Tank, IFV, APC, recon vehicle, artillery and MLRS receive faction-specific visual equipment.
+- USA/Russia/China silhouettes get distinct stowage, antenna, sensor and rear-kit details.
+- Major buildings receive faction-specific visual dressing: HQ, barracks, factory, supply, airbase, refinery and radar.
+- Existing procedural geometry remains the fallback; no external asset dependency is required.
+- Existing gameplay and unit statistics are untouched.

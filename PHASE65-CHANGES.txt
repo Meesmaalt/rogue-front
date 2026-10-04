@@ -1,0 +1,18 @@
+PHASE 65 — FOB + COMMAND NETWORK + MANUAL LOGISTICS ROUTES
+
+Major additions:
+- Supply depots can be upgraded into FOBs (2 levels).
+- FOBs extend command coverage and logistics connection distance.
+- Command network status tracks nodes, FOBs, linked combat units and coverage.
+- Units outside command coverage suffer gradual accuracy/morale degradation instead of an instant binary failure.
+- Depot logistics priority can be set to balanced/ammo/fuel/repair.
+- Selected supply depots can receive manual logistics route waypoints with right-click; Shift+right-click appends another waypoint.
+- L clears the selected depot's manual route.
+- Road trucks inherit depot route waypoints and traverse them before continuing to their resource/depot target.
+- FOBs increase truck capacity, storage and forward logistics capability.
+- Save format raised to v18 with FOB and route state persistence.
+
+Design goal:
+HQ/Command -> FOB -> Depot -> Convoy -> Front line becomes a physical operational network.
+The player can trade route safety for distance and speed, establish a forward command/logistics hub,
+and keep combat formations supplied without making logistics a teleporting resource bar.

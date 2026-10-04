@@ -1,0 +1,6 @@
+Phase 72 — Real Vehicle Roster
+- Added stable platform-level roster identities for USA/Russia/China.
+- Added real-world platform names and visual family metadata.
+- Added platform signature geometry for MBT/IFV/APC/recon/artillery/MLRS/SPAA/heli silhouettes.
+- Kept simulation stats separate from visual identity so future bespoke GLB assets can replace procedural models cleanly.
+- Existing faction names remain compatible with the current UI/deck system.

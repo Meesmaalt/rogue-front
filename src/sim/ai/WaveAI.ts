@@ -1,5 +1,6 @@
 import type { World } from "../World";
-import type { Entity, UnitKind } from "../types";
+import type { UnitKind } from "../types";
+import { BUILDINGS } from "../buildings";
 import type { BuildableKind } from "../buildings";
 import { assignAirMission } from "../systems/airDoctrine";
 import { isTacticallySupplied } from "../systems/tacticalSupply";
@@ -76,8 +77,8 @@ export class WaveAI {
 
     this.protectLogistics(w);
     this.expandForward(w);
-    this.upgradeProducers(w);
     this.produceArmy(w);
+    this.upgradeProducers(w);
 
     if (this.airTimer <= 0) {
       this.airTimer = this.difficulty === "hard" ? 7 : 11;
@@ -180,7 +181,6 @@ export class WaveAI {
   private queueDefense(w: World, kind: BuildableKind): void {
     const eng = w.entities.find(e => !e.dead && e.team === 1 && e.kind === "engineer" && e.mode !== "build");
     if (!eng) return;
-    const base = w.bases[1];
     const gate = w.baseGate(1);
     const x = gate.x + (this.rngPick(w) - 0.5) * 20;
     const z = gate.z + (this.rngPick(w) - 0.5) * 20;
@@ -235,63 +235,29 @@ export class WaveAI {
   }
 
   private developBase(w: World): void {
-    const base = w.bases[1];
-    const eng = w.entities.find(e => !e.dead && e.team === 1 && e.kind === "engineer" && e.mode !== "build");
-    if (!eng) return;
-    const gate = w.baseGate(1);
-    const backX = base.x - (w.bases[0].x - base.x) * 0.08;
-    const backZ = base.z - (w.bases[0].z - base.z) * 0.08;
-
-    // Phase-aware build priority
-    const plans: Array<[BuildableKind, number, number, number]> = [];
-    if (this.phase === "bootstrap" || this.count(w, "generator") < 1) {
-      plans.push(["generator", base.x - 12, base.z - 10, 140]);
-      plans.push(["supply", base.x - 22, base.z - 10, 130]);
-    }
-    plans.push(
-      ["generator", base.x - 12, base.z - 10, 140],
-      ["supply", base.x - 22, base.z - 10, 130],
-      ["landCommand", base.x - 28, base.z - 2, 100],
-      ["barracks", base.x - 16, base.z + 8, 160],
-      ["aa", backX + 12, backZ + 10, 160],
-      ["combatEngineer", base.x - 18, base.z + 18, 150],
-      ["factory", base.x + 16, base.z + 8, 220],
-      ["supply", base.x - 30, base.z + 8, 130], // second / forward-ish
-      ["airCommand", base.x + 26, base.z - 2, 120],
-      ["helipad", base.x + 16, base.z - 12, 200],
-      ["bunker", gate.x - (gate.x - base.x) * 0.2, gate.z - (gate.z - base.z) * 0.2, 120],
-      ["radar", base.x + 8, base.z + 20, 190],
-      ["aa", backX + 18, backZ - 6, 160],
-      ["airbase", base.x + 22, base.z + 10, 320],
-      ["landStrategy", base.x - 4, base.z + 22, 240],
-      ["airStrategy", base.x + 20, base.z + 22, 260],
-      ["seaCommand", base.x - 30, base.z + 18, 120],
-      ["shipyard", base.x - 28, base.z + 26, 360],
-      ["seaStrategy", base.x - 40, base.z + 22, 260],
-      ["refinery",
-        w.resourcePoints.find(r => r.controlledBy === 1 || r.controlledBy == null)?.x ?? base.x - 24,
-        w.resourcePoints.find(r => r.controlledBy === 1 || r.controlledBy == null)?.z ?? base.z - 24,
-        180],
-      ["bunker", gate.x + 10, gate.z + 8, 120],
-    );
-
-    for (const [kind, x, z, cost] of plans) {
-      if (this.has(w, 1, kind) && kind !== "bunker" && kind !== "aa" && kind !== "supply" && kind !== "generator") continue;
-      if (["bunker", "aa", "supply", "generator"].includes(kind)) {
-        const count = w.entities.filter(e => !e.dead && e.team === 1 && e.kind === kind).length;
-        const limits: Record<string, number> = {
-          bunker: 4,
-          aa: this.difficulty === "hard" ? 4 : 3,
-          supply: this.phase === "secureLogistics" ? 3 : 2,
-          generator: 3,
-        };
-        if (count >= (limits[kind] ?? 1)) continue;
+    const base=w.bases[1];
+    const engineers=w.entities.filter(e=>!e.dead&&e.team===1&&e.kind==="engineer");
+    const point=[...w.resourcePoints].sort((a,b)=>Math.hypot(a.x-base.x,a.z-base.z)-Math.hypot(b.x-base.x,b.z-base.z))[0];
+    // One engineer is assigned to restart industry, the other builds the base.
+    if(point && (!point.active||point.controlledBy!==1) && engineers.length>1){
+      const scout=engineers[1];if(scout.mode!=="build"&&scout.mode!=="repair"){
+        w.issue({type:"move",ids:[scout.id],x:point.x,z:point.z,team:1});scout.aiIntent="recon";
       }
-      if (w.teamResources[1] < cost || w.teamCredits[1] < cost) continue;
-      if (kind === "refinery" && !w.resourcePoints.some(r => Math.hypot(r.x - x, r.z - z) <= r.radius + 12)) continue;
-      if (!w.canBuildKind(1, kind)) continue;
-      w.issue({ type: "build", ids: [eng.id], kind, x, z, team: 1 });
-      return;
+    }
+    const eng=engineers.find(e=>e.aiIntent!=="recon"&&e.mode!=="build"&&e.mode!=="repair");
+    if(!eng)return;
+    const count=(kind:UnitKind)=>w.entities.filter(e=>!e.dead&&e.team===1&&e.kind===kind).length;
+    const plans:BuildableKind[]=["generator","supply","landCommand","barracks","factory","landStrategy","radar","aa","airCommand","helipad","airStrategy","airbase","combatEngineer","bunker"];
+    if(w.powerStatus(1).ratio<.9&&count("generator")<4)plans.unshift("generator");
+    for(const kind of plans){
+      const max=kind==="generator"?(w.powerStatus(1).ratio<.9?4:1):kind==="bunker"?2:kind==="aa"?2:1;
+      if(kind!=="generator"&&this.has(w,1,"factory")&&this.count(w,"tank")<2&&!["supply","landCommand","barracks","factory"].includes(kind))continue;
+      if(count(kind)>=max||!w.canBuildKind(1,kind)||w.teamCredits[1]<BUILDINGS[kind].cost||w.teamResources[1]<BUILDINGS[kind].cost)continue;
+      for(const radius of [22,38,54,70])for(let i=0;i<16;i++){
+        const angle=i*Math.PI/8;const x=base.x+Math.cos(angle)*radius,z=base.z+Math.sin(angle)*radius;
+        if(Math.abs(x)>178||Math.abs(z)>178||!w.canPlaceBuilding(1,kind,x,z))continue;
+        w.issue({type:"build",ids:[eng.id],kind,x,z,team:1});return;
+      }
     }
   }
 
@@ -332,6 +298,7 @@ export class WaveAI {
   }
 
   private expandForward(w: World): void {
+    if(!this.has(w,1,"factory")||this.count(w,"tank")<2)return;
     if (this.expansionTimer > 0) return;
     this.expansionTimer = this.difficulty === "hard" ? 14 : 20;
     if (this.phase === "bootstrap") return;
@@ -348,10 +315,11 @@ export class WaveAI {
   }
 
   private upgradeProducers(w: World): void {
+    if(this.has(w,1,"factory")&&this.count(w,"tank")<2)return;
     const candidates = w.entities.filter(e =>
       !e.dead && !e.underConstruction && e.team === 1 &&
       ["barracks", "factory", "helipad", "airbase", "shipyard"].includes(e.kind) &&
-      !e.upgrades.has("producer-2") && !e.upgrading
+      w.producerLevel(e)<3 && !e.upgrading
     );
     if (!candidates.length || w.teamResources[1] < 260) return;
     if (!w.canUpgradeProducer(candidates[0])) return;
@@ -366,21 +334,35 @@ export class WaveAI {
     if (this.phase === "bootstrap" || this.phase === "secureLogistics") {
       need.push(["engineer", "barracks", 2], ["inf", "barracks", 4]);
     } else if (this.phase === "probe") {
-      need.push(["special", "barracks", 2], ["inf", "barracks", 6], ["tank", "factory", 2]);
+      need.push(["reconInf", "barracks", 2], ["inf", "barracks", 6], ["tank", "factory", 2]);
     } else {
       need.push(
         ["tank", "factory", this.phase === "decisive" ? 8 : 5],
+        ["lightTank", "factory", 2],
+        ["tankDestroyer", "factory", 3],
+        ["reconVehicle", "factory", 2],
+        ["spaa", "factory", 2],
         ["ifv", "factory", 4],
         ["artillery", "factory", this.difficulty === "hard" ? 3 : 2],
         ["inf", "barracks", 8],
+        ["atInf", "barracks", 4],
+        ["mgInf", "barracks", 3],
+        ["reconInf", "barracks", 2],
+        ["mortar", "barracks", 2],
+        ["manpad", "barracks", 2],
+        ["atgm", "barracks", 2],
         ["special", "barracks", 3],
         ["gunship", "helipad", 3],
+        ["casHeli", "helipad", 2],
         ["heli", "helipad", 2],
         ["fighter", "airbase", 2],
+        ["multirole", "airbase", 2],
+        ["ecm", "airbase", 1],
         ["aa", "factory", 0], // AA is building
       );
     }
 
+    if(this.has(w,1,"factory")&&this.count(w,"tank")<2){this.buy(w,"tank","factory");return;}
     const fac = FACTIONS[w.enemyFaction];
     // Sort need by faction preference so doctrine shapes the army
     const ranked = [...need].sort((a, b) => (fac.bonuses.prefer[b[0]] ?? 1) - (fac.bonuses.prefer[a[0]] ?? 1));
@@ -410,7 +392,7 @@ export class WaveAI {
     if (!threat) return;
     const defenders = w.entities.filter(e =>
       !e.dead && e.team === 1 && e.def.speed > 0 &&
-      ["tank", "ifv", "inf", "gunship", "aa"].includes(e.kind) &&
+      ["tank", "lightTank", "tankDestroyer", "ifv", "inf", "atInf", "atgm", "gunship", "casHeli", "spaa"].includes(e.kind) &&
       e.loadedIntoId === null
     );
     for (const u of defenders.slice(0, 10)) {
@@ -525,7 +507,7 @@ export class WaveAI {
   }
 
   private count(w: World, kind: UnitKind): number {
-    return w.entities.filter(e => !e.dead && e.team === 1 && e.kind === kind).length;
+    return w.entities.filter(e => !e.dead && e.team === 1 && e.kind === kind).length + w.entities.filter(e=>!e.dead&&e.team===1).reduce((n,e)=>n+e.productionQueue.filter(k=>k===kind).length,0);
   }
 
   private has(w: World, team: 1, kind: UnitKind): boolean {

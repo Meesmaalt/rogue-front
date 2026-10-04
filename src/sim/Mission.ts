@@ -31,7 +31,16 @@ export class MissionController {
     for (const state of this.objectives) this.updateObjective(state, dt);
     this.runTriggers();
     this.messageTimer = Math.max(0, this.messageTimer - dt);
-    if (this.objectives.filter((o) => o.def.primary !== false).every((o) => o.complete)) this.world.status = "won";
+    if (this.objectives.some(o=>o.def.primary!==false) && this.objectives.filter((o) => o.def.primary !== false).every((o) => o.complete)) this.world.status = "won";
+  }
+
+  snapshot() {
+    return { objectives:this.objectives.map(o=>({complete:o.complete,progress:o.progress,holdTime:o.holdTime,initialTargets:o.initialTargets})),
+      fired:[...this.fired],message:this.message,messageTimer:this.messageTimer };
+  }
+  restore(s: ReturnType<MissionController["snapshot"]>): void {
+    s.objectives.forEach((o,i)=>{ if(this.objectives[i]) Object.assign(this.objectives[i],o); });
+    this.fired.clear(); s.fired.forEach(id=>this.fired.add(id)); this.message=s.message; this.messageTimer=s.messageTimer;
   }
 
   get messageText(): string { return this.messageTimer > 0 ? this.message : ""; }
@@ -71,7 +80,7 @@ export class MissionController {
       case "defend": {
         const required = Math.max(1, d.target?.count ?? 1);
         const count = this.unitsAtPoint(d);
-        if (count >= required) state.holdTime += dt;
+        if (count >= required && !this.world.entities.some(e=>!e.dead&&e.team!==this.world.playerTeam&&e.loadedIntoId==null&&e.def.speed>0&&d.point&&Math.hypot(e.x-d.point.x,e.z-d.point.z)<=(d.radius??12))) state.holdTime += dt;
         else state.holdTime = 0;
         state.progress = Math.min(1, state.holdTime / Math.max(0.01, d.duration ?? 1));
         state.complete = state.holdTime >= (d.duration ?? 1);
@@ -80,7 +89,7 @@ export class MissionController {
       case "capture": {
         const point = d.point;
         const rp = point ? this.world.resourcePoints.find(r => Math.hypot(r.x-point.x,r.z-point.z) <= (d.radius ?? 12)) : null;
-        state.progress = rp?.controlledBy === 0 ? 1 : 0;
+        state.progress = rp?.controlledBy === this.world.playerTeam ? 1 : 0;
         state.complete = state.progress >= 1;
         break;
       }
@@ -92,6 +101,18 @@ export class MissionController {
         state.progress = Math.min(1, done / required);
         state.complete = done >= required;
         break;
+      }
+      case "build": {
+        const count=this.world.entities.filter(e=>!e.dead&&!e.underConstruction&&e.team===(d.target?.team??this.world.playerTeam)&&e.kind===d.target?.kind).length;
+        state.progress=Math.min(1,count/Math.max(1,d.target?.count??1));state.complete=state.progress>=1;break;
+      }
+      case "produce": {
+        const count=d.unitKind?this.world.producedCounts[d.unitKind]??0:0;
+        state.progress=Math.min(1,count/Math.max(1,d.target?.count??1));state.complete=state.progress>=1;break;
+      }
+      case "deliver": {
+        const t=this.world.playerTeam;const count=this.world.roadCargoDelivered[t]+this.world.airCargoDelivered[t];
+        state.progress=Math.min(1,count/Math.max(1,d.target?.count??100));state.complete=state.progress>=1;break;
       }
       case "survive":
         state.progress = Math.min(1, this.world.time / Math.max(0.01, d.duration ?? 1));
@@ -110,7 +131,7 @@ export class MissionController {
     if (!d.point) return 0;
     const radius = d.radius ?? 12;
     return this.world.entities.filter((e) =>
-      !e.dead && e.team === 0 && (!d.unitKind || e.kind === d.unitKind) &&
+      !e.dead && e.team === this.world.playerTeam && e.loadedIntoId==null && (!d.unitKind || e.kind === d.unitKind) &&
       Math.hypot(e.x - d.point!.x, e.z - d.point!.z) <= radius).length;
   }
 
@@ -164,5 +185,5 @@ export class MissionController {
 }
 
 export function missionObjectiveKindLabel(kind: MissionObjectiveKind): string {
-  return ({ destroy: "Hävita", defend: "Kaitse", reach: "Jõua", survive: "Ela üle", capture: "Hõiva", sabotage: "Saboteeri" })[kind];
+  return ({ build:"Ehita", produce:"Tooda", deliver:"Varusta", destroy: "Hävita", defend: "Kaitse", reach: "Jõua", survive: "Ela üle", capture: "Hõiva", sabotage: "Saboteeri" })[kind];
 }

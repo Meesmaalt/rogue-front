@@ -1,7 +1,7 @@
 {
   "id": "tutorial-logistics",
   "name": "Õpetus: Logistika ja combined arms",
-  "briefing": "RW baas + WRD lahing.\n\n1) Ehita GENERAATOR (energia)\n2) Ehita VARUSTUSLADU (õhusild toob raha)\n3) Ehita MAAVÄE JUHTIMISKESKUS → kasarmu/tehas\n4) Tooda recon/special, siis tankid\n5) Hoia üksused SUPPLY raadiuses (ammo/kütus)\n6) Ründa vaenlase ladu — mitte ainult tanke\n\nOptika: kes näeb, tulistab. Flank tapab. Ilma AA-ta surevad kopterid.",
+  "briefing": "Ehita ja õpi varustusahelat.\n\n1) Ehita generaator ja varustusladu HQ lähedale.\n2) Saada teine insener lähimasse ressursipunkti. Ta hõivab selle ja käivitab rajatise 8 sekundiga.\n3) Kopterid ja veokid toovad füüsilist lasti: raha, laskemoona, kütust ja remondivaru.\n4) Ehita maaväe juhtimiskeskus ning kasarmu või tehas. Tooda jalavägi ja tankid.\n5) Strateegiakeskus ja tootja tase 2 avavad luure, IFV ja suurtükiväe.\n6) Vali luureüksus ja otsi vastane. Kaudtuli: F, seejärel parem klõps sihtpunktile.\n7) Ehita rindele varustusladu ning uuenda see FOB-iks. Kaitse veokeid ja tarneid.\n8) Hävita vastase varustusladu ning HQ.\n\nParem hiir: liikumine/rünnak. X: peata. A: ründav liikumine. Insener + parem klõps kahjustatud üksusele: remont.",
   "seed": 42,
   "map": {
     "id": "tutorial-plain",
@@ -89,6 +89,67 @@
   },
   "objectives": [
     {
+      "id": "generator",
+      "kind": "build",
+      "title": "Ehita generaator",
+      "description": "F2 valib insenerid. BUILDS → Generaator → vasak klõps vabal maastikul HQ lähedal.",
+      "target": {
+        "kind": "generator",
+        "count": 1
+      }
+    },
+    {
+      "id": "warehouse",
+      "kind": "build",
+      "title": "Ehita varustusladu",
+      "description": "Vali insener ja ehita ladu generaatori lähedale.",
+      "requires": [
+        "generator"
+      ],
+      "target": {
+        "kind": "supply",
+        "count": 1
+      }
+    },
+    {
+      "id": "first-delivery",
+      "kind": "deliver",
+      "title": "Käivita ressursipunkt ja võta vastu tarne",
+      "description": "Saada teine insener lähimasse ressursipunkti. Oota rajatise käivitamist ja veoki saabumist lattu.",
+      "requires": [
+        "warehouse"
+      ],
+      "target": {
+        "count": 100
+      }
+    },
+    {
+      "id": "factory",
+      "kind": "build",
+      "title": "Ehita maaväe juhtimiskeskus ja soomustehas",
+      "description": "HQ ehitusharust maaväe juhtimiskeskus; vali see ja ehita Soomustehas ladu teenindavasse piirkonda.",
+      "requires": [
+        "first-delivery"
+      ],
+      "target": {
+        "kind": "factory",
+        "count": 1
+      }
+    },
+    {
+      "id": "first-tank",
+      "kind": "produce",
+      "unitKind": "tank",
+      "title": "Tooda esimene tank",
+      "description": "LAND-paneelis M1A2 / T-90 / ZTZ-99. Vajad töötavat tehast, energiat ja varustusladu.",
+      "requires": [
+        "factory"
+      ],
+      "target": {
+        "count": 1
+      }
+    },
+    {
       "id": "destroy-enemy-supply",
       "title": "Hävita vaenlase varustusladu",
       "description": "Ehita gen → supply → land command → üksused. Seejärel lõika vaenlase logistika.",
@@ -98,7 +159,10 @@
         "kind": "supply",
         "team": 1,
         "count": 1
-      }
+      },
+      "requires": [
+        "first-tank"
+      ]
     },
     {
       "id": "destroy-hq",

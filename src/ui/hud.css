@@ -67,9 +67,9 @@ button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .qtxt { font-size: 12px; color: var(--muted); }
 .screen { pointer-events: auto; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(14,18,20,.78); backdrop-filter: blur(6px); padding: 20px; }
 .screen[hidden] { display: none; }
-.screen .card { max-width: 560px; border-left: 4px solid var(--amber); padding: 6px 0 6px 22px; }
-.screen h1 { font: 700 clamp(54px,11vw,104px)/.92 var(--disp); margin: 0 0 14px; letter-spacing: .01em; }
-.screen p { font-size: 17px; line-height: 1.55; margin: 0 0 12px; color: #cfd2c4; max-width: 46ch; }
+.screen .card { width: min(660px, 100%); max-height: calc(100vh - 48px); overflow-y: auto; max-width: 660px; border-left: 4px solid var(--amber); padding: 6px 0 6px 22px; }
+.screen h1 { font: 700 clamp(28px,4vw,48px)/1.08 var(--disp); margin: 0 0 14px; letter-spacing: .01em; }
+.screen p { white-space: pre-line; font-size: 15px; line-height: 1.55; margin: 0 0 12px; color: #cfd2c4; max-width: 46ch; }
 .screen button { font: 700 22px var(--disp); background: var(--amber); color: #1a1409; border: 0; padding: 12px 28px; cursor: pointer; margin-top: 8px; }
 .screen button:hover { background: #ffb64f; }
 @media (max-width: 760px) { .build { width: 200px; } .help { display: none; } .mini { width: 120px; height: 120px; } .sel { min-height: 120px; } }
@@ -128,3 +128,9 @@ button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .air-mission-bar { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; align-items: center; }
 .air-mission-bar button { font: 600 11px var(--body); padding: 3px 7px; background: #2a3540; border: 1px solid var(--line); color: var(--text); cursor: pointer; }
 .air-mission-bar button:hover { border-color: #6af; }
+
+.build-role{opacity:.65;font-size:9px;letter-spacing:.05em;margin-left:6px}.unit-btn small.build-role{display:block}.lock-reason{display:block}
+
+.stat.resources small[data-r="economy"] { opacity:.78; white-space:nowrap; }
+
+.depot-control-bar{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;align-items:center}.depot-control-bar button{font:600 11px var(--body);padding:3px 7px;background:var(--steel2);border:1px solid var(--line);color:var(--text);cursor:pointer}.depot-control-bar button:hover{border-color:var(--amber)}

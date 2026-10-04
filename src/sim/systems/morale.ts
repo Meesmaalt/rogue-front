@@ -19,7 +19,7 @@ export function moraleState(u: Entity): MoraleState {
  */
 export function updateMorale(w: World, dt: number): void {
   for (const u of w.entities) {
-    if (u.dead || u.def.speed === 0) continue;
+    if (u.dead || u.def.speed === 0 || u.loadedIntoId!=null) continue;
 
     // Suppression decays
     if ((u.suppression ?? 0) > 0) {
@@ -29,7 +29,7 @@ export function updateMorale(w: World, dt: number): void {
 
     // Morale recovery when not suppressed and near supply/HQ
     const st = moraleState(u);
-    if (st !== "routing" && (u.suppression ?? 0) < 20) {
+    if ((u.suppression ?? 0) < 20 && (u.morale??100)<100) {
       const fac = u.team === w.playerTeam ? w.playerFaction : w.enemyFaction;
       let regen = 2.5 * dt * (FACTIONS[fac].bonuses.moraleMul ?? 1);
       if (u.def.discipline === "high") regen *= 1.3;

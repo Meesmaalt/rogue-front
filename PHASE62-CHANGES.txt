@@ -1,0 +1,27 @@
+PHASE 62 – REAL WAR GROUND LOGISTICS / CONVOY NETWORK
+
+Implemented:
+- Physical road logistics using dedicated logiTruck units.
+- Captured industrial/resource sites accumulate stock; trucks physically collect it.
+- Trucks use the existing navigation/pathfinding and receive a road/bridge speed bonus.
+- Resource -> forward supply depot -> trunk depot/HQ economic flow.
+- A depot close to HQ is treated as the trunk depot; forward depots act as regional warehouses.
+- Forward depot stock requires a second vulnerable road convoy to reach the trunk depot.
+- Truck cargo is physical: destroyed trucks lose their current cargo.
+- Road logistics statistics: active trucks, cargo in transit/storage, delivered and lost cargo, disconnected forward depots.
+- Supply depot level increases storage capacity and convoy concurrency.
+- Road convoy system runs for both player and AI.
+- Dedicated visual silhouette for MTVR-style logistics trucks.
+- Save state upgraded to v16 with backward loading support for v15 and earlier.
+- HUD now exposes ground convoy/logistics status and selected truck cargo/phase.
+- Existing helicopter airbridge remains in parallel: road convoys are the cheaper baseline, helicopters are faster but exposed to AA/air defense.
+- Existing strategic cargo-plane system remains a separate late-game airlift layer.
+
+Design principle:
+RESOURCE SITE -> TRUCK -> FORWARD DEPOT -> TRUCK -> TRUNK DEPOT/HQ -> SPENDABLE RESOURCES
+
+Risk model:
+- Longer routes mean longer exposure time.
+- Road/bridge movement is faster, so road control matters.
+- Convoys are real entities and can be detected and destroyed.
+- Lost truck cargo is not refunded.

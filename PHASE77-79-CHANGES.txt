@@ -1,0 +1,7 @@
+PHASE 77-79 — DEEP WARFARE
+
+77: artillery batteries, salvoes, ballistic area fire, firing signatures, counter-battery and displacement.
+78: sortie cycles, AA threat state, RTB behavior and persistent air operational state.
+79: tactical AI using recon, fresh intel, artillery priorities, resupply and AA avoidance.
+
+No build/test commands were run by design.

@@ -1,46 +1,79 @@
 import type { World } from "../sim/World";
 import type { Picker } from "../input/Picker";
 
-/** Ekraanipealne udumask: uuritud ala on tumendatud, nähtav ala avatud. */
+/**
+ * Screen fog: rebuild offscreen only when vision grid generation changes,
+ * then blit each frame — eliminates clearRect strobing.
+ */
 export class FogOfWar {
   private readonly ctx: CanvasRenderingContext2D;
-  private dpr = 1;
-  private frame = 0;
+  private off: HTMLCanvasElement;
+  private offCtx: CanvasRenderingContext2D;
+  private lastVisionTick = -1;
+  private mode: "wargame" | "reduced" | "off" = "wargame";
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext("2d")!;
     canvas.style.pointerEvents = "none";
+    this.off = document.createElement("canvas");
+    this.offCtx = this.off.getContext("2d")!;
     addEventListener("resize", () => this.resize());
     this.resize();
   }
 
   private resize(): void {
-    // Cap fog canvas at 1x DPR – full-res + blur was a major GPU cost
-    this.dpr = 1;
-    this.canvas.width = innerWidth;
-    this.canvas.height = innerHeight;
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    const w = innerWidth, h = innerHeight;
+    this.canvas.width = w;
+    this.canvas.height = h;
+    this.off.width = w;
+    this.off.height = h;
+    this.lastVisionTick = -1; // force rebuild
   }
 
-  draw(world: World, picker: Picker): void {
-    // Draw every frame to avoid flicker (skipping frames caused visible strobing)
-    const c = this.ctx, w = this.canvas.width, h = this.canvas.height;
-    c.clearRect(0, 0, w, h);
+  setMode(mode: "wargame" | "reduced" | "off"): void { this.mode = mode; this.lastVisionTick = -1; }
 
-    c.fillStyle = "rgba(5,8,9,.38)";
+  draw(world: World, picker: Picker): void {
+    if (this.mode === "off") { this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); return; }
+    if (this.canvas.width !== innerWidth || this.canvas.height !== innerHeight) this.resize();
+
+    // Vision updates on a throttle inside Vision.update — use tickCounter proxy via explored cells
+    // Rebuild fog mask at most ~10 Hz or when size changes
+    const stamp = Math.floor(world.time * 10);
+    if (stamp !== this.lastVisionTick) {
+      this.lastVisionTick = stamp;
+      this.rebuild(world, picker);
+    }
+
+    // Blit stable buffer (no full-screen clear of visible holes every rAF)
+    const c = this.ctx;
+    c.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    c.drawImage(this.off, 0, 0);
+  }
+
+  private rebuild(world: World, picker: Picker): void {
+    const c = this.offCtx;
+    const w = this.off.width, h = this.off.height;
+    c.clearRect(0, 0, w, h);
+    // Slightly softer fog — less aggressive contrast reduces perceived flicker
+    c.fillStyle = this.mode === "reduced" ? "rgba(6, 9, 11, 0.18)" : "rgba(6, 9, 11, 0.34)";
     c.fillRect(0, 0, w, h);
 
     c.save();
     c.globalCompositeOperation = "destination-out";
-    // No CSS blur filter – soft edges via gradient only
     for (const u of world.entities) {
       if (u.dead || u.team !== world.playerTeam) continue;
       const p = picker.toScreen(u.x, u.y + 0.5, u.z);
       if (p.z > 1) continue;
-      const base = u.kind === "hq" ? 42 : u.kind === "bunker" ? 34 : u.kind === "tank" ? 30 : u.kind === "radar" ? 50 : 24;
-      const radius = Math.max(12, base * picker.pxPerUnit(u.x, u.y, u.z));
-      const g = c.createRadialGradient(p.x, p.y, radius * 0.55, p.x, p.y, radius);
+      const optics = u.def.opticsRange ?? 40;
+      const base =
+        u.kind === "hq" ? 48 :
+        u.kind === "radar" ? 52 :
+        u.kind === "bunker" ? 34 :
+        Math.max(22, Math.min(44, optics * 0.55));
+      const radius = Math.max(14, base * picker.pxPerUnit(u.x, u.y, u.z) * (this.mode === "reduced" ? 1.25 : 1));
+      const g = c.createRadialGradient(p.x, p.y, radius * 0.4, p.x, p.y, radius);
       g.addColorStop(0, "rgba(0,0,0,1)");
+      g.addColorStop(0.65, "rgba(0,0,0,0.75)");
       g.addColorStop(1, "rgba(0,0,0,0)");
       c.fillStyle = g;
       c.beginPath();

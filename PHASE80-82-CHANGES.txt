@@ -1,0 +1,20 @@
+PHASE 80-82 — BATTLEGROUP / CAMPAIGN / GAME MODES
+
+Phase 80
+- Added battlegroup controller layered on the Wargame-style deck.
+- Tracks purchased/deployed/lost units, activation budget, command reserve and veterancy.
+- Provides card-level readiness and battlegroup summary for future deployment UI.
+
+Phase 81
+- Added persistent campaign progression with mission prerequisites, command XP and doctrine rewards.
+- Campaign chain: logistics tutorial -> Sandglass -> High Ground -> Black City -> Tidebreaker.
+- Progress is separate from old mission-completion storage for backwards compatibility.
+
+Phase 82
+- Added match-mode controller and rules for annihilation, conquest, breakthrough, attrition, assault and skirmish.
+- Conquest scores strategic/resource-area control over time.
+- Breakthrough checks penetration into the enemy rear/base sector.
+- Assault uses a timed attack/defense objective.
+- Mode controller is intentionally modular so multiplayer rules can be bound later without rewriting simulation systems.
+
+No compile/test run by request.

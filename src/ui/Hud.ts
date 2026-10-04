@@ -1,22 +1,33 @@
 import "./hud.css";
 import type { World } from "../sim/World";
+import { coverValueAt } from "../sim/systems/sensors";
 import type { MissionDef } from "../sim/types";
 import type { UnitKind } from "../sim/types";
 import { UNITS } from "../sim/units";
 import { MAX_QUEUE } from "../sim/constants";
 import type { FactionId } from "../sim/factions";
 import { FACTIONS, FACTION_LIST, factionLandUnits, factionAirUnits, factionSeaUnits } from "../sim/factions";
+import { BUILDINGS } from "../sim/buildings";
+import { MODE_RULES, type MatchMode } from "../sim/gameModes";
+import { CAMPAIGN, loadCampaign, isUnlocked } from "../sim/campaign";
 
 const fmt = (s: number) => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
 const unitIcon = (k: UnitKind): string => {
   const icons: Partial<Record<UnitKind, string>> = {
-    inf: "⚔", engineer: "🔧", special: "★", tank: "▣", apc: "▢", ifv: "▣", artillery: "⌖", mlrs: "⇈",
-    heli: "✈", transport: "⇪", gunship: "⚡", fighter: "▲", interceptor: "◆", bomber: "⬤",
-    destroyer: "⚓", submarine: "◎", landingcraft: "▭",
+    inf: "⚔", atInf: "✹", mgInf: "≋", reconInf: "◈", sniper: "⊙", mortar: "◌", manpad: "⇧", atgm: "➹", engineer: "🔧", special: "★", tank: "▣", lightTank: "◇", tankDestroyer: "◈", apc: "▢", ifv: "▣", reconVehicle: "◈", spaa: "✦", artillery: "⌖", mlrs: "⇈",
+    heli: "✈", transport: "⇪", gunship: "⚡", casHeli: "◢", fighter: "▲", interceptor: "◆", bomber: "⬤", ecm: "◉", multirole: "◇", attackAircraft: "◒",
+    destroyer: "⚓", submarine: "◎", landingcraft: "▭", frigate: "⚓", missileBoat: "◁",
   };
   return icons[k] ?? "•";
 };
 const rootButton = (_hud: Hud, selector: string) => document.querySelector<HTMLButtonElement>(selector);
+const producerFor = (k: UnitKind): string => {
+  if (["inf","engineer","special","atInf","mgInf","reconInf","sniper","mortar","manpad","atgm"].includes(k)) return "barracks";
+  if (["tank","apc","ifv","artillery","mlrs","reconVehicle","lightTank","tankDestroyer","spaa"].includes(k)) return "factory";
+  if (["heli","transport","gunship","casHeli"].includes(k)) return "helipad";
+  if (["fighter","interceptor","bomber","ecm","multirole","attackAircraft"].includes(k)) return "airbase";
+  return "shipyard";
+};
 
 /** HTML/CSS HUD: ressursid, valiku info, tootmispaneel, minikaardi konteiner, alustus-/lõpuekraan. */
 const BUILD_LABELS: Record<string, string> = {
@@ -51,6 +62,8 @@ export class Hud {
   onLoad: () => void = () => {};
   onBuild: (kind: "barracks"|"factory"|"helipad"|"airbase"|"refinery"|"supply"|"radar"|"bunker"|"aa"|"generator"|"shipyard"|"landCommand"|"airCommand"|"seaCommand"|"combatEngineer"|"landStrategy"|"airStrategy"|"seaStrategy") => void = () => {};
   onUpgradeSupply: (ids: number[]) => void = () => {};
+  onUpgradeFOB: (ids: number[]) => void = () => {};
+  onDepotPriority: (ids: number[], focus: "ammo" | "fuel" | "repair" | "balanced") => void = () => {};
   onUpgradeProducer: (ids: number[]) => void = () => {};
   onStance: (ids: number[], mode: "attack" | "hold" | "patrol" | "holdfire") => void = () => {};
   onPriority: (ids: number[], focus: "supply" | "generator" | "aa") => void = () => {};
@@ -59,7 +72,8 @@ export class Hud {
   onAirMission: (ids: number[], mission: "cap" | "strike" | "sead" | "ground") => void = () => {};
   onCancelProduce: (producerId: number) => void = () => {};
   onMultiplayer: (mission: MissionDef, room?: string) => void = () => {};
-  onSkirmish: (mission: MissionDef, difficulty: "easy"|"normal"|"hard") => void = () => {};
+  onSkirmish: (mission: MissionDef, difficulty: "easy"|"normal"|"hard", mode?: MatchMode) => void = () => {};
+  onOpenDeck: () => void = () => {};
   selectedFaction: FactionId = "usa";
   onFaction: (id: FactionId) => void = () => {};
   private el: Record<string, HTMLElement> = {};
@@ -72,7 +86,7 @@ export class Hud {
   constructor(root: HTMLElement) {
     root.innerHTML = `
       <header class="top">
-        <div class="panel brand">Rogue Front<small>Kampaania · <span data-r="fps">-- fps</span> · <span data-r="net">üksikmäng</span></small></div>
+        <div class="panel brand">Rogue Front<small>Taktikaline RTS · <span data-r="fps">-- fps</span> · <span data-r="net">üksikmäng</span></small></div>
         <div class="panel obj"><b data-r="missionName">Missioon</b><div data-r="objectiveList">Vali missioon.</div><div class="mission-msg" data-r="missionMsg"></div><div class="warning" data-r="warning"></div></div>
         <div class="panel controls"><button data-action="pause">Paus</button><button data-action="save">Salvesta</button><button data-action="load">Lae</button><button data-action="settings">Seaded</button></div>
         <div class="panel stat resources">
@@ -80,8 +94,8 @@ export class Hud {
           <div class="res-row"><span class="res-label">ENERGIA</span><b data-r="power">0/0</b>
             <span class="pwr-bar" title="Energia"><i data-r="pwrFill"></i></span>
           </div>
-          <div class="res-row logistics-row"><span class="res-label">LOGISTIKA</span><b data-r="logistics">—</b></div>
-          <small>Krediit <span data-r="cr">0</span> · Moraal <span data-r="morale">100</span> · <span data-r="airstatus">Õhk 0/0</span></small>
+          <div class="res-row logistics-row"><span class="res-label">LOGISTIKA</span><b data-r="logistics">—</b></div><small data-r="commandNet">Juhtimisvõrk —</small>
+          <small>Krediit <span data-r="cr">0</span> · Moraal <span data-r="morale">100</span> · <span data-r="airstatus">Õhk 0/0</span></small><small data-r="economy">Majandus —</small>
           <span data-r="clock">0:00</span>
         </div>
       </header>
@@ -120,7 +134,7 @@ export class Hud {
             <button data-predeploy="attack" title="Valmis üksused ründavad teed mööda">Ründa teed</button>
             <button data-predeploy="hold" title="Valmis üksused hoiavad tootja juures">Hoia</button>
           </div>
-          <div class="help">Vasak hiir: vali · Parem: liigu/ründa · A+parem: ründeliikumine · H: hoia · P: patrull · WASD: kaamera · Rull: suum · X: peata · F+parem: suurtükituli · Ctrl+1–9: grupp</div>
+          <div class="help">Vasak hiir: vali · Parem: liigu/ründa · A+parem: ründeliikumine · H: hoia · P: patrull · WASD: kaamera · Rull: suum · X: peata · F+parem: suurtükituli · L: kustuta logistika marsruut · Ctrl+1–9: grupp</div>
         </div>
         <div class="panel build tactical">
           <div class="tab-bar">
@@ -132,19 +146,19 @@ export class Hud {
           <div class="tab-panels">
             <div class="tab-panel active" data-panel="land">
               ${factionLandUnits("usa").filter(k => UNITS[k]).map((k) => {
-                const producer = ["inf","engineer","special"].includes(k) ? "barracks" : "factory";
-                return `<button class="unit-btn" title="Tooda ${UNITS[k].name} (${UNITS[k].cost})" data-kind="${k}" data-producer="${producer}" data-tab-unit="land"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name" data-unit-label="${k}">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span></button>`;
+                const producer = producerFor(k);
+                return `<button class="unit-btn" title="${UNITS[k].name} · ${UNITS[k].roleLabel ?? ""} · ${UNITS[k].ability ?? ""} · ${UNITS[k].cost} res" data-kind="${k}" data-producer="${producer}" data-tab-unit="land"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name" data-unit-label="${k}">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span></button>`;
               }).join("")}
             </div>
             <div class="tab-panel" data-panel="air">
               ${factionAirUnits("usa").filter(k => UNITS[k]).map((k) => {
-                const producer = ["fighter","interceptor","bomber"].includes(k) ? "airbase" : "helipad";
-                return `<button class="unit-btn" title="Tooda ${UNITS[k].name} (${UNITS[k].cost})" data-kind="${k}" data-producer="${producer}" data-tab-unit="air"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name" data-unit-label="${k}">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span></button>`;
+                const producer = producerFor(k);
+                return `<button class="unit-btn" title="${UNITS[k].name} · ${UNITS[k].roleLabel ?? ""} · ${UNITS[k].ability ?? ""} · ${UNITS[k].cost} res" data-kind="${k}" data-producer="${producer}" data-tab-unit="air"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name" data-unit-label="${k}">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span></button>`;
               }).join("")}
             </div>
             <div class="tab-panel" data-panel="sea">
               ${factionSeaUnits("usa").filter(k => UNITS[k]).map((k) => {
-                return `<button class="unit-btn" title="Tooda ${UNITS[k].name} (${UNITS[k].cost})" data-kind="${k}" data-producer="shipyard" data-tab-unit="sea"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name" data-unit-label="${k}">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span></button>`;
+                return `<button class="unit-btn" title="${UNITS[k].name} · ${UNITS[k].roleLabel ?? ""} · ${UNITS[k].ability ?? ""} · ${UNITS[k].cost} res" data-kind="${k}" data-producer="shipyard" data-tab-unit="sea"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name" data-unit-label="${k}">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span></button>`;
               }).join("")}
             </div>
             <div class="tab-panel" data-panel="builds">
@@ -153,6 +167,11 @@ export class Hud {
                 <div class="tree-hint" data-r="treeHint">Vali HQ või juhtimiskeskus — avab haru.</div>
                 <button data-upgrade-producer hidden>Uuenda tootjat</button>
                 <button data-upgrade-supply hidden>Uuenda varustusladu</button>
+                <button data-upgrade-fob hidden>Ehita FOB</button>
+                <div class="depot-control-bar" data-r="depotControlBar" hidden>
+                  <span class="pre-label">FOB prioriteet:</span>
+                  <button data-depot-priority="balanced">Tasakaal</button><button data-depot-priority="ammo">Ammo</button><button data-depot-priority="fuel">Kütus</button><button data-depot-priority="repair">Remont</button>
+                </div>
                 <button data-cancel-produce hidden title="Tühista viimane (75% tagasi)">Tühista viimane</button>
                 <div class="build-buttons" data-r="buildButtons"></div>
               </div>
@@ -174,6 +193,8 @@ export class Hud {
     // build buttons are rebound each frame from availableBuilds()
     root.querySelector<HTMLButtonElement>("button[data-upgrade-producer]")?.addEventListener("click",()=>this.onUpgradeProducer([...this.selectedIds]));
     root.querySelector<HTMLButtonElement>("button[data-upgrade-supply]")?.addEventListener("click",()=>this.onUpgradeSupply([...this.selectedIds]));
+    root.querySelector<HTMLButtonElement>("button[data-upgrade-fob]")?.addEventListener("click",()=>this.onUpgradeFOB([...this.selectedIds]));
+    root.querySelectorAll<HTMLButtonElement>("button[data-depot-priority]").forEach((b)=>b.addEventListener("click",()=>{ if(this.selectedIds.length) this.onDepotPriority([...this.selectedIds], b.dataset.depotPriority as "ammo"|"fuel"|"repair"|"balanced"); }));
     root.querySelector<HTMLButtonElement>("button[data-cancel-produce]")?.addEventListener("click", () => {
       if (this.selectedProducerId != null) this.onCancelProduce(this.selectedProducerId);
     });
@@ -232,7 +253,7 @@ export class Hud {
   update(world: World, selection: ReadonlySet<number>, running: boolean, objectives: readonly { title: string; description: string; complete: boolean; progress: number }[] = [], missionMessage = ""): void {
     this.selectedIds = [...selection];
     if (this.el.airMissionBar) {
-      const airSel = [...selection].map(id => world.byId.get(id)).filter(e => e && !e.dead && e.team === world.playerTeam && (e.def.armor === "air" || e.def.category === "heli" || ["heli","gunship","fighter","interceptor","bomber","transport"].includes(e.kind)));
+      const airSel = [...selection].map(id => world.byId.get(id)).filter(e => e && !e.dead && e.team === world.playerTeam && (e.def.armor === "air" || e.def.category === "heli" || ["heli","gunship","cargoPlane","fighter","interceptor","bomber","transport"].includes(e.kind)));
       this.el.airMissionBar.hidden = airSel.length === 0;
     }
 
@@ -241,7 +262,9 @@ export class Hud {
     this.el.res.textContent = String(Math.floor(world.resources));
     if (this.el.morale) this.el.morale.textContent = String(Math.round(world.teamMorale[world.playerTeam]));
     if (this.el.control) this.el.control.textContent = String(Math.round(world.areaControl[world.playerTeam]));
-    if (this.el.airstatus) { const a=world.airbaseStatus(world.playerTeam), s=world.supplyDepotStatus(world.playerTeam); this.el.airstatus.textContent = `Õhk ${a.aircraft}/${a.capacity} · Helid ${s.active}/${s.depots} · tase ${s.level}`; }
+    if (this.el.airstatus) { const a=world.airbaseStatus(world.playerTeam), s=world.supplyDepotStatus(world.playerTeam), al=world.airliftStatus(world.playerTeam); this.el.airstatus.textContent = `Õhk ${a.aircraft}/${a.capacity} · Helid ${s.active}/${s.depots} · Varu ${al.pool} · ${al.enabled ? `Cargo ${al.inFlight ? "lennul" : "ootel"}` : "lennujaam lvl1"}`; }
+    if (this.el.economy) { const e = world.resourceEconomyStatus(world.playerTeam), r = world.roadLogisticsStatus(world.playerTeam); this.el.economy.textContent = `Punktid ${e.controlled} · Töös ${e.active} · laovaru ${e.stock} · +${e.rate.toFixed(1)}/s · Veokid ${r.trucks} · Teel ${r.cargo}${r.disconnected ? ` · Katkestatud ${r.disconnected}` : ""}`; }
+    if (this.el.commandNet) { const cn=world.commandNetworkStatus(world.playerTeam); this.el.commandNet.textContent = `Juhtimisvõrk ${cn.nodes} · FOB ${cn.fobs} · ühendatud ${cn.linked} · katvus ${Math.round(cn.coverage*100)}%`; }
     const ps = world.powerStatus(world.playerTeam);
     if (this.el.power) {
       this.el.power.textContent = `${Math.floor(ps.use)}/${Math.floor(ps.supply)}`;
@@ -266,6 +289,11 @@ export class Hud {
     else if (route.total > 0 && route.connected < route.total) warn = `⚠ LOGISTIKA KATKI — ${route.total - route.connected} ladu ühendamata`;
     else if (mobileCount > 100) warn = `⚠ ÜKSUSTE SURVE (${mobileCount}) — jõudlus võib langeda`;
     this.el.warning.textContent = warn;
+    if(world.matchController){
+      const mode=world.matchController,score=mode.scores;
+      this.el.missionName.textContent=mode.mode.toUpperCase();
+      this.el.objectiveList.textContent=`Sina ${Math.floor(score[world.playerTeam])} · Vastane ${Math.floor(score[world.playerTeam===0?1:0])}`+(mode.rules.timeLimit?` · Aega ${fmt(Math.max(0,mode.rules.timeLimit-world.time))}`:"");
+    }
     if (objectives.length) {
       this.el.objectiveList.innerHTML = objectives.map((o) => `<div class="objective ${o.complete ? "done" : ""}"><span>${o.complete ? "✓" : "○"} ${o.title}</span>${o.complete ? "" : `<i style="width:${Math.round(o.progress * 100)}%"></i>`}</div>`).join("");
     }
@@ -314,7 +342,10 @@ export class Hud {
       const queueFull = (prod?.productionQueue.length ?? 0) >= MAX_QUEUE;
       b.disabled = !running || !hq || hq.dead || !prod || queueFull
         || world.resources < cost || world.credits < cost
-        || !has(pKind);
+        || !has(pKind)
+        || !world.canProduceAtLevel(prod!, kind) || !world.productionOperational(prod!,kind).operational;
+      const req = world.unitRequiredBuildingLevel(kind);
+      b.title = !prod ? `Loo ${pKind} esimesena` : !world.productionOperational(prod,kind).operational ? world.productionOperational(prod,kind).reason : world.producerLevel(prod) < req ? `Vajab ${pKind} taset ${req}` : `Tooda ${world.unitDisplayName(kind)} (${UNITS[kind].cost})`;
     }
     this.refreshBuildPanel(world, selection, running, engineerSelected);
     (this.el.qbar as HTMLElement).style.width = q.length ? Math.min(100, (world.queueProgress / UNITS[q[0]].buildTime) * 100) + "%" : "0";
@@ -324,7 +355,7 @@ export class Hud {
       const rallyTxt = selectedProducer.rallyPoint ? " · Rally seatud" : "";
       this.el.qtxt.textContent =
         (q.length ? "Ehitamisel: " + world.unitDisplayName(q[0]) + (q.length > 1 ? ` (+${q.length - 1})` : "") : "Järjekord tühi") +
-        ` · Tase ${world.producerLevel(selectedProducer)}` + rallyTxt + preTxt +
+        ` · Tase ${world.producerLevel(selectedProducer)} · ${world.producerLevel(selectedProducer)>=3 ? "KÕRGEIM" : world.producerLevel(selectedProducer)>=2 ? "TÄIENDATUD" : "BAAS"}` + rallyTxt + preTxt +
         " · Shift+parem: pre-deploy siht";
     } else {
       this.el.qtxt.textContent = this.activeTab === "builds"
@@ -334,17 +365,15 @@ export class Hud {
     if (this.el.predeployBar) {
       this.el.predeployBar.hidden = !selectedProducer;
     }
+    const selectedUpgrade=[...selection].map(id=>world.byId.get(id)).find(e=>e&&!e.dead&&e.team===world.playerTeam&&!!e.def.building);
     const producerUpgrade = rootButton(this, "button[data-upgrade-producer]");
-    if (producerUpgrade) { producerUpgrade.hidden=!selectedProducer; producerUpgrade.textContent=selectedProducer?.upgrading ? `Uuendamine… ${Math.ceil((selectedProducer.upgradeTime??10)-(selectedProducer.upgradeProgress??0))}s` : (selectedProducer && world.producerLevel(selectedProducer)>=2 ? "Tootja MAX" : "Uuenda tootjat (260) + ehitusaeg"); producerUpgrade.disabled=!running||!selectedProducer||!!selectedProducer.upgrading||!world.canUpgradeProducer(selectedProducer)||world.resources<260||world.credits<260; }
-    const selectedBranch = [...selection].map(id=>world.byId.get(id)).find(e=>e && !e.dead && e.team===world.playerTeam && ["hq","landCommand","airCommand","seaCommand","landStrategy","airStrategy","seaStrategy","combatEngineer","supply"].includes(e.kind));
-    const branchKind = selectedBranch?.kind ?? "hq";
-    const allowedBuilds = new Set(world.availableBuilds(world.playerTeam, branchKind));
-    const treeLabel = rootButton(this, "[data-r=treeLabel]");
-    if (treeLabel) treeLabel.textContent = `EHITUSPUU: ${branchKind === "hq" ? "HQ" : (selectedBranch?.def.name ?? branchKind)}`;
-    this.getBuildButtons().forEach((b)=>{const kind=b.dataset.build as any;const cost=buildCosts[b.dataset.build||""]??999;const visible=allowedBuilds.has(kind);b.style.display=visible?"":"none";b.disabled=!running||!engineerSelected||world.resources<cost||world.credits<cost||!world.canBuildKind(world.playerTeam,kind);});
+    if (producerUpgrade) { producerUpgrade.hidden=!selectedUpgrade; producerUpgrade.textContent=selectedUpgrade?.upgrading ? `Uuendamine… ${Math.ceil((selectedUpgrade.upgradeTime??10)-(selectedUpgrade.upgradeProgress??0))}s` : (selectedUpgrade && world.producerLevel(selectedUpgrade)>=3 ? `${selectedUpgrade.kind === "airbase" ? "Lennujaam" : "Tootja"} MAX · Tase 3` : `${selectedUpgrade?.kind === "airbase" ? "Uuenda lennubaasi" : "Uuenda hoonet"} → tase ${(selectedUpgrade ? world.producerLevel(selectedUpgrade)+1 : 2)} (${selectedUpgrade ? world.producerUpgradeCost(world.producerLevel(selectedUpgrade)) : 260})`); producerUpgrade.disabled=!running||!selectedUpgrade||!!selectedUpgrade.upgrading||!world.canUpgradeProducer(selectedUpgrade)||world.resources<(selectedUpgrade ? world.producerUpgradeCost(world.producerLevel(selectedUpgrade)) : 9999)||world.credits<(selectedUpgrade ? world.producerUpgradeCost(world.producerLevel(selectedUpgrade)) : 9999); }
     const supplyDepot = [...selection].map(id=>world.byId.get(id)).find(e=>e && !e.dead && e.team===world.playerTeam && e.kind==="supply");
     const supplyButton = rootButton(this, "button[data-upgrade-supply]");
     if (supplyButton) { const st=world.supplyDepotStatus(world.playerTeam); supplyButton.hidden=!supplyDepot; supplyButton.textContent=st.level>=3 ? "Varustusladu MAX" : `Uuenda varustusladu (${180 + st.level*120}) · tase ${st.level+1}/3`; supplyButton.disabled=!running||!supplyDepot||st.level>=3||world.resources<(180+st.level*120)||world.credits<(180+st.level*120); }
+    const fobButton = rootButton(this, "button[data-upgrade-fob]");
+    if (fobButton) { const lvl=supplyDepot?.fobLevel ?? 0; const cost=300+lvl*220; fobButton.hidden=!supplyDepot; fobButton.textContent=lvl>=2 ? "FOB MAX · juhtimisvõrk" : `Ehita FOB (${cost}) · tase ${lvl+1}/2`; fobButton.disabled=!running||!supplyDepot||lvl>=2||world.resources<cost||world.credits<cost; }
+    const depotControl = this.el.depotControlBar as HTMLElement | undefined; if (depotControl) depotControl.hidden=!supplyDepot;
 
     const sel = [...selection].map((id) => world.byId.get(id)).filter((e) => e && !e.dead);
     if (!sel.length) {
@@ -354,7 +383,8 @@ export class Hud {
       const u = sel[0]!;
       this.el.selT.textContent = world.unitDisplayName(u.kind, u.team);
       const disabled = (u.disabledUntil ?? 0) > world.time ? ` · SABOTEERITUD ${Math.ceil((u.disabledUntil! - world.time))}s` : "";
-      const logistics = u.kind === "transport" ? (u.supplyDepotId != null ? ` · VARUSTUSHELIKOPTER · Last ${Math.floor(u.cargo)} · ${u.logisticsPhase}` : ` · TRANSPORT · Reisijad ${u.cargoUnitIds.length}/8`) : (u.loadedIntoId !== null ? " · Transpordis" : "");
+      const fob = u.kind === "supply" ? ` · ${world.isFOB(u) ? `FOB tase ${u.fobLevel}` : "LOGISTIKAPUNKT"} · Varu A:${Math.floor(u.ammoStock??0)} K:${Math.floor(u.fuelStock??0)} R:${Math.floor(u.repairStock??0)} · prioriteet ${(u.logisticsPriority??"balanced").toUpperCase()}` : "";
+      const logistics = u.kind === "transport" ? (u.supplyDepotId != null ? ` · VARUSTUSHELIKOPTER · Last ${Math.floor(u.cargo)} · ${u.logisticsPhase}` : ` · TRANSPORT · Reisijad ${u.cargoUnitIds.length}/8`) : u.kind === "logiTruck" ? ` · LOGISTIKAVEOK · Last ${Math.floor(u.cargo)} · ${u.logisticsPhase}` : (u.loadedIntoId !== null ? " · Transpordis" : "");
       const veterancy = u.veteran > 0 ? ` · Veteran ${u.veteran}★ · XP ${u.xp}` : ` · XP ${u.xp}`;
       const fuel = (u.maxFuel ?? 0) > 0 ? ` · Kütus ${Math.floor(u.fuel ?? 0)}/${u.maxFuel} · laskemoon ${Math.floor(u.ammo ?? 0)}/${u.maxAmmo}` : "";
       const supply = u.def.speed > 0 ? ` · Varustus ${Math.floor(u.supply ?? 100)}/${u.maxSupply ?? 100}` : "";
@@ -367,7 +397,13 @@ export class Hud {
       const ammoTxt = (u.maxAmmo ?? 0) > 0 ? ` · Laskemoon ${Math.floor(u.ammo ?? 0)}/${u.maxAmmo}` : "";
       const fuelTxt = (u.maxFuel ?? 0) > 0 ? ` · Kütus ${Math.floor(u.fuel ?? 0)}/${u.maxFuel}` : "";
       const inSup = world.isInSupply(u) ? "" : " · ⚠ VÄLJAS SUPPLYST";
-      this.el.selP.innerHTML = `Elud ${Math.ceil(u.hp)} / ${u.def.hp}` + (u.def.damage ? ` · Tugevus ${u.def.damage} · Ulatus ${u.def.range}` : "") + veterancy + optics + stealth + armor + morale + sup + ammoTxt + fuelTxt + inSup + supply + fuel + sector + logistics + disabled +
+      const role = u.def.roleLabel ? ` · Roll: ${u.def.roleLabel}` : "";
+      const ability = u.def.ability ? ` · ${u.def.ability}` : "";
+      const squad = u.squadMaxMembers ? ` · Sõdurid ${u.squadMembers}/${u.squadMaxMembers}` : "";
+      const comp = u.components ? ` · Kahjustused ${Math.round(Math.max(...Object.values(u.components)))}%` : "";
+      const cover = ` · Kate ${coverValueAt(world, u.x, u.z)}`;
+      const combat = u.def.damage ? ` · Täpsus ${Math.round((u.def.accuracy ?? 0) * 100)}% · Läbivus ${Math.round(u.def.penetration ?? 0)} · Reload ×${(u.def.reloadSkill ?? 1).toFixed(2)}` : "";
+      this.el.selP.innerHTML = `Elud ${Math.ceil(u.hp)} / ${u.def.hp}` + (u.def.damage ? ` · Tugevus ${u.def.damage} · Ulatus ${u.def.range}` : "") + role + ability + combat + squad + comp + cover + veterancy + optics + stealth + armor + morale + sup + ammoTxt + fuelTxt + inSup + supply + fuel + sector + logistics + fob + disabled +
         `<div class="hpbar"><i style="width:${(u.hp / u.def.hp) * 100}%"></i></div>`;
     } else {
       const c: Record<string, number> = {};
@@ -406,7 +442,7 @@ export class Hud {
         : "Vali HQ / juhtimiskeskus — või ehitatakse HQ harust.";
     }
     const power = world.powerStatus(world.playerTeam);
-    host.innerHTML = list.map((kind) => {
+    const markup = list.map((kind) => {
       const cost = BUILD_COSTS[kind] ?? 0;
       const label = BUILD_LABELS[kind] ?? kind;
       const unlocked = available.includes(kind as import("../sim/buildings").BuildableKind);
@@ -415,15 +451,19 @@ export class Hud {
         if (kind !== "generator" && !world.hasBuilding(world.playerTeam, "generator")) reason = "Vajab generaatorit";
         else if (BUILDINGS_REQ[kind]) {
           const req = BUILDINGS_REQ[kind]!;
-          if (!world.hasBuilding(world.playerTeam, req)) reason = `Vajab: ${BUILD_LABELS[req] ?? req}`;
+          if (!world.hasBuilding(world.playerTeam, req as UnitKind)) reason = `Vajab: ${BUILD_LABELS[req] ?? req}`;
         }
         if (!reason && power.ratio <= 0.01 && kind !== "generator" && kind !== "supply") reason = "Pole energiat";
         if (!reason) reason = "Lukus";
       } else if (world.resources < cost || world.credits < cost) reason = "Puudub ressurss";
       else if (!hasEngineer) reason = "Vajab inseneri";
       const disabled = !running || !unlocked || world.resources < cost || world.credits < cost || !hasEngineer;
-      return `<button data-build="${kind}" ${disabled ? "disabled" : ""} title="${reason || label}"><span>${label}</span><span class="unit-cost">${cost}</span>${reason && disabled ? `<small class="lock-reason">${reason}</small>` : ""}</button>`;
+      const bs = BUILDINGS[kind as keyof typeof BUILDINGS];
+      const functionLabel = bs?.role === "production" ? "TOOTMINE" : bs?.role === "logistics" ? "LOGISTIKA" : bs?.role === "command" ? "JUHTIMINE" : bs?.role === "sensor" ? "SENSOR" : bs?.role === "defense" ? "KAITSE" : bs?.role === "power" ? "ENERGIA" : "ARENDUS";
+      return `<button data-build="${kind}" ${disabled ? "disabled" : ""} title="${reason || label}"><span>${label}</span><span class="unit-cost">${cost}</span><small class="build-role">${functionLabel}</small>${reason && disabled ? `<small class="lock-reason">${reason}</small>` : ""}</button>`;
     }).join("");
+    if(host.dataset.markup===markup)return;
+    host.dataset.markup=markup;host.innerHTML=markup;
     host.querySelectorAll<HTMLButtonElement>("button[data-build]").forEach((b) => {
       b.onclick = () => {
         if (b.disabled) return;
@@ -447,7 +487,14 @@ export class Hud {
   }
   private showCampaignList(missions: readonly MissionDef[], completed: ReadonlySet<string>, onSelect:(m:MissionDef)=>void):void{
     const card=this.el.scrB.parentElement!; const list=document.createElement("div"); list.className="mission-list";
-    for(const mission of missions){const b=document.createElement("button");b.className="mission-choice";b.innerHTML=`<span>${mission.name}</span><small>${completed.has(mission.id)?"LÕPETATUD":mission.map.name}</small>`;b.onclick=()=>{this.el.screen.hidden=true;onSelect(mission)};list.appendChild(b)} card.appendChild(list);
+    const state=loadCampaign();
+    for(const mission of missions){
+      const node=CAMPAIGN.find(n=>n.missionId===mission.id); const unlocked=node ? isUnlocked(node,state) : completed.has(mission.id);
+      const done=node ? state.completed.includes(node.id) : completed.has(mission.id);
+      const b=document.createElement("button"); b.className="mission-choice"; b.disabled=!unlocked;
+      b.innerHTML=`<span>${mission.name}</span><small>${done?"LÕPETATUD · "+(node?.reward.commandXP??0)+" XP":unlocked?mission.map.name:"LUKUS — eelmine operatsioon lõpetamata"}</small>`;
+      if(unlocked)b.onclick=()=>{this.el.screen.hidden=true;onSelect(mission)}; list.appendChild(b);
+    } card.appendChild(list);
   }
   private showSkirmishMaps(missions: readonly MissionDef[]):void{
     const card=this.el.scrB.parentElement!; card.querySelectorAll(".mission-list").forEach(n=>n.remove());
@@ -464,14 +511,38 @@ export class Hud {
       nationRow.appendChild(b);
     }
     card.appendChild(nationRow);
+    const deckBtn=document.createElement("button"); deckBtn.className="mission-choice";
+    deckBtn.innerHTML=`<span>Deck planeerija</span><small>Wargame stiilis koosseis · ${FACTIONS[this.selectedFaction].short}</small>`;
+    deckBtn.onclick=()=>this.onOpenDeck();
+    card.appendChild(deckBtn);
+    const modeRow=document.createElement("div"); modeRow.className="mission-list mode-grid";
+    const modes: MatchMode[]=["skirmish","conquest","breakthrough","attrition","assault"];
+    for(const mode of modes){
+      const b=document.createElement("button"); b.className="mission-choice";
+      b.innerHTML=`<span>${mode.toUpperCase()}</span><small>${MODE_RULES[mode].description}</small>`;
+      b.onclick=()=>{ this.el.screen.hidden=true; this.onFaction(this.selectedFaction); this.chooseSkirmish(missions,mode); };
+      modeRow.appendChild(b);
+    }
+    card.appendChild(modeRow);
     for(const m of missions){
       const b=document.createElement("button"); b.className="mission-choice";
-      b.innerHTML=`<span>${m.map.name}</span><small>${m.map.theme.toUpperCase()} · ${FACTIONS[this.selectedFaction].short}</small>`;
-      b.onclick=()=>{const d=(prompt("AI raskus: easy / normal / hard","normal")||"normal").toLowerCase() as "easy"|"normal"|"hard";this.el.screen.hidden=true;this.onFaction(this.selectedFaction);this.onSkirmish(m,(d==="easy"||d==="hard")?d:"normal")};
+      b.innerHTML=`<span>${m.map.name}</span><small>${m.map.theme.toUpperCase()} · vali esmalt mängurežiim</small>`;
+      b.onclick=()=>this.chooseSkirmish([m],"skirmish");
       list.appendChild(b);
     }
     card.appendChild(list);
   }
+
+  private chooseSkirmish(missions: readonly MissionDef[], mode: MatchMode): void {
+    const card=this.el.scrB.parentElement!; card.querySelectorAll(".mode-grid,.mission-list").forEach(n=>n.remove());
+    this.el.scrT.textContent=`${mode.toUpperCase()} · KAART`;
+    this.el.scrP.textContent=`${MODE_RULES[mode].description} Vali kaart ja seejärel AI raskus.`;
+    const list=document.createElement("div"); list.className="mission-list";
+    for(const m of missions){ const b=document.createElement("button"); b.className="mission-choice"; b.innerHTML=`<span>${m.map.name}</span><small>${m.map.theme.toUpperCase()}</small>`; b.onclick=()=>{ const d=(prompt("AI raskus: easy / normal / hard","normal")||"normal").toLowerCase() as "easy"|"normal"|"hard"; this.el.screen.hidden=true; this.onSkirmish(m,(d==="easy"||d==="hard")?d:"normal",mode); }; list.appendChild(b); }
+    card.appendChild(list);
+  }
+
+  dismissBriefing(): void { this.el.screen.hidden = true; }
 
   showBriefing(mission: MissionDef, onStart: () => void, hasSave = false, onLoad: (() => void) | null = null): void {
     this.el.scrB.hidden = false;
@@ -484,10 +555,11 @@ export class Hud {
     }
   }
 
-  showResult(status: "won" | "lost", time: number): void {
+  showResult(status: "won" | "lost", time: number, reason = "Lahing lõppenud", nextMission?: string): void {
     this.screen(status === "won" ? "Võit" : "Kaotus",
-      (status === "won" ? "Vaenlase komandopunkt on hävitatud." : "Sinu komandopunkt langes.") + " Aeg: " + fmt(time) + ".",
-      "Mängi uuesti", () => location.reload());
+      reason + " · Aeg: " + fmt(time) + ".",
+      nextMission ? "Järgmine operatsioon" : "Mängi uuesti", () => { if(nextMission) location.href=`${location.pathname}?mission=${encodeURIComponent(nextMission)}&faction=${this.selectedFaction}`; else location.reload(); });
+    const menu=document.createElement("button");menu.className="secondary";menu.textContent="Peamenüü";menu.onclick=()=>{location.href=location.pathname;};this.el.scrB.parentElement?.appendChild(menu);
   }
 
   private screen(title: string, text: string, button: string, onClick: () => void): void {

@@ -1,0 +1,7 @@
+Phase 71 — Integration Pass
+- Restored functional UI HUD from Phase 69 artifact.
+- Added World.productionOperational() and operationalProducers().
+- Added World.operationalStatus() for HUD/AI integration.
+- Production now stalls on lost command, critical power, logistics or required strategy branch.
+- Existing production queues survive temporary infrastructure outages.
+- Production command checks operational state before charging a new queue item.

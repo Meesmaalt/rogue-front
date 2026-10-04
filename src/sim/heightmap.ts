@@ -9,6 +9,7 @@ const DEFAULT_BASES: readonly BaseDef[] = [
 ];
 let activeBases: readonly BaseDef[] = DEFAULT_BASES;
 let activeHeightmap: HeightmapSource | null = null;
+let proceduralSeed = 1;
 
 /** Cached height grid (2 m cells) — built once after bases/heightmap are set. */
 const CACHE_CELL = 2;
@@ -23,6 +24,8 @@ export function setBases(bases: readonly BaseDef[]): void {
   activeBases = bases.length ? bases : DEFAULT_BASES;
   cacheValid = false;
 }
+export function setProceduralSeed(seed: number): void { proceduralSeed = seed | 0; cacheValid = false; heightCache = null; }
+
 export function resetHeightmap(): void {
   activeHeightmap = null;
   activeBases = DEFAULT_BASES;
@@ -51,14 +54,23 @@ const smooth = (a: number, b: number, x: number): number => {
   return t * t * (3 - 2 * t);
 };
 
+function hash2(x:number,z:number): number {
+  let n = Math.imul((Math.floor(x)+proceduralSeed)|0, 374761393) ^ Math.imul((Math.floor(z)+proceduralSeed*31)|0, 668265263);
+  n = Math.imul(n ^ (n >>> 13), 1274126177); n ^= n >>> 16;
+  return (n >>> 0) / 4294967295;
+}
+function valueNoise(x:number,z:number,scale:number): number {
+  const fx=x/scale,fz=z/scale,x0=Math.floor(fx),z0=Math.floor(fz),tx=fx-x0,tz=fz-z0;
+  const h=(ix:number,iz:number)=>hash2(ix*scale,iz*scale);
+  const sx=tx*tx*(3-2*tx),sz=tz*tz*(3-2*tz);
+  const a=h(x0,z0)*(1-sx)+h(x0+1,z0)*sx,b=h(x0,z0+1)*(1-sx)+h(x0+1,z0+1)*sx;
+  return a*(1-sz)+b*sz;
+}
 function rawH(x: number, z: number): number {
-  // Gentler rolling dunes – less crater-like bowls
-  return (
-    Math.sin(x * 0.018 + 1.7) * Math.cos(z * 0.015) * 5.5 +
-    Math.sin(x * 0.038 + z * 0.032) * 2.0 +
-    Math.sin(x * 0.09) * Math.sin(z * 0.08 + 2) * 0.7 +
-    Math.cos((x + z) * 0.007) * 3.5
-  );
+  const broad=(valueNoise(x,z,90)-0.5)*22;
+  const medium=(valueNoise(x+17,z-11,38)-0.5)*9;
+  const fine=(valueNoise(x-9,z+23,15)-0.5)*3;
+  return broad+medium+fine;
 }
 
 function proceduralHeight(x: number, z: number): number {

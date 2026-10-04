@@ -1,6 +1,6 @@
 import type { Point } from "./types";
 
-export type MapFeatureKind = "road" | "bridge" | "building" | "wall" | "chokepoint" | "cover" | "gate";
+export type MapFeatureKind = "road" | "bridge" | "building" | "wall" | "chokepoint" | "cover" | "gate" | "water";
 
 export interface MapFeatureDef {
   id: string;
@@ -17,7 +17,7 @@ export interface MapFeatureDef {
 }
 
 export function featureBlocksMovement(feature: MapFeatureDef): boolean {
-  return feature.blocksMovement ?? ["building", "wall", "chokepoint"].includes(feature.kind);
+  return feature.blocksMovement ?? ["building", "wall", "chokepoint", "water"].includes(feature.kind);
 }
 
 export function featureCorners(f: MapFeatureDef): Point[] {

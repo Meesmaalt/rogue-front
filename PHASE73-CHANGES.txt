@@ -1,0 +1,5 @@
+Phase 73 — Building Visual Upgrade 2.0
+- Replaced generic building-level marker geometry with architecture-specific level modules.
+- Level 2 adds physical expansion wings, equipment, storage and service modules.
+- Level 3 adds major central structures, towers, radar dishes, silos and command infrastructure.
+- Visual state remains driven directly by buildingLevel 1-3.

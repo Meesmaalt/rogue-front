@@ -1,0 +1,68 @@
+
+.deck-builder {
+  position: fixed; inset: 0; z-index: 40;
+  background: rgba(4, 8, 12, 0.88);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.deck-builder.hidden { display: none; }
+.deck-panel {
+  width: min(960px, 100%);
+  max-height: 92vh;
+  overflow: auto;
+  background: linear-gradient(160deg, #1a222c, #12181f);
+  border: 1px solid #3a4654;
+  border-radius: 10px;
+  padding: 18px 20px 14px;
+  color: #e8eef4;
+  font-family: Barlow, system-ui, sans-serif;
+}
+.deck-head h1 {
+  margin: 0 0 6px;
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-size: 28px;
+}
+.deck-blurb { margin: 0 0 12px; color: #9aafc0; font-size: 14px; }
+.deck-factions { display: flex; gap: 8px; margin-bottom: 12px; }
+.deck-fac {
+  background: #243040; border: 1px solid #3a4a5a; color: #cde;
+  padding: 6px 14px; cursor: pointer; font-weight: 600;
+}
+.deck-fac.active { border-color: #d4a84b; background: #3a3420; color: #ffe6a0; }
+.deck-budget {
+  margin-bottom: 12px; padding: 8px 12px;
+  background: #1c2834; border-radius: 6px; font-size: 14px;
+}
+.deck-budget.over { background: #3a2020; color: #f0a0a0; }
+.deck-ok { color: #8dca8d; margin-left: 12px; }
+.deck-errs { color: #e08070; margin-left: 12px; }
+.deck-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.deck-card {
+  background: #1e2832;
+  border: 1px solid #334;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 12px;
+}
+.deck-card.in { border-color: #6a9a6a; background: #1a2a22; }
+.deck-card-top { display: flex; justify-content: space-between; color: #8af; font-size: 10px; text-transform: uppercase; }
+.deck-name { font-weight: 600; margin: 4px 0; font-size: 13px; }
+.deck-meta { color: #8899aa; margin-bottom: 6px; }
+.deck-stepper { display: flex; align-items: center; gap: 8px; }
+.deck-stepper button {
+  width: 28px; height: 26px; background: #2a3a4a; border: 1px solid #456; color: #fff; cursor: pointer;
+}
+.deck-foot { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.deck-foot button {
+  padding: 8px 14px; border: 1px solid #456; background: #2a3540; color: #eef; cursor: pointer; font-weight: 600;
+}
+.deck-play { background: #3a5a3a !important; border-color: #6a9a6a !important; }
+.deck-play:disabled { opacity: 0.45; cursor: not-allowed; }
+.deck-ability{font-size:11px;line-height:1.25;opacity:.68;margin-top:4px;min-height:28px}

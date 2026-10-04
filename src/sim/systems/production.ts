@@ -1,13 +1,14 @@
 import type { World } from "../World";
 import { UNITS } from "../units";
 import type { Entity, UnitKind } from "../types";
+import { BUILDINGS } from "../buildings";
 
 function producerKind(kind: UnitKind): "barracks" | "factory" | "helipad" | "airbase" | "shipyard" | null {
-  if (kind === "inf" || kind === "engineer" || kind === "special") return "barracks";
-  if (kind === "tank" || kind === "apc" || kind === "ifv" || kind === "artillery" || kind === "mlrs") return "factory";
-  if (kind === "heli" || kind === "transport" || kind === "gunship") return "helipad";
-  if (kind === "fighter" || kind === "interceptor" || kind === "bomber") return "airbase";
-  if (kind === "destroyer" || kind === "submarine" || kind === "landingcraft") return "shipyard";
+  if (["inf","engineer","special","atInf","mgInf","reconInf","sniper","mortar","manpad","atgm"].includes(kind)) return "barracks";
+  if (["tank","apc","ifv","artillery","mlrs","reconVehicle","lightTank","tankDestroyer","spaa"].includes(kind)) return "factory";
+  if (["heli","transport","gunship","casHeli"].includes(kind)) return "helipad";
+  if (["fighter","interceptor","bomber","ecm","multirole","attackAircraft"].includes(kind)) return "airbase";
+  if (["destroyer","submarine","landingcraft","frigate","missileBoat"].includes(kind)) return "shipyard";
   return null;
 }
 
@@ -16,12 +17,17 @@ function exitPoint(producer: Entity, distance: number): { x: number; z: number }
   return { x: producer.x + dx * distance, z: producer.z + dz * distance };
 }
 
-function spawnProduced(w: World, producer: Entity, kind: UnitKind): void {
-  const p = exitPoint(producer, (producer.kind === "helipad" || producer.kind === "airbase") ? 10 : 9);
-  const u = w.spawn(kind, producer.team, p.x + (w.rng() - 0.5) * 3, p.z + (w.rng() - 0.5) * 3);
+function spawnProduced(w: World, producer: Entity, kind: UnitKind): boolean {
+  const battlegroup = w.battlegroupForTeam(producer.team);
+  if (battlegroup && kind !== "engineer" && !battlegroup.deploy(kind, 1)) return false;
+  const counts = w.producedForTeam(producer.team);
+  if (w.networkMode || producer.team === w.playerTeam) counts[kind] = (counts[kind] ?? 0) + 1;
+  const p = exitPoint(producer,Math.max(10,producer.def.radius+UNITS[kind].radius+4));
+  const u = w.spawn(kind, producer.team, p.x, p.z);
   if (u.def.armor === "air") { u.airState = "grounded"; u.airMissionHomeId = producer.id; u.airSortieTime = 0; }
   if (producer.preDeployOrder) { const o = producer.preDeployOrder; u.mode = o.mode === "attack" ? "amove" : o.mode; u.dest = o.x !== undefined && o.z !== undefined ? {x:o.x,z:o.z} : null; if (o.mode === "hold") u.holdPosition = true; }
   if (kind === "special") { u.supply = 100; }
+  if (producer.preDeployOrder) return true;
   if (kind === "transport") {
     // Toodetud transport on taktikaline vägede transport.
     // Supply-helicopterid tulevad Supply Depotidele automaatselt väljastpoolt kaarti.
@@ -32,6 +38,7 @@ function spawnProduced(w: World, producer: Entity, kind: UnitKind): void {
     u.mode = rally ? "move" : "idle";
     u.dest = rally ? { ...rally } : null;
   }
+  return true;
 }
 
 export function updateProduction(w: World, dt: number): void {
@@ -40,12 +47,35 @@ export function updateProduction(w: World, dt: number): void {
     const kind = producer.productionQueue[0];
     const buildingKind = producerKind(kind);
     if (producer.kind !== buildingKind) continue;
+    if (!w.canProduceAtLevel(producer, kind)) { producer.productionQueue.shift(); continue; }
+    // Phase 71: queued production is persistent, but progress stops while the
+    // producer loses command, power, logistics or its strategic branch.
+    // This makes destroying a command node/logistics route materially affect the base.
+    const operational = w.productionOperational(producer, kind);
+    if (!operational.operational) continue;
     const powerRatio = w.powerStatus(producer.team).ratio;
-    producer.productionProgress += dt * Math.max(0.2, powerRatio);
+    const baseSpeed = BUILDINGS[producer.kind as keyof typeof BUILDINGS]?.productionSpeed ?? 1;
+    const level = w.producerLevel(producer);
+    const levelSpeed = level >= 3 ? 1.65 : level >= 2 ? 1.35 : 1;
+    const commandKind=["barracks","factory"].includes(producer.kind)?"landCommand":["helipad","airbase"].includes(producer.kind)?"airCommand":"seaCommand";
+    const commandLevel=w.entities.filter(e=>!e.dead&&!e.underConstruction&&e.team===producer.team&&e.kind===commandKind).reduce((n,e)=>Math.max(n,w.producerLevel(e)),1);
+    const commandBonus=1+(commandLevel-1)*.12;
+    const strategyBonus =
+      (["barracks","factory"].includes(producer.kind) && w.hasBuilding(producer.team, "landStrategy")) ||
+      (["helipad","airbase"].includes(producer.kind) && w.hasBuilding(producer.team, "airStrategy")) ||
+      (producer.kind === "shipyard" && w.hasBuilding(producer.team, "seaStrategy")) ? 1.12 : 1;
+    const depot = w.nearestSupplyDepot(producer.team, producer, true);
+    if (!depot) continue;
+    const wanted = dt * Math.max(0.2, powerRatio) * baseSpeed * levelSpeed * strategyBonus * commandBonus;
+    const materialRate = Math.max(1, UNITS[kind].cost / Math.max(1, UNITS[kind].buildTime) * 0.12);
+    const progress = Math.min(wanted, (depot.ammoStock ?? 0) / materialRate, (depot.fuelStock ?? 0) / materialRate);
+    depot.ammoStock = Math.max(0, (depot.ammoStock ?? 0) - progress * materialRate);
+    depot.fuelStock = Math.max(0, (depot.fuelStock ?? 0) - progress * materialRate);
+    producer.productionProgress += progress;
     if (producer.productionProgress < UNITS[kind].buildTime) continue;
+    if (!spawnProduced(w, producer, kind)) continue;
     producer.productionProgress = 0;
     producer.productionQueue.shift();
-    spawnProduced(w, producer, kind);
   }
   const first = w.entities.find(e => !e.dead && e.team === w.playerTeam && e.productionQueue.length);
   w.queue = first ? [...first.productionQueue] : [];

@@ -1,0 +1,30 @@
+Phase 59 — Wargame Combat Model
+===============================
+
+Goal:
+- Make combat depend on platform characteristics instead of a single raw damage number.
+- Preserve the Real War logistics layer from Phase 58.
+
+Implemented:
+- Per-platform accuracy profiles for infantry, armor, ATGM, artillery, air and naval units.
+- Per-platform penetration values.
+- Target-size modifier and range-based accuracy falloff.
+- Stabilizer effect on accuracy while moving.
+- Morale/suppression effects on accuracy.
+- Veteran accuracy improvement.
+- ECM disruption for guided/air weapons.
+- Projectile-level hit chance resolved by the deterministic simulation RNG.
+- Face-aware armor: front / side / rear values affect penetration and damage.
+- Penetration threshold: under-penetrating hits deal substantially less damage; overmatch is rewarded.
+- Temporary vehicle disablement on some penetrating hits.
+- Disabled vehicles move slowly and cannot fire until the effect expires.
+- Platform-specific reload skill affects practical rate of fire.
+- HUD now exposes accuracy, penetration and reload factor for selected units.
+
+Design direction for Phase 60:
+- Physical logistics: ammunition/fuel depots, truck convoys, forward resupply, repair/rearm/refuel points.
+- Supply routes and interdiction should become operational gameplay rather than passive regeneration.
+
+Verification:
+- Source-level structural checks completed.
+- Full npm typecheck/test could not be run because the environment's npm dependency installation timed out; node_modules remained incomplete (missing vite/client types).

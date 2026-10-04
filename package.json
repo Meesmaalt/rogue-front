@@ -11,7 +11,8 @@
     "test": "vitest run",
     "lint": "npx --yes eslint .",
     "format:check": "npx --yes prettier --check \"README.md\" \"docs/**/*.md\" \".github/**/*.yml\" \"*.json\"",
-    "format": "npx --yes prettier --write \"src/**/*.{ts,css}\" \"*.{json,md,yml,yaml}\""
+    "format": "npx --yes prettier --write \"src/**/*.{ts,css}\" \"*.{json,md,yml,yaml}\"",
+    "art:build": "python3 scripts/art/paint-camouflage.py && node scripts/art/build-models.mjs"
   },
   "dependencies": {
     "three": "^0.170.0"

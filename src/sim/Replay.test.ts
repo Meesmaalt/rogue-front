@@ -1,3 +1,4 @@
+import { SIM_STEP } from "./constants";
 import { describe, expect, it } from "vitest";
 import { ReplayRecorder, replay, worldHash } from "./Replay";
 import { createSkirmish } from "./scenario";

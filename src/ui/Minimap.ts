@@ -74,7 +74,7 @@ export class Minimap {
     for (const f of this.world.mapFeatures) {
       const [mx, my] = this.w2m(f.x, f.z);
       c.save(); c.translate(mx, my); c.rotate(f.rotation ?? 0);
-      c.fillStyle = f.kind === "road" || f.kind === "bridge" ? "rgba(210,190,150,.48)" : featureBlocksMovement(f) ? "rgba(45,48,50,.78)" : "rgba(180,170,140,.35)";
+      c.fillStyle = f.kind === "water" ? "rgba(55,105,125,.72)" : f.kind === "road" || f.kind === "bridge" ? "rgba(210,190,150,.48)" : featureBlocksMovement(f) ? "rgba(45,48,50,.78)" : "rgba(180,170,140,.35)";
       c.fillRect(-f.width / MAP_SIZE * S / 2, -f.depth / MAP_SIZE * S / 2, f.width / MAP_SIZE * S, f.depth / MAP_SIZE * S);
       c.restore();
     }
@@ -103,6 +103,22 @@ export class Minimap {
     }
     c.drawImage(this.fogCache, 0, 0);
 
+    // Industrial/resource sites: territory is economically meaningful, not just a score point.
+    for (const r of this.world.resourcePoints) {
+      if (r.controlledBy !== this.world.playerTeam && !this.world.vision.isVisible(this.world.playerTeam, r.x, r.z)) continue;
+      const [mx, my] = this.w2m(r.x, r.z);
+      const size = 3.5 + Math.min(2, r.level ?? 1);
+      c.save();
+      c.globalAlpha = r.controlledBy === this.world.playerTeam ? 0.95 : 0.65;
+      c.strokeStyle = r.active ? "#f1c76b" : "#a8a8a8";
+      c.fillStyle = r.controlledBy === this.world.playerTeam ? "rgba(241,199,107,.22)" : "rgba(160,160,160,.15)";
+      c.lineWidth = 1.2;
+      if (r.facility === "factory") { c.fillRect(mx-size,my-size,size*2,size*2); c.strokeRect(mx-size,my-size,size*2,size*2); }
+      else if (r.facility === "oilfield") { c.beginPath(); c.arc(mx,my,size,0,Math.PI*2); c.fill(); c.stroke(); c.beginPath(); c.moveTo(mx,my-size-2); c.lineTo(mx+2,my-1); c.lineTo(mx,my+size+2); c.lineTo(mx-2,my-1); c.closePath(); c.stroke(); }
+      else { c.beginPath(); c.arc(mx,my,size,0,Math.PI*2); c.fill(); c.stroke(); }
+      c.restore();
+    }
+
     // Intel contacts (X marks)
     for (const contact of this.world.getIntel(this.world.playerTeam, true)) {
       if (this.world.vision.isVisible(this.world.playerTeam, contact.x, contact.z)) continue;
@@ -123,7 +139,7 @@ export class Minimap {
     for (const u of this.world.entities) {
       if (u.dead) continue;
       if (u.team !== this.world.playerTeam) {
-        const spotted = this.world.isSpottedByTeam(u, this.world.playerTeam) || this.world.vision.isVisible(this.world.playerTeam, u.x, u.z);
+        const spotted = this.world.isSpottedByTeam(u, this.world.playerTeam);
         if (!spotted) continue;
       }
       const [mx, my] = this.w2m(u.x, u.z);

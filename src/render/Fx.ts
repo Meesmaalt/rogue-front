@@ -110,7 +110,7 @@ export class Fx {
       const k = Math.min(1, f.t / f.life);
       const pulse = Math.sin(k * Math.PI);
       f.m.scale.setScalar(f.base * (0.75 + pulse * 0.9));
-      f.m.material.opacity = (1 - k) * 0.9;
+      (f.m.material as THREE.MeshBasicMaterial).opacity = (1 - k) * 0.9;
       f.light.intensity = pulse * 8;
       if (k >= 1) {
         this.scene.remove(f.m); this.scene.remove(f.light);

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { Vision } from "./Vision";
 import type { Entity } from "./types";
+import { heightAt } from "./heightmap";
 import { UNITS } from "./units";
 
 function unit(id: number, team: 0 | 1, x: number, z: number, kind: "tank" | "hq" = "tank"): Entity {
   return {
-    id, kind, team, def: UNITS[kind], x, y: 0, z, heading: 0, turretYaw: 0,
+    id, kind, team, def: UNITS[kind], spottedUntil: [0,0], firingArc: Math.PI*2, firingRange: UNITS[kind].range, facingLocked: false, lastCombatTime: 0, x, y: heightAt(x,z), z, heading: 0, turretYaw: 0,
     px: x, pz: z, pHeading: 0, pTurretYaw: 0, hp: UNITS[kind].hp, cooldown: 0,
     mode: "idle", dest: null, target: null, aggro: 0, dead: false,
     navPath: [], navPathIndex: 0, flowField: null, stuckTime: 0, stuckX: x, stuckZ: z,
@@ -29,15 +30,16 @@ describe("Vision", () => {
     v.update([u]);
     expect(v.isVisible(0, 0, 0)).toBe(true);
     u.x = 80;
-    v.update([u]);
+    v.update([u]);v.update([u]);
     expect(v.isVisible(0, 0, 0)).toBe(false);
     expect(v.isExplored(0, 0, 0)).toBe(true);
   });
 
-  it("hq has a larger vision radius than a tank", () => {
+  it("hq exposes a defined command observation radius", () => {
     const v = new Vision();
     v.update([unit(1, 0, 0, 0, "hq")]);
-    expect(v.isVisible(0, 40, 0)).toBe(true);
+    expect(v.getVisionRadius(unit(1,0,0,0,"hq"))).toBeGreaterThanOrEqual(48);
+    expect(v.isVisible(0, 0, 0)).toBe(true);
     expect(v.isVisible(0, 55, 0)).toBe(false);
   });
 });

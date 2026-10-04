@@ -1,0 +1,23 @@
+PHASE 66 — VISUAL MODEL OVERHAUL
+
+Focus changed from new gameplay systems to model quality/readability.
+
+Ground:
+- More detailed tank, light tank, tank destroyer and SPAA silhouettes.
+- Separate wheeled recon vehicle and tracked combat vehicle construction.
+- Tracks/wheels now have visible hubs and running gear.
+- Added optics, antennas, rear equipment and weapon details.
+- Infantry, special forces and engineers are now small squads rather than one oversized soldier.
+- APC/IFV/artillery/MLRS/logistics silhouettes remain distinct.
+
+Air:
+- Attack helicopter / transport helicopter / ECM / multirole silhouettes are separated.
+- Aircraft receive canopies, intakes, pylons and sensor hints.
+
+Buildings:
+- HQ, barracks, factory, helipad, airbase, refinery, supply and radar receive additional structural details.
+- Added windows, doors, rooftop equipment, crates, antennas and industrial fixtures.
+
+Rendering:
+- Existing GLB asset pipeline is preserved for future bespoke models.
+- Procedural models remain the deterministic fallback and are the primary art-pass path.

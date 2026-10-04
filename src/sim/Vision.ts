@@ -16,7 +16,6 @@ export class Vision {
     new Uint8Array(VISION_CELLS * VISION_CELLS),
     new Uint8Array(VISION_CELLS * VISION_CELLS),
   ];
-  private features: readonly MapFeatureDef[] = [];
   /** Only static blocking features (pre-filtered). */
   private blockingFeatures: MapFeatureDef[] = [];
   /** Buildings that block LOS (speed === 0). Updated each vision tick. */
@@ -24,8 +23,14 @@ export class Vision {
   private tickCounter = 0;
 
   setFeatures(features: readonly MapFeatureDef[]): void {
-    this.features = features;
     this.blockingFeatures = features.filter((f) => featureBlocksMovement(f));
+  }
+  snapshot(): { states: [number[],number[]]; tickCounter: number } {
+    return {states:[Array.from(this.states[0]),Array.from(this.states[1])],tickCounter:this.tickCounter};
+  }
+  restore(s: ReturnType<Vision["snapshot"]>, entities: readonly Entity[]): void {
+    this.states[0].set(s.states[0]); this.states[1].set(s.states[1]); this.tickCounter=s.tickCounter;
+    this.buildings=entities.filter(e=>!e.dead&&e.def.speed===0);
   }
   reset(): void {
     this.states[0].fill(0);
@@ -116,12 +121,11 @@ export class Vision {
    */
   update(entities: readonly Entity[]): void {
     this.tickCounter++;
+    if (this.tickCounter > 1 && this.tickCounter % 3 !== 0) return;
     for (const team of [0, 1] as const) {
       const c = this.states[team];
       for (let i = 0; i < c.length; i++) if (c[i] === 2) c[i] = 1;
     }
-
-    if (this.tickCounter > 1 && this.tickCounter % 3 !== 0) return;
 
     this.buildings = [];
     for (const e of entities) {
@@ -129,10 +133,8 @@ export class Vision {
     }
 
     // Stagger unit reveals by id across frames when many units
-    const stagger = this.tickCounter % 2;
     for (const u of entities) {
-      if (u.dead) continue;
-      if (u.def.speed > 0 && (u.id & 1) !== stagger && this.tickCounter > 3) continue;
+      if (u.dead || u.loadedIntoId!=null || u.underConstruction) continue;
       const radius = this.getVisionRadius(u);
       this.reveal(u.team, u.x, u.z, radius, u);
     }
@@ -143,7 +145,7 @@ export class Vision {
     if (u.def.opticsRange) {
       const base = u.def.opticsRange;
       if (u.kind === "hq") return Math.max(base, 48);
-      if (u.kind === "radar") return Math.max(base, 90);
+      if (u.kind === "radar") return Math.max(base, 90)*(1+((u.buildingLevel??1)-1)*.175);
       return base;
     }
     if (u.kind === "hq") return 48;
@@ -190,7 +192,7 @@ export class Vision {
         if (!this.inBounds(ix, iz)) continue;
         const p = this.cellToWorld(ix, iz);
         const dist2 = (p.x - x) * (p.x - x) + (p.z - z) * (p.z - z);
-        if (dist2 > r2) continue;
+        if (dist2 > r2 || cells[this.index(ix,iz)]===2) continue;
 
         // Close: free
         if (dist2 < nearR2) {
@@ -207,6 +209,10 @@ export class Vision {
           const sx = x + (p.x - x) * t;
           const sz = z + (p.z - z) * t;
           if (heightAt(sx, sz) + 0.8 > ay + (by - ay) * t) {
+            blocked = true;
+            break;
+          }
+          if (this.blockingFeatures.some(f => pointInFeature(sx, sz, f, 0.25))) {
             blocked = true;
             break;
           }

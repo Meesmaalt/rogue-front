@@ -19,7 +19,7 @@ export function updateConstruction(w: World, dt: number): void {
     if (building.underConstruction) {
       building.builderIds = builders.map(b => b.id).slice(0, spec.maxBuilders);
       const active = builders.filter(b => dist2d(b, building) <= 13).slice(0, spec.maxBuilders);
-      const rate = active.length * dt;
+      const rate = (building.upgrading ? 1 : active.length) * dt;
       if (rate > 0) {
         building.constructionProgress += rate;
         if (building.upgrading) building.upgradeProgress = building.constructionProgress;
@@ -33,10 +33,19 @@ export function updateConstruction(w: World, dt: number): void {
         building.constructionProgress = building.constructionTime;
         building.underConstruction = false;
         if (building.upgrading && building.upgradeKind === "producer") {
-          building.upgrades.add("producer-2");
+          building.buildingLevel = Math.min(3, (building.buildingLevel ?? (building.upgrades.has("producer-3") ? 3 : building.upgrades.has("producer-2") ? 2 : 1)) + 1);
+          if (building.buildingLevel >= 2) building.upgrades.add("producer-2");
+          if (building.buildingLevel >= 3) building.upgrades.add("producer-3");
           building.upgrading = false; building.upgradeProgress = building.upgradeTime = 0; building.upgradeKind = undefined;
-          building.hp = building.def.hp * 1.15;
+          building.def = { ...building.def, hp: building.def.hp * 1.15 };
+          building.hp = building.def.hp;
         }
+        if (!building.upgrading) building.hp=building.def.hp;
+        if (building.kind === "supply") {
+          building.supplyLevel=Math.max(building.supplyLevel??0,(building.buildingLevel??1)-1);
+          building.logisticsMaxStorage=900+((building.buildingLevel??1)-1)*700;
+        }
+        w.invalidateNavigation();
         building.builderIds = [];
         for (const b of builders) {
           if (b.target === building) { b.target = null; b.dest = null; b.mode = "idle"; }
@@ -50,7 +59,12 @@ export function updateConstruction(w: World, dt: number): void {
     if (building.hp < building.def.hp && building.builderIds.length) {
       const active = builders.filter(b => dist2d(b, building) <= 13);
       if (active.length) {
-        building.hp = Math.min(building.def.hp, building.hp + active.length * spec.repairPerSec * dt);
+        const depot = w.nearestSupplyDepot(building.team, {x:building.x,z:building.z}, true);
+        const available = depot && dist2d(depot,building)<80 ? depot.repairStock??0 : 0;
+        const wanted = active.length * spec.repairPerSec * w.repairMultiplier(building.team) * dt;
+        const repair = Math.min(wanted, available);
+        if (depot) depot.repairStock = Math.max(0, available - repair);
+        building.hp = Math.min(building.def.hp, building.hp + repair);
         for (const b of active) { b.mode = "repair"; b.dest = { x: building.x, z: building.z }; b.target = building; }
         if (building.hp >= building.def.hp - 0.01) {
           building.hp = building.def.hp; building.builderIds = [];

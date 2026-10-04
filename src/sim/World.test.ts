@@ -42,7 +42,7 @@ describe("World", () => {
   it("tootmine kulutab krediiti ja loob üksuse", () => {
     const w = new World(1);
     w.spawn("hq", 0, BASES[0].x, BASES[0].z);
-    w.spawn("factory", 0, BASES[0].x + 14, BASES[0].z);
+    w.spawn("factory", 0, BASES[0].x + 14, BASES[0].z); w.spawn("generator",0,BASES[0].x,BASES[0].z+18); w.spawn("supply",0,BASES[0].x+18,BASES[0].z+18); w.spawn("landCommand",0,BASES[0].x-18,BASES[0].z);
     const before = w.entities.length;
     w.issue({ type: "produce", kind: "tank" });
     w.tick(SIM_STEP);
@@ -54,8 +54,8 @@ describe("World", () => {
   it("ei luba toota ilma krediidita", () => {
     const w = new World(1);
     w.spawn("hq", 0, BASES[0].x, BASES[0].z);
-    w.spawn("factory", 0, BASES[0].x + 14, BASES[0].z);
-    w.credits = 10;
+    w.spawn("factory", 0, BASES[0].x + 14, BASES[0].z); w.spawn("generator",0,BASES[0].x,BASES[0].z+18); w.spawn("supply",0,BASES[0].x+18,BASES[0].z+18); w.spawn("landCommand",0,BASES[0].x-18,BASES[0].z);
+    w.credits = 10; w.teamCredits[0]=10;
     w.issue({ type: "produce", kind: "tank" });
     w.tick(SIM_STEP);
     expect(w.queue.length).toBe(0);

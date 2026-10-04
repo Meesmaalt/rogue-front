@@ -1,0 +1,21 @@
+Phase 58 — Units / Buildings / Logistics
+========================================
+
+Modified:
+- src/sim/types.ts
+- src/sim/units.ts
+- src/sim/World.ts
+- src/sim/buildings.ts
+- src/sim/systems/production.ts
+- src/sim/systems/commands.ts
+- src/sim/systems/tacticalSupply.ts
+- src/sim/systems/combat.ts
+- src/ui/Hud.ts
+- src/ui/hud.css
+- README.md
+- docs/PHASE58-UNIT-BUILDING-DEPTH.md
+
+Verification:
+- units.json parses successfully.
+- Static checks confirm new logistics fields, building roles, producer mappings and ammo consumption.
+- Full TypeScript typecheck could not be completed because the temporary npm install timed out and left node_modules incomplete (the source package itself is unchanged).

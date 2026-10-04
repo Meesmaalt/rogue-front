@@ -2,10 +2,10 @@ import type { FlowField } from "./nav/FlowField";
 import type { MapFeatureDef } from "./mapFeatures";
 export type Team = 0 | 1;
 export type UnitKind =
-  | "tank" | "apc" | "ifv" | "inf" | "bunker" | "hq" | "engineer"
-  | "heli" | "transport" | "gunship" | "fighter" | "interceptor" | "bomber"
-  | "artillery" | "mlrs" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase"
-  | "supply" | "radar" | "generator" | "destroyer" | "submarine" | "landingcraft" | "special"
+  | "tank" | "apc" | "ifv" | "inf" | "atInf" | "mgInf" | "reconInf" | "sniper" | "mortar" | "manpad" | "atgm" | "reconVehicle" | "lightTank" | "tankDestroyer" | "spaa" | "bunker" | "hq" | "engineer"
+  | "heli" | "transport" | "cargoPlane" | "gunship" | "casHeli" | "fighter" | "interceptor" | "bomber" | "ecm" | "multirole" | "attackAircraft"
+  | "artillery" | "mlrs" | "logiTruck" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase"
+  | "supply" | "radar" | "generator" | "destroyer" | "submarine" | "landingcraft" | "frigate" | "missileBoat" | "special"
   | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer"
   | "landStrategy" | "airStrategy" | "seaStrategy";
 export type Mode = "idle" | "move" | "attack" | "amove" | "patrol" | "hold" | "build" | "repair" | "transport-load" | "transport-unload" | "standing" | "sabotage";
@@ -41,6 +41,25 @@ export interface UnitDef {
   discipline?: Discipline;
   /** Sensor range multiplier baseline (metres-ish). */
   opticsRange?: number;
+  /** Human-readable tactical role/ability for UI and AI. */
+  roleLabel?: string;
+  ability?: string;
+  /** Optional hard target domain restriction. */
+  targetClass?: "ground" | "air" | "armor" | "naval" | "all";
+  /** Phase 58 logistics model: per-platform ammunition/fuel and consumption. */
+  ammoCapacity?: number;
+  fuelCapacity?: number;
+  ammoUsePerShot?: number;
+  fuelUsePerSec?: number;
+  supplyUsePerSec?: number;
+  resupplyRate?: number;
+  crew?: number;
+  repairable?: boolean;
+  /** Phase 59 combat model: weapon accuracy, penetration and suppression profile. */
+  accuracy?: number;
+  penetration?: number;
+  suppressionPower?: number;
+  reloadSkill?: number;
 }
 export interface Point { x: number; z: number }
 
@@ -66,17 +85,51 @@ export interface Entity {
   /** Game-time until which each team has this unit spotted (Wargame contact). */
   spottedUntil: [number, number];
   suppression?: number;
+  squadMembers?: number; squadMaxMembers?: number; squadFirepower?: number;
+  squadRole?: "rifle" | "at" | "mg" | "recon" | "sniper" | "manpad" | "engineer";
+  roadTripGoal?: Point;
+  roadPathGoal?: Point;
+  roadPathRetryAt?: number;
+  components?: { engine: number; tracks: number; turret: number; weapon: number; crew: number; ammo: number };
  supply?: number; maxSupply?: number; role?: "line" | "support" | "siege" | "air-superiority" | "air-ground" | "logistics"; holdPosition: boolean; patrolPoints: Point[]; patrolIndex: number; upgrades: Set<string>; cargo: number; logisticsTarget: Point | null; logisticsHome: Point | null; logisticsPhase: "idle" | "loading" | "unloading"; productionQueue: UnitKind[]; productionProgress: number; rallyPoint: Point | null;
   constructionProgress: number;
   upgrading?: boolean; upgradeProgress?: number; upgradeTime?: number; upgradeKind?: "producer";
+  /** Phase 69: visual/technology building level (1-3). */
+  buildingLevel?: number;
   logisticsLoadProgress?: number;
+  /** Phase 62: road logistics / convoy metadata. */
+  logisticsRoute?: "road" | "air" | "strategic";
+  logisticsCargoCapacity?: number;
+  logisticsPayload?: { ammo: number; fuel: number; repair: number };
+  logisticsDistance?: number;
+  logisticsStorage?: number;
+  logisticsMaxStorage?: number;
+  ammoStock?: number; fuelStock?: number; repairStock?: number;
+  logisticsPriority?: "ammo" | "fuel" | "repair" | "balanced";
+  /** Phase 65: command/logistics network state. */
+  commandNodeId?: number | null;
+  logisticsWaypoints?: Point[];
+  logisticsRouteMode?: "direct" | "safe" | "manual";
+  fobLevel?: number;
   supplyDepotId?: number | null;
+  /** Phase 61: source facility used by physical resource logistics. */
+  logisticsSourceIndex?: number | null;
   supplyLevel?: number;
   strategicTarget?: Point | null; constructionTime: number;
   firingArc: number;
   firingRange: number;
   facingLocked: boolean;
-  fuel?: number; maxFuel?: number; ammo?: number; maxAmmo?: number; airState?: AirState; airMissionHomeId?: number | null; airSortieTime?: number; airMission?: AirMission; airMissionPoint?: Point | null; fireMission?: Point | null; lastCombatTime: number; morale?: number; disabledUntil?: number; builderIds: number[]; underConstruction: boolean; cargoUnitIds: number[]; loadedIntoId: number | null; transportTargetId: number | null; unloadPoint: Point | null; standingOrder?: "hold" | "patrol" | "attack" | "holdfire" | null; priorityFocus?: "supply" | "generator" | "aa" | null; preDeployOrder?: { mode: "move" | "attack" | "hold"; x?: number; z?: number } | null;
+  fuel?: number; maxFuel?: number; ammo?: number; maxAmmo?: number;
+  /** Phase 77 artillery battery state. */
+  artilleryReadyAt?: number; artilleryLastFire?: number; artillerySignatureUntil?: number; artilleryShotsInSalvo?: number; artilleryDisplace?: Point | null; artilleryMissionRound?: number;
+  /** Phase 78 air sortie / weapons state. */
+  airSortieCount?: number; airThreat?: number; airWeaponCooldown?: number; airReturnReason?: "fuel" | "ammo" | "damage" | null;
+  /** Phase 86 dynamic frontline assignment. */
+  frontlineSector?: string;
+  deploymentState?: "reserve" | "deploying" | "frontline" | "fallback";
+  /** Phase 79 AI tactical intent. */
+  aiIntent?: "attack" | "defend" | "recon" | "resupply" | "counterbattery" | "retreat" | null;
+  airState?: AirState; airMissionHomeId?: number | null; airSortieTime?: number; airMission?: AirMission; airMissionPoint?: Point | null; fireMission?: Point | null; lastCombatTime: number; morale?: number; disabledUntil?: number; builderIds: number[]; underConstruction: boolean; cargoUnitIds: number[]; loadedIntoId: number | null; transportTargetId: number | null; unloadPoint: Point | null; standingOrder?: "hold" | "patrol" | "attack" | "holdfire" | null; priorityFocus?: "supply" | "generator" | "aa" | null; preDeployOrder?: { mode: "move" | "attack" | "hold"; x?: number; z?: number } | null;
 }
 
 export interface Projectile {
@@ -84,15 +137,18 @@ export interface Projectile {
   tx: number; tz: number; target: Entity | null; sourceId: number; damage: number; speed: number; splash?: number;
   weapon?: string;
   face?: "front" | "side" | "rear";
+  hitChance?: number;
+  penetration?: number;
+  impactDamage?: number;
 }
 
 export type Command = ({
   type: "move"; ids: number[]; x: number; z: number
 } | { type: "amove"; ids: number[]; x: number; z: number } | { type: "attack"; ids: number[]; targetId: number } |
-  { type: "stop"; ids: number[] } | { type: "repair"; ids: number[]; targetId: number } | { type: "rally"; ids: number[]; x: number; z: number } | { type: "patrol"; ids: number[]; x: number; z: number } | { type: "hold"; ids: number[] } |
-  { type: "build"; ids: number[]; kind: "bunker" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase" | "supply" | "radar" | "generator" | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer" | "landStrategy" | "airStrategy" | "seaStrategy"; x: number; z: number; rotation?: number } |
-  { type: "upgrade"; ids: number[]; upgrade: "armor" | "weapon" | "range" | "supply-depot" | "producer" } |
-  { type: "research"; tech: "air" | "advanced-armor" } | { type: "produce"; kind: UnitKind; producerId?: number } | { type: "cancel-produce"; producerId: number } | { type: "load"; ids: number[]; targetId: number } | { type: "unload"; ids: number[]; x: number; z: number } | { type: "fire-mission"; ids: number[]; x: number; z: number } | { type: "standing"; ids: number[]; mode: "hold" | "patrol" | "attack" | "holdfire"; x?: number; z?: number } | { type: "predeploy"; ids: number[]; mode: "move" | "attack" | "hold"; x?: number; z?: number } | { type: "priority"; ids: number[]; focus: "supply" | "generator" | "aa" } | { type: "air-mission"; ids: number[]; mission: "cap" | "strike" | "sead" | "ground"; x?: number; z?: number }) & { team?: Team };
+  { type: "formation"; kind: "box" | "line" | "wedge" | "column" } | { type: "stop"; ids: number[] } | { type: "repair"; ids: number[]; targetId: number } | { type: "rally"; ids: number[]; x: number; z: number } | { type: "patrol"; ids: number[]; x: number; z: number } | { type: "hold"; ids: number[] } |
+  { type: "build"; ids: number[]; kind: "hq" | "bunker" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase" | "supply" | "radar" | "generator" | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer" | "landStrategy" | "airStrategy" | "seaStrategy"; x: number; z: number; rotation?: number } |
+  { type: "upgrade"; ids: number[]; upgrade: "armor" | "weapon" | "range" | "supply-depot" | "producer" | "fob" } |
+  { type: "research"; tech: "air" | "advanced-armor" } | { type: "produce"; kind: UnitKind; producerId?: number } | { type: "cancel-produce"; producerId: number } | { type: "load"; ids: number[]; targetId: number } | { type: "unload"; ids: number[]; x: number; z: number } | { type: "fire-mission"; ids: number[]; x: number; z: number } | { type: "standing"; ids: number[]; mode: "hold" | "patrol" | "attack" | "holdfire"; x?: number; z?: number } | { type: "predeploy"; ids: number[]; mode: "move" | "attack" | "hold"; x?: number; z?: number } | { type: "priority"; ids: number[]; focus: "supply" | "generator" | "aa" } | { type: "depot-priority"; ids: number[]; focus: "ammo" | "fuel" | "repair" | "balanced" } | { type: "logistics-route"; ids: number[]; x: number; z: number; append?: boolean; clear?: boolean } | { type: "air-mission"; ids: number[]; mission: "cap" | "strike" | "sead" | "ground"; x?: number; z?: number }) & { team?: Team };
 
 export type SimEvent =
   | { type: "fire"; team: Team; x: number; y: number; z: number; sourceId?: number }
@@ -103,7 +159,7 @@ export type SimEvent =
   | { type: "supply-delivered"; team: Team; x: number; z: number; amount: number };
 
 
-export type MissionObjectiveKind = "destroy" | "defend" | "reach" | "survive" | "capture" | "sabotage";
+export type MissionObjectiveKind = "destroy" | "defend" | "reach" | "survive" | "capture" | "sabotage" | "build" | "produce" | "deliver";
 export interface MissionObjectiveDef {
   id: string;
   title: string;
@@ -125,7 +181,22 @@ export interface MissionTriggerDef {
   message?: string;
   spawn?: { kind: UnitKind; team: Team; x: number; z: number; count?: number; spacing?: number };
 }
-export interface MapResourceDef { x: number; z: number; amount: number; radius: number; controlledBy?: Team | null; controlProgress?: number }
+export type ResourceFacilityKind = "mine" | "oilfield" | "factory" | "depot";
+export interface MapResourceDef {
+  x: number; z: number; amount: number; radius: number;
+  controlledBy?: Team | null; controlProgress?: number;
+  facility?: ResourceFacilityKind;
+  level?: number;
+  active?: boolean;
+  startupProgress?: number;
+  maxStock?: number;
+  productionRate?: number;
+  disabledUntil?: number;
+  /** Phase 62: stock physically awaiting a convoy pickup. */
+  exportStock?: number;
+  /** Preferred road collection radius. */
+  roadAccess?: boolean;
+}
 export interface MissionMapDef {
   id: string;
   name: string;

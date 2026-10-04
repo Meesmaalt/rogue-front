@@ -1,0 +1,15 @@
+{
+  "errors": [],
+  "firstTick": true,
+  "canonicalFactions": [
+    "usa",
+    "china"
+  ],
+  "movementBroadcast": true,
+  "reconnected": true,
+  "desyncStoppedBoth": true,
+  "ticks": [
+    20,
+    20
+  ]
+}

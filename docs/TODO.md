@@ -20,13 +20,13 @@ Eesmärk: mängija saab alati aru, *mida* saab ehitada ja *miks* midagi lukus on
 - [x] BUILDS-panel näitab ainult valitud HQ/Command haru `availableBuilds()` järgi
 - [x] Lukustatud nuppudel selge põhjus (puudub generaator / command / energia / limiit)
 - [x] Tree-label uueneb: „EHITUSPUU: HQ“ / „Land Command“ jne
-- [ ] Generaator → supply → landCommand → barracks/factory töötab usaldusväärselt
+- [x] Generaator → supply → landCommand → barracks/factory töötab usaldusväärselt (CoreLoop test + brauseri ehituskontroll)
 - [x] Ehitusprogress: mudel ei muutu „roheliseks ribaks“; progress selge (tehtud)
 
 ## Etapp 2 — Majandus & logistika (RW core)
 - [x] Varustusladu + automaatne supply-heli/õhusild loetav UI-s (ühendatud / katkestatud)
 - [x] Energia riba + puudujäägi mõju tootmisele selgelt näha
-- [ ] Forward depot (edasi lükatud ladu) + kaitse vajadus
+- [x] Forward depot (edasi lükatud ladu) + kaitse vajadus (füüsiline varukonvoi, käsitsi marsruut, piiratud ammo/fuel/repair)
 - [ ] Vaenlase ladude ründamine vähendab tulu (AI ka kasutab)
 
 ## Etapp 3 — Tootmine & pre-deploy
@@ -64,7 +64,7 @@ Eesmärk: mängija saab alati aru, *mida* saab ehitada ja *miks* midagi lukus on
 ## Etapp 8 — Kampaan / sisu
 - [ ] 3+ skirmish kaarti selge logistikateega
 - [ ] Õpetusmissioon: „ehita gen → supply → command → esimesed tankid“
-- [ ] Salvestus / laadimine stabiilne
+- [x] Salvestus / laadimine stabiilne (v19 täisolek; deterministliku jätkamise test ja brauseri kontroll)
 
 ## Hiljem
 - [ ] Multiplayer authoritative / lockstep (olemas skeleton)
@@ -76,3 +76,21 @@ Eesmärk: mängija saab alati aru, *mida* saab ehitada ja *miks* midagi lukus on
 - Käitumine kontrollitud mängus
 - TypeScript ei murdu (kriitilised failid)
 - TODO märgitakse `[x]`
+
+## Integreerimise kontroll — 2026-10-04
+
+Uue faasinumbri asemel parandati olemasolevat mängutsüklit. Vaata `docs/INTEGRATION-RELEASE.md` kontrollitud käitumise ja piirangute kohta.
+
+- [x] Ilma kontota menüü → fraktsioon/deck/kaart/režiim → skirmish
+- [x] Ressursipunkt → ladu → raha ja piiratud varud → tootmine → füüsiline FOB-i konvoi
+- [x] Inimese üksusi ei juhi automaatselt operatiivne AI; battlegroup ei tekita tasuta üksusi
+- [x] Victory-tingimused on simulatsioonis, sõltumatult renderduse sündmuste lugemisest
+- [x] Üksuste baasandmed ei halvene varustuseta oleku tõttu jäädavalt
+- [x] Hoonete level-up lõpetab töö, suurendab tegelikke võimeid ja lisab visuaalseid mooduleid
+- [x] Õpetuse ehitamise, tarne ja esimese tanki eesmärgid kontrollivad tegelikku olekut
+- [ ] Kõigi kampaaniamissioonide täielik inimese läbimäng ja tasakaalustus
+- [x] Esimene 3D tehnikapass: 63 GLB-varianti / 21 rolli, fraktsioonikamo, tornid ja rootorid päris mängu renderdajas
+- [ ] Järgmine visuaalne pass: jalavägi, hooned, merevägi ja täpsemad lennukivariandid
+- [x] Kahe brauseri/serveri põhikontroll: start, eri fraktsioonid, käsk, reconnect ja desync-paus
+- [ ] Multiplayer’i pikk lahing, tootmine/upgrade/õhuoperatsioonid päris võrgus, WAN-latentsus ja serveri taaskäivitus
+- [ ] Mõõdetud 60 FPS esinduslikul GPU-l, segaarmeega ja pika lahinguga

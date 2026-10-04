@@ -7,6 +7,12 @@ import { World } from "../World";
 const walkable = (p: { x: number; z: number }) => new NavGrid().isWalkableWorld(p.x, p.z);
 
 describe("NavGrid", () => {
+  it("base gates pass a tank and cannot be sealed by building a warehouse over the entrance",()=>{
+    const w=new World(17);const p=w.bases[0];w.spawn("hq",0,p.x,p.z);w.spawn("generator",0,p.x,p.z+18);w.nav.syncBuildings(w.entities);
+    const gate=w.mapFeatures.find(f=>f.id==="base-0-gate")!;
+    expect(w.canPlaceBuilding(0,"supply",gate.x,gate.z)).toBe(false);
+    expect(findPath(w.nav,{x:p.x+12,z:p.z-10},{x:p.x+60,z:p.z-60},2.7).length).toBeGreaterThan(1);
+  });
   it("uses a 2m grid over the 400m map", () => {
     const n = new NavGrid();
     expect(n.width).toBe(200); expect(n.height).toBe(200); expect(n.cellSize).toBe(2);
