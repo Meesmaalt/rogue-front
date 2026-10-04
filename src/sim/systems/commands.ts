@@ -76,8 +76,10 @@ function apply(w: World, c: Command): void {
           u.dest = pts[i];
           u.patrolPoints = [];
           u.patrolIndex = 0;
-          u.navPath = c.type === "move" ? findPath(w.nav, u, pts[i], u.def.radius) : [];
-          u.navPathIndex = 1;
+          u.holdPosition = false;
+          u.navPath = findPath(w.nav, u, pts[i], u.def.radius);
+          u.roadPathGoal = {...pts[i]};
+          u.navPathIndex = 0;
           u.flowField = field;
           u.stuckTime = 0; u.stuckX = u.x; u.stuckZ = u.z;
           if (c.type === "move") u.target = null;
@@ -88,7 +90,7 @@ function apply(w: World, c: Command): void {
     case "attack": {
       const t = w.byId.get(c.targetId);
       if (!t || t.dead) break;
-      for (const u of mobile(w, c.ids, c.team)) if (u.team !== t.team) { u.mode = "attack"; u.target = t; u.dest = null; u.navPath = []; u.navPathIndex = 0; u.flowField = null; }
+      for (const u of mobile(w, c.ids, c.team)) if (u.team !== t.team) { u.mode = "attack"; u.holdPosition=false; u.target = t; u.dest = {x:t.x,z:t.z}; u.navPath = []; u.navPathIndex = 0; u.flowField = null; }
       break;
     }
     case "stop":
@@ -228,7 +230,7 @@ function apply(w: World, c: Command): void {
         if (c.mode === "hold") { u.mode = "hold"; u.holdPosition = true; u.dest = null; u.target = null; }
         else if (c.mode === "holdfire") { u.mode = "hold"; u.holdPosition = true; u.dest = null; u.target = null; }
         else if (c.mode === "patrol" && c.x !== undefined && c.z !== undefined) { u.mode = "patrol"; u.patrolPoints = [{x:c.x,z:c.z},{x:u.x,z:u.z}]; u.patrolIndex = 0; u.dest = u.patrolPoints[0]; }
-        else if (c.mode === "attack") { u.mode = "amove"; u.dest = c.x !== undefined && c.z !== undefined ? {x:c.x,z:c.z} : null; }
+        else if (c.mode === "attack") { u.holdPosition=false; u.mode = "amove"; u.dest = c.x !== undefined && c.z !== undefined ? {x:c.x,z:c.z} : null; }
       }
       break;
     }

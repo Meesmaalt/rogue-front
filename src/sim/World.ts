@@ -260,12 +260,12 @@ export class World {
   /** Staatilised kaardiobjektid; neid kasutavad simulatsioon, navigeerimine ja UI. */
   readonly mapFeatures: readonly MapFeatureDef[];
 
-  constructor(seed = 1, private objectiveDriven = false, resources: readonly MapResourceDef[] = [], features: readonly MapFeatureDef[] = [], bases: readonly BaseDef[] = []) {
+  constructor(seed = 1, private objectiveDriven = false, resources: readonly MapResourceDef[] = [], features: readonly MapFeatureDef[] = [], bases: readonly BaseDef[] = [], baseDefenses = true) {
     this.rngState = new Rng(seed);
     this.bases = bases.length ? bases.map((b) => ({ ...b })) : getBases();
     // Build height cache once bases are known (huge win for LOS / movement)
     ensureHeightCache();
-    this.mapFeatures = [...features.map((f) => ({ ...f })), ...generateBaseFeatures(this.bases)];
+    this.mapFeatures = [...features.map((f) => ({ ...f })), ...(baseDefenses ? generateBaseFeatures(this.bases) : [])];
     this.rng = () => this.rngState.next();
     this.nav = new NavGrid([], this.mapFeatures);
     this.vision = new Vision();

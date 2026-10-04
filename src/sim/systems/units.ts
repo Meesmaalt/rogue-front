@@ -31,7 +31,7 @@ export function nearestEnemy(w: World, u: Entity, range: number): Entity | null 
     if (!isSpottedBy(e, u.team, w.time)) return;
     const dx = e.x - u.x, dz = e.z - u.z;
     const distSq = dx * dx + dz * dz;
-    if (e.def.stealth && u.kind !== "radar" && distSq > 144) return;
+
     const d = Math.sqrt(distSq) - e.def.radius;
     if (d > range) return;
     if (!hasSpotter(w, u, e)) return;
@@ -45,12 +45,9 @@ export function nearestEnemy(w: World, u: Entity, range: number): Entity | null 
     let priority = d;
     if (u.def.weapon === "missile" && e.def.armor === "air") priority -= 22;
     if (u.kind === "artillery" && e.def.speed === 0) priority -= 16;
-    if (u.kind === "tank" && e.def.speed === 0) priority -= 8;
-    if (e.kind === "supply") priority -= 28;
-    if (e.kind === "generator") priority -= 24;
-    if (e.kind === "transport" && e.supplyDepotId != null) priority -= 20;
-    if (e.kind === "refinery" || e.kind === "helipad" || e.kind === "airbase" || e.kind === "factory" || e.kind === "barracks") priority -= 18;
-    if (e.kind === "hq") priority -= 12;
+    // Threats come before infrastructure unless the player explicitly prioritises it.
+    if (e.def.damage > 0 && e.def.speed > 0) priority -= 18;
+    if (e.def.speed === 0 && e.def.damage === 0) priority += 12;
     // Real War priority orders: focus supply / power / AA when set
     if (u.priorityFocus && e.kind === u.priorityFocus) priority -= 80;
     if (priority < bestScore) { bestScore = priority; best = e; }
@@ -71,11 +68,11 @@ function moveRoadTruckTo(w: World, u: Entity, goal: Point, dt: number, arrival=3
   if(goal===finalGoal&&dist<=arrival)return true;
   if(!u.navPath.length && u.roadPathGoal && Math.hypot(u.roadPathGoal.x-goal.x,u.roadPathGoal.z-goal.z)<5 && w.time<(u.roadPathRetryAt??0))return false;
   if(!u.navPath.length || u.navPathIndex>=u.navPath.length || !u.roadPathGoal || Math.hypot(u.roadPathGoal.x-goal.x,u.roadPathGoal.z-goal.z)>5){
-    u.navPath=findPath(w.nav,u,goal,u.def.radius);u.navPathIndex=1;u.roadPathGoal={...goal};u.roadPathRetryAt=w.time+2;
+    u.navPath=findPath(w.nav,u,goal,u.def.radius);u.navPathIndex=0;u.roadPathGoal={...goal};u.roadPathRetryAt=w.time+2;
     if(!u.navPath.length)return false;
   }
   let p=goal;
-  while(u.navPathIndex<u.navPath.length && Math.hypot(u.x-u.navPath[u.navPathIndex].x,u.z-u.navPath[u.navPathIndex].z)<2.2)u.navPathIndex++;
+  while(u.navPathIndex<u.navPath.length && Math.hypot(u.x-u.navPath[u.navPathIndex].x,u.z-u.navPath[u.navPathIndex].z)<.18)u.navPathIndex++;
   if(u.navPathIndex<u.navPath.length)p=u.navPath[u.navPathIndex];
   const dx=p.x-u.x,dz=p.z-u.z,len=Math.hypot(dx,dz)||1;
   const want=Math.atan2(dx,dz);u.heading=turnToward(u.heading,want,u.def.turnRate*dt);
@@ -84,7 +81,8 @@ function moveRoadTruckTo(w: World, u: Entity, goal: Point, dt: number, arrival=3
   if (roadFeature?.kind === "bridge" && (w.infrastructureDamage.get(roadFeature.id) ?? 0) >= 1) { u.mode="idle"; u.dest=null; return false; }
   const componentSpeed = u.components ? Math.max(0.30, 1 - (u.components.engine ?? 0) / 180 - (u.components.tracks ?? 0) / 260) : 1;
   const speed=u.def.speed*componentSpeed*(road?1.28:1)*((u.supply??100)>10?1:0.75)*(outOfFuel(u)?0:1);
-  const step=Math.min(len,speed*dt);u.x+=Math.sin(u.heading)*step;u.z+=Math.cos(u.heading)*step;u.y=heightAt(u.x,u.z);u.stuckX=u.x;u.stuckZ=u.z;
+  const step=Math.min(len,speed*dt*Math.max(0,Math.cos(wrapAngle(want-u.heading))));const nx=u.x+dx/len*step,nz=u.z+dz/len*step;
+  if(w.nav.isWalkableWorld(nx,nz,u.def.radius)||!w.nav.isWalkableWorld(u.x,u.z,u.def.radius)){u.x=nx;u.z=nz;}else {u.navPath=[];u.roadPathRetryAt=w.time+.5;}u.y=heightAt(u.x,u.z);u.stuckX=u.x;u.stuckZ=u.z;
   return false;
 }
 
@@ -337,9 +335,9 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     }
     if (Math.hypot(u.x - target.x, u.z - target.z) > 11) {
       if(!u.navPath.length || !u.roadPathGoal || Math.hypot(u.roadPathGoal.x-target.x,u.roadPathGoal.z-target.z)>5 || u.stuckTime>1){
-        u.navPath=findPath(w.nav,u,target,u.def.radius);u.navPathIndex=1;u.roadPathGoal={x:target.x,z:target.z};u.stuckTime=0;
+        u.navPath=findPath(w.nav,u,target,u.def.radius);u.navPathIndex=0;u.roadPathGoal={x:target.x,z:target.z};u.stuckTime=0;
       }
-      while(u.navPathIndex<u.navPath.length && Math.hypot(u.x-u.navPath[u.navPathIndex].x,u.z-u.navPath[u.navPathIndex].z)<2.2)u.navPathIndex++;
+      while(u.navPathIndex<u.navPath.length && Math.hypot(u.x-u.navPath[u.navPathIndex].x,u.z-u.navPath[u.navPathIndex].z)<.18)u.navPathIndex++;
       const p = u.navPath[u.navPathIndex] ?? target;
       const before=Math.hypot(u.x-target.x,u.z-target.z);
       const dx = p.x - u.x, dz = p.z - u.z, len = Math.hypot(dx,dz) || 1;
@@ -414,7 +412,7 @@ function stepUnit(w: World, u: Entity, dt: number): void {
   const t = u.target;
   // Explicit attack orders keep the target even through fog; auto-acquire still needs vision
   if (t && !isSpottedBy(t,u.team,w.time)) {
-    if (u.mode === "attack") {u.dest={x:t.x,z:t.z};u.mode="amove";}
+    if (u.mode === "attack") u.mode="amove";
     u.target=null;
   }
   if (u.mode === "patrol" && u.dest && Math.hypot(u.x-u.dest.x,u.z-u.dest.z) < 3) {
@@ -423,12 +421,30 @@ function stepUnit(w: World, u: Entity, dt: number): void {
   const target = u.target;
   const inRange = !!target && dist2d(u, target) - target.def.radius <= effectiveRange * 0.92;
   let goal: Point | null = null;
+  const indirect=["artillery","mortar","mlrs"].includes(u.kind);
+  const clearShot=!target || indirect || w.vision.hasLineOfSight(u,target);
   if (target && u.mode !== "move") {
-    if (!inRange && !u.holdPosition && u.mode!=="hold") {
+    if ((!inRange || !clearShot) && !u.holdPosition && u.mode!=="hold") {
       goal = target;
-      if (u.navPath.length === 0) { u.navPath = findPath(w.nav, u, target, u.def.radius); u.navPathIndex = 1; }
+      if(!clearShot && inRange && d.armor!=="air") {
+        // Walk around the obstruction to a real firing position, retaining the attack order.
+        if(w.time >= (u.roadPathRetryAt??0) || !u.roadPathGoal) {
+          const angle=Math.atan2(u.x-target.x,u.z-target.z),radius=effectiveRange*.72;
+          for(const offset of [0,.55,-.55,1.1,-1.1,1.65,-1.65,Math.PI]){
+            const p={x:target.x+Math.sin(angle+offset)*radius,z:target.z+Math.cos(angle+offset)*radius};
+            if(!w.nav.isWalkableWorld(p.x,p.z,d.radius)||!w.vision.hasLineOfSight({...u,...p,y:heightAt(p.x,p.z)},target))continue;
+            const path=findPath(w.nav,u,p,d.radius);if(!path.length)continue;
+            u.navPath=path;u.navPathIndex=0;u.roadPathGoal=p;break;
+          }
+          u.roadPathRetryAt=w.time+2;
+        }
+        goal=u.roadPathGoal??target;
+      }
     }
-  } else if (u.mode === "move" || u.mode === "amove") goal = u.dest;
+  } else if (["move","amove","patrol"].includes(u.mode)) goal = u.dest;
+  if(goal && d.armor!=="air" && d.domain!=="sea" && (!u.roadPathGoal || Math.hypot(u.roadPathGoal.x-goal.x,u.roadPathGoal.z-goal.z)>5 || !u.navPath.length && w.time>=(u.roadPathRetryAt??0))) {
+    u.navPath=findPath(w.nav,u,goal,d.radius);u.navPathIndex=0;u.roadPathGoal={x:goal.x,z:goal.z};u.roadPathRetryAt=w.time+1.5;
+  }
 
   // liikumine
   if (d.speed > 0) {
@@ -440,7 +456,7 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     const sepRange = d.radius + 10;
     const sepRange2 = sepRange * sepRange;
     w.spatial.queryRadius(u.x, u.z, sepRange, (o) => {
-      if (o === u || o.dead) return;
+      if (o === u || o.dead || o.loadedIntoId!==null || (o.def.armor==="air") !== isAir) return;
       const ox = u.x - o.x, oz = u.z - o.z;
       const d2 = ox * ox + oz * oz;
       if (d2 > sepRange2 || d2 < 1e-4) return;
@@ -453,35 +469,35 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     let dx = 0, dz = 0, moving = false;
     if (goal) {
       const gx = goal.x - u.x, gz = goal.z - u.z, gd = Math.hypot(gx, gz);
-      if (goal === u.dest && gd < 2.5) { u.mode = "idle"; u.dest = null; u.navPath = []; u.navPathIndex = 0; u.flowField = null; }
+      if (goal === u.dest && gd < 2.5 && u.mode!=="patrol") { u.mode = "idle"; u.dest = null; u.navPath = []; u.navPathIndex = 0; u.flowField = null; }
       else { dx = gx / gd; dz = gz / gd; moving = true; }
     }
     if (moving && u.def.domain!=="sea") {
       let navDx = dx, navDz = dz;
-      if (u.navPath.length && u.mode !== "amove") {
-        while (u.navPathIndex < u.navPath.length && Math.hypot(u.x - u.navPath[u.navPathIndex].x, u.z - u.navPath[u.navPathIndex].z) < 2.2) u.navPathIndex++;
+      if (u.navPath.length) {
+        while (u.navPathIndex < u.navPath.length && Math.hypot(u.x - u.navPath[u.navPathIndex].x, u.z - u.navPath[u.navPathIndex].z) < .18) u.navPathIndex++;
         if (u.navPathIndex < u.navPath.length) { const p = u.navPath[u.navPathIndex], m = Math.hypot(p.x-u.x,p.z-u.z)||1; navDx=(p.x-u.x)/m; navDz=(p.z-u.z)/m; }
-      } else if (u.flowField) {
+      } else if (u.flowField && isAir) {
         const f = u.flowField.directionAt(u, u.def.radius);
         if (f) { navDx=f.x; navDz=f.z; }
       }
-      let ex = navDx + sx * 1.2, ez = navDz + sz * 1.2;
+      let ex = navDx + sx * .65, ez = navDz + sz * .65;
       const l = Math.hypot(ex, ez) || 1; ex /= l; ez /= l;
       const want = Math.atan2(ex, ez);
       u.heading = turnToward(u.heading, want, d.turnRate * dt);
       const diff = Math.abs(wrapAngle(want - u.heading));
       const slope = (heightAt(u.x + ex * 2, u.z + ez * 2) - u.y) / 2;
       const road = w.mapFeatures.some(f => (f.kind === "road" || f.kind === "bridge") && pointInFeature(u.x,u.z,f,1.5));
-      const cover = w.mapFeatures.some(f => f.kind === "cover" && pointInFeature(u.x,u.z,f,1.5));
+      const cover = w.mapFeatures.some(f => f.kind === "cover" && f.appearance!=="field" && pointInFeature(u.x,u.z,f,1.5));
       const terrainMod = road ? 1.22 : cover && u.kind === "inf" ? 0.92 : 1;
       const supplyMove = (u.supply ?? 100) > 10 ? 1 : 0.78;
       const roleMove = u.role === "siege" ? 0.92 : 1;
       const fuelMul = outOfFuel(u) ? 0 : 1;
       const componentMove=u.components?Math.max(.15,1-u.components.engine/160-u.components.tracks/180):1;
-      const sp = d.speed * componentMove * combatSpeedFactor * terrainMod * supplyMove * roleMove * moraleSpeedMul(u) * fuelMul * Math.min(1.3, Math.max(0.35, 1 - slope * 1.2)) * Math.max(0.15, Math.cos(Math.min(diff, 1.5)));
-      u.x += Math.sin(u.heading) * sp * dt; u.z += Math.cos(u.heading) * sp * dt;
-    } else if (u.def.domain!=="sea" && (sx || sz)) {
-      u.x += sx * d.speed * 0.4 * dt; u.z += sz * d.speed * 0.4 * dt;
+      const sp = d.speed * componentMove * combatSpeedFactor * terrainMod * supplyMove * roleMove * moraleSpeedMul(u) * fuelMul * Math.min(1.3, Math.max(0.35, 1 - slope * 1.2)) * (d.category === "infantry" ? 1 : Math.max(0, Math.cos(diff)));
+      const nx=u.x+ex*sp*dt,nz=u.z+ez*sp*dt;
+      if(isAir || u.navPath.length && w.nav.isWalkableWorld(nx,nz,d.radius)) {u.x=nx;u.z=nz;}
+      else if(!isAir){const px=u.x+navDx*sp*dt,pz=u.z+navDz*sp*dt;if(u.navPath.length&&w.nav.isWalkableWorld(px,pz,d.radius)){u.x=px;u.z=pz;}else u.stuckTime+=dt;}
     }
     u.x = Math.max(-190, Math.min(190, u.x)); u.z = Math.max(-190, Math.min(190, u.z));
     u.y = isAir ? 10 + Math.sin(w.time * 1.7 + u.id) * 1.5 : heightAt(u.x, u.z);
@@ -489,7 +505,7 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     if (moving && moved < 0.15 * dt) u.stuckTime += dt;
     else if (moved > 0.5) { u.stuckTime = 0; u.stuckX = u.x; u.stuckZ = u.z; }
     if (u.stuckTime > 1.2 && goal && !isAir) {
-      u.navPath = findPath(w.nav, u, goal, u.def.radius); u.navPathIndex = 1;
+      u.navPath = findPath(w.nav, u, goal, u.def.radius); u.navPathIndex = 0;
       u.stuckTime = 0; u.stuckX = u.x; u.stuckZ = u.z;
     }
   }
@@ -511,7 +527,7 @@ function stepUnit(w: World, u: Entity, dt: number): void {
       aligned = Math.abs(wrapAngle(want - u.turretYaw)) < 0.14;
     } else {
       // Hull must turn toward target (infantry, fixed guns)
-      if (inRange || u.mode === "attack" || u.mode === "hold") {
+      if (!goal && (inRange || u.mode === "attack" || u.mode === "hold")) {
         u.heading = turnToward(u.heading, absWant, d.turnRate * dt);
       }
       aligned = Math.abs(wrapAngle(absWant - u.heading)) < 0.2;
@@ -557,3 +573,16 @@ function stepUnit(w: World, u: Entity, dt: number): void {
   }
 }
 
+
+/** Derived status for the HUD; it reads the same constraints as the firing loop. */
+export function combatStatus(w:World,u:Entity):string {
+  if((u.disabledUntil??0)>w.time)return "Relvasüsteem häiritud";
+  if(u.standingOrder==="holdfire")return "Tuli keelatud";
+  if(outOfAmmo(u))return "Laskemoon otsas — vaja varustust";
+  if(moraleState(u)==="routing")return "Taandub";
+  if(!u.target)return u.dest?"Liigub · otsib sihtmärki":"Valmis · sihtmärk puudub";
+  if(dist2d(u,u.target)-u.target.def.radius>u.def.range)return "Läheneb sihtmärgile";
+  if(!["artillery","mortar","mlrs"].includes(u.kind)&&!w.vision.hasLineOfSight(u,u.target))return "Tulejoon blokeeritud · otsib positsiooni";
+  if(u.cooldown>0)return "Laadimine";
+  return "Sihib / avab tule";
+}

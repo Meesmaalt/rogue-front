@@ -23,7 +23,7 @@ export class Vision {
   private tickCounter = 0;
 
   setFeatures(features: readonly MapFeatureDef[]): void {
-    this.blockingFeatures = features.filter((f) => featureBlocksMovement(f));
+    this.blockingFeatures = features.filter((f) => featureBlocksMovement(f) && f.kind!=="water");
   }
   snapshot(): { states: [number[],number[]]; tickCounter: number } {
     return {states:[Array.from(this.states[0]),Array.from(this.states[1])],tickCounter:this.tickCounter};
@@ -80,9 +80,9 @@ export class Vision {
     const ay = a.y + Math.max(1.2, a.def.height * 0.7);
     const by = b.y + Math.max(1.2, b.def.height * 0.65);
     // ~6 m steps – enough for gameplay, half the cost of fine sampling
-    const steps = Math.max(2, Math.ceil(d / 6));
+    const steps = Math.max(2, Math.ceil(d / 2));
     const inv = 1 / steps;
-    const checkFeatures = d > 16 && this.blockingFeatures.length > 0;
+    const checkFeatures = d > 4 && this.blockingFeatures.length > 0;
     const nFeat = this.blockingFeatures.length;
 
     for (let i = 1; i < steps; i++) {
@@ -92,13 +92,14 @@ export class Vision {
       if (heightAt(x, z) + 0.8 > ay + (by - ay) * t) return false;
       if (checkFeatures) {
         for (let fi = 0; fi < nFeat; fi++) {
-          if (pointInFeature(x, z, this.blockingFeatures[fi], 0.35)) return false;
+          const feature=this.blockingFeatures[fi];
+          if (pointInFeature(x, z, feature, 0.15) && heightAt(x,z)+(feature.height??3)>ay+(by-ay)*t) return false;
         }
       }
     }
 
     // Buildings only for long-range shots
-    if (d > 24 && this.buildings.length) {
+    if (d > 4 && this.buildings.length) {
       const nB = this.buildings.length;
       for (let i = 1; i < steps; i++) {
         const t = i * inv;
@@ -109,7 +110,7 @@ export class Vision {
           if (e === a || e === b || e.dead) continue;
           const bx = e.x - x, bz = e.z - z;
           const r = e.def.radius + 0.5;
-          if (bx * bx + bz * bz < r * r) return false;
+          if (bx * bx + bz * bz < r * r && e.y+e.def.height > ay+(by-ay)*t) return false;
         }
       }
     }

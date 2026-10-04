@@ -21,7 +21,9 @@ npm ci && npm run dev
 
 Ava `http://localhost:5173`, vali fraktsioon, kaart, režiim ja vaba roster või salvestatud deck. Kontot üksikmänguks ei vaja.
 
-Algus: F2 valib insenerid. BUILDS → generaator → varustusladu. Saada teine insener ressursipunkti. Ehita maaväe juhtimiskeskus, vali see ning ehita soomustehas. LAND-paneelist tooda tank. Hoia ladu ja ressursitransport töös: tootmine ning eesliini laskemoon, kütus ja remont sõltuvad piiratud varudest.
+Roheorg on praegu viimistluse fookuskaart. Vaikimisi alustad Conquest-režiimis valmis baasi ja väikese lahingugrupiga. F1 valib soomuse; Fookus toob kaamera valikule; Ründeliiku + parem klõps annab lahingukäsu. Saad valida ka HQ ja inseneridega alguse. Ühe kaardi muudatused ja piirid: [docs/ROHEORG-RELEASE.md](docs/ROHEORG-RELEASE.md).
+
+Ehitusalgus: F2 valib insenerid. BUILDS → generaator → varustusladu. Saada teine insener ressursipunkti. Ehita maaväe juhtimiskeskus, vali see ning ehita soomustehas. LAND-paneelist tooda tank. Hoia ladu ja ressursitransport töös: tootmine ning eesliini laskemoon, kütus ja remont sõltuvad piiratud varudest.
 
 Uus salvestus kasutab v19 täisolekut. Brauseri Salvesta/Lae nupud töötavad kohaliku mängu jaoks, salvestus on kaardi, režiimi ja fraktsiooni kaupa. Kampaania menüü avab järgmise missiooni pärast võitu.
 

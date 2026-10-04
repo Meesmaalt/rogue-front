@@ -11,7 +11,6 @@ function road(id:string,x:number,z:number,width:number,depth:number,rotation=0):
 function bridge(id:string,x:number,z:number,width:number,depth:number,rotation=0): MapFeatureDef { return {id,kind:"bridge",x,z,width,depth,rotation}; }
 function building(id:string,x:number,z:number,w:number,d:number,rotation=0,height=7): MapFeatureDef { return {id,kind:"building",x,z,width:w,depth:d,rotation,height}; }
 function cover(id:string,x:number,z:number,w:number,d:number,h=1.5,rotation=0): MapFeatureDef { return {id,kind:"cover",x,z,width:w,depth:d,height:h,rotation}; }
-function wall(id:string,x:number,z:number,w:number,d:number,rotation=0): MapFeatureDef { return {id,kind:"wall",x,z,width:w,depth:d,rotation,height:3}; }
 function choke(id:string,x:number,z:number,w:number,d:number,rotation=0): MapFeatureDef { return {id,kind:"chokepoint",x,z,width:w,depth:d,rotation,height:3}; }
 function water(id:string,x:number,z:number,w:number,d:number,rotation=0): MapFeatureDef { return {id,kind:"water",x,z,width:w,depth:d,rotation,blocksMovement:true}; }
 
@@ -46,19 +45,7 @@ function resources(points:Array<[number,number]>, amount=1200): MapResourceDef[]
   });
 }
 
-function baseFeatures(bases:readonly BaseDef[], features:MapFeatureDef[]): void {
-  for(const b of bases){
-    features.push(road(`base-road-${b.x}`,b.x,b.z+45,14,70,0));
-    features.push(wall(`base-wall-a-${b.x}`,b.x-30,b.z,4,62,Math.PI/2));
-    features.push(wall(`base-wall-b-${b.x}`,b.x+30,b.z,4,62,Math.PI/2));
-    features.push(wall(`base-wall-c-${b.x}`,b.x,b.z+30,62,4,0));
-    features.push(gate(`gate-${b.x}`,b.x,b.z+30,16,4,0));
-  }
-}
-function gate(id:string,x:number,z:number,w:number,d:number,rotation=0):MapFeatureDef{return {id,kind:"gate",x,z,width:w,depth:d,rotation,height:3};}
-
 function common(id:string,name:string,theme:MissionDef["map"]["theme"],bases:[BaseDef,BaseDef],features:MapFeatureDef[],resources:MapResourceDef[],seed:number,briefing:string): MissionDef {
-  baseFeatures(bases,features);
   return {id,name,briefing,seed,objectives:[],map:{id,name,theme,heightmap:"",maxHeight:72,resources,bases,features}};
 }
 
@@ -116,7 +103,10 @@ export function generateProceduralMap(seed:number, archetype:MapArchetype="balan
   return common(`procedural-${archetype}-${Math.abs(seed)}`,names[archetype],archetype==="urban"?"city":archetype==="highlands"?"mountains":"desert",bases,f,rp,seed,`Procedural ${archetype} map. Deterministic seed ${seed}.`);
 }
 
+import greenValley from "../data/maps/green-valley.json";
+export const FOCUS_MAP = greenValley as unknown as MissionDef;
 export const CURATED_MAPS: readonly MissionDef[] = [
+  FOCUS_MAP,
   generateProceduralMap(18031,"balanced"),
   generateProceduralMap(77124,"river"),
   generateProceduralMap(44017,"highlands"),

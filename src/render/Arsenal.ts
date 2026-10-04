@@ -5,13 +5,15 @@ import { FACTIONS, FACTION_LIST, factionUnitName, type FactionId } from "../sim/
 import type { UnitKind } from "../sim/types";
 import "./arsenal.css";
 
+const thumbnail=new URLSearchParams(location.search).has("thumb");
+if(thumbnail)document.body.classList.add("thumbnail");
 const roles: Partial<Record<UnitKind,string>> = {tank:"Põhilahingtank",lightTank:"Kergtank",ifv:"Jalaväe lahingumasin",apc:"Soomustransportöör",reconVehicle:"Luuresoomuk",tankDestroyer:"Tankitõrje",artillery:"Liikursuurtükk",mlrs:"Raketiheitja",spaa:"Liikuv õhutõrje",fighter:"Hävitaja",interceptor:"Püüdurhävitaja",multirole:"Mitmeotstarbeline hävitaja",attackAircraft:"Ründelennuk",ecm:"Elektroonilise sõja lennuk",bomber:"Pommitaja",heli:"Ründekopter",gunship:"Tuletoetuskopter",casHeli:"Lähiõhutoetus",transport:"Transpordikopter",cargoPlane:"Varustuslennuk",logiTruck:"Varustusveok"};
 document.body.innerHTML=`<header><a href="./">← PEAMENÜÜ</a><strong>ROGUE FRONT <span>ARSENAL</span></strong><div>Hiir: pööra · ratas: suumi</div></header><main><aside><p class="eyebrow">FRAKTSIOON</p><nav>${FACTION_LIST.map(f=>`<button data-faction="${f}">${FACTIONS[f].short}</button>`).join("")}</nav><p class="eyebrow">TEHNIKA</p><div class="roster">${ART_KINDS.map(k=>`<button data-kind="${k}">${roles[k]}</button>`).join("")}</div></aside><section><div id="stage"></div><div class="caption"><p class="eyebrow" id="role"></p><h1 id="platform">Laadin mudeleid…</h1><p id="description"></p><small id="details"></small><button id="rotate">PEATAN PÖÖRAMISE</button></div></section></main>`;
 const stage=document.getElementById("stage")!;
 const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setClearColor(0x111b20);renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.25;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;stage.append(renderer.domElement);
 const scene=new THREE.Scene();scene.fog=new THREE.Fog(0x111b20,28,70);
 const camera=new THREE.PerspectiveCamera(35,1,.1,120);camera.position.set(11,7,13);
-const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.autoRotate=true;controls.autoRotateSpeed=.55;controls.minDistance=5;controls.maxDistance=35;controls.maxPolarAngle=Math.PI*.48;
+const controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.autoRotate=!thumbnail;controls.autoRotateSpeed=.55;controls.minDistance=5;controls.maxDistance=35;controls.maxPolarAngle=Math.PI*.48;
 scene.add(new THREE.HemisphereLight(0xc7e5ee,0x3b3e35,2));
 const sun=new THREE.DirectionalLight(0xffe7bd,3.2);sun.position.set(8,13,6);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-12;sun.shadow.camera.right=12;sun.shadow.camera.top=12;sun.shadow.camera.bottom=-12;sun.shadow.bias=-.0005;scene.add(sun);
 const rim=new THREE.DirectionalLight(0x7ab8e0,2.5);rim.position.set(-6,5,-9);scene.add(rim);

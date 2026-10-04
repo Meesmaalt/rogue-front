@@ -15,9 +15,9 @@ export interface RenderContext {
   setQuality(quality: GameSettings["quality"]): void;
 }
 
-export function createRenderContext(canvas: HTMLCanvasElement): RenderContext {
+export function createRenderContext(canvas: HTMLCanvasElement, temperate = false): RenderContext {
   let profile = chooseVisualProfile();
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
   renderer.setPixelRatio(profile.pixelRatio);
   renderer.shadowMap.enabled = profile.shadows;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -25,16 +25,16 @@ export function createRenderContext(canvas: HTMLCanvasElement): RenderContext {
 
   const scene = new THREE.Scene();
   // Real War desert haze – warm sand, not muddy grey
-  const haze = new THREE.Color(0xd4c49a);
+  const haze = new THREE.Color(temperate ? 0xc1d1d7 : 0xd4c49a);
   scene.background = haze;
   scene.fog = new THREE.Fog(haze, 120, 380);
-  scene.add(createSky());
+  if (!temperate) scene.add(createSky());
 
   const camera = new THREE.PerspectiveCamera(42, 1, 1, 900);
   // Brighter ambient so buildings read clearly
-  const hemi = new THREE.HemisphereLight(0xfff0d0, 0x8a7350, 1.65);
+  const hemi = new THREE.HemisphereLight(temperate ? 0xd5e7ed : 0xfff0d0, temperate ? 0x526348 : 0x8a7350, 1.4);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffe8c0, 3.2);
+  const sun = new THREE.DirectionalLight(temperate ? 0xfff5e4 : 0xffe8c0, temperate ? 2.3 : 3.2);
   sun.castShadow = profile.shadows;
   sun.shadow.mapSize.set(profile.shadows ? 1024 : 512, profile.shadows ? 1024 : 512);
   const sc = sun.shadow.camera;

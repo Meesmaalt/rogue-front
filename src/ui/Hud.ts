@@ -1,4 +1,7 @@
 import "./hud.css";
+import "./tactical.css";
+import {icon,unitPicture} from "./icons";
+import {combatStatus} from "../sim/systems/units";
 import type { World } from "../sim/World";
 import { coverValueAt } from "../sim/systems/sensors";
 import type { MissionDef } from "../sim/types";
@@ -12,14 +15,7 @@ import { MODE_RULES, type MatchMode } from "../sim/gameModes";
 import { CAMPAIGN, loadCampaign, isUnlocked } from "../sim/campaign";
 
 const fmt = (s: number) => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
-const unitIcon = (k: UnitKind): string => {
-  const icons: Partial<Record<UnitKind, string>> = {
-    inf: "⚔", atInf: "✹", mgInf: "≋", reconInf: "◈", sniper: "⊙", mortar: "◌", manpad: "⇧", atgm: "➹", engineer: "🔧", special: "★", tank: "▣", lightTank: "◇", tankDestroyer: "◈", apc: "▢", ifv: "▣", reconVehicle: "◈", spaa: "✦", artillery: "⌖", mlrs: "⇈",
-    heli: "✈", transport: "⇪", gunship: "⚡", casHeli: "◢", fighter: "▲", interceptor: "◆", bomber: "⬤", ecm: "◉", multirole: "◇", attackAircraft: "◒",
-    destroyer: "⚓", submarine: "◎", landingcraft: "▭", frigate: "⚓", missileBoat: "◁",
-  };
-  return icons[k] ?? "•";
-};
+const unitIcon = (kind:UnitKind):string => unitPicture(kind,"usa");
 const rootButton = (_hud: Hud, selector: string) => document.querySelector<HTMLButtonElement>(selector);
 const producerFor = (k: UnitKind): string => {
   if (["inf","engineer","special","atInf","mgInf","reconInf","sniper","mortar","manpad","atgm"].includes(k)) return "barracks";
@@ -55,6 +51,8 @@ const SOURCE_LABELS: Record<string, string> = {
 
 export class Hud {
   readonly minimapCanvas: HTMLCanvasElement;
+  onOrder: (order:"move"|"attack"|"stop"|"focus")=>void = ()=>{};
+  onSelect: (ids:number[])=>void = ()=>{};
   onProduce: (kind: UnitKind, producerId?: number) => void = () => {};
   onPause: () => void = () => {};
   onSettings: () => void = () => {};
@@ -94,9 +92,9 @@ export class Hud {
           <div class="res-row"><span class="res-label">ENERGIA</span><b data-r="power">0/0</b>
             <span class="pwr-bar" title="Energia"><i data-r="pwrFill"></i></span>
           </div>
-          <div class="res-row logistics-row"><span class="res-label">LOGISTIKA</span><b data-r="logistics">—</b></div><small data-r="commandNet">Juhtimisvõrk —</small>
+          <div class="res-row logistics-row"><span class="res-label">LOGISTIKA</span><b data-r="logistics">—</b></div><details class="economy-details"><summary title="Majanduse ja varustuse andmed">ⓘ</summary><div><small data-r="commandNet">Juhtimisvõrk —</small>
           <small>Krediit <span data-r="cr">0</span> · Moraal <span data-r="morale">100</span> · <span data-r="airstatus">Õhk 0/0</span></small><small data-r="economy">Majandus —</small>
-          <span data-r="clock">0:00</span>
+          </div></details><span data-r="clock">0:00</span>
         </div>
       </header>
       <footer class="bottom">
@@ -109,7 +107,7 @@ export class Hud {
             <button data-stance="holdfire" title="Ära tulista – hoia tuld (Wargame ROE)">Ära tulista</button>
             <button data-stance="patrol" title="Patrull – liigub ja ründab teel">Patrull</button>
           </div>
-          <div class="priority-bar" data-r="priorityBar">
+          <details class="advanced-orders"><summary>Formatsioon ja prioriteet</summary><div class="priority-bar" data-r="priorityBar">
             <button data-priority="supply" title="Prioriteet: vaenlase varustuslaod">Ladud</button>
             <button data-priority="generator" title="Prioriteet: generaatorid">Energia</button>
             <button data-priority="aa" title="Prioriteet: õhutõrje">Õhutõrje</button>
@@ -121,7 +119,7 @@ export class Hud {
             <button data-formation="wedge" title="Kiil">Kiil</button>
             <button data-formation="column" title="Kolonn">Kolonn</button>
           </div>
-          <div class="air-mission-bar" data-r="airMissionBar" hidden>
+          </details><div class="air-mission-bar" data-r="airMissionBar" hidden>
             <span class="pre-label">Õhk:</span>
             <button data-air-mission="cap" title="CAP – õhuülekaal / patrull">CAP</button>
             <button data-air-mission="strike" title="Strike – infrastruktuur">Strike</button>
@@ -134,31 +132,31 @@ export class Hud {
             <button data-predeploy="attack" title="Valmis üksused ründavad teed mööda">Ründa teed</button>
             <button data-predeploy="hold" title="Valmis üksused hoiavad tootja juures">Hoia</button>
           </div>
-          <div class="help">Vasak hiir: vali · Parem: liigu/ründa · A+parem: ründeliikumine · H: hoia · P: patrull · WASD: kaamera · Rull: suum · X: peata · F+parem: suurtükituli · L: kustuta logistika marsruut · Ctrl+1–9: grupp</div>
+          <div class="order-bar">${(["move","attack","stop","focus"] as const).map(k=>`<button data-order="${k}" title="${k==="attack"?"Ründeliikumine: parem klõps sihtpunktile (A)":k==="move"?"Liigu: parem klõps sihtpunktile":k==="stop"?"Peata (X)":"Kaamera valikule"}">${icon(k)}<span>${k==="attack"?"Ründeliiku":k==="move"?"Liigu":k==="stop"?"Peata":"Fookus"}</span></button>`).join("")}</div><div class="help">Vasak hiir: vali · Parem: liigu/ründa · A+parem: ründeliikumine · H: hoia · P: patrull · WASD: kaamera · Rull: suum · X: peata · F+parem: suurtükituli · L: kustuta logistika marsruut · Ctrl+1–9: grupp</div>
         </div>
         <div class="panel build tactical">
           <div class="tab-bar">
-            <button class="tab active" data-tab="land">LAND</button>
-            <button class="tab" data-tab="air">AIR</button>
-            <button class="tab" data-tab="sea">SEA</button>
-            <button class="tab" data-tab="builds">BUILDS</button>
+            <button class="tab active" data-tab="land">${icon("tank")} Maa</button>
+            <button class="tab" data-tab="air">${icon("air")} Õhk</button>
+            <button class="tab" data-tab="sea">${icon("naval")} Meri</button>
+            <button class="tab" data-tab="builds">${icon("building")} Ehita</button>
           </div>
           <div class="tab-panels">
             <div class="tab-panel active" data-panel="land">
               ${factionLandUnits("usa").filter(k => UNITS[k]).map((k) => {
                 const producer = producerFor(k);
-                return `<button class="unit-btn" title="${UNITS[k].name} · ${UNITS[k].roleLabel ?? ""} · ${UNITS[k].ability ?? ""} · ${UNITS[k].cost} res" data-kind="${k}" data-producer="${producer}" data-tab-unit="land"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name" data-unit-label="${k}">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span></button>`;
+                return `<button class="unit-btn" title="${UNITS[k].name} · ${UNITS[k].roleLabel ?? ""} · ${UNITS[k].ability ?? ""} · ${UNITS[k].cost} res" data-kind="${k}" data-producer="${producer}" data-tab-unit="land"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name" data-unit-label="${k}">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span><small class="unit-lock" data-lock></small></button>`;
               }).join("")}
             </div>
             <div class="tab-panel" data-panel="air">
               ${factionAirUnits("usa").filter(k => UNITS[k]).map((k) => {
                 const producer = producerFor(k);
-                return `<button class="unit-btn" title="${UNITS[k].name} · ${UNITS[k].roleLabel ?? ""} · ${UNITS[k].ability ?? ""} · ${UNITS[k].cost} res" data-kind="${k}" data-producer="${producer}" data-tab-unit="air"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name" data-unit-label="${k}">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span></button>`;
+                return `<button class="unit-btn" title="${UNITS[k].name} · ${UNITS[k].roleLabel ?? ""} · ${UNITS[k].ability ?? ""} · ${UNITS[k].cost} res" data-kind="${k}" data-producer="${producer}" data-tab-unit="air"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name" data-unit-label="${k}">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span><small class="unit-lock" data-lock></small></button>`;
               }).join("")}
             </div>
             <div class="tab-panel" data-panel="sea">
               ${factionSeaUnits("usa").filter(k => UNITS[k]).map((k) => {
-                return `<button class="unit-btn" title="${UNITS[k].name} · ${UNITS[k].roleLabel ?? ""} · ${UNITS[k].ability ?? ""} · ${UNITS[k].cost} res" data-kind="${k}" data-producer="shipyard" data-tab-unit="sea"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name" data-unit-label="${k}">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span></button>`;
+                return `<button class="unit-btn" title="${UNITS[k].name} · ${UNITS[k].roleLabel ?? ""} · ${UNITS[k].ability ?? ""} · ${UNITS[k].cost} res" data-kind="${k}" data-producer="shipyard" data-tab-unit="sea"><span class="unit-icon">${unitIcon(k)}</span><span class="unit-name" data-unit-label="${k}">${UNITS[k].name}</span><span class="unit-cost">${UNITS[k].cost}</span><small class="unit-lock" data-lock></small></button>`;
               }).join("")}
             </div>
             <div class="tab-panel" data-panel="builds">
@@ -186,6 +184,8 @@ export class Hud {
     this.minimapCanvas = root.querySelector(".mini") as HTMLCanvasElement;
     this.buttons = [...root.querySelectorAll<HTMLButtonElement>("button[data-kind]")];
     this.pauseButton = root.querySelector<HTMLButtonElement>('[data-action="pause"]');
+    root.querySelectorAll<HTMLButtonElement>("[data-order]").forEach(b=>b.onclick=()=>this.onOrder(b.dataset.order as "move"|"attack"|"stop"|"focus"));
+    this.el.selP.addEventListener("click",e=>{const b=(e.target as HTMLElement).closest<HTMLElement>("[data-select-unit]");if(b)this.onSelect([Number(b.dataset.selectUnit)]);});
     this.buttons.forEach((b) => b.addEventListener("click", () => {
       const pid = b.dataset.producerId ? Number(b.dataset.producerId) : undefined;
       this.onProduce(b.dataset.kind as UnitKind, pid);
@@ -243,6 +243,11 @@ export class Hud {
     });
   }
 
+  private setSelectedMarkup(markup:string):void {
+    if(this.el.selP.dataset.markup===markup)return;
+    this.el.selP.dataset.markup=markup;this.el.selP.innerHTML=markup;
+  }
+
   getBuildButtons(): HTMLButtonElement[] { return [...document.querySelectorAll<HTMLButtonElement>("button[data-build]")]; }
 
   setFps(n: number): void { this.el.fps.textContent = n + " fps"; }
@@ -251,7 +256,12 @@ export class Hud {
   setPaused(paused: boolean): void { if (this.pauseButton) this.pauseButton.textContent = paused ? "Jätka" : "Paus"; }
 
   update(world: World, selection: ReadonlySet<number>, running: boolean, objectives: readonly { title: string; description: string; complete: boolean; progress: number }[] = [], missionMessage = ""): void {
+    const changed=this.selectedIds.join(",") !== [...selection].join(",");
     this.selectedIds = [...selection];
+    if(changed && this.selectedIds.length){const first=world.byId.get(this.selectedIds[0]);if(first){const tab=["factory","barracks"].includes(first.kind)?"land":["helipad","airbase"].includes(first.kind)?"air":first.kind==="shipyard"?"sea":first.kind==="engineer"||first.def.building?"builds":first.def.armor==="air"?"air":first.def.domain==="sea"?"sea":"land";document.querySelector<HTMLButtonElement>(`button[data-tab="${tab}"]`)?.click();}}
+    this.el.stanceBar.hidden=!this.selectedIds.some(id=>(world.byId.get(id)?.def.damage??0)>0);
+    document.querySelectorAll<HTMLButtonElement>("[data-order]").forEach(b=>b.disabled=!running||!selection.size);
+
     if (this.el.airMissionBar) {
       const airSel = [...selection].map(id => world.byId.get(id)).filter(e => e && !e.dead && e.team === world.playerTeam && (e.def.armor === "air" || e.def.category === "heli" || ["heli","gunship","cargoPlane","fighter","interceptor","bomber","transport"].includes(e.kind)));
       this.el.airMissionBar.hidden = airSel.length === 0;
@@ -297,7 +307,7 @@ export class Hud {
     if (objectives.length) {
       this.el.objectiveList.innerHTML = objectives.map((o) => `<div class="objective ${o.complete ? "done" : ""}"><span>${o.complete ? "✓" : "○"} ${o.title}</span>${o.complete ? "" : `<i style="width:${Math.round(o.progress * 100)}%"></i>`}</div>`).join("");
     }
-    this.el.missionMsg.textContent = missionMessage;
+    this.el.missionMsg.textContent = world.matchController ? "" : missionMessage;
     const hq = world.hq[world.playerTeam];
     const selectedProducer = [...selection].map(id=>world.byId.get(id)).find(e=>e && !e.dead && e.team===world.playerTeam && ["barracks","factory","helipad","airbase","shipyard"].includes(e.kind));
     this.selectedProducerId = selectedProducer?.id ?? null;
@@ -319,6 +329,8 @@ export class Hud {
       const k = b.dataset.kind as UnitKind;
       if (k && UNITS[k]) {
         const nm = world.unitDisplayName(k);
+        const picture=b.querySelector<HTMLElement>(".unit-icon");
+        if(picture && picture.dataset.faction!==world.playerFaction){picture.innerHTML=unitPicture(k,world.playerFaction);picture.dataset.faction=world.playerFaction;}
         b.title = `Tooda ${nm} (${UNITS[k].cost})`;
       }
       b.style.display = "";
@@ -344,11 +356,13 @@ export class Hud {
         || world.resources < cost || world.credits < cost
         || !has(pKind)
         || !world.canProduceAtLevel(prod!, kind) || !world.productionOperational(prod!,kind).operational;
+      const lock=b.querySelector<HTMLElement>("[data-lock]");
+      if(lock)lock.textContent=!prod?"Vajab tootjat":queueFull?"Järjekord täis":world.resources<cost||world.credits<cost?"Varustus puudub":!world.canProduceAtLevel(prod,kind)?"Vajab taset "+world.unitRequiredBuildingLevel(kind):!world.productionOperational(prod,kind).operational?"Tarne / energia":"";
       const req = world.unitRequiredBuildingLevel(kind);
       b.title = !prod ? `Loo ${pKind} esimesena` : !world.productionOperational(prod,kind).operational ? world.productionOperational(prod,kind).reason : world.producerLevel(prod) < req ? `Vajab ${pKind} taset ${req}` : `Tooda ${world.unitDisplayName(kind)} (${UNITS[kind].cost})`;
     }
     this.refreshBuildPanel(world, selection, running, engineerSelected);
-    (this.el.qbar as HTMLElement).style.width = q.length ? Math.min(100, (world.queueProgress / UNITS[q[0]].buildTime) * 100) + "%" : "0";
+    (this.el.qbar as HTMLElement).style.width = q.length ? Math.min(100, ((selectedProducer?.productionProgress??0) / UNITS[q[0]].buildTime) * 100) + "%" : "0";
     if (selectedProducer) {
       const pre = selectedProducer.preDeployOrder;
       const preTxt = pre ? ` · Pre-deploy: ${pre.mode}${pre.x != null ? " @ kaardil" : ""}` : "";
@@ -378,38 +392,19 @@ export class Hud {
     const sel = [...selection].map((id) => world.byId.get(id)).filter((e) => e && !e.dead);
     if (!sel.length) {
       this.el.selT.textContent = "Üksusi pole valitud";
-      this.el.selP.textContent = "Vali üksusi hiire vasaku nupuga või tõmba kast.";
+      this.setSelectedMarkup("Vali üksusi hiire vasaku nupuga või tõmba kast.");
     } else if (sel.length === 1) {
       const u = sel[0]!;
       this.el.selT.textContent = world.unitDisplayName(u.kind, u.team);
-      const disabled = (u.disabledUntil ?? 0) > world.time ? ` · SABOTEERITUD ${Math.ceil((u.disabledUntil! - world.time))}s` : "";
-      const fob = u.kind === "supply" ? ` · ${world.isFOB(u) ? `FOB tase ${u.fobLevel}` : "LOGISTIKAPUNKT"} · Varu A:${Math.floor(u.ammoStock??0)} K:${Math.floor(u.fuelStock??0)} R:${Math.floor(u.repairStock??0)} · prioriteet ${(u.logisticsPriority??"balanced").toUpperCase()}` : "";
-      const logistics = u.kind === "transport" ? (u.supplyDepotId != null ? ` · VARUSTUSHELIKOPTER · Last ${Math.floor(u.cargo)} · ${u.logisticsPhase}` : ` · TRANSPORT · Reisijad ${u.cargoUnitIds.length}/8`) : u.kind === "logiTruck" ? ` · LOGISTIKAVEOK · Last ${Math.floor(u.cargo)} · ${u.logisticsPhase}` : (u.loadedIntoId !== null ? " · Transpordis" : "");
-      const veterancy = u.veteran > 0 ? ` · Veteran ${u.veteran}★ · XP ${u.xp}` : ` · XP ${u.xp}`;
-      const fuel = (u.maxFuel ?? 0) > 0 ? ` · Kütus ${Math.floor(u.fuel ?? 0)}/${u.maxFuel} · laskemoon ${Math.floor(u.ammo ?? 0)}/${u.maxAmmo}` : "";
-      const supply = u.def.speed > 0 ? ` · Varustus ${Math.floor(u.supply ?? 100)}/${u.maxSupply ?? 100}` : "";
-      const sector = (u.kind === "bunker" || u.kind === "aa") ? ` · Tulesektor ${Math.round(u.firingArc * 180 / Math.PI)}°` : u.kind === "artillery" ? ` · Kaudtuli ${Math.round(u.firingRange)} · laskemoon ${Math.floor(u.ammo ?? 0)}/${u.maxAmmo ?? 0}` : "";
-      const optics = u.def.optics ? ` · Optika ${u.def.optics}` : "";
-      const stealth = (u.def.stealthLevel ?? 0) > 0 ? ` · Stealth ${u.def.stealthLevel}` : "";
-      const armor = u.def.armorFront != null ? ` · Soomus ${u.def.armorFront}/${u.def.armorSide}/${u.def.armorRear}` : "";
-      const morale = u.morale != null ? ` · Moraal ${Math.round(u.morale)}` : "";
-      const sup = (u.suppression ?? 0) > 5 ? ` · Surve ${Math.round(u.suppression!)}` : "";
-      const ammoTxt = (u.maxAmmo ?? 0) > 0 ? ` · Laskemoon ${Math.floor(u.ammo ?? 0)}/${u.maxAmmo}` : "";
-      const fuelTxt = (u.maxFuel ?? 0) > 0 ? ` · Kütus ${Math.floor(u.fuel ?? 0)}/${u.maxFuel}` : "";
-      const inSup = world.isInSupply(u) ? "" : " · ⚠ VÄLJAS SUPPLYST";
-      const role = u.def.roleLabel ? ` · Roll: ${u.def.roleLabel}` : "";
-      const ability = u.def.ability ? ` · ${u.def.ability}` : "";
-      const squad = u.squadMaxMembers ? ` · Sõdurid ${u.squadMembers}/${u.squadMaxMembers}` : "";
-      const comp = u.components ? ` · Kahjustused ${Math.round(Math.max(...Object.values(u.components)))}%` : "";
-      const cover = ` · Kate ${coverValueAt(world, u.x, u.z)}`;
-      const combat = u.def.damage ? ` · Täpsus ${Math.round((u.def.accuracy ?? 0) * 100)}% · Läbivus ${Math.round(u.def.penetration ?? 0)} · Reload ×${(u.def.reloadSkill ?? 1).toFixed(2)}` : "";
-      this.el.selP.innerHTML = `Elud ${Math.ceil(u.hp)} / ${u.def.hp}` + (u.def.damage ? ` · Tugevus ${u.def.damage} · Ulatus ${u.def.range}` : "") + role + ability + combat + squad + comp + cover + veterancy + optics + stealth + armor + morale + sup + ammoTxt + fuelTxt + inSup + supply + fuel + sector + logistics + fob + disabled +
-        `<div class="hpbar"><i style="width:${(u.hp / u.def.hp) * 100}%"></i></div>`;
+      const meter=(label:string,value:number,max:number)=>`<div class="unit-meter"><span>${label}</span><b>${Math.ceil(value)}/${Math.ceil(max)}</b><i><em style="width:${Math.min(100,Math.max(0,value/Math.max(1,max)*100))}%"></em></i></div>`;
+      const status=u.def.damage?combatStatus(world,u):u.underConstruction?"Ehitamisel":u.def.building?"Hoone · tase "+world.producerLevel(u):u.mode==="move"?"Liigub":"Ootab käsku";
+      this.setSelectedMarkup(`<div class="selected-summary"><div class="selected-picture">${unitPicture(u.kind,(u.team===world.playerTeam?world.playerFaction:world.enemyFaction))}</div><div class="meters">${meter("Elud",u.hp,u.def.hp)}${(u.maxAmmo??0)>0?meter("Moon",u.ammo??0,u.maxAmmo!):""}${(u.maxFuel??0)>0?meter("Kütus",u.fuel??0,u.maxFuel!):""}${u.def.speed>0?meter("Moraal",u.morale??100,100):""}</div></div><span class="unit-status">${status}</span><small class="role-summary">${u.def.roleLabel??BUILD_LABELS[u.kind]??u.kind}${u.def.damage?` · Ulatus ${u.def.range} · Läbivus ${u.def.penetration??0}`:""}${u.kind==="supply"?` · Moon ${Math.floor(u.ammoStock??0)} · Kütus ${Math.floor(u.fuelStock??0)} · Remont ${Math.floor(u.repairStock??0)}`:""}</small><details class="unit-details"><summary>Taktikalised andmed</summary>Kate ${coverValueAt(world,u.x,u.z)} · Soomus ${u.def.armorFront??0}/${u.def.armorSide??0}/${u.def.armorRear??0} · Surve ${Math.round(u.suppression??0)} · Optika ${u.def.optics??"—"} · ${world.isInSupply(u)?"Varustusalas":"Väljaspool varustusala"}${u.components?` · Kahjustused ${Math.round(Math.max(...Object.values(u.components)))}%`:""}</details>`);
+
     } else {
       const c: Record<string, number> = {};
       sel.forEach((u) => { const n = world.unitDisplayName(u!.kind, u!.team); c[n] = (c[n] || 0) + 1; });
       this.el.selT.textContent = sel.length + " üksust";
-      this.el.selP.textContent = Object.entries(c).map(([k, v]) => `${v} × ${k}`).join(", ");
+      this.setSelectedMarkup(`<div class="selected-units">${sel.map(u=>`<button data-select-unit="${u!.id}" title="${world.unitDisplayName(u!.kind,u!.team)}"><span>${unitPicture(u!.kind,(u!.team===world.playerTeam?world.playerFaction:world.enemyFaction))}</span><i style="width:${u!.hp/u!.def.hp*100}%"></i></button>`).join("")}</div><small>${Object.entries(c).map(([k,v])=>`${v} × ${k}`).join(", ")}</small>`);
     }
   }
 
@@ -460,7 +455,7 @@ export class Hud {
       const disabled = !running || !unlocked || world.resources < cost || world.credits < cost || !hasEngineer;
       const bs = BUILDINGS[kind as keyof typeof BUILDINGS];
       const functionLabel = bs?.role === "production" ? "TOOTMINE" : bs?.role === "logistics" ? "LOGISTIKA" : bs?.role === "command" ? "JUHTIMINE" : bs?.role === "sensor" ? "SENSOR" : bs?.role === "defense" ? "KAITSE" : bs?.role === "power" ? "ENERGIA" : "ARENDUS";
-      return `<button data-build="${kind}" ${disabled ? "disabled" : ""} title="${reason || label}"><span>${label}</span><span class="unit-cost">${cost}</span><small class="build-role">${functionLabel}</small>${reason && disabled ? `<small class="lock-reason">${reason}</small>` : ""}</button>`;
+      return `<button data-build="${kind}" ${disabled ? "disabled" : ""} title="${reason || label}"><span class="build-icon">${icon(kind)}</span><span>${label}</span><span class="unit-cost">${cost}</span><small class="build-role">${functionLabel}</small>${reason && disabled ? `<small class="lock-reason">${reason}</small>` : ""}</button>`;
     }).join("");
     if(host.dataset.markup===markup)return;
     host.dataset.markup=markup;host.innerHTML=markup;

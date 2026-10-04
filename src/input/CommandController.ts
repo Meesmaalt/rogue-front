@@ -127,8 +127,9 @@ export class CommandController {
 
   moveTo(x: number, z: number, append = false): void {
     if (!this.enabled) return;
-    const cmd: import("../sim/types").Command = { type: "move", ids: this.ids(), x, z };
+    const cmd: import("../sim/types").Command = { type: this.attackMoveMode ? "amove" : "move", ids: this.ids(), x, z };
     if (append) (cmd as { append?: boolean }).append = true;
+    this.attackMoveMode=false;
     this.world.issue(cmd);
     this.fx.ping(x, z, append ? 0x9b7cff : 0xf2a33a);
   }

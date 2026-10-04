@@ -27,14 +27,17 @@ export class Overlay {
     const c = this.ctx, w = innerWidth, h = innerHeight;
     c.clearRect(0, 0, w, h);
     for (const u of world.entities) {
-      if (u.dead || (u.team === 1 && !world.vision.isVisible(world.playerTeam, u.x, u.z)) || (u.hp >= u.def.hp && !sel.selected.has(u.id))) continue;
+      if (u.dead || (u.team !== world.playerTeam && !world.isSpottedByTeam(u,world.playerTeam)) || (u.hp >= u.def.hp && !sel.selected.has(u.id) && u.team===world.playerTeam && (u.def.speed===0 || world.time-u.lastCombatTime>6))) continue;
       const p = picker.toScreen(u.x, u.y + u.def.height + 1, u.z);
       if (p.z > 1 || p.x < -40 || p.x > w + 40 || p.y < -40 || p.y > h + 40) continue;
       const bw = Math.max(26, u.def.radius * picker.pxPerUnit(u.x, u.y, u.z) * 1.6);
       c.fillStyle = "rgba(8,10,11,.85)";
       c.fillRect(p.x - bw / 2 - 1, p.y - 1, bw + 2, 6);
-      c.fillStyle = u.team ? "#e0553f" : "#6fd6a0";
+      c.fillStyle = u.team !== world.playerTeam ? "#e0553f" : "#73bfe3";
       c.fillRect(p.x - bw / 2, p.y, bw * Math.max(0, u.hp / u.def.hp), 4);
+      if(sel.selected.has(u.id)||u.team!==world.playerTeam){c.font="600 11px Segoe UI, sans-serif";const name=world.unitDisplayName(u.kind,u.team),tw=c.measureText(name).width;c.fillStyle="rgba(15,25,28,.9)";c.fillRect(p.x-tw/2-5,p.y-19,tw+10,16);c.fillStyle=u.team===world.playerTeam?"#c6e8f4":"#ffb5a3";c.textAlign="center";c.fillText(name,p.x,p.y-7);c.textAlign="left";}
+      if(sel.selected.has(u.id)&&u.dest){const origin=picker.toScreen(u.x,u.y+.2,u.z),end=picker.toScreen(u.dest.x,heightAt(u.dest.x,u.dest.z)+.2,u.dest.z);c.strokeStyle="rgba(143,203,224,.55)";c.setLineDash([4,5]);c.beginPath();c.moveTo(origin.x,origin.y);c.lineTo(end.x,end.y);c.stroke();c.setLineDash([]);c.strokeRect(end.x-4,end.y-4,8,8);}
+
     }
     if (preview?.point && preview.kind) {
       const p = picker.toScreen(preview.point.x, heightAt(preview.point.x, preview.point.z) + 0.4, preview.point.z);

@@ -77,7 +77,7 @@ function targetCoverValue(w: World, t: Entity): number {
   let v = 0;
   for (const f of w.mapFeatures) {
     if (!pointInFeature(t.x, t.z, f, 0.2)) continue;
-    if (f.kind === "cover") v = Math.max(v, 0.14);
+    if (f.kind === "cover" && f.appearance!=="field") v = Math.max(v, 0.14);
     else if (f.kind === "wall" || f.kind === "chokepoint") v = Math.max(v, 0.22);
     else if (f.kind === "building") v = Math.max(v, 0.30);
   }

@@ -200,7 +200,9 @@ export interface MapResourceDef {
 export interface MissionMapDef {
   id: string;
   name: string;
-  theme: "desert" | "mountains" | "city";
+  theme: "desert" | "mountains" | "city" | "temperate";
+  terrainProfile?: "farmland";
+  baseDefenses?: boolean;
   heightmap: string;
   maxHeight: number;
   resources: MapResourceDef[];

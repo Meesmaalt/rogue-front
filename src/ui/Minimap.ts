@@ -73,8 +73,8 @@ export class Minimap {
 
     for (const f of this.world.mapFeatures) {
       const [mx, my] = this.w2m(f.x, f.z);
-      c.save(); c.translate(mx, my); c.rotate(f.rotation ?? 0);
-      c.fillStyle = f.kind === "water" ? "rgba(55,105,125,.72)" : f.kind === "road" || f.kind === "bridge" ? "rgba(210,190,150,.48)" : featureBlocksMovement(f) ? "rgba(45,48,50,.78)" : "rgba(180,170,140,.35)";
+      c.save(); c.translate(mx, my); c.rotate(-(f.rotation ?? 0));
+      c.fillStyle = f.appearance === "forest" ? "#304a2b" : f.appearance === "field" ? "#8b935e" : f.kind === "water" ? "rgba(55,105,125,.72)" : f.kind === "road" || f.kind === "bridge" ? "rgba(210,190,150,.48)" : featureBlocksMovement(f) ? "rgba(45,48,50,.78)" : "rgba(180,170,140,.35)";
       c.fillRect(-f.width / MAP_SIZE * S / 2, -f.depth / MAP_SIZE * S / 2, f.width / MAP_SIZE * S, f.depth / MAP_SIZE * S);
       c.restore();
     }
@@ -202,7 +202,8 @@ export class Minimap {
     for (let py = 0; py < S; py++) for (let px = 0; px < S; px++) {
       const x = (px / S) * MAP_SIZE - MAP_SIZE / 2, z = (py / S) * MAP_SIZE - MAP_SIZE / 2, h = heightAt(x, z);
       const k = Math.max(0.55, Math.min(1.3, 0.85 + h * 0.012 + (h - heightAt(x + 4, z + 4)) * 0.05)), i = (py * S + px) * 4;
-      im.data[i] = Math.min(255, 150 * k); im.data[i + 1] = Math.min(255, 133 * k); im.data[i + 2] = Math.min(255, 92 * k); im.data[i + 3] = 255;
+      const green=this.world.mapFeatures.some(f=>f.appearance==="field");
+      im.data[i] = Math.min(255, (green?103:150) * k); im.data[i + 1] = Math.min(255, (green?128:133) * k); im.data[i + 2] = Math.min(255, (green?77:92) * k); im.data[i + 3] = 255;
     }
     g.putImageData(im, 0, 0);
     return cv;

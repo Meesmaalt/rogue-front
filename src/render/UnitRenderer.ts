@@ -220,8 +220,9 @@ export class UnitRenderer {
           else rotor.rotation.y += rotor.name === "RotorCounter" ? -speed : speed;
         }
       }
-      if (e.kind === "inf" || e.kind === "special" || e.kind === "engineer") {
-        const moving = e.mode === "move" || e.mode === "amove" || e.mode === "attack" || e.mode === "patrol";
+      if (e.def.category === "infantry" || e.kind === "reconInf" || e.kind === "sniper") {
+        const moving = Math.hypot(e.x-e.px,e.z-e.pz)>.003;
+        v.group.traverse(o=>{if(o.name==="LeftLeg"||o.name==="RightLeg")o.rotation.x=moving?Math.sin(animT*10+(o.name==="RightLeg"?Math.PI:0))*.45:0;});
         const step = moving ? Math.abs(Math.sin(animT * 10)) * 0.045 : Math.sin(animT * 2) * 0.012;
         v.group.position.y += step;
         v.group.rotation.z = moving ? Math.sin(animT * 10) * 0.025 : 0;
@@ -284,7 +285,7 @@ export class UnitRenderer {
       // Status icons (player units only): out of supply / routing / low ammo
       if (e.team === world.playerTeam && e.def.speed > 0) {
         const icons: { name: string; color: number; on: boolean }[] = [
-          { name: "StOutSupply", color: 0xe05030, on: !world.isInSupply(e) },
+          { name: "StOutSupply", color: 0xe05030, on: !world.isInSupply(e) && (((e.maxAmmo??0)>0 && (e.ammo??0)<(e.maxAmmo??1)*.35) || ((e.maxFuel??0)>0 && (e.fuel??0)<(e.maxFuel??1)*.35) || (e.supply??100)<20) },
           { name: "StRouting", color: 0xffcc33, on: (e.morale ?? 100) < 22 || (e.suppression ?? 0) > 80 },
           { name: "StNoAmmo", color: 0xaaaaaa, on: (e.maxAmmo ?? 0) > 0 && (e.ammo ?? 0) <= 0 },
         ];

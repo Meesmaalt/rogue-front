@@ -6,7 +6,7 @@ import type { FactionId } from "./sim/factions";
 import { FACTION_LIST, FACTIONS } from "./sim/factions";
 import { DeckBuilder } from "./ui/DeckBuilder";
 import { World } from "./sim/World";
-import { heightAt, loadHeightmap, setBases, ensureHeightCache, setProceduralSeed } from "./sim/heightmap";
+import { heightAt, loadHeightmap, setBases, ensureHeightCache, setProceduralSeed, setTerrainProfile } from "./sim/heightmap";
 import { createRenderContext } from "./render/Renderer";
 import { createTerrain } from "./render/Terrain";
 import { RtsCamera } from "./render/RtsCamera";
@@ -63,11 +63,12 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   }
   setBases(mission.map.bases);
   setProceduralSeed(mission.seed);
+  setTerrainProfile(mission.map.terrainProfile);
   if(mission.map.heightmap)await loadHeightmap(mission.map.heightmap,mission.map.maxHeight);
   ensureHeightCache(); // rebuild cache now that heightmap + bases are final
 
   const skirmish = !!skirmishDifficulty;
-  const world = new World(mission.seed, !skirmish, mission.map.resources, mission.map.features ?? [], mission.map.bases);
+  const world = new World(mission.seed, !skirmish, mission.map.resources, mission.map.features ?? [], mission.map.bases, mission.map.baseDefenses ?? true);
   const multiplayer = !!multiplayerRoom && !skirmish;
   const net = multiplayer ? new LockstepClient() : null;
   const networkPackets: Array<{ tick: number; commands: import("./sim/types").Command[] }> = [];
@@ -101,7 +102,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const modeController = new MatchModeController(world, activeMode, mission);
   if (skirmish) world.matchController = modeController;
   else if (!multiplayer) world.missionController = missionRuntime;
-  if (skirmish) { createSkirmish(world); world.ai.setProfile(skirmishDifficulty === "hard" ? "aggressive" : skirmishDifficulty === "easy" ? "defensive" : "economic", skirmishDifficulty!); }
+  if (skirmish) { createSkirmish(world, mission.id === "roheorg" && queryParams.get("deployment") !== "base"); world.ai.setProfile(skirmishDifficulty === "hard" ? "aggressive" : skirmishDifficulty === "easy" ? "defensive" : "economic", skirmishDifficulty!); }
   if (skirmish && activeMode !== "skirmish") world.externalVictoryMode = true;
   if (multiplayer) world.setNetworkMode(0);
 
@@ -110,7 +111,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const glCanvas = document.getElementById("game") as HTMLCanvasElement;
   const topCanvas = document.getElementById("overlay") as HTMLCanvasElement;
   const fogCanvas = document.getElementById("fog") as HTMLCanvasElement;
-  const ctx = createRenderContext(glCanvas);
+  const ctx = createRenderContext(glCanvas, mission.map.theme === "temperate");
   ctx.setQuality(loadSettings().quality);
   ctx.scene.add(createTerrain(mission.map.theme, world.mapFeatures, mission.map.bases));
 
@@ -155,6 +156,8 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
 
   minimap.onJump = (x, z) => cam.jumpTo(x, z);
   minimap.onOrder = (x, z) => commands.moveTo(x, z);
+  hud.onSelect=ids=>{selection.selected.clear();ids.forEach(id=>selection.selected.add(id));};
+  hud.onOrder=order=>{if(!running||paused)return;if(order==="stop")world.issue({type:"stop",ids:selection.selectedIds()});else if(order==="focus"){const list=selection.selectedIds().map(id=>world.byId.get(id)).filter(e=>e&&!e.dead);if(list.length)cam.jumpTo(list.reduce((n,e)=>n+e!.x,0)/list.length,list.reduce((n,e)=>n+e!.z,0)/list.length);}else {commands.attackMoveMode=order==="attack";hud.setWarning(order==="attack"?"Ründeliikumine: parem klõps kaardil või minikaardil":"Liigu: parem klõps sihtpunktile");}};
   hud.onProduce = (kind, producerId) => { if (running && !paused) world.issue({ type: "produce", kind, producerId }); };
   hud.onBuild = (kind) => { if (running && !paused) commands.startBuild(kind); };
   hud.onUpgradeSupply = (ids) => { if (running && !paused) world.issue({ type: "upgrade", ids, upgrade: "supply-depot" }); };
@@ -181,7 +184,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   let running = false;
   const setEnabled = (on: boolean) => { selection.enabled = commands.enabled = minimap.enabled = on; };
   const facBlur = FACTIONS[world.playerFaction]?.doctrineBlurb ?? "";
-  hud.showBriefing(skirmish ? { ...mission, name: "Skirmish — " + mission.map.name, briefing: modeController.label() + "\n\nREAL WAR baas:\n1) Generaator → varustusladu → maaväe juhtimiskeskus → tehas\n2) Saada teine insener ressursipunkti; ta käivitab kogumise\n3) Veokid toovad raha ja ammo/kütusevaru. Katkenud tarne peatab tootmise\n\nWARGAME lahing:\n• Optika/recon — kes näeb, tulistab\n• Supply raadius — ammo/kütus; forward ladu risk\n• Flank ja moraal loevad\n• Õhk: CAP / Strike / SEAD; ilma AA-ta kaotad\n\nDoktriin: " + facBlur + "\n\nKlahvid: F1 soomus F2 jala F3 õhk F4 toetus · Ctrl+1-9 grupid" } : mission, () => { if(multiplayer)return; running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); }, hasSave(), loadGame);
+  hud.showBriefing(skirmish ? { ...mission, name: "Skirmish — " + mission.map.name, briefing: mission.id === "roheorg" ? mission.briefing + "\n\n" + modeController.label() + "\n\n" + (queryParams.get("deployment")==="base" ? "Ehita generaator → varustusladu → maaväe juhtimiskeskus → tehas. Saada insener ressursipunkti." : "Baas ja väike lahingugrupp on valmis. Saada luure ette; tugevda koosseisu Maa-paneelist. Insener käivitab koduse ressursipunkti kogumise.") + "\n\nF1: vali soomus · Fookus: kaamera valikule\nRündeliiku + parem klõps: liigu ja võitle\nInsener / juhtimishoone → Ehita: baas ja FOB\nMoon, kütus ja remont vajavad tegelikku varustust." : modeController.label() + "\n\nREAL WAR baas:\n1) Generaator → varustusladu → maaväe juhtimiskeskus → tehas\n2) Saada teine insener ressursipunkti; ta käivitab kogumise\n3) Veokid toovad raha ja ammo/kütusevaru. Katkenud tarne peatab tootmise\n\nWARGAME lahing:\n• Optika/recon — kes näeb, tulistab\n• Supply raadius — ammo/kütus; forward ladu risk\n• Flank ja moraal loevad\n• Õhk: CAP / Strike / SEAD; ilma AA-ta kaotad\n\nDoktriin: " + facBlur + "\n\nKlahvid: F1 soomus F2 jala F3 õhk F4 toetus · Ctrl+1-9 grupid" } : mission, () => { if(multiplayer)return; running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); }, hasSave(), loadGame);
 
   addEventListener("keydown", (e) => {
     if (e.key.toLowerCase() === loadSettings().keys.pause && running) togglePause();

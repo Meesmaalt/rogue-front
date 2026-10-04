@@ -1,12 +1,12 @@
 import * as THREE from "three";
 import { getBases, MAP_SIZE, heightAt } from "../sim/heightmap";
 import { mulberry32 } from "../sim/rng";
-import type { MapFeatureDef } from "../sim/mapFeatures";
+import { pointInFeature, type MapFeatureDef } from "../sim/mapFeatures";
 import type { Point } from "../sim/types";
 
 const SEG = 96;
 
-export function createTerrain(theme: "desert" | "mountains" | "city" = "desert", features: readonly MapFeatureDef[] = [], bases: readonly (Point & { r: number })[] = []): THREE.Group {
+export function createTerrain(theme: "desert" | "mountains" | "city" | "temperate" = "desert", features: readonly MapFeatureDef[] = [], bases: readonly (Point & { r: number })[] = []): THREE.Group {
   const rnd = mulberry32(7);
   const group = new THREE.Group();
 
@@ -20,7 +20,7 @@ export function createTerrain(theme: "desert" | "mountains" | "city" = "desert",
   const col = new Float32Array(pos.count * 3);
   const c = new THREE.Color();
   // Brighter Real War-style desert / mountain / city palettes
-  const palette = theme === "mountains"
+  const palette = theme === "temperate" ? [0x71894e,0x7f925e,0x8a8975,0x9a988b,0x536c3e] : theme === "mountains"
     ? [0xa8a094, 0x8a857c, 0x6a6660, 0x9a9588, 0x7a8570]
     : theme === "city"
       ? [0x7a8078, 0x656c68, 0x505854, 0x8a8880, 0x6a7568]
@@ -39,69 +39,33 @@ export function createTerrain(theme: "desert" | "mountains" | "city" = "desert",
       // Clear paved base pad like Real War bases
       if (d < b.r * 0.85) c.lerp(pad, 0.72 * (1 - d / (b.r * 0.85)));
     }
+    if (theme === "temperate") {
+      for (const f of features) if (f.appearance === "field" && pointInFeature(x,z,f)) c.setHex(f.color ?? 0x879357).multiplyScalar(.95+rnd()*.1);
+      for (const f of features) if (f.appearance === "forest" && pointInFeature(x,z,f,3)) c.lerp(new THREE.Color(0x3b5335), .7);
+    }
     col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
   }
   geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
 
   const grain = makeGrainTexture();
-  const splat = makeSplatMap(geo, nrm);
-  const normal = makeNormalMap(geo);
+
   const terrain = new THREE.Mesh(
     geo,
     new THREE.MeshStandardMaterial({
       vertexColors: true,
       map: grain,
-      normalMap: normal,
-      normalScale: new THREE.Vector2(0.35, 0.35),
       roughness: 0.92,
       metalness: 0,
-      aoMap: splat,
-      aoMapIntensity: 0.28,
     }),
   );
   terrain.name = "terrain";
-  terrain.userData.splatMap = splat;
   terrain.receiveShadow = true;
   group.add(terrain);
-  group.add(createRocks(rnd, bases, features));
+  if (theme !== "temperate") group.add(createRocks(rnd, bases, features));
+  else group.add(createForest(features));
   group.add(createDecals(rnd));
   group.add(createMapFeatures(features));
   return group;
-}
-
-function makeSplatMap(geo: THREE.BufferGeometry, normals: THREE.BufferAttribute | THREE.InterleavedBufferAttribute): THREE.CanvasTexture {
-  const cv = document.createElement("canvas"); cv.width = cv.height = 256;
-  const g = cv.getContext("2d")!; const im = g.createImageData(256, 256);
-  const pos = geo.attributes.position;
-  for (let i = 0; i < im.data.length; i += 4) {
-    const px = (i / 4) % 256, pz = Math.floor(i / 4 / 256);
-    const k = ((pz / 255) * 160 + (px / 255) * 80) % pos.count;
-    const y = pos.getY(Math.floor(k)), slope = 1 - normals.getY(Math.floor(k));
-    im.data[i] = Math.min(255, 80 + slope * 230);
-    im.data[i + 1] = Math.min(255, 110 + Math.max(0, -y) * 5);
-    im.data[i + 2] = Math.min(255, 150 + Math.max(0, y) * 3);
-    im.data[i + 3] = 255;
-  }
-  g.putImageData(im, 0, 0);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.NoColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 3);
-  return t;
-}
-
-function makeNormalMap(geo: THREE.BufferGeometry): THREE.CanvasTexture {
-  const cv = document.createElement("canvas"); cv.width = cv.height = 256;
-  const g = cv.getContext("2d")!; const im = g.createImageData(256, 256);
-  const pos = geo.attributes.position;
-  for (let i = 0; i < im.data.length; i += 4) {
-    const p = i / 4, x = p % 256, z = Math.floor(p / 256);
-    const a = Math.floor((z / 255) * (pos.count - 1));
-    const h = pos.getY(a), h2 = pos.getY(Math.min(pos.count - 1, a + 1));
-    const dx = Math.max(-1, Math.min(1, (h2 - h) * 8));
-    im.data[i] = 128 - dx * 55; im.data[i + 1] = 128; im.data[i + 2] = 255; im.data[i + 3] = 255;
-    void x;
-  }
-  g.putImageData(im, 0, 0);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.NoColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 3);
-  return t;
 }
 
 function makeGrainTexture(): THREE.CanvasTexture {
@@ -173,6 +137,11 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
   group.name = "map-features";
   for (const f of features) {
     const y = heightAt(f.x, f.z);
+    if (f.appearance === "forest") continue;
+    if (f.appearance === "field") {
+      const field=drapedStrip(f,f.width,f.color??0x879357,.025);
+      (field.material as THREE.MeshStandardMaterial).map=fieldTexture();group.add(field);continue;
+    }
     if (f.kind === "water") {
       const geo = new THREE.BoxGeometry(f.width, 0.18, f.depth);
       const mat = new THREE.MeshStandardMaterial({ color: 0x405b68, roughness: 0.25, metalness: 0.18, transparent: true, opacity: 0.9 });
@@ -182,18 +151,14 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
       continue;
     }
     if (f.kind === "road" || f.kind === "bridge") {
-      const geo = new THREE.BoxGeometry(f.width, f.kind === "bridge" ? 0.7 : 0.18, f.depth);
-      const mat = new THREE.MeshStandardMaterial({
-        color: f.kind === "bridge" ? 0x8a7a60 : 0x9a9078,
-        roughness: 0.92,
-        metalness: f.kind === "bridge" ? 0.12 : 0.02,
-      });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(f.x, y + (f.kind === "bridge" ? 0.28 : 0.06), f.z);
-      mesh.rotation.y = f.rotation ?? 0;
-      mesh.receiveShadow = true;
-      group.add(mesh);
-      if (f.kind === "bridge") addBridgeRails(group, f, y);
+      if(f.kind === "road") {
+        group.add(drapedStrip(f, f.width+2, 0xb1a68c, .035));
+        group.add(drapedStrip(f, f.width, 0x5e6360, .06));
+        for(let z=-f.depth/2+3;z<f.depth/2-2;z+=9) group.add(drapedStrip({...f,x:f.x+Math.sin(f.rotation??0)*z,z:f.z+Math.cos(f.rotation??0)*z,depth:3},.16,0xd6d1b8,.075));
+      } else {
+        const mesh=new THREE.Mesh(new THREE.BoxGeometry(f.width,.7,f.depth),new THREE.MeshStandardMaterial({color:0x8a8980,roughness:.9}));
+        mesh.position.set(f.x,y+.28,f.z);mesh.rotation.y=f.rotation??0;mesh.receiveShadow=true;group.add(mesh);addBridgeRails(group,f,y);
+      }
       continue;
     }
     if (f.kind === "building" || f.kind === "wall" || f.kind === "chokepoint") {
@@ -229,7 +194,19 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
       mesh.rotation.y = f.rotation ?? 0;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      group.add(mesh);
+      if(f.appearance === "farmhouse") {
+        const house=new THREE.Group();house.position.set(f.x,y,f.z);house.rotation.y=f.rotation??0;
+        mesh.position.set(0,h/2,0);mesh.rotation.y=0;mesh.material=new THREE.MeshStandardMaterial({color:0xc6bfa7,roughness:.95});house.add(mesh);
+        const roof=new THREE.Mesh(new THREE.CylinderGeometry(1,1,f.depth+1,3),new THREE.MeshStandardMaterial({color:0x796153,map:roofTexture(),roughness:.95}));
+        roof.rotation.x=Math.PI/2;roof.rotation.z=Math.PI;roof.scale.set(f.width*.65,1,2);roof.position.y=h+.7;roof.castShadow=true;house.add(roof);
+        const windowMat=new THREE.MeshStandardMaterial({color:0x344749,roughness:.5});
+        for(const side of [-1,1])for(const dx of [-.28,.28]){const win=new THREE.Mesh(new THREE.BoxGeometry(1.1,1,.12),windowMat);win.position.set(dx*f.width,h*.6,side*(f.depth/2+.04));house.add(win);}
+        const door=new THREE.Mesh(new THREE.BoxGeometry(1.2,2,.13),new THREE.MeshStandardMaterial({color:0x6a5c43}));door.position.set(0,1,f.depth/2+.05);house.add(door);
+        const chimney=new THREE.Mesh(new THREE.BoxGeometry(.65,1.8,.7),new THREE.MeshStandardMaterial({color:0x918577,roughness:1}));chimney.position.set(f.width*.28,h+1.5,-f.depth*.2);chimney.castShadow=true;house.add(chimney);
+        const trimMat=new THREE.MeshStandardMaterial({color:0xb0ae99,roughness:.95});
+        for(const side of [-1,1])for(const dx of [-.28,.28]){const sash=new THREE.Mesh(new THREE.BoxGeometry(.07,1.1,.14),trimMat);sash.position.set(dx*f.width,h*.6,side*(f.depth/2+.08));house.add(sash);}
+        group.add(house);
+      } else group.add(mesh);
       continue;
     }
     if (f.kind === "gate") {
@@ -289,4 +266,38 @@ function addBridgeRails(group: THREE.Group, f: MapFeatureDef, y: number): void {
     rail.rotation.y = f.rotation ?? 0;
     group.add(rail);
   }
+}
+
+/** Road geometry samples the same height field as navigation; no floating slabs. */
+function drapedStrip(f:MapFeatureDef,width:number,color:number,lift:number):THREE.Mesh {
+  const geo=new THREE.PlaneGeometry(width,f.depth,2,Math.max(1,Math.ceil(f.depth/3)));geo.rotateX(-Math.PI/2);const p=geo.attributes.position,c=Math.cos(f.rotation??0),s=Math.sin(f.rotation??0);
+  for(let i=0;i<p.count;i++){const lx=p.getX(i),lz=p.getZ(i),x=f.x+lx*c+lz*s,z=f.z-lx*s+lz*c;p.setXYZ(i,x,heightAt(x,z)+lift,z);}geo.computeVertexNormals();
+  const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color,roughness:.96,polygonOffset:true,polygonOffsetFactor:-1}));mesh.receiveShadow=true;return mesh;
+}
+function createForest(features:readonly MapFeatureDef[]):THREE.Group {
+  const rnd=mulberry32(104),points:{x:number;z:number;s:number}[]=[];
+  for(const f of features.filter(f=>f.appearance==="forest"))for(let i=0;i<Math.ceil(f.width*f.depth/30);i++)points.push({x:f.x+(rnd()-.5)*f.width,z:f.z+(rnd()-.5)*f.depth,s:.8+rnd()*.55});
+  const group=new THREE.Group(),trunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(.16,.25,3,5),new THREE.MeshStandardMaterial({color:0x645942,roughness:1}),points.length);
+  const crowns=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(2.4,1),new THREE.MeshStandardMaterial({color:0xffffff,roughness:1}),points.length*2),d=new THREE.Object3D();
+  points.forEach((p,i)=>{const y=heightAt(p.x,p.z);d.position.set(p.x,y+1.5*p.s,p.z);d.scale.set(p.s,p.s,p.s);d.updateMatrix();trunks.setMatrixAt(i,d.matrix);
+    for(let j=0;j<2;j++){d.position.set(p.x+j*.55,y+(3.8+j*1.6)*p.s,p.z);d.scale.set(p.s*(1-j*.25),p.s,p.s*(1-j*.25));d.updateMatrix();crowns.setMatrixAt(i*2+j,d.matrix);crowns.setColorAt(i*2+j,new THREE.Color().setHSL(.27+rnd()*.035,.26+rnd()*.15,.19+rnd()*.08));}});
+  trunks.castShadow=true;crowns.castShadow=true;crowns.receiveShadow=true;group.add(trunks,crowns);return group;
+}
+
+let cachedFieldTexture:THREE.CanvasTexture|undefined;
+function fieldTexture():THREE.CanvasTexture {
+  if(cachedFieldTexture)return cachedFieldTexture;
+  const canvas=document.createElement("canvas");canvas.width=canvas.height=128;
+  const c=canvas.getContext("2d")!,rnd=mulberry32(4104),data=c.createImageData(128,128);
+  for(let z=0;z<128;z++)for(let x=0;x<128;x++){const i=(z*128+x)*4,furrow=(x%8)<2,v=furrow?170+rnd()*15:220+rnd()*30;data.data[i]=v;data.data[i+1]=v;data.data[i+2]=v;data.data[i+3]=255;}
+  c.putImageData(data,0,0);const t=new THREE.CanvasTexture(canvas);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(3,3);t.anisotropy=8;cachedFieldTexture=t;return t;
+}
+
+let cachedRoofTexture:THREE.CanvasTexture|undefined;
+function roofTexture():THREE.CanvasTexture {
+  if(cachedRoofTexture)return cachedRoofTexture;
+  const canvas=document.createElement("canvas");canvas.width=canvas.height=128;const c=canvas.getContext("2d")!,rnd=mulberry32(521);
+  c.fillStyle="#dfd9d1";c.fillRect(0,0,128,128);
+  for(let y=0;y<128;y+=8)for(let x=-8;x<128;x+=16){const offset=(y/8%2)*8,v=Math.floor(180+rnd()*65);c.fillStyle=`rgb(${v},${v},${v})`;c.fillRect(x+offset,y,15,7);}
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(3,3);texture.anisotropy=8;cachedRoofTexture=texture;return texture;
 }

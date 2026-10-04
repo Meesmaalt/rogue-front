@@ -10,6 +10,8 @@ const DEFAULT_BASES: readonly BaseDef[] = [
 let activeBases: readonly BaseDef[] = DEFAULT_BASES;
 let activeHeightmap: HeightmapSource | null = null;
 let proceduralSeed = 1;
+let terrainProfile: "farmland" | undefined;
+export function setTerrainProfile(profile?: "farmland"): void { terrainProfile=profile; activeHeightmap=null; cacheValid=false; heightCache=null; }
 
 /** Cached height grid (2 m cells) — built once after bases/heightmap are set. */
 const CACHE_CELL = 2;
@@ -28,6 +30,7 @@ export function setProceduralSeed(seed: number): void { proceduralSeed = seed | 
 
 export function resetHeightmap(): void {
   activeHeightmap = null;
+  terrainProfile = undefined;
   activeBases = DEFAULT_BASES;
   cacheValid = false;
   heightCache = null;
@@ -67,6 +70,7 @@ function valueNoise(x:number,z:number,scale:number): number {
   return a*(1-sz)+b*sz;
 }
 function rawH(x: number, z: number): number {
+  if (terrainProfile === "farmland") return 1.8 + valueNoise(x,z,100)*2.6 + valueNoise(x+13,z-17,45)*0.7;
   const broad=(valueNoise(x,z,90)-0.5)*22;
   const medium=(valueNoise(x+17,z-11,38)-0.5)*9;
   const fine=(valueNoise(x-9,z+23,15)-0.5)*3;
@@ -81,7 +85,7 @@ function proceduralHeight(x: number, z: number): number {
     h *= smooth(b.r * 0.85, b.r * 2.1, d);
   }
   // Softer map-edge rise
-  h += smooth(175, 210, Math.max(Math.abs(x), Math.abs(z))) * 14;
+  h += smooth(175, 210, Math.max(Math.abs(x), Math.abs(z))) * (terrainProfile ? 2 : 14);
   return h;
 }
 

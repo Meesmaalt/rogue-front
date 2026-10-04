@@ -14,6 +14,8 @@ export interface MapFeatureDef {
   blocksMovement?: boolean;
   /** Optional tactical metadata used by UI/rendering. */
   label?: string;
+  appearance?: "forest" | "field" | "farmhouse" | "hedge";
+  color?: number;
 }
 
 export function featureBlocksMovement(feature: MapFeatureDef): boolean {
@@ -24,16 +26,11 @@ export function featureCorners(f: MapFeatureDef): Point[] {
   const a = (f.rotation ?? 0);
   const c = Math.cos(a), s = Math.sin(a);
   const hw = f.width / 2, hd = f.depth / 2;
-  return [
-    { x: f.x + (-hw * c + -hd * s), z: f.z + (-hw * s + hd * c) },
-    { x: f.x + ( hw * c + -hd * s), z: f.z + ( hw * s + hd * c) },
-    { x: f.x + ( hw * c +  hd * s), z: f.z + ( hw * s - hd * c) },
-    { x: f.x + (-hw * c +  hd * s), z: f.z + (-hw * s - hd * c) },
-  ];
+  return [[-hw,-hd],[hw,-hd],[hw,hd],[-hw,hd]].map(([x,z]) => ({x:f.x+x*c+z*s,z:f.z-x*s+z*c}));
 }
 
 export function pointInFeature(x: number, z: number, f: MapFeatureDef, padding = 0): boolean {
-  const a = -(f.rotation ?? 0);
+  const a = f.rotation ?? 0;
   const c = Math.cos(a), s = Math.sin(a);
   const dx = x - f.x, dz = z - f.z;
   const lx = dx * c - dz * s;

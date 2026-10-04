@@ -14,6 +14,16 @@ Põhisammas: **logistika + käsupuu + tänapäeva tehnika**, mitte klassikaline 
 
 ---
 
+## Praegune prioriteet — üks brauserikaart (Roheorg)
+- [x] Üksiklahingu fookuskaart: põllud, mets, küla, kolm teed; sama kõrgusväli renderduses ja nav-is
+- [x] Valmis baasi / ehitusalguse valik; tegelik tootmine ja piiratud füüsiline varustus
+- [x] Kompaktne ikoonidega HUD ja 63 mängumudelite pisipilti; üksuse seisundi selgitus
+- [x] Jalaväe siluett ja liikumispõhine kõnnianimatsioon; tootmishoonete katuseviimistlus
+- [x] Ründeliikumise A*, pööratud takistused, nurkade läbimine, veokite teekond ja LOS-positsioon
+- [x] Brauseris kontrollitud käsust liikumine, vastase tulekahju ja laskemoona vähenemine; salvestamine
+- [ ] Pika mängu tasakaal ja suurema armee kitsaskohtade viimistlemine mängija tagasiside järgi
+- [ ] Detailsemad keskkonna- ja jalaväetekstuurid ning realistlikumad tsiviil-/baasikompleksid
+
 ## Etapp 1 — Käsupuu + ehitusloop (PRAEGU)
 Eesmärk: mängija saab alati aru, *mida* saab ehitada ja *miks* midagi lukus on.
 

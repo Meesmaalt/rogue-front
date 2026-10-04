@@ -14,7 +14,7 @@ export function generateBaseFeatures(bases: readonly (Point & { r: number })[]):
     const gap = 18;
     const gateOnX = Math.abs(enemy.x-b.x)>=Math.abs(enemy.z-b.z);
     const gateX=b.x+(gateOnX?sideX*half:0),gateZ=b.z+(gateOnX?0:sideZ*half);
-    const wall=(id:string,x:number,z:number,width:number,depth:number)=>out.push({id:`base-${team}-${id}`,kind:"wall",x,z,width,depth,height:4.5,label:`Baasi ${team+1} kaitsemüür`} as MapFeatureDef);
+    const wall=(id:string,x:number,z:number,width:number,depth:number)=>out.push({id:`base-${team}-${id}`,kind:"wall",x,z,width,depth,height:1.2,label:`Baasi ${team+1} kaitsemüür`} as MapFeatureDef);
     for(const side of [-1,1]){
       const horizontalGate=!gateOnX&&side===sideZ,verticalGate=gateOnX&&side===sideX;
       const segment=half-gap/2,offset=gap/2+segment/2;

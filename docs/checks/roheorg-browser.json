@@ -1,0 +1,182 @@
+{
+  "errors": [],
+  "bad": [],
+  "time": 27.60000000000053,
+  "initialTime": 4.699999999999993,
+  "units": [
+    {
+      "id": 12,
+      "kind": "tank",
+      "team": 0,
+      "x": 6.12131290117744,
+      "z": -1.1042381845238887,
+      "hp": 79,
+      "maxHp": 166,
+      "ammo": 32,
+      "mode": "amove",
+      "targetId": 24
+    },
+    {
+      "id": 13,
+      "kind": "tank",
+      "team": 0,
+      "x": 8.793522633007223,
+      "z": 2.827538354393166,
+      "hp": 166,
+      "maxHp": 166,
+      "ammo": 32,
+      "mode": "amove",
+      "targetId": 24
+    },
+    {
+      "id": 15,
+      "kind": "inf",
+      "team": 0,
+      "x": -79,
+      "z": 54,
+      "hp": 50,
+      "maxHp": 50,
+      "ammo": 180,
+      "mode": "idle",
+      "targetId": null
+    },
+    {
+      "id": 16,
+      "kind": "inf",
+      "team": 0,
+      "x": -70,
+      "z": 54,
+      "hp": 50,
+      "maxHp": 50,
+      "ammo": 180,
+      "mode": "idle",
+      "targetId": null
+    },
+    {
+      "id": 17,
+      "kind": "reconVehicle",
+      "team": 0,
+      "x": -61,
+      "z": 54,
+      "hp": 92,
+      "maxHp": 92,
+      "ammo": 180,
+      "mode": "idle",
+      "targetId": null
+    },
+    {
+      "id": 23,
+      "kind": "tank",
+      "team": 1,
+      "x": 39.674567018597514,
+      "z": -30.652529759992685,
+      "hp": 176,
+      "maxHp": 176,
+      "ammo": 40,
+      "mode": "amove",
+      "targetId": 12
+    },
+    {
+      "id": 24,
+      "kind": "tank",
+      "team": 1,
+      "x": 15.379433878358514,
+      "z": -2.8304559176737776,
+      "hp": 94.80000000000001,
+      "maxHp": 176,
+      "ammo": 31,
+      "mode": "move",
+      "targetId": 12
+    },
+    {
+      "id": 25,
+      "kind": "apc",
+      "team": 1,
+      "x": 148.13163681984875,
+      "z": -63.8683631801788,
+      "hp": 105,
+      "maxHp": 105,
+      "ammo": 400,
+      "mode": "move",
+      "targetId": null
+    },
+    {
+      "id": 27,
+      "kind": "inf",
+      "team": 1,
+      "x": 55.28116237622204,
+      "z": -23.421215953653498,
+      "hp": 53,
+      "maxHp": 53,
+      "ammo": 180,
+      "mode": "amove",
+      "targetId": 12
+    },
+    {
+      "id": 34,
+      "kind": "inf",
+      "team": 1,
+      "x": 96.50603450579294,
+      "z": -90.60923929299592,
+      "hp": 53,
+      "maxHp": 53,
+      "ammo": 180,
+      "mode": "move",
+      "targetId": null
+    },
+    {
+      "id": 35,
+      "kind": "inf",
+      "team": 1,
+      "x": 83.89066585314065,
+      "z": -78.11861037420313,
+      "hp": 53,
+      "maxHp": 53,
+      "ammo": 180,
+      "mode": "amove",
+      "targetId": null
+    },
+    {
+      "id": 57,
+      "kind": "inf",
+      "team": 1,
+      "x": 112.92893218813452,
+      "z": -105.92893218813452,
+      "hp": 53,
+      "maxHp": 53,
+      "ammo": 180,
+      "mode": "idle",
+      "targetId": null
+    }
+  ],
+  "initialUnits": [
+    {
+      "id": 12,
+      "x": -79,
+      "z": 45,
+      "hp": 166,
+      "ammo": 40
+    },
+    {
+      "id": 13,
+      "x": -70,
+      "z": 45,
+      "hp": 166,
+      "ammo": 40
+    },
+    {
+      "id": 23,
+      "x": 61,
+      "z": -45,
+      "hp": 176,
+      "ammo": 40
+    },
+    {
+      "id": 24,
+      "x": 70,
+      "z": -45,
+      "hp": 176,
+      "ammo": 40
+    }
+  ]
+}

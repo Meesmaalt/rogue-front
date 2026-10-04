@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import {mergeGeometries} from "three/addons/utils/BufferGeometryUtils.js";
 import type { Team, UnitKind } from "../sim/types";
 import type { FactionId } from "../sim/factions";
 import { vehiclePlatform } from "../data/vehicleRoster";
@@ -71,15 +72,22 @@ function barrel(len: number, r: number, y: number, z: number, parent: THREE.Obje
 export interface Model { group: THREE.Group; turret: THREE.Group | null }
 
 function soldier(parent: THREE.Object3D, x: number, z: number, uniform: number, gear: number, weapon = true): void {
-  detailBox(0.13,0.48,0.13,DARK,x-0.07,0.25,z,parent);
-  detailBox(0.13,0.48,0.13,DARK,x+0.07,0.25,z,parent);
-  detailBox(0.42,0.48,0.28,uniform,x,0.72,z,parent,0.9,0.02);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.13,7,5), mat(SKIN,0.9,0.02));
-  head.position.set(x,1.12,z); parent.add(head);
-  const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.15,7,4,0,Math.PI*2,0,Math.PI*0.55), mat(DARK,0.9,0.02));
-  helmet.position.set(x,1.2,z); parent.add(helmet);
-  detailBox(0.18,0.3,0.08,gear,x,0.72,z-0.17,parent);
-  if (weapon) detailBox(0.055,0.055,0.7,DARK,x+0.18,0.72,z+0.12,parent,0.6,0.15);
+  const torso=new THREE.Group();torso.position.set(x,0,z);parent.add(torso);
+  for(const side of [-1,1]) {
+    const leg=new THREE.Group();leg.name=side<0?"LeftLeg":"RightLeg";leg.position.set(side*.12,.78,0);
+    leg.add(box(.19,.34,.2,uniform,0,-.17,0),box(.17,.3,.18,uniform,0,-.48,0),box(.21,.13,.32,DARK,0,-.7,.06),box(.2,.14,.07,gear,0,-.36,.09));torso.add(leg);mergeStaticParts(leg);
+  }
+  const chest=cyl(.23,.18,.5,uniform,0,1.02,0,6);chest.scale.z=.72;torso.add(chest);
+  torso.add(box(.43,.37,.09,gear,0,1.05,.17),box(.3,.43,.19,gear,0,1.03,-.21));
+  for(const dx of [-.13,0,.13])torso.add(box(.1,.14,.1,0x64664f,dx,.96,.22));
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.135,8,6),mat(SKIN,.95,0));head.position.set(0,1.4,0);torso.add(head);
+  const helmet=new THREE.Mesh(new THREE.SphereGeometry(.17,8,5,0,Math.PI*2,0,Math.PI*.6),mat(uniform,.95,0));helmet.position.set(0,1.48,0);torso.add(helmet);
+  const armLeft=box(.16,.4,.17,uniform,-.27,1.12,.04);armLeft.rotation.z=-.3;torso.add(armLeft);
+  const armRight=box(.16,.37,.16,uniform,.27,1.12,.09);armRight.rotation.z=.3;torso.add(armRight);
+  torso.add(box(.16,.13,.28,uniform,-.17,.96,.21),box(.14,.14,.22,uniform,.19,.96,.25));
+  if(weapon){torso.add(box(.065,.09,.67,DARK,.12,1.04,.4),box(.07,.18,.1,DARK,.12,.94,.39),box(.08,.12,.2,0x51544c,.12,1.04,.05));}
+  mergeStaticParts(torso);
+
 }
 
 /** Phase 67: faction-specific vehicle-family detailing. The geometry remains lightweight but each nation gets a recognizable silhouette. */
@@ -249,7 +257,7 @@ export function createModel(kind: UnitKind, team: Team, faction: FactionId = tea
   if (infantryKinds.has(kind)) {
     // Phase 74: render a complete squad. The renderer hides individual members as casualties occur.
     const role = kind === "sniper" ? "sniper" : kind === "reconInf" ? "recon" : kind === "mgInf" ? "mg" : kind === "manpad" ? "manpad" : kind === "atInf" || kind === "atgm" ? "at" : kind.includes("Engineer") || kind.includes("engineer") ? "engineer" : "rifle";
-    const uniform = role === "recon" || role === "sniper" ? 0x46523e : role === "engineer" ? 0x68563d : role === "at" ? 0x5a4a38 : acc;
+    const uniform = role === "recon" || role === "sniper" ? 0x46523e : role === "engineer" ? 0x68563d : role === "at" ? 0x5a4a38 : faction==="usa"?0x737a58:faction==="russia"?0x586744:0x6c7350;
     const formation: Array<[number,number]> = [[-1.15,-1.0],[0,-1.15],[1.15,-1.0],[-1.5,0],[0,0],[1.5,0],[-0.95,1.15],[0.95,1.15]];
     formation.forEach(([x,z], i) => {
       const member = new THREE.Group(); member.name = `SquadMember${i}`;
@@ -670,7 +678,7 @@ export function createModel(kind: UnitKind, team: Team, faction: FactionId = tea
     case "barracks": {
       g.add(box(12, 0.28, 9, CONCRETE, 0, 0.14, 0));
       g.add(box(10, 2.6, 7.2, SAND, 0, 1.4, 0));
-      g.add(box(9, 0.3, 6.2, 0x8a8070, 0, 2.85, 0));
+      addPitchedRoof(g,10.5,7.7,2.75,0x717a68);
       g.add(box(3.2, 1.3, 2.4, acc, -2.5, 3.6, 0));
       g.add(box(1.5, 2.0, 0.28, DARK, 0, 1.15, 3.7));
       g.add(box(1.1, 0.85, 0.15, 0x3a4550, -3.0, 1.7, 3.65));
@@ -681,7 +689,8 @@ export function createModel(kind: UnitKind, team: Team, faction: FactionId = tea
     case "factory": {
       g.add(box(13, 0.3, 11, CONCRETE, 0, 0.15, 0));
       g.add(box(12, 3.5, 10, 0x5a5a55, 0, 1.9, 0));
-      g.add(box(8, 2.5, 6, body, 0, 4.8, -0.5));
+      addPitchedRoof(g,12.6,10.6,3.7,0x788173);
+      for(const dx of [-4,-2,0,2,4])detailBox(.11,.1,10.7,0xaaa994,dx,4.1,0,g);
       g.add(box(1.4, 5.5, 1.4, DARK, 3.5, 5.5, 2.5));
       g.add(box(1.1, 0.4, 1.1, 0x444440, 3.5, 8.4, 2.5));
       g.add(box(4.5, 2.8, 0.3, 0x3a3a38, 0, 1.5, 5.1));
@@ -727,7 +736,7 @@ export function createModel(kind: UnitKind, team: Team, faction: FactionId = tea
     case "supply": {
       g.add(box(10, 0.28, 8, CONCRETE, 0, 0.14, 0));
       g.add(box(8, 2.8, 6.2, SAND, 0, 1.5, 0));
-      g.add(box(6.2, 1.0, 4.8, body, 0, 3.4, 0));
+      addPitchedRoof(g,8.5,6.7,2.95,0x7b826c);
       g.add(box(1.5, 2.0, 0.3, DARK, 0, 1.15, 3.2));
       g.add(box(1.5, 1.3, 1.5, 0x8a7a50, 4.4, 0.75, 2.4));
       g.add(box(1.3, 1.1, 1.3, 0x7a6a48, 4.4, 1.9, 2.4));
@@ -807,4 +816,15 @@ export function createModel(kind: UnitKind, team: Team, faction: FactionId = tea
   if (["hq","barracks","factory","supply","airbase","refinery","radar"].includes(kind)) addBaseEnvironment(g, faction, kind);
   g.rotation.order = "YXZ";
   return { group: g, turret };
+}
+
+function addPitchedRoof(parent:THREE.Group,width:number,depth:number,y:number,color:number):void {
+  const slope=Math.atan2(1,width/2),length=Math.hypot(width/2,1);
+  for(const side of [-1,1]){const roof=box(length,.15,depth,color,side*width/4,y+.5,0);roof.rotation.z=-side*slope;parent.add(roof);}
+}
+/** Merge each static human part by material color; animated leg pivots stay separate. */
+function mergeStaticParts(parent:THREE.Group):void {
+  const batches=new Map<number,{geometry:THREE.BufferGeometry[];material:THREE.MeshStandardMaterial}>();
+  for(const child of [...parent.children])if(child instanceof THREE.Mesh&&child.material instanceof THREE.MeshStandardMaterial){child.updateMatrix();const color=child.material.color.getHex();let batch=batches.get(color);if(!batch){batch={geometry:[],material:child.material.clone()};batches.set(color,batch);}const geo=child.geometry.clone().applyMatrix4(child.matrix);batch.geometry.push(geo);parent.remove(child);child.geometry.dispose();child.material.dispose();}
+  for(const batch of batches.values()){const geometry=mergeGeometries(batch.geometry);batch.geometry.forEach(g=>g.dispose());if(geometry){const mesh=new THREE.Mesh(geometry,batch.material);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);}}
 }
