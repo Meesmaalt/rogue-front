@@ -1,5 +1,57 @@
 import type { World } from "../World";
-import type { Entity, Point, Team } from "../types";
+import mobility from "../../data/mobility.json";
+import {heightAt} from "../heightmap";
+import {canEngage,weaponAmmo,weaponSpec} from "./combat";
+import type { Entity, Point, Team,AirMission } from "../types";
+
+/** The same facility-local points drive production, taxi, landing and the model. */
+export function airFacilityPoint(pad:Entity,forward:number,side=0):Point {
+  return {x:pad.x+Math.sin(pad.heading)*forward+Math.cos(pad.heading)*side,z:pad.z+Math.cos(pad.heading)*forward-Math.sin(pad.heading)*side};
+}
+export function airFacilityCapacity(w:World,pad:Entity):number {
+  const cfg=pad.kind==="helipad"?mobility.helicopter:mobility.aircraft;
+  return cfg.baseCapacity+cfg.capacityPerLevel*w.producerLevel(pad);
+}
+export function freeAirSlot(w:World,pad:Entity):number {
+  const used=new Set(w.entities.filter(e=>!e.dead&&e.airMissionHomeId===pad.id).map(e=>e.airHomeSlot??0));
+  for(let i=0;i<airFacilityCapacity(w,pad);i++)if(!used.has(i))return i;return -1;
+}
+export function airParkingPoint(u:Entity,pad:Entity):Point {
+  const slot=u.airHomeSlot??0;
+  return pad.kind==="helipad"?airFacilityPoint(pad,mobility.helicopter.padOffset+Math.floor(slot/3)*mobility.helicopter.parkingSpacing,(slot%3===0?0:slot%3===1?-1:1)*mobility.helicopter.parkingSpacing):airFacilityPoint(pad,-4+Math.floor(slot/2)*mobility.aircraft.parkingSpacing,mobility.aircraft.parkingOffset+(slot%2)*mobility.aircraft.parkingSpacing);
+}
+export function stationAircraft(w:World,u:Entity,pad:Entity,slot=freeAirSlot(w,pad)):void {
+  u.airMissionHomeId=pad.id;u.airHomeSlot=Math.max(0,slot);u.airState="grounded";u.airSortieTime=0;u.airTaxiPhase="apron";u.motionSpeed=0;
+  const p=airParkingPoint(u,pad);u.x=u.px=p.x;u.z=u.pz=p.z;u.y=heightAt(p.x,p.z);u.heading=u.pHeading=pad.heading;
+}
+export function airUnitsForOrder(w:World,ids:number[],team:Team):Entity[] {
+  const facilities=new Set(ids.filter(id=>{const e=w.byId.get(id);return e&&e.team===team&&!e.dead&&!e.underConstruction&&["airbase","helipad"].includes(e.kind);}));
+  const selected=new Set(ids);
+  return w.entities.filter(e=>!e.dead&&e.team===team&&e.def.armor==="air"&&e.loadedIntoId==null&&e.supplyDepotId==null&&e.kind!=="cargoPlane"&&(selected.has(e.id)||facilities.has(e.airMissionHomeId??-1)));
+}
+export function supportsAirMission(u:Entity,mission:AirMission):boolean {
+  if(mission==null)return true;
+  return (u.def.weapons??[weaponSpec(u)]).some(s=>s.damage>0&&(mission==="cap"?s.targets==="air"||s.targets==="all":s.targets!=="air"));
+}
+export function hasAirMissionAmmo(u:Entity):boolean {
+  if((u.maxAmmo??0)===0)return true;
+  const mission=u.airMission;
+  return (u.def.weapons??[weaponSpec(u)]).some((s,i)=>s.damage>0&&(mission==null||mission==="cap"?(mission==null||s.targets==="air"||s.targets==="all"):s.targets!=="air")&&(s.ammoCapacity<=0||weaponAmmo(u,i)>=s.ammoUsePerShot));
+}
+export function requestAirReturn(u:Entity):void {
+  u.target=null;u.dest=null;u.mode="idle";u.airMission=null;u.airMissionPoint=null;u.patrolPoints=[];u.moveQueue=[];
+  if(u.airState==="grounded"||u.airState==="rearming")return;
+  u.airState=u.airState==="taxi"&&u.def.category!=="heli"?"landing":"returning";u.airReturnReason="manual";u.airLandingPhase="approach";
+}
+export function airOperationStatus(w:World,u:Entity):string {
+  const pad=w.byId.get(u.airMissionHomeId??-1);
+  if(u.airState==="grounded")return pad&&!pad.dead?(w.productionOperational(pad).operational?"Baasis · valmis missiooniks":"Baasis · "+w.productionOperational(pad).reason):"Baasis · lennurajatis puudub";
+  if(u.airState==="taxi")return u.def.category==="heli"?"Kopteriplatsilt õhkutõus":u.airTaxiPhase==="runway"?"Stardirada · hoovõtt":"Ruleerib · ootab vaba rada";
+  if(u.airState==="landing")return "Maandunud · ruleerib parkimiskohale";
+  if(u.airState==="rearming")return "Baasis · laskemoona, kütuse ja remondi ootel";
+  if(u.airState==="returning")return "Naaseb baasi · "+({fuel:"kütus",ammo:"laskemoon",damage:"kahjustus / õhutõrje",manual:"mängija käsk"}[u.airReturnReason??"manual"])+(pad&&!pad.dead?"":" · lennurajatis puudub");
+  return "Lennul · "+({cap:"õhukaitse",strike:"baasirünnak",sead:"õhutõrje rünnak",ground:"maaväe toetus"}[u.airMission??"ground"]);
+}
 
 /** Approximate AA threat radius by kind. */
 export function aaThreatRadius(e: Entity): number {
@@ -28,6 +80,8 @@ export function assignAirMission(
   mission: "cap" | "strike" | "sead" | "ground",
   point?: Point | null,
 ): void {
+  if(!supportsAirMission(u,mission))return;
+  u.holdPosition=false;u.flightOrbitCenter=undefined;
   u.airMission = mission;
   u.airMissionPoint = point ? { x: point.x, z: point.z } : null;
   if (mission === "cap") {
@@ -54,7 +108,7 @@ export function assignAirMission(
  */
 export function updateAirDoctrine(w: World, u: Entity, dt: number): void {
   if (u.def.armor !== "air" && u.def.category !== "heli") return;
-  if (u.dead || u.airState === "returning" || u.airState === "rearming") return;
+  if (u.dead || u.airState === "returning" || u.airState === "rearming" || u.airState === "grounded" || u.airState === "taxi" || u.airState === "landing") return;
   u.airSortieCount = u.airSortieCount ?? 0;
   u.airThreat = u.airThreat ?? 0;
   u.airWeaponCooldown = Math.max(0, (u.airWeaponCooldown ?? 0) - dt);
@@ -70,11 +124,11 @@ export function updateAirDoctrine(w: World, u: Entity, dt: number): void {
   }
 
   // SEAD: actively hunt AA
-  if (mission === "sead" && (!u.target || u.target.dead || u.target.kind !== "aa")) {
+  if (mission === "sead" && (!u.target || u.target.dead || !["aa","spaa","manpad"].includes(u.target.kind))) {
     let best: Entity | null = null;
     let bestD = 1e9;
     for (const e of w.entities) {
-      if (e.dead || e.team === u.team || !w.isSpottedByTeam(e,u.team) || e.kind !== "aa") continue;
+      if (e.dead || e.team === u.team || !w.isSpottedByTeam(e,u.team) || !["aa","spaa","manpad"].includes(e.kind)||!canEngage(u,e)) continue;
       const d = Math.hypot(e.x - u.x, e.z - u.z);
       if (d < bestD) { bestD = d; best = e; }
     }
@@ -91,7 +145,7 @@ export function updateAirDoctrine(w: World, u: Entity, dt: number): void {
     let best: Entity | null = null;
     let bestScore = 1e9;
     for (const e of w.entities) {
-      if (e.dead || e.team === u.team || !w.isSpottedByTeam(e,u.team) || e.def.speed > 0) continue;
+      if (e.dead || e.team === u.team || !w.isSpottedByTeam(e,u.team) || e.def.speed > 0||!canEngage(u,e)) continue;
       const pi = prio.indexOf(e.kind);
       if (pi < 0) continue;
       const d = Math.hypot(e.x - u.x, e.z - u.z);
@@ -115,7 +169,7 @@ export function updateAirDoctrine(w: World, u: Entity, dt: number): void {
       let bestD = 1e9;
       for (const e of w.entities) {
         if (e.dead || e.team === u.team || !w.isSpottedByTeam(e,u.team)) continue;
-        if (e.def.armor !== "air" && e.def.category !== "heli") continue;
+        if (e.def.armor !== "air" && e.def.category !== "heli" || !canEngage(u,e)) continue;
         const d = Math.hypot(e.x - u.x, e.z - u.z);
         if (d < Math.max(u.aggro, u.def.range + 20) && d < bestD) {
           bestD = d; best = e;
@@ -128,6 +182,8 @@ export function updateAirDoctrine(w: World, u: Entity, dt: number): void {
     }
   }
 
+  if(mission==="cap"&&!u.target&&u.mode==="attack"){u.mode="patrol";u.dest=u.patrolPoints[u.patrolIndex]??u.airMissionPoint??null;}
+
   // Soft AA avoidance for non-SEAD helis (steer away)
   if (mission !== "sead" && (u.kind === "heli" || u.kind === "gunship" || u.kind === "transport")) {
     const threat = aaThreatAt(w, u.team, u.x, u.z);
@@ -135,7 +191,7 @@ export function updateAirDoctrine(w: World, u: Entity, dt: number): void {
       // Nudge destination away from nearest AA
       let nx = 0, nz = 0;
       for (const e of w.entities) {
-        if (e.dead || e.team === u.team || !w.isSpottedByTeam(e,u.team) || e.kind !== "aa") continue;
+        if (e.dead || e.team === u.team || !w.isSpottedByTeam(e,u.team) || !["aa","spaa","manpad"].includes(e.kind)||!canEngage(u,e)) continue;
         const d = Math.hypot(e.x - u.x, e.z - u.z) || 1;
         if (d < aaThreatRadius(e)) {
           nx += (u.x - e.x) / d;

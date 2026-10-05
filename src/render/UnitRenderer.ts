@@ -114,7 +114,7 @@ export class UnitRenderer {
   }
   handleEvents(events: import("../sim/types").SimEvent[]): void {
     for (const e of events) {
-      if (e.type === "fire" && e.sourceId) this.recoilById.set(e.sourceId, 1);
+      if (e.type === "fire" && e.sourceId && (e.weaponIndex??0)===0 && e.weapon!=="missile") this.recoilById.set(e.sourceId, 1);
     }
   }
   private ringMat = new THREE.MeshBasicMaterial({ color: 0xf2a33a, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false });
@@ -172,7 +172,7 @@ export class UnitRenderer {
         });
         this.scene.add(m.group);
         const guns:THREE.Object3D[]=[],gears:THREE.Object3D[]=[],turrets:THREE.Group[]=[],legs:THREE.Object3D[]=[],members:THREE.Object3D[]=[];
-        lod.traverse(o=>{if(o.name==="Gun"){o.userData.restZ=o.position.z;guns.push(o);}if(o.name==="LandingGear")gears.push(o);if(o.name==="Turret")turrets.push(o as THREE.Group);if(o.name==="LeftLeg"||o.name==="RightLeg")legs.push(o);if(o.name.startsWith("SquadMember")){o.userData.squadPosition=o.position.clone();members.push(o);}});
+        lod.traverse(o=>{if(o.name==="Gun"){o.userData.restZ=o.position.z;o.userData.restX=o.rotation.x;guns.push(o);}if(o.name==="LandingGear")gears.push(o);if(o.name==="Turret")turrets.push(o as THREE.Group);if(o.name==="LeftLeg"||o.name==="RightLeg")legs.push(o);if(o.name.startsWith("SquadMember")){o.userData.squadPosition=o.position.clone();members.push(o);}});
         if(staticBuilding)this.shadowDirty=true;
         v = { near:visual.group,far,shadow:lod.getObjectByName("ContactShadow"),guns,gears,turrets,legs,members,status:new Map(),staticBuilding,group: m.group, turret: m.turret, ring, tactical, kind: e.kind, phase: (e.id * 0.731) % 6.28, recoil: 0 };
         this.views.set(e.id, v);
@@ -244,19 +244,7 @@ export class UnitRenderer {
         const moving = e.mode === "move" || e.mode === "amove" || e.mode === "patrol";
         v.group.position.y += moving ? Math.sin(animT * 14) * 0.025 : Math.sin(animT * 2) * 0.008;
       }
-      if (["fighter", "interceptor", "multirole", "attackAircraft", "ecm", "bomber", "cargoPlane"].includes(e.kind)) {
-        if (e.airState === "taxi") {
-          const lift = Math.max(0, Math.sin(animT * 3)) * 0.22;
-          v.group.position.y += lift;
-          v.group.rotation.x = -0.035;
-        } else if (e.airState === "airborne" || e.airState === "returning") {
-          v.group.position.y += 1.2 + Math.sin(animT * 5) * 0.035;
-          v.group.rotation.x = -0.055;
-        } else {
-          v.group.rotation.x = 0;
-        }
-      }
-      for(const gun of v.guns)gun.position.z=Number(gun.userData.restZ)-Math.sin(v.recoil*Math.PI)*.24;
+      for(const gun of v.guns){gun.position.z=Number(gun.userData.restZ)-Math.sin(v.recoil*Math.PI)*.24;gun.rotation.x=Number(gun.userData.restX)-(e.gunElevation??0);}
       for(const gear of v.gears)gear.visible=e.y-ground<12;
 
       // Construction progress bar – always strip when finished (search all children)

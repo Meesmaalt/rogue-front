@@ -1,5 +1,6 @@
+import weaponData from "../data/weapon-profiles.json";
 import raw from "../data/units.json";
-import type { UnitDef, UnitKind, OpticsRating, UnitSize, Stabilizer, Discipline, UnitCategory } from "./types";
+import type { UnitDef, UnitKind, OpticsRating, UnitSize, Stabilizer, Discipline, UnitCategory,WeaponSpec } from "./types";
 
 const NUM: (keyof UnitDef)[] = ["hp", "speed", "turnRate", "range", "damage", "cooldown", "radius", "height", "cost", "buildTime", "projectileSpeed"];
 const BOOL: (keyof UnitDef)[] = ["producible", "turret"];
@@ -199,6 +200,13 @@ export function parseUnits(data: unknown): Record<UnitKind, UnitDef> {
     if (typeof d.repairable === "boolean") def.repairable = d.repairable;
     // Legacy stealth boolean
     if (d.stealth === true && (def.stealthLevel ?? 0) < 1) def.stealthLevel = 2;
+    const loadouts=weaponData.loadouts as Record<string,Array<Record<string,string|number>>>;
+    const profiles=weaponData.profiles as Record<string,Record<string,string|number>>;
+    def.weapons=(loadouts[k]??[]).map(slot=>{
+      const profile=String(slot.profile),config=profiles[profile];if(!config)throw new Error(`Missing weapon profile ${profile}`);
+      return {profile,range:def.range,minimumRange:def.minimumRange??0,damage:def.damage,cooldown:def.cooldown,penetration:def.penetration??5,accuracy:def.accuracy??.6,splash:def.splash??0,ammoCapacity:def.ammoCapacity??0,ammoUsePerShot:def.ammoUsePerShot??1,suppressionPower:def.suppressionPower??1,launchSpeed:Number(config.speed),acceleration:0,turnRate:0,gravity:0,minFlight:0,...config,...slot} as unknown as WeaponSpec;
+    });
+    if(def.weapons.length){def.weapon=def.weapons[0].weapon;def.range=Math.max(...def.weapons.map(w=>w.range));}
     out[k] = def;
   }
   return out;

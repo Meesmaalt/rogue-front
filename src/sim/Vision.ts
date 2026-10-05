@@ -17,12 +17,14 @@ export class Vision {
     new Uint8Array(VISION_CELLS * VISION_CELLS),
   ];
   /** Only static blocking features (pre-filtered). */
+  private forests:MapFeatureDef[]=[];
   private blockingFeatures: MapFeatureDef[] = [];
   /** Buildings that block LOS (speed === 0). Updated each vision tick. */
   private buildings: Entity[] = [];
   private tickCounter = 0;
 
   setFeatures(features: readonly MapFeatureDef[]): void {
+    this.forests=features.filter(f=>f.appearance==="forest");
     this.blockingFeatures = features.filter((f) => featureBlocksMovement(f) && f.kind!=="water");
   }
   snapshot(): { states: [number[],number[]]; tickCounter: number } {
@@ -72,7 +74,15 @@ export class Vision {
    * Cheap LOS for combat: height samples + optional feature block.
    * Building occlusion only on long rays (rare for short-range fire).
    */
+  forestDepth(a:Entity,b:Entity):number {
+    if(!this.forests.length)return 0;
+    const dx=b.x-a.x,dz=b.z-a.z,d=Math.hypot(dx,dz),steps=Math.max(1,Math.ceil(d/5));let length=0;
+    for(let i=0;i<steps;i++){const t=(i+.5)/steps,x=a.x+dx*t,z=a.z+dz*t,y=a.y+a.def.height*.7+(b.y+b.def.height*.65-a.y-a.def.height*.7)*t;
+      if(this.forests.some(f=>pointInFeature(x,z,f)&&y<heightAt(x,z)+Math.max(4,f.height??5)))length+=d/steps;
+    }return length;
+  }
   hasLineOfSight(a: Entity, b: Entity): boolean {
+    if(this.forestDepth(a,b)>38)return false;
     const dx = b.x - a.x;
     const dz = b.z - a.z;
     const d = Math.hypot(dx, dz);
@@ -143,6 +153,7 @@ export class Vision {
   }
 
   getVisionRadius(u: Entity): number {
+    if(u.def.armor==="air"&&["grounded","rearming","taxi","landing"].includes(u.airState??""))return 10;
     // Schema v2 optics drive fog reveal (Wargame-style recon value)
     if (u.def.opticsRange) {
       const base = u.def.opticsRange;

@@ -1,197 +1,145 @@
 import * as THREE from "three";
-import type { World } from "../sim/World";
-import type { SimEvent } from "../sim/types";
-import { heightAt } from "../sim/heightmap";
-import { SIM_STEP } from "../sim/constants";
+import {mergeGeometries} from "three/addons/utils/BufferGeometryUtils.js";
+import type {World} from "../sim/World";
+import type {SimEvent,Projectile} from "../sim/types";
+import {heightAt} from "../sim/heightmap";
 
-type Kind = "fire" | "fire2" | "smoke" | "dust";
-interface Part { m: THREE.Mesh; vx: number; vy: number; vz: number; life: number; t: number; size: number; kind: Kind }
-interface Ping { m: THREE.Mesh; t: number }
-interface Flash { m: THREE.Mesh; light: THREE.PointLight; t: number; life: number; base: number }
-interface DustPart { x:number; y:number; z:number; vx:number; vy:number; vz:number; life:number; t:number; size:number }
-
-/** Renderduse efektid: mürsud, osakesed, plahvatused, ping-markerid. Käivituvad sim-sündmustest. */
+type ParticleKind="smoke"|"dust"|"glow"|"spark";
+interface Particle{x:number;y:number;z:number;vx:number;vy:number;vz:number;t:number;life:number;size:number;color:number;stretch:number}
+interface Pool{mesh:THREE.InstancedMesh;fade:THREE.InstancedBufferAttribute;particles:Particle[];capacity:number}
+interface Shell{group:THREE.Group;lastX:number;lastY:number;lastZ:number}
+interface Ring{mesh:THREE.Mesh;t:number;life:number;size:number}
+function particleTexture():THREE.CanvasTexture {
+  const cv=document.createElement("canvas");cv.width=cv.height=64;const c=cv.getContext("2d")!;
+  const g=c.createRadialGradient(32,32,1,32,32,31);g.addColorStop(0,"rgba(255,255,255,.9)");g.addColorStop(.35,"rgba(255,255,255,.65)");g.addColorStop(1,"rgba(255,255,255,0)");c.fillStyle=g;c.fillRect(0,0,64,64);
+  const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;return t;
+}
+/** Bounded billboard batches; trails follow actual simulated 3D flight. */
 export class Fx {
-  private parts: Part[] = [];
-  private pings: Ping[] = [];
-  private shells = new Map<number, THREE.Group>();
-  private dustParts: DustPart[] = [];
-  private flashes: Flash[] = [];
-  private readonly maxFlashes = 80;
-  private readonly dustMax = 256;
-  private readonly dustGeo = new THREE.PlaneGeometry(1, 1);
-  private readonly dustMat = new THREE.MeshBasicMaterial({ color: 0xb7a77a, transparent: true, opacity: 0.42, depthWrite: false, side: THREE.DoubleSide });
-  private readonly dustMesh: THREE.InstancedMesh;
-  private trailTimes=new Map<number,number>();
-  private missileGeo=new THREE.CylinderGeometry(.1,.13,1.35,8).rotateX(Math.PI/2);
-  private noseGeo=new THREE.ConeGeometry(.13,.4,8).rotateX(Math.PI/2);
-  private finGeo=new THREE.BoxGeometry(.65,.045,.32);
-  private tracerGeo=new THREE.BoxGeometry(.045,.045,1.7);
-  private shellGeo=new THREE.CylinderGeometry(.09,.09,.8,6).rotateX(Math.PI/2);
-  private missileMat=new THREE.MeshStandardMaterial({color:0xb9b8a5,roughness:.55,metalness:.25});
-  private exhaustMat=new THREE.MeshBasicMaterial({color:0xffb548});
-  private exhaustGeo=new THREE.ConeGeometry(.12,.65,6).rotateX(-Math.PI/2);
-  private shellMat = [new THREE.MeshBasicMaterial({ color: 0x9fe3ff }), new THREE.MeshBasicMaterial({ color: 0xff9a60 })];
-  private pGeo = new THREE.SphereGeometry(0.5, 6, 5);
-  private pMat: Record<Kind, THREE.Material> = {
-    fire: new THREE.MeshBasicMaterial({ color: 0xffa030 }),
-    fire2: new THREE.MeshBasicMaterial({ color: 0xff5a1e }),
-    smoke: new THREE.MeshBasicMaterial({ color: 0x2d2b29, transparent: true, opacity: 0.55, depthWrite: false }),
-    dust: new THREE.MeshBasicMaterial({ color: 0xb7a77a, transparent: true, opacity: 0.5, depthWrite: false }),
-  };
-
-  constructor(private readonly scene: THREE.Scene) {
-    this.dustMesh = new THREE.InstancedMesh(this.dustGeo, this.dustMat, this.dustMax);
-    this.dustMesh.frustumCulled = true;
-    this.dustMesh.count = 0;
-    this.scene.add(this.dustMesh);
+  private pools:Record<ParticleKind,Pool>;
+  private shells=new Map<number,Shell>();
+  private models=new Map<string,THREE.Group>();
+  private seen=new Set<number>();
+  private rings:Ring[]=[];
+  private dummy=new THREE.Object3D();
+  private direction=new THREE.Vector3();
+  private color=new THREE.Color();
+  private ringGeometry=new THREE.RingGeometry(.86,1,40).rotateX(-Math.PI/2);
+  constructor(private readonly scene:THREE.Scene,private readonly camera:THREE.Camera){
+    const texture=particleTexture();
+    const make=(kind:ParticleKind,capacity:number):Pool=>{
+      const geometry=new THREE.PlaneGeometry(1,1),fade=new THREE.InstancedBufferAttribute(new Float32Array(capacity),1);geometry.setAttribute("particleOpacity",fade);
+      const material=new THREE.MeshBasicMaterial({map:texture,transparent:true,depthWrite:false,toneMapped:false,blending:kind==="glow"||kind==="spark"?THREE.AdditiveBlending:THREE.NormalBlending});
+      material.onBeforeCompile=shader=>{
+        shader.vertexShader="attribute float particleOpacity; varying float vParticleOpacity;\n"+shader.vertexShader;
+        shader.vertexShader=shader.vertexShader.replace("#include <begin_vertex>","#include <begin_vertex>\nvParticleOpacity=particleOpacity;");
+        shader.fragmentShader="varying float vParticleOpacity;\n"+shader.fragmentShader;
+        shader.fragmentShader=shader.fragmentShader.replace("#include <color_fragment>","#include <color_fragment>\ndiffuseColor.a*=vParticleOpacity;");
+      };
+      const mesh=new THREE.InstancedMesh(geometry,material,capacity);mesh.count=0;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(mesh);
+      return {mesh,fade,particles:[],capacity};
+    };
+    this.pools={smoke:make("smoke",640),dust:make("dust",320),glow:make("glow",192),spark:make("spark",256)};
   }
-
-  handleEvents(events: SimEvent[]): void {
-    for (const e of events) {
-      if (e.type === "fire") {
-        this.muzzleFlash(e.x, e.y, e.z, e.team);
-        const count=e.weapon==="bullet"?1:e.weapon==="missile"?2:5,size=e.weapon==="bullet"?.2:e.weapon==="missile"?.4:.65;
-        for(let i=0;i<count;i++)this.puff(e.x,e.y,e.z,this.r(3),Math.random()*2,this.r(3),.16,size,"fire");
-        if(e.weapon==="cannon")this.puff(e.x,e.y,e.z,0,1,0,.6,.7,"smoke");
-      }
-      else if(e.type === "impact"){this.explode(e.x,e.y,e.z,false);}
-      else if (e.type === "hit") {
-        for (let i = 0; i < 4; i++) this.puff(e.x, e.y, e.z, this.r(5), Math.random() * 4, this.r(5), 0.3, 0.5, "dust");
-        this.impactSpark(e.x, e.y, e.z);
-      }
-      else if (e.type === "death") this.explode(e.x, e.y, e.z, e.big);
-      else if (e.type === "build-complete") this.ping(e.x, e.z, 0x66d9a0);
-      else if (e.type === "repair-complete") this.ping(e.x, e.z, 0x4ca8ff);
-      else if (e.type === "supply-delivered") {
-        // Golden ring + dust – clear feedback that logistics just paid out
-        this.ping(e.x, e.z, 0xf2a33a);
-        for (let i = 0; i < 5; i++) this.puff(e.x, 2, e.z, this.r(6), Math.random() * 3, this.r(6), 0.35, 0.7, "dust");
-      }
+  reset():void {
+    for(const s of this.shells.values())this.scene.remove(s.group);this.shells.clear();
+    for(const pool of Object.values(this.pools)){pool.particles.length=0;pool.mesh.count=0;}
+    for(const r of this.rings){this.scene.remove(r.mesh);(r.mesh.material as THREE.Material).dispose();}this.rings.length=0;
+  }
+  private emit(kind:ParticleKind,x:number,y:number,z:number,size:number,life:number,color:number,vx=0,vy=0,vz=0,stretch=1):void {
+    const pool=this.pools[kind];if(pool.particles.length>=pool.capacity)return;
+    pool.particles.push({x,y,z,vx,vy,vz,t:0,life,size,color,stretch});
+  }
+  handleEvents(events:SimEvent[],world:World):void {
+    for(const e of events){
+      if((e.type==="fire"&&e.team!==world.playerTeam||e.type!=="fire")&&!world.vision.isVisible(world.playerTeam,e.x,e.z))continue;
+      if(e.type==="fire"){
+        const visual=e.visual??"rifle",rocket=["atgm","sam","aam","manpad","rpg","rocket","mlrs"].includes(visual),small=["rifle","mg","sniper"].includes(visual);
+        const size=small?.3:rocket?.55:visual==="sabot"?1.25:.7;
+        if(visual!=="bomb"){
+          this.emit("glow",e.x,e.y,e.z,size,.09,0xffdda0,0,0,0,2.4);
+          const count=rocket?5:small?1:5;
+          for(let i=0;i<count;i++)this.emit("smoke",e.x-(e.dx??0)*.3,e.y,e.z-(e.dz??0)*.3,rocket?.35:.5,rocket?.85:.55,0xbcb8aa,this.r(1)+(e.dx??0)*1.2,.5+Math.random(),this.r(1)+(e.dz??0)*1.2);
+          if(!small)for(let i=0;i<5;i++)this.emit("dust",e.x,heightAt(e.x,e.z)+.2,e.z,.6,.55,0xab9c7c,this.r(4),Math.random(),this.r(4));
+        }
+      }else if(e.type==="impact"){
+        if(e.result==="ricochet"){
+          for(let i=0;i<12;i++)this.emit("spark",e.x,e.y,e.z,.1,.3,0xffda94,this.r(10),Math.random()*6,this.r(10),3);
+          this.emit("smoke",e.x,e.y,e.z,.7,.6,0x9a988e);continue;
+        }
+        if(e.weapon==="bullet"||e.visual==="sniper"){
+          for(let i=0;i<3;i++)this.emit("dust",e.x,e.y,e.z,.25,.25,0xab9c7c,this.r(2),Math.random()*2,this.r(2));continue;
+        }
+        const heavy=["bomb","howitzer","mlrs"].includes(e.visual??""),size=heavy?2.2:e.visual==="mortar"?1.35:e.result==="penetration"?.75:1.1;
+        this.explode(e.x,e.y,e.z,size,e.result==="airburst");
+      }else if(e.type==="death")this.explode(e.x,e.y,e.z,e.big?3:1.8,e.y-heightAt(e.x,e.z)>6,true);
+      else if(e.type==="build-complete"||e.type==="repair-complete")this.ping(e.x,e.z,0x77ba9e);
+      else if(e.type==="supply-delivered")this.ping(e.x,e.z,0xd1b566);
     }
   }
-
-  syncProjectiles(world: World, alpha: number): void {
-    const seen = new Set<number>();
-    for (const p of world.projectiles) {
-      seen.add(p.id);
-      let m = this.shells.get(p.id);
-      if (!m) {
-        m=new THREE.Group();
-        if(p.weapon==="missile"){
-          m.add(new THREE.Mesh(this.missileGeo,this.missileMat));
-          const nose=new THREE.Mesh(this.noseGeo,this.missileMat);nose.position.z=.86;m.add(nose);
-          for(let i=0;i<2;i++){const fin=new THREE.Mesh(this.finGeo,this.missileMat);fin.position.z=-.38;fin.rotation.z=i*Math.PI/2;m.add(fin);}
-          const exhaust=new THREE.Mesh(this.exhaustGeo,this.exhaustMat);exhaust.position.z=-.95;m.add(exhaust);
-        }else m.add(new THREE.Mesh(p.weapon==="bullet"?this.tracerGeo:this.shellGeo,this.shellMat[p.team]));
-        this.scene.add(m);this.shells.set(p.id,m);
-      }
-      const k = alpha * SIM_STEP;
-      m.position.set(p.x + p.vx * k, p.y + p.vy * k, p.z + p.vz * k);
-      if(Math.hypot(p.vx,p.vy,p.vz)>.01)m.lookAt(m.position.x+p.vx,m.position.y+p.vy,m.position.z+p.vz);
-      m.visible=p.team===world.playerTeam||world.vision.isVisible(world.playerTeam,p.x,p.z);
-      if(m.visible&&p.weapon==="missile"&&world.time-(this.trailTimes.get(p.id)??-1)>.065){this.trailTimes.set(p.id,world.time);this.puff(p.x,p.y,p.z,0,.3,0,.7,.28,"smoke");}
+  private projectileModel(p:Projectile):THREE.Group {
+    const key=p.visual??p.weapon??"rifle",cached=this.models.get(key);if(cached)return cached.clone(true);
+    const group=new THREE.Group(),rocket=p.weapon==="missile",bomb=key==="bomb";
+    if(rocket||bomb){
+      const length=bomb?1.25:key==="aam"?1.9:key==="sam"?1.75:key==="mlrs"?1.3:key==="rpg"?.8:key==="rocket"?.7:1.1;
+      const radius=bomb?.18:key==="sam"?.105:key==="aam"?.095:.075,parts:THREE.BufferGeometry[]=[];
+      parts.push(new THREE.CylinderGeometry(radius,radius,length,8).rotateX(Math.PI/2));
+      parts.push(new THREE.ConeGeometry(radius,.3,8).rotateX(Math.PI/2).translate(0,0,length/2+.13));
+      for(let i=0;i<2;i++)parts.push(new THREE.BoxGeometry(radius*5,.025,.22).rotateZ(i*Math.PI/2).translate(0,0,-length*.33));
+      const geometry=mergeGeometries(parts)!;parts.forEach(g=>g.dispose());
+      group.add(new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:bomb?0x777e63:key==="sam"?0xd0d0bf:0xb9beb6,roughness:.8,metalness:.12})));
+      if(!bomb){const flame=new THREE.Mesh(new THREE.ConeGeometry(radius*1.2,.45,6).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xffc16b,toneMapped:false}));flame.position.z=-length*.5-.22;group.add(flame);}
+    }else {
+      const tracer=p.weapon==="bullet"||["autocannon","flak","sabot"].includes(key),length=key==="sabot"?3.2:key==="sniper"?2.2:tracer?1.5:.7;
+      group.add(new THREE.Mesh(new THREE.BoxGeometry(key==="sabot"?.045:.035,.035,length),new THREE.MeshBasicMaterial({color:tracer?0xffd4a0:0xbbb5a0,toneMapped:false})));
     }
-    for (const [id, m] of this.shells) if (!seen.has(id)) { this.scene.remove(m); this.shells.delete(id);this.trailTimes.delete(id); }
+    this.models.set(key,group);return group.clone(true);
   }
-
-  ping(x: number, z: number, color: number): void {
-    const m = new THREE.Mesh(new THREE.RingGeometry(0.8, 1.1, 24).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, depthWrite: false }));
-    m.position.set(x, heightAt(x, z) + 0.4, z);
-    this.scene.add(m);
-    this.pings.push({ m, t: 0 });
-  }
-
-  update(dt: number): void {
-    for (let i = this.dustParts.length - 1; i >= 0; i--) {
-      const p = this.dustParts[i]; p.t += dt;
-      if (p.t >= p.life) { this.dustParts.splice(i, 1); continue; }
-      p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.vy -= 2.2 * dt;
-    }
-    this.dustMesh.count = this.dustParts.length;
-    const dm = new THREE.Object3D();
-    for (let i = 0; i < this.dustParts.length; i++) {
-      const p = this.dustParts[i], k = p.t / p.life;
-      dm.position.set(p.x, p.y, p.z); dm.scale.setScalar(p.size * (0.7 + k * 1.5)); dm.rotation.set(-Math.PI / 2, 0, p.t * 0.7); dm.updateMatrix();
-      this.dustMesh.setMatrixAt(i, dm.matrix);
-    }
-    this.dustMesh.instanceMatrix.needsUpdate = true;
-
-    for (let i = this.parts.length - 1; i >= 0; i--) {
-      const p = this.parts[i];
-      p.t += dt;
-      const k = p.t / p.life;
-      if (k >= 1) { this.scene.remove(p.m); this.parts.splice(i, 1); continue; }
-      p.m.position.x += p.vx * dt; p.m.position.y += p.vy * dt; p.m.position.z += p.vz * dt;
-      p.vy += (p.kind === "smoke" ? 1.5 : -9) * dt; p.vx *= 0.98; p.vz *= 0.98;
-      const s = p.kind === "smoke" || p.kind === "dust" ? p.size * (0.6 + k * 1.2) : p.size * (1 - k);
-      p.m.scale.setScalar(Math.max(0.01, s));
-    }
-    for (let i = this.flashes.length - 1; i >= 0; i--) {
-      const f = this.flashes[i]; f.t += dt;
-      const k = Math.min(1, f.t / f.life);
-      const pulse = Math.sin(k * Math.PI);
-      f.m.scale.setScalar(f.base * (0.75 + pulse * 0.9));
-      (f.m.material as THREE.MeshBasicMaterial).opacity = (1 - k) * 0.9;
-      f.light.intensity = pulse * 8;
-      if (k >= 1) {
-        this.scene.remove(f.m); this.scene.remove(f.light);
-        f.m.geometry.dispose(); (f.m.material as THREE.Material).dispose();
-        this.flashes.splice(i, 1);
+  syncProjectiles(world:World,alpha:number):void {
+    this.seen.clear();
+    for(const p of world.projectiles){
+      this.seen.add(p.id);const visible=p.team===world.playerTeam||world.vision.isVisible(world.playerTeam,p.x,p.z);
+      let shell=this.shells.get(p.id);if(!visible){if(shell)shell.group.visible=false;continue;}
+      if(!shell){shell={group:this.projectileModel(p),lastX:p.px??p.x,lastY:p.py??p.y,lastZ:p.pz??p.z};this.scene.add(shell.group);this.shells.set(p.id,shell);}
+      const m=shell.group;m.visible=true;
+      const x=(p.px??p.x)+(p.x-(p.px??p.x))*alpha,y=(p.py??p.y)+(p.y-(p.py??p.y))*alpha,z=(p.pz??p.z)+(p.z-(p.pz??p.z))*alpha;
+      m.position.set(x,y,z);this.direction.set(p.vx,p.vy,p.vz).normalize();m.lookAt(x+this.direction.x,y+this.direction.y,z+this.direction.z);
+      if(p.weapon==="missile"){
+        const distance=Math.hypot(x-shell.lastX,y-shell.lastY,z-shell.lastZ),spacing=p.visual==="sam"?.7:.5;
+        if(distance>=spacing){const count=Math.min(12,Math.floor(distance/spacing));
+          for(let i=1;i<=count;i++){const t=i/count;this.emit("smoke",shell.lastX+(x-shell.lastX)*t,shell.lastY+(y-shell.lastY)*t,shell.lastZ+(z-shell.lastZ)*t,p.visual==="sam"?.55:p.visual==="mlrs"?.4:.22,p.visual==="aam"?1.3:2,0xc6c6b8,.25,.35,0);}
+          shell.lastX=x;shell.lastY=y;shell.lastZ=z;
+        }
       }
     }
-
-    for (let i = this.pings.length - 1; i >= 0; i--) {
-      const p = this.pings[i];
-      p.t += dt;
-      const k = p.t / 0.7;
-      if (k >= 1) {
-        this.scene.remove(p.m); p.m.geometry.dispose(); (p.m.material as THREE.Material).dispose();
-        this.pings.splice(i, 1); continue;
+    for(const [id,s]of this.shells)if(!this.seen.has(id)){this.scene.remove(s.group);this.shells.delete(id);}
+  }
+  ping(x:number,z:number,color:number):void {this.ring(x,heightAt(x,z)+.15,z,3,.7,color);}
+  private ring(x:number,y:number,z:number,size:number,life:number,color:number):void {
+    if(this.rings.length>=24)return;
+    const mesh=new THREE.Mesh(this.ringGeometry,new THREE.MeshBasicMaterial({color,transparent:true,opacity:.5,depthWrite:false}));mesh.position.set(x,y,z);this.scene.add(mesh);this.rings.push({mesh,size,life,t:0});
+  }
+  update(dt:number):void {
+    for(const [kind,pool]of Object.entries(this.pools)){
+      for(let i=pool.particles.length-1;i>=0;i--){const p=pool.particles[i];p.t+=dt;if(p.t>=p.life){pool.particles[i]=pool.particles[pool.particles.length-1];pool.particles.pop();continue;}
+        p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;p.vy+=(kind==="smoke"?.4:-3)*dt;
       }
-      p.m.scale.setScalar(1 + k * 2.5);
-      (p.m.material as THREE.MeshBasicMaterial).opacity = 1 - k;
+      pool.mesh.count=pool.particles.length;
+      pool.particles.forEach((p,i)=>{const k=p.t/p.life,size=p.size*(kind==="smoke"||kind==="dust"?.6+k*2.5:1-k*.6);
+        this.dummy.position.set(p.x,p.y,p.z);this.dummy.quaternion.copy(this.camera.quaternion);this.dummy.scale.set(size*p.stretch,size,1);this.dummy.updateMatrix();pool.mesh.setMatrixAt(i,this.dummy.matrix);
+        this.color.setHex(p.color);pool.mesh.setColorAt(i,this.color);pool.fade.setX(i,Math.sin(Math.min(1,k*5)*Math.PI/2)*(1-k)*(kind==="smoke"?.5:1));
+      });
+      pool.mesh.instanceMatrix.needsUpdate=true;if(pool.mesh.instanceColor)pool.mesh.instanceColor.needsUpdate=true;pool.fade.needsUpdate=true;
     }
+    for(let i=this.rings.length-1;i>=0;i--){const r=this.rings[i];r.t+=dt;const k=r.t/r.life;if(k>=1){this.scene.remove(r.mesh);(r.mesh.material as THREE.Material).dispose();this.rings.splice(i,1);continue;}r.mesh.scale.setScalar(.3+r.size*k);(r.mesh.material as THREE.MeshBasicMaterial).opacity=(1-k)*.45;}
   }
-
-  private muzzleFlash(x: number, y: number, z: number, team: number): void {
-    if (this.flashes.length >= this.maxFlashes) return;
-    const m = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 6), new THREE.MeshBasicMaterial({ color: team === 0 ? 0xffd37a : 0xff8b4d, transparent: true, opacity: 0.9, depthWrite: false }));
-    m.position.set(x, y, z);
-    const light = new THREE.PointLight(team === 0 ? 0xffc56b : 0xff7040, 0, 10, 2);
-    light.position.copy(m.position);
-    this.scene.add(m, light);
-    this.flashes.push({ m, light, t: 0, life: 0.11, base: 0.8 });
+  private explode(x:number,y:number,z:number,size:number,air:boolean,death=false):void {
+    this.emit("glow",x,y,z,size*1.8,.18,0xffd8a0);
+    for(let i=0;i<10;i++)this.emit("glow",x,y,z,.35+Math.random()*size*.5,.3+Math.random()*.3,0xfbaa61,this.r(size*4),Math.random()*size*3,this.r(size*4));
+    for(let i=0;i<14;i++)this.emit(air?"smoke":"dust",x,y,z,size*(.5+Math.random()),1+Math.random(),air?0x92938e:0xac9d7e,this.r(size*6),Math.random()*size*3,this.r(size*6));
+    for(let i=0;i<10;i++)this.emit("smoke",x,y,z,size*(.45+Math.random()*.6),death?3.5:2,death?0x4a4b46:0x7e7d71,this.r(size),1+Math.random()*2,this.r(size));
+    for(let i=0;i<8;i++)this.emit("spark",x,y,z,.11,.4,0xffce8e,this.r(size*10),Math.random()*size*5,this.r(size*10),2.5);
+    if(!air&&y-heightAt(x,z)<5)this.ring(x,heightAt(x,z)+.18,z,size*3,.45,0xbaad8b);
   }
-
-  private impactSpark(x: number, y: number, z: number): void {
-    if (this.parts.length > 370) return;
-    for (let i = 0; i < 5; i++) this.puff(x, y, z, this.r(6), 1 + Math.random() * 5, this.r(6), 0.18 + Math.random() * 0.18, 0.22 + Math.random() * 0.22, "fire2");
-  }
-
-  private r(s: number): number { return (Math.random() - 0.5) * s; }
-
-  private puff(x: number, y: number, z: number, vx: number, vy: number, vz: number, life: number, size: number, kind: Kind): void {
-    if (kind === "dust") {
-      if (this.dustParts.length >= this.dustMax) return;
-      this.dustParts.push({ x, y, z, vx, vy, vz, life, t: 0, size });
-      return;
-    }
-    if (this.parts.length > 380) return;
-    const m = new THREE.Mesh(this.pGeo, this.pMat[kind]);
-    m.position.set(x, y, z);
-    this.scene.add(m);
-    this.parts.push({ m, vx, vy, vz, life, t: 0, size, kind });
-  }
-
-  private explode(x: number, y: number, z: number, big: boolean): void {
-    const n = big ? 36 : 14;
-    for (let i = 0; i < n; i++) {
-      const a = Math.random() * 6.28, sp = (big ? 9 : 5) * Math.random();
-      this.puff(x, y, z, Math.cos(a) * sp, Math.random() * (big ? 12 : 7), Math.sin(a) * sp, 0.5 + Math.random() * 0.5,
-        (big ? 2.2 : 1.1) * (0.5 + Math.random()), Math.random() < 0.5 ? "fire" : "fire2");
-    }
-    for (let i = 0; i < (big ? 18 : 6); i++) this.puff(x + this.r(2), y, z + this.r(2), this.r(3), 2 + Math.random() * 3, this.r(3), 1.6 + Math.random(), big ? 3 : 1.6, "smoke");
-  }
+  private r(size:number):number{return(Math.random()-.5)*size;}
 }

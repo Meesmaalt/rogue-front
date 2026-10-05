@@ -1,4 +1,5 @@
-import {effectiveWeaponRange} from "../sim/systems/combat";
+import {airUnitsForOrder,supportsAirMission,airOperationStatus} from "../sim/systems/airDoctrine";
+import {effectiveWeaponRange,weaponAmmo,weaponCooldown} from "../sim/systems/combat";
 import "./hud.css";
 import "./tactical.css";
 import {icon,unitPicture} from "./icons";
@@ -69,6 +70,7 @@ export class Hud {
   onPriority: (ids: number[], focus: "supply" | "generator" | "aa") => void = () => {};
   onPreDeploy: (ids: number[], mode: "move" | "attack" | "hold") => void = () => {};
   onFormation: (kind: "box" | "line" | "wedge" | "column") => void = () => {};
+  onAirReturn:(ids:number[])=>void=()=>{};
   onAirMission: (ids: number[], mission: "cap" | "strike" | "sead" | "ground") => void = () => {};
   onCancelProduce: (producerId: number) => void = () => {};
   onMultiplayer: (mission: MissionDef, room?: string) => void = () => {};
@@ -123,11 +125,11 @@ export class Hud {
           </div>
           </details><div class="air-mission-bar" data-r="airMissionBar" hidden>
             <span class="pre-label">Õhk:</span>
-            <button data-air-mission="cap" title="CAP – õhuülekaal / patrull">CAP</button>
-            <button data-air-mission="strike" title="Strike – infrastruktuur">Strike</button>
-            <button data-air-mission="sead" title="SEAD – õhutõrje mahavõtt">SEAD</button>
-            <button data-air-mission="ground" title="Close support – maaüksused">CAS</button>
-          </div>
+            <button data-air-mission="cap" title="CAP – õhuülekaal / patrull">✈ Õhukaitse</button>
+            <button data-air-mission="strike" title="Strike – infrastruktuur">⚑ Baasirünnak</button>
+            <button data-air-mission="sead" title="SEAD – õhutõrje mahavõtt">⊕ Õhutõrje</button>
+            <button data-air-mission="ground" title="Close support – maaüksused">⌖ Maatoetus</button>
+          <button data-air-return title="Naase oma lennubaasi või kopteriplatsile varustamiseks">↩ Baasi</button></div>
           <div class="predeploy-bar" data-r="predeployBar" hidden>
             <span class="pre-label">Pre-deploy:</span>
             <button data-predeploy="move" title="Valmis üksused liiguvad sihtmärgile (Shift+paremklõps kaardil)">Liigu</button>
@@ -230,6 +232,7 @@ export class Hud {
         root.querySelectorAll("button[data-formation]").forEach((x) => x.classList.toggle("active", (x as HTMLButtonElement).dataset.formation === kind));
       });
     });
+    root.querySelector<HTMLButtonElement>("button[data-air-return]")?.addEventListener("click",()=>this.onAirReturn(this.selectedIds));
     root.querySelectorAll<HTMLButtonElement>("button[data-air-mission]").forEach((b) => {
       b.addEventListener("click", () => {
         const mission = b.dataset.airMission as "cap" | "strike" | "sead" | "ground";
@@ -248,7 +251,9 @@ export class Hud {
 
   private setSelectedMarkup(markup:string):void {
     if(this.el.selP.dataset.markup===markup)return;
+    const open=this.el.selP.querySelector("details")?.open,scroll=this.el.selP.querySelector("details")?.scrollTop??0;
     this.el.selP.dataset.markup=markup;this.el.selP.innerHTML=markup;
+    const details=this.el.selP.querySelector("details");if(details&&open){details.open=true;details.scrollTop=scroll;}
   }
 
   getBuildButtons(): HTMLButtonElement[] { return [...document.querySelectorAll<HTMLButtonElement>("button[data-build]")]; }
@@ -266,8 +271,12 @@ export class Hud {
     document.querySelectorAll<HTMLButtonElement>("[data-order]").forEach(b=>b.disabled=!running||!selection.size);
 
     if (this.el.airMissionBar) {
-      const airSel = [...selection].map(id => world.byId.get(id)).filter(e => e && !e.dead && e.team === world.playerTeam && (e.def.armor === "air" || e.def.category === "heli" || ["heli","gunship","cargoPlane","fighter","interceptor","bomber","transport"].includes(e.kind)));
-      this.el.airMissionBar.hidden = airSel.length === 0;
+      const airSel=airUnitsForOrder(world,this.selectedIds,world.playerTeam);
+      const facility=this.selectedIds.some(id=>["airbase","helipad"].includes(world.byId.get(id)?.kind??""));
+      this.el.airMissionBar.hidden=!airSel.length&&!facility;
+      document.querySelectorAll<HTMLButtonElement>("[data-air-mission]").forEach(b=>{b.disabled=!running||!airSel.some(u=>supportsAirMission(u,b.dataset.airMission as "cap"|"strike"|"sead"|"ground"));});
+      const back=document.querySelector<HTMLButtonElement>("[data-air-return]");if(back)back.disabled=!running||!airSel.length;
+
     }
 
     this.el.cr.textContent = String(Math.floor(world.credits));
@@ -400,8 +409,8 @@ export class Hud {
       const u = sel[0]!;
       this.el.selT.textContent = world.unitDisplayName(u.kind, u.team);
       const meter=(label:string,value:number,max:number)=>`<div class="unit-meter"><span>${label}</span><b>${Math.ceil(value)}/${Math.ceil(max)}</b><i><em style="width:${Math.min(100,Math.max(0,value/Math.max(1,max)*100))}%"></em></i></div>`;
-      const status=u.kind==="transport"&&u.supplyDepotId!=null?(world.byId.get(u.supplyDepotId)?.logisticsPaused&&u.cargo<=0?"Logistika peatatud · naaseb / ootab laos":u.cargo>0?`Varustusvedu · koorem ${Math.floor(u.cargo)} → ladu`:u.logisticsTarget?"Varustusvedu · ressursirajatise juurde":"Ootab töötavat ressursirajatist"):u.def.damage?combatStatus(world,u):u.underConstruction?"Ehitamisel":u.def.building?"Hoone · tase "+world.producerLevel(u):u.mode==="move"?"Liigub":"Ootab käsku";
-      this.setSelectedMarkup(`<div class="selected-summary"><div class="selected-picture">${unitPicture(u.kind,(u.team===world.playerTeam?world.playerFaction:world.enemyFaction))}</div><div class="meters">${meter("Elud",u.hp,u.def.hp)}${(u.maxAmmo??0)>0?meter("Moon",u.ammo??0,u.maxAmmo!):""}${(u.maxFuel??0)>0?meter("Kütus",u.fuel??0,u.maxFuel!):""}${u.def.speed>0?meter("Moraal",u.morale??100,100):""}</div></div><span class="unit-status">${status}</span><small class="role-summary">${u.def.roleLabel??BUILD_LABELS[u.kind]??u.kind}${u.def.damage?` · Ulatus ${Math.round(effectiveWeaponRange(u))} m${u.def.minimumRange?` (min ${u.def.minimumRange})`:""} · Läbivus ${u.def.penetration??0}`:""}${u.kind==="supply"?` · Moon ${Math.floor(u.ammoStock??0)} · Kütus ${Math.floor(u.fuelStock??0)} · Remont ${Math.floor(u.repairStock??0)} · ${u.logisticsPaused?"VEOD PEATATUD":u.preferredResourceIndex!=null?"Rajatis "+(u.preferredResourceIndex+1):"Automaatne kogumine"} · Vahepunkte ${u.logisticsWaypoints?.length??0}`:""}</small><details class="unit-details"><summary>Taktikalised andmed</summary>Kate ${coverValueAt(world,u.x,u.z)} · Soomus ${u.def.armorFront??0}/${u.def.armorSide??0}/${u.def.armorRear??0} · Surve ${Math.round(u.suppression??0)} · Optika ${u.def.optics??"—"} · ${world.isInSupply(u)?"Varustusalas":"Väljaspool varustusala"}${u.components?` · Kahjustused ${Math.round(Math.max(...Object.values(u.components)))}%`:""}</details>`);
+      const status=u.kind==="transport"&&u.supplyDepotId!=null?(world.byId.get(u.supplyDepotId)?.logisticsPaused&&u.cargo<=0?"Logistika peatatud · naaseb / ootab laos":u.cargo>0?`Varustusvedu · koorem ${Math.floor(u.cargo)} → ladu`:u.logisticsTarget?"Varustusvedu · ressursirajatise juurde":"Ootab töötavat ressursirajatist"):u.def.armor==="air"?airOperationStatus(world,u):u.def.damage?combatStatus(world,u):u.underConstruction?"Ehitamisel":u.def.building?"Hoone · tase "+world.producerLevel(u):u.mode==="move"?"Liigub":"Ootab käsku";
+      this.setSelectedMarkup(`<div class="selected-summary"><div class="selected-picture">${unitPicture(u.kind,(u.team===world.playerTeam?world.playerFaction:world.enemyFaction))}</div><div class="meters">${meter("Elud",u.hp,u.def.hp)}${(u.maxAmmo??0)>0?meter("Moon",u.ammo??0,u.maxAmmo!):""}${(u.maxFuel??0)>0?meter("Kütus",u.fuel??0,u.maxFuel!):""}${u.def.speed>0?meter("Moraal",u.morale??100,100):""}</div></div><span class="unit-status">${status}</span><small class="role-summary">${u.def.roleLabel??BUILD_LABELS[u.kind]??u.kind}${u.def.damage?` · Ulatus ${Math.round(effectiveWeaponRange(u))} m${u.def.minimumRange?` (min ${u.def.minimumRange})`:""} · Läbivus ${u.def.penetration??0}`:""}${u.kind==="supply"?` · Moon ${Math.floor(u.ammoStock??0)} · Kütus ${Math.floor(u.fuelStock??0)} · Remont ${Math.floor(u.repairStock??0)} · ${u.logisticsPaused?"VEOD PEATATUD":u.preferredResourceIndex!=null?"Rajatis "+(u.preferredResourceIndex+1):"Automaatne kogumine"} · Vahepunkte ${u.logisticsWaypoints?.length??0}`:""}</small><details class="unit-details"><summary>Taktikalised andmed</summary>Kate ${coverValueAt(world,u.x,u.z)} · Soomus ${u.def.armorFront??0}/${u.def.armorSide??0}/${u.def.armorRear??0} · Surve ${Math.round(u.suppression??0)} · Optika ${u.def.optics??"—"} (${Math.round(u.def.opticsRange??0)} m) · Varjatus ${u.def.stealthLevel??0} · Liikumine ${u.def.speed.toFixed(1)} m/s · Stabilisaator ${u.def.stabilizer??"none"} · ${world.isInSupply(u)?"Varustusalas":"Väljaspool varustusala"}${u.components?` · Kahjustused ${Math.round(Math.max(...Object.values(u.components)))}%`:""}${(u.def.weapons??[]).map((w,i)=>`<div class="weapon-row"><b>${i===(u.activeWeapon??0)?"▸ ":""}${w.name}</b><span>${Math.floor(weaponAmmo(u,i))}/${w.ammoCapacity} · ${w.range} m · Läbivus ${w.penetration} · Täpsus ${Math.round(w.accuracy*100)}% · ${w.cooldown.toFixed(1)} s</span><small>${w.guidance==="none"?w.flight==="ballistic"?"Kaudtuli / ballistiline":"Juhitamatu":"Juhtimine: "+({command:"laskuri kontakt",infrared:"infrapuna",radar:"radar"}[w.guidance])} · ${weaponCooldown(u,i)>0?"Laadib":"Valmis"}</small></div>`).join("")}</details>${["airbase","helipad"].includes(u.kind)?`<div class="air-roster"><small>${world.productionOperational(u).operational?"Lennurajatis töötab":world.productionOperational(u).reason} · Vali õhuoperatsioon ja paremklõpsa sihtpunktile.</small>${airUnitsForOrder(world,[u.id],u.team).map(a=>`<button data-select-unit="${a.id}"><span>${unitPicture(a.kind,u.team===world.playerTeam?world.playerFaction:world.enemyFaction)}</span><span><b>${world.unitDisplayName(a.kind,a.team)}</b><small>${airOperationStatus(world,a)}</small></span></button>`).join("")}</div>`:""}`);
 
     } else {
       const c: Record<string, number> = {};

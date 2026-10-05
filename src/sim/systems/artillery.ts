@@ -1,5 +1,6 @@
 import type { World } from "../World";
 import type { Entity, Point } from "../types";
+import {turnToward,wrapAngle} from "../math";
 import { fireGroundProjectile } from "./combat";
 
 const BATTERIES = ["artillery", "mortar", "mlrs"] as const;
@@ -56,6 +57,9 @@ export function updateArtillery(w: World, _dt: number): void {
       w.getFreshIntel(u.team, 20).some(c => Math.hypot(c.x-mission.x,c.z-mission.z) < 22);
     if (!spotted) continue;
 
+    const aim=wrapAngle(Math.atan2(mission.x-u.x,mission.z-u.z)-u.heading);
+    u.turretYaw=turnToward(u.turretYaw,aim,u.def.turnRate*_dt);
+    if(Math.abs(wrapAngle(aim-u.turretYaw))>.2)continue;
     const shots = u.artilleryShotsInSalvo ?? 0;
     fireGroundProjectile(w, u, mission.x + (w.rng()-0.5)*3.8, mission.z + (w.rng()-0.5)*3.8);
     u.cooldown = SALVO_INTERVAL[u.kind] ?? 1;

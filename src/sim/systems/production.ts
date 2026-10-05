@@ -1,4 +1,5 @@
 import type { World } from "../World";
+import {freeAirSlot,stationAircraft} from "./airDoctrine";
 import { UNITS } from "../units";
 import type { Entity, UnitKind } from "../types";
 import { BUILDINGS } from "../buildings";
@@ -18,19 +19,21 @@ function exitPoint(producer: Entity, distance: number): { x: number; z: number }
 }
 
 function spawnProduced(w: World, producer: Entity, kind: UnitKind): boolean {
+  const air=UNITS[kind].armor==="air",slot=air?freeAirSlot(w,producer):-1;
+  if(air&&slot<0)return false;
   const battlegroup = w.battlegroupForTeam(producer.team);
   if (battlegroup && kind !== "engineer" && !battlegroup.deploy(kind, 1)) return false;
   const counts = w.producedForTeam(producer.team);
   if (w.networkMode || producer.team === w.playerTeam) counts[kind] = (counts[kind] ?? 0) + 1;
   const p = exitPoint(producer,Math.max(10,producer.def.radius+UNITS[kind].radius+4));
   const u = w.spawn(kind, producer.team, p.x, p.z);
-  if (u.def.armor === "air") { u.airState = "grounded"; u.airMissionHomeId = producer.id; u.airSortieTime = 0; }
+  if (air) stationAircraft(w,u,producer,slot);
   if (producer.preDeployOrder) { const o = producer.preDeployOrder; u.mode = o.mode === "attack" ? "amove" : o.mode; u.dest = o.x !== undefined && o.z !== undefined ? {x:o.x,z:o.z} : null; if (o.mode === "hold") u.holdPosition = true; }
   if (kind === "special") { u.supply = 100; }
   if (producer.preDeployOrder) return true;
   if (kind === "transport") {
     // Toodetud transport on taktikaline vägede transport.
-    // Supply-helicopterid tulevad Supply Depotidele automaatselt väljastpoolt kaarti.
+    // Lao kogumiskopterid kuuluvad eraldi füüsilise ressursiveo tsüklisse.
     u.mode = "idle";
     u.dest = null;
   } else {
@@ -51,6 +54,7 @@ export function updateProduction(w: World, dt: number): void {
     // Phase 71: queued production is persistent, but progress stops while the
     // producer loses command, power, logistics or its strategic branch.
     // This makes destroying a command node/logistics route materially affect the base.
+    if(UNITS[kind].armor==="air"&&freeAirSlot(w,producer)<0)continue;
     const operational = w.productionOperational(producer, kind);
     if (!operational.operational) continue;
     const powerRatio = w.powerStatus(producer.team).ratio;

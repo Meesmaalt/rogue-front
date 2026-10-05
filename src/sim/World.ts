@@ -1,3 +1,4 @@
+import {freeAirSlot,airFacilityCapacity} from "./systems/airDoctrine";
 import logisticsConfig from "../data/logistics.json";
 import type { Command, Entity, GameStatus, Projectile, SimEvent, Team, UnitKind, MapResourceDef, IntelContact } from "./types";
 import { UNITS } from "./units";
@@ -225,12 +226,14 @@ export class World {
       : true;
     const requiredLevel = kind ? this.unitRequiredBuildingLevel(kind) : 1;
     const strategy = requiredLevel < 2 || this.hasStrategyForProducer(producer.team, producer.kind);
-    const operational = command && power && logistics && strategy && (producer.disabledUntil ?? 0) <= this.time;
+    const parking= !kind||UNITS[kind].armor!=="air"||freeAirSlot(this,producer)>=0;
+    const operational = parking && command && power && logistics && strategy && (producer.disabledUntil ?? 0) <= this.time;
     let reason = "Operatiivne";
     if (!command) reason = "Puudub command-link";
     else if (!power) reason = "Energiapuudus";
     else if (!logistics) reason = "Logistikaühendus puudub";
     else if (!strategy) reason = "Vajab vastava haru strateegiakeskust";
+    else if(!parking)reason="Lennurajatise parkimiskohad on täis";
     else if ((producer.disabledUntil ?? 0) > this.time) reason = "Rajatis on kahjustatud";
     return { operational, command, power, logistics, strategy, reason };
   }
@@ -289,6 +292,7 @@ export class World {
       ? {
           ...baseDef,
           hp: Math.round(baseDef.hp * b.armorMul),
+          weapons:baseDef.weapons?.map(w=>({...w,damage:w.damage*b.damageMul})),
           speed: baseDef.speed * b.speedMul,
           damage: Math.round(baseDef.damage * b.damageMul),
           cost: Math.round(baseDef.cost * b.buildCostMul),
@@ -302,6 +306,7 @@ export class World {
     const e: Entity = {
       id: this.nextId++, kind, team, def, x, y, z, heading, turretYaw: 0,
       px: x, pz: z, pHeading: heading, pTurretYaw: 0,
+      weaponCooldowns:def.weapons?.map(()=>0),secondaryAmmo:def.weapons?.map((w,i)=>i?w.ammoCapacity:0),activeWeapon:0,
       hp: def.hp, cooldown: this.rng() * 0.5, mode: "idle", dest: null, target: null,
       aggro: team === 1 && def.speed > 0 ? ENEMY_AGGRO : def.range, dead: false,
       xp: 0, veteran: 0, spottedUntil: [0, 0], suppression: 0, supply: 100, maxSupply: 100, role: (["artillery","mortar"].includes(kind)) ? "siege" : ["aa","manpad","spaa"].includes(kind) ? "support" : kind === "fighter" ? "air-superiority" : kind === "gunship" ? "air-ground" : kind === "transport" || kind === "cargoPlane" ? "logistics" : "line", fuel: def.fuelCapacity ?? 0, maxFuel: def.fuelCapacity ?? 0, ammo: def.ammoCapacity ?? 0, maxAmmo: def.ammoCapacity ?? 0, fireMission: null, holdPosition: false, patrolPoints: [], patrolIndex: 0, upgrades: new Set<string>(), cargo: 0, logisticsTarget: null, logisticsHome: null, logisticsPhase: "idle", productionQueue: [], productionProgress: 0, rallyPoint: null, constructionProgress: 1, constructionTime: 0, upgrading: false, upgradeProgress: 0, upgradeTime: 0, upgradeKind: undefined, logisticsRoute: kind === "logiTruck" ? "road" : kind === "transport" ? "air" : kind === "cargoPlane" ? "strategic" : undefined, logisticsCargoCapacity: kind === "logiTruck" ? ROAD_TRUCK_CARGO : undefined, logisticsDistance: 0, logisticsStorage: 0, logisticsMaxStorage: 0, firingArc: (kind === "bunker" ? Math.PI * 0.62 : kind === "aa" ? Math.PI * 0.9 : kind === "artillery" ? Math.PI * 0.98 : Math.PI * 2), firingRange: def.range, facingLocked: kind === "bunker" || kind === "aa", lastCombatTime: 0, morale: 100, disabledUntil: 0, builderIds: [], underConstruction: false, cargoUnitIds: [], loadedIntoId: null, transportTargetId: null, unloadPoint: null,
@@ -586,9 +591,9 @@ export class World {
 
   airbaseStatus(team: Team): { capacity: number; aircraft: number; ready: number } {
     const bases = this.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === "airbase");
-    const capacity = bases.reduce((n,b)=>n+4+this.producerLevel(b)*2,0);
+    const capacity = bases.reduce((n,b)=>n+airFacilityCapacity(this,b),0);
     const aircraft = this.entities.filter(e => !e.dead && e.team === team && e.def.category === "air").length;
-    const ready = this.entities.filter(e => !e.dead && e.team === team && e.def.category === "air" && (e.airState === "grounded" || e.airState === "rearming" || e.airState == null)).length;
+    const ready = this.entities.filter(e => !e.dead && e.team === team && e.def.category === "air" && (e.airState === "grounded" || e.airState == null)).length;
     return { capacity, aircraft, ready };
   }
 

@@ -1,24 +1,49 @@
 import raw from "../../data/damage.json";
 import type { World } from "../World";
-import type { Entity } from "../types";
+import type { Entity,WeaponSpec,Projectile } from "../types";
+import {heightAt} from "../heightmap";
 import { wrapAngle } from "../math";
 import { pointInFeature } from "../mapFeatures";
 
 export type DamageWeapon = keyof typeof raw;
 const MATRIX = raw as Record<string, Record<string, number>>;
 
-/** The same eligibility rules are used by acquisition and the firing gate. */
-export function canEngage(u: Entity, t: Entity): boolean {
-  if(t.dead || t.loadedIntoId != null || t.team === u.team)return false;
-  const c=u.def.targetClass??"all",air=t.def.armor==="air";
-  if(c==="air")return air;
-  if(air)return c==="all"&&u.def.weapon==="missile";
-  if(c==="armor")return t.def.speed>0&&t.def.category!=="infantry"&&t.def.domain!=="sea";
-  if(c==="naval")return t.def.domain==="sea";
-  return true;
+export function weaponDamageMultiplier(weapon:string,armor:string):number {return MATRIX[weapon]?.[armor]??1;}
+
+export function weaponSpec(u:Entity,index=0):WeaponSpec {
+  const w=u.def.weapons?.[index];if(w)return w;
+  const d=u.def;return {profile:"legacy",name:d.name,visual:d.weapon==="missile"?"atgm":d.weapon==="cannon"?"autocannon":"rifle",weapon:d.weapon==="none"?"bullet":d.weapon,flight:d.weapon==="missile"?"guided":"direct",guidance:d.weapon==="missile"?"radar":"none",warhead:"he",targets:d.targetClass==="air"?"air":d.targetClass==="armor"?"armor":d.targetClass==="all"?"all":"ground",range:d.range,minimumRange:d.minimumRange??0,damage:d.damage,cooldown:d.cooldown,penetration:d.penetration??5,accuracy:d.accuracy??.6,splash:d.splash??0,ammoCapacity:d.ammoCapacity??0,ammoUsePerShot:d.ammoUsePerShot??1,suppressionPower:d.suppressionPower??1,speed:d.projectileSpeed,launchSpeed:d.missileLaunchSpeed??d.projectileSpeed,acceleration:d.missileAcceleration??75,turnRate:d.missileTurnRate??3.2,gravity:0,minFlight:0,muzzle:1.4,muzzleHeight:2};
 }
-export function effectiveWeaponRange(u:Entity):number {
-  return u.def.range*(u.upgrades.has("range")?1.2:1)*((u.supply??100)>10?1:.9);
+export function weaponAmmo(u:Entity,index:number):number {return index===0?u.ammo??0:u.secondaryAmmo?.[index]??0;}
+export function weaponCooldown(u:Entity,index:number):number {return index===0?u.cooldown:u.weaponCooldowns?.[index]??0;}
+function eligible(spec:WeaponSpec,t:Entity):boolean {
+  const air=t.def.armor==="air";
+  return spec.targets==="air"?air:spec.targets==="armor"?!air&&t.def.speed>0&&t.def.category!=="infantry"&&t.def.domain!=="sea":spec.targets==="all"?true:!air;
+}
+export function selectWeapon(u:Entity,t:Entity,ready=false):number {
+  if(t.dead||t.loadedIntoId!=null||t.team===u.team)return -1;
+  let best=-1,score=-Infinity;const distance=Math.hypot(t.x-u.x,t.z-u.z);
+  for(let i=0;i<(u.def.weapons?.length??1);i++){
+    const spec=weaponSpec(u,i);if(!eligible(spec,t)||spec.damage<=0)continue;
+    if(spec.ammoCapacity>0&&weaponAmmo(u,i)<spec.ammoUsePerShot)continue;
+    if(ready&&(weaponCooldown(u,i)>0||distance-t.def.radius>spec.range*(u.upgrades.has("range")?1.2:1)*((u.supply??100)>10?1:.9)||distance<spec.minimumRange))continue;
+    const armor=armorValue(t,hitFace(u.x,u.z,t));
+    const penetration=Math.min(1.5,spec.penetration/Math.max(1,armor));
+    const infantry=t.def.category==="infantry";
+    let value=spec.damage/Math.max(.15,spec.cooldown)*(MATRIX[spec.weapon]?.[t.def.armor]??1)*(infantry?1:Math.max(.05,penetration));
+    if(infantry&&spec.visual==="sabot")value*=.12;
+    if(infantry&&spec.targets==="armor")continue;
+    if(spec.targets==="armor")value*=2.4;
+    if(distance<spec.minimumRange)value*=.15;
+    else if(distance<=spec.range)value*=1.25;
+    if(value>score){score=value;best=i;}
+  }return best;
+}
+export function canEngage(u:Entity,t:Entity):boolean {return selectWeapon(u,t)>=0;}
+export function effectiveWeaponRange(u:Entity,target?:Entity):number {
+  const index=target?selectWeapon(u,target):undefined;
+  const range=index!=null&&index>=0?weaponSpec(u,index).range:u.def.range;
+  return range*(u.upgrades.has("range")?1.2:1)*((u.supply??100)>10?1:.9);
 }
 
 /** Which face of target is hit from shooter position. */
@@ -91,7 +116,8 @@ function targetCoverValue(w: World, t: Entity): number {
   let v = 0;
   for (const f of w.mapFeatures) {
     if (!pointInFeature(t.x, t.z, f, 0.2)) continue;
-    if (f.kind === "cover" && f.appearance!=="field" && f.appearance!=="yard") v = Math.max(v, 0.14);
+    if(f.appearance==="forest")v=Math.max(v,t.def.category==="infantry"?.30:.18);
+    else if (f.kind === "cover" && f.appearance!=="field" && f.appearance!=="yard") v = Math.max(v, 0.14);
     else if (f.kind === "wall" || f.kind === "chokepoint") v = Math.max(v, 0.22);
     else if (f.kind === "building") v = Math.max(v, 0.30);
   }
@@ -103,13 +129,13 @@ function heSuppression(weapon: string, damage: number, power = 1): number {
   return damage * base * power;
 }
 
-export function fireProjectile(w: World, u: Entity, t: Entity, x: number, y: number, z: number): void {
+export function fireProjectile(w: World, u: Entity, t: Entity, x: number, y: number, z: number,index=selectWeapon(u,t)): void {
+  if(index<0)return;const spec=weaponSpec(u,index);u.activeWeapon=index;
   const squadMul = u.squadFirepower ?? 1;
   const weaponCondition = u.components ? Math.max(0.35, 1 - (u.components.weapon ?? 0) / 140) : 1;
-  const base = u.def.damage * squadMul * weaponCondition * (1 + u.veteran * 0.08) * (u.upgrades.has("weapon") ? 1.15 : 1);
-  const classMult = MATRIX[u.def.weapon]?.[t.def.armor] ?? 1;
-  const face = hitFace(u.x, u.z, t);
-  const penetration = (u.def.penetration ?? (u.def.weapon === "missile" ? 20 : u.def.weapon === "cannon" ? 18 : 5)) *
+  const base = spec.damage * squadMul * weaponCondition * (1 + u.veteran * 0.08) * (u.upgrades.has("weapon") ? 1.15 : 1);
+  const classMult = MATRIX[spec.weapon]?.[t.def.armor] ?? 1;
+  const penetration = (spec.penetration ?? (spec.weapon === "missile" ? 20 : spec.weapon === "cannon" ? 18 : 5)) *
     (u.upgrades.has("weapon") ? 1.08 : 1);
   // Facing is already represented by the armor value at impact.
   const fMult = 1;
@@ -117,11 +143,11 @@ export function fireProjectile(w: World, u: Entity, t: Entity, x: number, y: num
   // Accuracy is deliberately separate from damage. Recon, veteran crews, stabilizers,
   // morale, range and target size now matter without making raw damage inflation the
   // only way to improve a weapon.
-  let hitChance = u.def.accuracy ?? 0.6;
+  let hitChance = spec.accuracy ?? 0.6;
   hitChance *= 0.5 + Math.min(100, u.supply ?? 100) / 200;
   if (!w.hasCommandLink(u)) hitChance *= 0.85;
   const dist = Math.hypot(t.x - u.x, t.z - u.z);
-  const rangeRatio = Math.min(1, dist / Math.max(1, u.def.range));
+  const rangeRatio = Math.min(1, dist / Math.max(1, spec.range));
   hitChance *= 1 - rangeRatio * 0.32;
   const sizeBonus: Record<string, number> = { small: -0.16, medium: 0, large: 0.08, very_large: 0.16 };
   hitChance += sizeBonus[t.def.size ?? "medium"] ?? 0;
@@ -140,7 +166,7 @@ export function fireProjectile(w: World, u: Entity, t: Entity, x: number, y: num
   }
   if (u.veteran > 0) hitChance += Math.min(0.08, u.veteran * 0.016);
   // ECM disrupts guided weapons, but does not make aircraft invulnerable.
-  if (u.def.weapon === "missile" || u.def.category === "air") {
+  if (spec.weapon === "missile" || u.def.category === "air") {
     const ecm = w.entities.find(e => !e.dead && e.team !== u.team && e.kind === "ecm" && Math.hypot(e.x-u.x,e.z-u.z) < 46);
     if (ecm) hitChance *= 0.68;
   }
@@ -149,29 +175,28 @@ export function fireProjectile(w: World, u: Entity, t: Entity, x: number, y: num
   }
   hitChance = Math.max(0.05, Math.min(0.98, hitChance));
 
-  const dealt = base * classMult * fMult;
-  let tx = t.x, tz = t.z;
-  if (t.def.speed > 0 && u.def.projectileSpeed > 0) {
-    const eta = dist / Math.max(1, u.def.projectileSpeed);
-    const spd = t.motionSpeed ?? t.def.speed * (t.mode === "idle" || t.mode === "hold" ? 0 : 0.55);
-    tx = t.x + Math.sin(t.heading) * spd * eta;
-    tz = t.z + Math.cos(t.heading) * spd * eta;
-  }
+  const dealt=base*classMult*fMult;
+  const eta=Math.hypot(t.x-x,t.z-z)/Math.max(1,spec.speed);
+  const tx=t.x+Math.sin(t.heading)*(t.motionSpeed??0)*eta,tz=t.z+Math.cos(t.heading)*(t.motionSpeed??0)*eta;
+  const hitRoll=w.rng(),angle=w.rng()*Math.PI*2,miss=1.5+t.def.radius+(1-hitChance)*5;
+  const missX=Math.cos(angle)*miss,missZ=Math.sin(angle)*miss;
+  const missShot=hitRoll>hitChance;
+  launchProjectile(w,u,spec,index,x,y,z,spec.flight==="guided"?t.x:tx+(missShot?missX:0),t.y+t.def.height*.45,spec.flight==="guided"?t.z:tz+(missShot?missZ:0),t,dealt,hitChance,penetration,hitRoll,missX,missZ);
+  w.projectiles[w.projectiles.length-1].damage=base;
+}
 
-  const aimY=t.y+t.def.height*.45;
-  const length=Math.hypot(tx-x,aimY-y,tz-z)||1;
-  const launchSpeed=u.def.weapon==="missile"?(u.def.missileLaunchSpeed??u.def.projectileSpeed):u.def.projectileSpeed;
-  w.projectiles.push({
-    id: w.nextId++, team: u.team, x, y, z, vx: (tx-x)/length*launchSpeed, vy: (aimY-y)/length*launchSpeed, vz: (tz-z)/length*launchSpeed,
-    launchX:u.x,launchZ:u.z,aimY,age:0,lifetime:Math.max(u.def.projectileLifetime??8,length/Math.max(1,launchSpeed)+3),
-    turnRate:u.def.missileTurnRate??3.2,acceleration:u.def.missileAcceleration??75,maxSpeed:u.def.projectileSpeed,
-    tx, tz, target: t, sourceId: u.id,
-    damage: dealt, speed: launchSpeed, splash: u.def.splash ?? 0,
-    weapon: u.def.weapon, face, hitChance, penetration, impactDamage: dealt,
-  } as typeof w.projectiles[0] & { weapon?: string; face?: ArmorFace; hitChance?: number; penetration?: number; impactDamage?: number });
-
-  if ((u.maxAmmo ?? 0) > 0) u.ammo = Math.max(0, (u.ammo ?? 0) - (u.def.ammoUsePerShot ?? 1));
-  w.events.push({ type: "fire", team: u.team, x, y, z, sourceId: u.id, weapon:u.def.weapon,caliber:u.def.damage });
+function launchProjectile(w:World,u:Entity,spec:WeaponSpec,index:number,x:number,y:number,z:number,tx:number,ty:number,tz:number,target:Entity|null,dealt:number,hitChance:number,penetration:number,hitRoll:number,missX=0,missZ=0):void {
+  const dx=tx-x,dz=tz-z,dy=ty-y,length=Math.hypot(dx,dy,dz)||1;
+  const speed=spec.flight==="guided"?spec.launchSpeed:spec.speed;
+  const flightTime=Math.max(spec.minFlight,Math.hypot(dx,dz)/Math.max(1,speed),.1);
+  const ballistic=spec.flight==="ballistic";
+  const vx=ballistic?dx/flightTime:dx/length*speed,vz=ballistic?dz/flightTime:dz/length*speed;
+  const vy=ballistic?(dy+.5*spec.gravity*flightTime*flightTime)/flightTime:dy/length*speed;
+  const p:Projectile={id:w.nextId++,team:u.team,x,y,z,px:x,py:y,pz:z,vx,vy,vz,tx,tz,aimY:ty,target,sourceId:u.id,damage:dealt,impactDamage:dealt,speed,splash:spec.splash,weapon:spec.weapon,profile:spec.profile,visual:spec.visual,flight:spec.flight,guidance:spec.guidance,warhead:spec.warhead,gravity:spec.gravity,flightTime,suppressionPower:spec.suppressionPower,launchX:u.x,launchZ:u.z,age:0,lifetime:Math.max(8,flightTime+4,length/Math.max(1,speed)+4),turnRate:spec.turnRate,acceleration:spec.acceleration,maxSpeed:spec.speed,penetration,hitChance,hitRoll,missX,missZ};
+  w.projectiles.push(p);
+  if(index===0&&spec.weapon==="cannon")u.gunElevation=Math.atan2(vy,Math.hypot(vx,vz));
+  if(index===0){if(spec.ammoCapacity>0)u.ammo=Math.max(0,(u.ammo??0)-spec.ammoUsePerShot);}else {u.secondaryAmmo??=[];u.secondaryAmmo[index]=Math.max(0,weaponAmmo(u,index)-spec.ammoUsePerShot);}
+  w.events.push({type:"fire",team:u.team,x,y,z,sourceId:u.id,weapon:spec.weapon,caliber:spec.damage,visual:spec.visual,dx:dx/length,dy:dy/length,dz:dz/length,weaponIndex:index});
 }
 
 export function damage(w: World, t: Entity, amount: number, opts?: {
@@ -179,6 +204,7 @@ export function damage(w: World, t: Entity, amount: number, opts?: {
   fromX?: number;
   fromZ?: number;
   sourceId?: number;
+  penetration?:number;suppressionPower?:number;
 }): void {
   if (t.dead) return;
   if (t.def.speed === 0 && t.kind !== "bunker" && t.kind !== "aa" && t.kind !== "hq" && amount < 10) amount *= 0.55;
@@ -198,7 +224,7 @@ export function damage(w: World, t: Entity, amount: number, opts?: {
     const source = w.byId.get(opts.sourceId);
     const face = opts.fromX != null && opts.fromZ != null ? hitFace(opts.fromX, opts.fromZ, t) : "front";
     const armor = armorValue(t, face);
-    const pen = source?.def.penetration ?? 0;
+    const pen = opts.penetration??source?.def.penetration ?? 0;
     if (pen >= armor * 0.9 && w.rng() < 0.10) {
       t.disabledUntil = Math.max(t.disabledUntil ?? 0, w.time + 2.5);
       t.cooldown = Math.max(t.cooldown, 1.2);
@@ -207,7 +233,7 @@ export function damage(w: World, t: Entity, amount: number, opts?: {
 
   // Suppression (Wargame stress)
   const wpn = opts?.weapon ?? "bullet";
-  const supAdd = heSuppression(wpn, amount, (t.def.category === "armor" ? 1 : 1.15) * (opts?.sourceId != null ? w.byId.get(opts.sourceId)?.def.suppressionPower ?? 1 : 1));
+  const supAdd = heSuppression(wpn, amount, (t.def.category === "armor" ? 1 : 1.15) * (opts?.suppressionPower??(opts?.sourceId != null ? w.byId.get(opts.sourceId)?.def.suppressionPower ?? 1 : 1)));
   t.suppression = Math.min(100, (t.suppression ?? 0) + supAdd);
 
   // Moraal hit – rear shots and high damage sting more
@@ -237,14 +263,8 @@ export function damage(w: World, t: Entity, amount: number, opts?: {
   }
 }
 
-export function fireGroundProjectile(w: World, u: Entity, x: number, z: number): void {
-  const base = u.def.damage * (1 + u.veteran * 0.08) * (u.upgrades.has("weapon") ? 1.15 : 1);
-  w.projectiles.push({
-    id: w.nextId++, team: u.team, x: u.x, y: u.y + 2.2, z: u.z,
-    vx: 0, vy: 0, vz: 0, tx: x, tz: z, target: null, sourceId: u.id,
-    damage: base, speed: u.def.projectileSpeed * 0.85, splash: u.def.splash ?? 8,
-    weapon: u.def.weapon,
-  } as typeof w.projectiles[0] & { weapon?: string });
-  if ((u.maxAmmo ?? 0) > 0) u.ammo = Math.max(0, (u.ammo ?? 0) - (u.def.ammoUsePerShot ?? 1));
-  w.events.push({ type: "fire", team: u.team, x: u.x, y: u.y + 2.2, z: u.z, sourceId: u.id, weapon:u.def.weapon,caliber:u.def.damage });
+export function fireGroundProjectile(w:World,u:Entity,x:number,z:number):void {
+  const spec=weaponSpec(u);if(spec.ammoCapacity>0&&weaponAmmo(u,0)<spec.ammoUsePerShot)return;
+  const a=Math.atan2(x-u.x,z-u.z),mx=u.x+Math.sin(a)*spec.muzzle,mz=u.z+Math.cos(a)*spec.muzzle;
+  launchProjectile(w,u,spec,0,mx,u.y+spec.muzzleHeight,mz,x,heightAt(x,z)+.15,z,null,spec.damage*(1+u.veteran*.08)*(u.upgrades.has("weapon")?1.15:1),1,spec.penetration,0);
 }

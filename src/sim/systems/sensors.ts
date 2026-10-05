@@ -23,7 +23,8 @@ export function coverValueAt(w: World, x: number, z: number): number {
   let value = 0;
   for (const f of w.mapFeatures) {
     if (!pointInFeature(x, z, f, 0.25)) continue;
-    if (f.kind === "cover" && f.appearance!=="field" && f.appearance!=="yard") value = Math.max(value, (f.height ?? 1.5) >= 2 ? 22 : 16);
+    if(f.appearance==="forest")value=Math.max(value,24);
+    else if (f.kind === "cover" && f.appearance!=="field" && f.appearance!=="yard") value = Math.max(value, (f.height ?? 1.5) >= 2 ? 22 : 16);
     else if (f.kind === "wall" || f.kind === "chokepoint") value = Math.max(value, 28);
     else if (f.kind === "building") value = Math.max(value, 34);
   }
@@ -57,7 +58,7 @@ export function detectionScore(observer: Entity, target: Entity, coverPenalty = 
   if (observer.kind === "radar") {
     const level = observer.buildingLevel ?? 1;
     const levelMul = level >= 3 ? 1.35 : level >= 2 ? 1.15 : 1;
-    range = Math.max(range, 110 * levelMul);
+    range = target.def.armor==="air"?Math.max(range,110*levelMul):28;
   }
   if (target.def.armor === "air" || target.def.category === "heli" || target.def.category === "air") {
     if (observer.kind === "radar" || observer.kind === "aa" || observer.def.weapon === "missile") range *= 1.35;
@@ -68,10 +69,10 @@ export function detectionScore(observer: Entity, target: Entity, coverPenalty = 
 
   const stealth = target.def.stealthLevel ?? (target.def.stealth ? 2 : 0);
   const size = SIZE_DETECT[target.def.size ?? "medium"] ?? 0;
-  const moving = target.mode !== "idle" && target.mode !== "hold" && target.def.speed > 0 ? 6 : 0;
+  const moving = (target.motionSpeed??0)>.2 ? 12 : 0;
   // Distance falloff 0..100 inside range
   const proximity = (1 - dist / Math.max(range, 1)) * 100;
-  const score = proximity + size + moving - stealth * 18 - coverPenalty;
+  const score = proximity + size + moving - stealth * 8 - coverPenalty;
   return score;
 }
 
@@ -94,6 +95,7 @@ export function updateSensors(w: World): void {
   // Decay is implicit via timestamps
 
   for (const observer of w.entities) {
+    if(observer.def.armor==="air"&&["grounded","rearming","taxi","landing"].includes(observer.airState??""))continue;
     if (observer.dead || observer.underConstruction || observer.loadedIntoId!=null || (observer.disabledUntil??0)>w.time) continue;
     if (observer.def.speed === 0 && observer.kind !== "radar" && observer.kind !== "bunker" && observer.kind !== "aa" && observer.kind !== "hq") {
       // Most buildings don't spot except radar/bunker/aa/hq
@@ -106,8 +108,11 @@ export function updateSensors(w: World): void {
     w.spatial.queryRadius(observer.x, observer.z, range, (target) => {
       if (target.dead || target.loadedIntoId!=null || target.team === team) return;
       if (!w.vision.hasLineOfSight(observer, target)) return;
-      const cover = coverValueAt(w, target.x, target.z);
-      if (!canSpot(observer, target, cover)) return;
+      const forest=w.vision.forestDepth(observer,target);
+      const cover=coverValueAt(w,target.x,target.z)+forest*.35;
+      const close=Math.hypot(target.x-observer.x,target.z-observer.z)<7;
+      const signature=target.lastCombatTime>0&&now-target.lastCombatTime<3?26:0;
+      if(!close&&!canSpot(observer,target,cover-signature))return;
       const radarLevel = observer.kind === "radar" ? (observer.buildingLevel ?? 1) : 1;
       const dur = observer.kind === "radar" ? SPOT_DURATION_RADAR * (radarLevel >= 3 ? 1.45 : radarLevel >= 2 ? 1.2 : 1) : SPOT_DURATION;
       const until = now + dur;

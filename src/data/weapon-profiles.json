@@ -1,0 +1,517 @@
+{
+  "profiles": {
+    "rifle": {
+      "name": "Automaatrelv",
+      "weapon": "bullet",
+      "flight": "direct",
+      "guidance": "none",
+      "visual": "rifle",
+      "warhead": "kinetic",
+      "targets": "ground",
+      "speed": 450,
+      "muzzle": 0.9,
+      "muzzleHeight": 1.35
+    },
+    "mg": {
+      "name": "Kuulipilduja",
+      "weapon": "bullet",
+      "flight": "direct",
+      "guidance": "none",
+      "visual": "mg",
+      "warhead": "kinetic",
+      "targets": "ground",
+      "speed": 480,
+      "muzzle": 1.2,
+      "muzzleHeight": 2.0
+    },
+    "sniper": {
+      "name": "Täpsuspüss",
+      "weapon": "bullet",
+      "flight": "direct",
+      "guidance": "none",
+      "visual": "sniper",
+      "warhead": "kinetic",
+      "targets": "ground",
+      "speed": 520,
+      "muzzle": 0.95,
+      "muzzleHeight": 1.35
+    },
+    "autocannon": {
+      "name": "Automaatkahur",
+      "weapon": "cannon",
+      "flight": "direct",
+      "guidance": "none",
+      "visual": "autocannon",
+      "warhead": "he",
+      "targets": "ground",
+      "speed": 280,
+      "muzzle": 2.4,
+      "muzzleHeight": 2.2
+    },
+    "tank-ap": {
+      "name": "Soomustläbistav tankikahur",
+      "weapon": "cannon",
+      "flight": "direct",
+      "guidance": "none",
+      "visual": "sabot",
+      "warhead": "kinetic",
+      "targets": "ground",
+      "speed": 320,
+      "muzzle": 4.5,
+      "muzzleHeight": 2.2
+    },
+    "at-rocket": {
+      "name": "Tankitõrje granaadiheitja",
+      "weapon": "missile",
+      "flight": "direct",
+      "guidance": "none",
+      "visual": "rpg",
+      "warhead": "heat",
+      "targets": "ground",
+      "speed": 70,
+      "muzzle": 1,
+      "muzzleHeight": 1.4
+    },
+    "atgm": {
+      "name": "Juhitav tankitõrjerakett",
+      "weapon": "missile",
+      "flight": "guided",
+      "guidance": "command",
+      "visual": "atgm",
+      "warhead": "heat",
+      "targets": "armor",
+      "speed": 95,
+      "launchSpeed": 24,
+      "acceleration": 50,
+      "turnRate": 2.2,
+      "muzzle": 1.5,
+      "muzzleHeight": 2.0
+    },
+    "sam": {
+      "name": "Õhutõrjerakett",
+      "weapon": "missile",
+      "flight": "guided",
+      "guidance": "radar",
+      "visual": "sam",
+      "warhead": "he",
+      "targets": "air",
+      "speed": 170,
+      "launchSpeed": 38,
+      "acceleration": 105,
+      "turnRate": 3.8,
+      "muzzle": 1.2,
+      "muzzleHeight": 2.5
+    },
+    "manpad": {
+      "name": "Kantav õhutõrjerakett",
+      "weapon": "missile",
+      "flight": "guided",
+      "guidance": "infrared",
+      "visual": "manpad",
+      "warhead": "he",
+      "targets": "air",
+      "speed": 130,
+      "launchSpeed": 28,
+      "acceleration": 80,
+      "turnRate": 3.2,
+      "muzzle": 1,
+      "muzzleHeight": 1.5
+    },
+    "aam": {
+      "name": "Õhk-õhk rakett",
+      "weapon": "missile",
+      "flight": "guided",
+      "guidance": "radar",
+      "visual": "aam",
+      "warhead": "he",
+      "targets": "air",
+      "speed": 210,
+      "launchSpeed": 55,
+      "acceleration": 140,
+      "turnRate": 4.3,
+      "muzzle": 1.2,
+      "muzzleHeight": 0.9
+    },
+    "rocket": {
+      "name": "Juhitamatu rakett",
+      "weapon": "missile",
+      "flight": "direct",
+      "guidance": "none",
+      "visual": "rocket",
+      "warhead": "he",
+      "targets": "ground",
+      "speed": 110,
+      "muzzle": 1.3,
+      "muzzleHeight": 1.1
+    },
+    "howitzer": {
+      "name": "Haubitsa HE-mürsk",
+      "weapon": "cannon",
+      "flight": "ballistic",
+      "guidance": "none",
+      "visual": "howitzer",
+      "warhead": "he",
+      "targets": "ground",
+      "speed": 65,
+      "gravity": 18,
+      "minFlight": 1.6,
+      "muzzle": 3.2,
+      "muzzleHeight": 3.0
+    },
+    "mortar": {
+      "name": "Miinipildujamiin",
+      "weapon": "cannon",
+      "flight": "ballistic",
+      "guidance": "none",
+      "visual": "mortar",
+      "warhead": "he",
+      "targets": "ground",
+      "speed": 42,
+      "gravity": 25,
+      "minFlight": 2,
+      "muzzle": 0.6,
+      "muzzleHeight": 1.4
+    },
+    "mlrs": {
+      "name": "Mitmikraketiheitja rakett",
+      "weapon": "missile",
+      "flight": "ballistic",
+      "guidance": "none",
+      "visual": "mlrs",
+      "warhead": "he",
+      "targets": "ground",
+      "speed": 85,
+      "gravity": 13,
+      "minFlight": 1.8,
+      "muzzle": 1.4,
+      "muzzleHeight": 3
+    },
+    "bomb": {
+      "name": "Lennukipomm",
+      "weapon": "cannon",
+      "flight": "ballistic",
+      "guidance": "none",
+      "visual": "bomb",
+      "warhead": "he",
+      "targets": "ground",
+      "speed": 80,
+      "gravity": 28,
+      "minFlight": 2.4,
+      "muzzle": 0,
+      "muzzleHeight": 0.5
+    },
+    "flak": {
+      "name": "Õhutõrje automaatkahur",
+      "weapon": "cannon",
+      "flight": "direct",
+      "guidance": "none",
+      "visual": "flak",
+      "warhead": "he",
+      "targets": "air",
+      "speed": 300,
+      "muzzle": 2.2,
+      "muzzleHeight": 2.4
+    }
+  },
+  "loadouts": {
+    "tank": [
+      {
+        "profile": "tank-ap"
+      },
+      {
+        "profile": "mg",
+        "damage": 4,
+        "range": 30,
+        "cooldown": 0.22,
+        "penetration": 4,
+        "accuracy": 0.55,
+        "ammoCapacity": 400,
+        "splash": 0
+      }
+    ],
+    "apc": [
+      {
+        "profile": "mg"
+      }
+    ],
+    "ifv": [
+      {
+        "profile": "autocannon"
+      },
+      {
+        "profile": "atgm",
+        "damage": 28,
+        "range": 84,
+        "minimumRange": 10,
+        "cooldown": 5,
+        "penetration": 25,
+        "accuracy": 0.76,
+        "ammoCapacity": 6,
+        "splash": 1.5
+      }
+    ],
+    "inf": [
+      {
+        "profile": "rifle"
+      }
+    ],
+    "atInf": [
+      {
+        "profile": "at-rocket"
+      },
+      {
+        "profile": "rifle",
+        "damage": 4,
+        "range": 24,
+        "cooldown": 0.65,
+        "penetration": 3,
+        "accuracy": 0.5,
+        "ammoCapacity": 100,
+        "splash": 0
+      }
+    ],
+    "mgInf": [
+      {
+        "profile": "mg"
+      }
+    ],
+    "reconInf": [
+      {
+        "profile": "rifle"
+      }
+    ],
+    "sniper": [
+      {
+        "profile": "sniper"
+      }
+    ],
+    "mortar": [
+      {
+        "profile": "mortar"
+      }
+    ],
+    "manpad": [
+      {
+        "profile": "manpad"
+      },
+      {
+        "profile": "rifle",
+        "damage": 4,
+        "range": 24,
+        "cooldown": 0.65,
+        "penetration": 3,
+        "accuracy": 0.5,
+        "ammoCapacity": 100,
+        "splash": 0
+      }
+    ],
+    "atgm": [
+      {
+        "profile": "atgm"
+      },
+      {
+        "profile": "rifle",
+        "damage": 4,
+        "range": 24,
+        "cooldown": 0.65,
+        "penetration": 3,
+        "accuracy": 0.5,
+        "ammoCapacity": 100,
+        "splash": 0
+      }
+    ],
+    "reconVehicle": [
+      {
+        "profile": "mg"
+      }
+    ],
+    "lightTank": [
+      {
+        "profile": "tank-ap"
+      },
+      {
+        "profile": "mg",
+        "damage": 4,
+        "range": 28,
+        "cooldown": 0.25,
+        "penetration": 4,
+        "accuracy": 0.55,
+        "ammoCapacity": 300,
+        "splash": 0
+      }
+    ],
+    "tankDestroyer": [
+      {
+        "profile": "atgm"
+      }
+    ],
+    "spaa": [
+      {
+        "profile": "flak"
+      }
+    ],
+    "bunker": [
+      {
+        "profile": "autocannon"
+      }
+    ],
+    "heli": [
+      {
+        "profile": "atgm"
+      },
+      {
+        "profile": "autocannon",
+        "damage": 9,
+        "range": 48,
+        "cooldown": 0.28,
+        "penetration": 9,
+        "accuracy": 0.6,
+        "ammoCapacity": 260,
+        "splash": 1.2
+      },
+      {
+        "profile": "rocket",
+        "damage": 16,
+        "range": 65,
+        "cooldown": 0.65,
+        "penetration": 6,
+        "accuracy": 0.48,
+        "ammoCapacity": 20,
+        "splash": 4.5
+      }
+    ],
+    "gunship": [
+      {
+        "profile": "atgm"
+      },
+      {
+        "profile": "autocannon",
+        "damage": 9,
+        "range": 48,
+        "cooldown": 0.28,
+        "penetration": 9,
+        "accuracy": 0.6,
+        "ammoCapacity": 260,
+        "splash": 1.2
+      },
+      {
+        "profile": "rocket",
+        "damage": 16,
+        "range": 65,
+        "cooldown": 0.65,
+        "penetration": 6,
+        "accuracy": 0.48,
+        "ammoCapacity": 20,
+        "splash": 4.5
+      }
+    ],
+    "casHeli": [
+      {
+        "profile": "autocannon"
+      },
+      {
+        "profile": "rocket",
+        "damage": 20,
+        "range": 70,
+        "cooldown": 0.7,
+        "penetration": 7,
+        "accuracy": 0.52,
+        "ammoCapacity": 24,
+        "splash": 5
+      }
+    ],
+    "fighter": [
+      {
+        "profile": "aam"
+      }
+    ],
+    "interceptor": [
+      {
+        "profile": "aam"
+      }
+    ],
+    "bomber": [
+      {
+        "profile": "bomb"
+      }
+    ],
+    "ecm": [
+      {
+        "profile": "atgm"
+      }
+    ],
+    "multirole": [
+      {
+        "profile": "aam"
+      },
+      {
+        "profile": "bomb",
+        "damage": 48,
+        "range": 70,
+        "cooldown": 3,
+        "penetration": 9,
+        "accuracy": 0.65,
+        "ammoCapacity": 4,
+        "splash": 8
+      }
+    ],
+    "attackAircraft": [
+      {
+        "profile": "rocket"
+      },
+      {
+        "profile": "autocannon",
+        "damage": 14,
+        "range": 45,
+        "cooldown": 0.3,
+        "penetration": 12,
+        "accuracy": 0.6,
+        "ammoCapacity": 180,
+        "splash": 1.8
+      }
+    ],
+    "artillery": [
+      {
+        "profile": "howitzer"
+      }
+    ],
+    "mlrs": [
+      {
+        "profile": "mlrs"
+      }
+    ],
+    "aa": [
+      {
+        "profile": "sam"
+      }
+    ],
+    "destroyer": [
+      {
+        "profile": "autocannon"
+      }
+    ],
+    "submarine": [
+      {
+        "profile": "atgm",
+        "targets": "ground"
+      }
+    ],
+    "frigate": [
+      {
+        "profile": "atgm",
+        "targets": "ground"
+      }
+    ],
+    "missileBoat": [
+      {
+        "profile": "atgm",
+        "targets": "ground"
+      }
+    ],
+    "special": [
+      {
+        "profile": "rifle"
+      }
+    ]
+  }
+}

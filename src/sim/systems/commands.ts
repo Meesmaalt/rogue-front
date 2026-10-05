@@ -1,5 +1,5 @@
 import type { World } from "../World";
-import { assignAirMission } from "./airDoctrine";
+import { assignAirMission,airUnitsForOrder,requestAirReturn } from "./airDoctrine";
 import { deckRemaining } from "../deck";
 import type { Command, Entity, Point } from "../types";
 import { UNITS } from "../units";
@@ -291,8 +291,12 @@ function apply(w: World, c: Command): void {
       }
       break;
     }
+    case "air-return": {
+      for(const u of airUnitsForOrder(w,c.ids,c.team??w.playerTeam))requestAirReturn(u);
+      break;
+    }
     case "air-mission": {
-      for (const u of mobile(w, c.ids, c.team)) {
+      for (const u of airUnitsForOrder(w,c.ids,c.team??w.playerTeam)) {
         if (u.def.armor !== "air" && u.def.category !== "heli") continue;
         assignAirMission(u, c.mission, c.x != null && c.z != null ? { x: c.x, z: c.z } : null);
       }

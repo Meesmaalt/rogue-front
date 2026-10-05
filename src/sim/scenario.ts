@@ -1,3 +1,4 @@
+import {stationAircraft} from "./systems/airDoctrine";
 import type { World } from "./World";
 
 /**
@@ -23,7 +24,7 @@ export function createSkirmish(w: World, ready = false): void {
       const b=w.bases[team], sign=team===0?1:-1;
       for (const [kind,dx,dz] of [["generator",-20,-18],["supply",0,-25],["landCommand",-22,4],["barracks",20,18],["factory",0,28],["airCommand",25,-20],["helipad",25,0]] as const) w.spawn(kind,team,b.x+dx*sign,b.z+dz*sign);
       const pad=w.entities.find(e=>e.team===team&&e.kind==="helipad")!;
-      const helicopter=w.spawn("heli",team,pad.x,pad.z);helicopter.airState="grounded";helicopter.airMissionHomeId=pad.id;helicopter.airSortieTime=0;
+      const helicopter=w.spawn("heli",team,pad.x,pad.z);stationAircraft(w,helicopter,pad);
       const forward={x:-sign*82,z:sign*50};
       const kinds=["tank","tank","apc","inf","inf","reconVehicle"] as const;
       kinds.forEach((kind,i)=>{const u=w.spawn(kind,team,forward.x+(i%3-1)*9,forward.z+Math.floor(i/3)*9*sign);u.heading=team===0?Math.PI*.65:-Math.PI*.35;u.pHeading=u.heading;});

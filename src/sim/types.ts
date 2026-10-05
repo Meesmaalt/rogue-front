@@ -23,7 +23,18 @@ export type Stabilizer = "none" | "partial" | "full";
 export type Discipline = "low" | "medium" | "high";
 export type UnitCategory = "infantry" | "armor" | "recon" | "support" | "heli" | "air" | "naval" | "logistics" | "building";
 
+export type ProjectileFlight="direct"|"guided"|"ballistic";
+export type Guidance="none"|"command"|"infrared"|"radar";
+export interface WeaponSpec {
+  profile:string;name:string;weapon:"bullet"|"cannon"|"missile";visual:string;flight:ProjectileFlight;guidance:Guidance;
+  warhead:"kinetic"|"heat"|"he";targets:"ground"|"armor"|"air"|"all";
+  range:number;minimumRange:number;damage:number;cooldown:number;penetration:number;accuracy:number;splash:number;
+  ammoCapacity:number;ammoUsePerShot:number;suppressionPower:number;
+  speed:number;launchSpeed:number;acceleration:number;turnRate:number;gravity:number;minFlight:number;
+  muzzle:number;muzzleHeight:number;
+}
 export interface UnitDef {
+  weapons?:WeaponSpec[];
   name: string; hp: number; speed: number; turnRate: number; range: number; damage: number; cooldown: number;
   radius: number; height: number; cost: number; buildTime: number; projectileSpeed: number;
   producible: boolean; domain?: "land" | "air" | "sea"; stealth?: boolean; turret: boolean; building?: boolean;
@@ -128,13 +139,15 @@ export interface Entity {
   /** Phase 77 artillery battery state. */
   artilleryReadyAt?: number; artilleryLastFire?: number; artillerySignatureUntil?: number; artilleryShotsInSalvo?: number; artilleryDisplace?: Point | null; artilleryMissionRound?: number;
   /** Phase 78 air sortie / weapons state. */
-  airSortieCount?: number; airThreat?: number; airWeaponCooldown?: number; airReturnReason?: "fuel" | "ammo" | "damage" | null;
+  airSortieCount?: number; airThreat?: number; airWeaponCooldown?: number; airReturnReason?: "fuel" | "ammo" | "damage" | "manual" | null;
   /** Phase 86 dynamic frontline assignment. */
   frontlineSector?: string;
   deploymentState?: "reserve" | "deploying" | "frontline" | "fallback";
   /** Phase 79 AI tactical intent. */
   aiIntent?: "attack" | "defend" | "recon" | "resupply" | "counterbattery" | "retreat" | null;
+  gunElevation?:number;weaponCooldowns?:number[];secondaryAmmo?:number[];activeWeapon?:number;
   motionSpeed?: number; flightBank?: number; flightPitch?: number; flightOrbitCenter?: Point; airLandingPhase?: "approach"|"final";
+  airHomeSlot?:number;airTaxiPhase?:"apron"|"lining-up"|"runway";combatPosition?:Point;combatPositionTarget?:number;combatPositionAnchor?:Point;combatPositionRetryAt?:number;
   airState?: AirState; airMissionHomeId?: number | null; airSortieTime?: number; airMission?: AirMission; airMissionPoint?: Point | null; fireMission?: Point | null; lastCombatTime: number; morale?: number; disabledUntil?: number; builderIds: number[]; underConstruction: boolean; cargoUnitIds: number[]; loadedIntoId: number | null; transportTargetId: number | null; unloadPoint: Point | null; standingOrder?: "hold" | "patrol" | "attack" | "holdfire" | null; priorityFocus?: "supply" | "generator" | "aa" | null; preDeployOrder?: { mode: "move" | "attack" | "hold"; x?: number; z?: number } | null;
 }
 
@@ -148,6 +161,9 @@ export interface Projectile {
   impactDamage?: number;
   age?: number; lifetime?: number; turnRate?: number; acceleration?: number; maxSpeed?: number;
   aimY?: number; launchX?: number; launchZ?: number;
+  px?:number;py?:number;pz?:number;profile?:string;visual?:string;flight?:ProjectileFlight;guidance?:Guidance;guidanceLost?:boolean;
+  warhead?:"kinetic"|"heat"|"he";gravity?:number;flightTime?:number;suppressionPower?:number;
+  hitRoll?:number;missX?:number;missZ?:number;
 }
 
 export type Command = ({
@@ -156,11 +172,11 @@ export type Command = ({
   { type: "formation"; kind: "box" | "line" | "wedge" | "column" } | { type: "stop"; ids: number[] } | { type: "repair"; ids: number[]; targetId: number } | { type: "rally"; ids: number[]; x: number; z: number } | { type: "patrol"; ids: number[]; x: number; z: number } | { type: "hold"; ids: number[] } |
   { type: "build"; ids: number[]; kind: "hq" | "bunker" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase" | "supply" | "radar" | "generator" | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer" | "landStrategy" | "airStrategy" | "seaStrategy"; x: number; z: number; rotation?: number } |
   { type: "upgrade"; ids: number[]; upgrade: "armor" | "weapon" | "range" | "supply-depot" | "producer" | "fob" } |
-  { type: "research"; tech: "air" | "advanced-armor" } | { type: "produce"; kind: UnitKind; producerId?: number } | { type: "cancel-produce"; producerId: number } | { type: "load"; ids: number[]; targetId: number } | { type: "unload"; ids: number[]; x: number; z: number } | { type: "fire-mission"; ids: number[]; x: number; z: number } | { type: "standing"; ids: number[]; mode: "hold" | "patrol" | "attack" | "holdfire"; x?: number; z?: number } | { type: "predeploy"; ids: number[]; mode: "move" | "attack" | "hold"; x?: number; z?: number } | { type: "priority"; ids: number[]; focus: "supply" | "generator" | "aa" } | { type: "depot-priority"; ids: number[]; focus: "ammo" | "fuel" | "repair" | "balanced" } | { type: "logistics-source"; ids:number[]; sourceIndex:number|null; paused?:boolean } | { type: "logistics-route"; ids: number[]; x: number; z: number; append?: boolean; clear?: boolean } | { type: "air-mission"; ids: number[]; mission: "cap" | "strike" | "sead" | "ground"; x?: number; z?: number }) & { team?: Team };
+  { type: "research"; tech: "air" | "advanced-armor" } | { type: "produce"; kind: UnitKind; producerId?: number } | { type: "cancel-produce"; producerId: number } | { type: "load"; ids: number[]; targetId: number } | { type: "unload"; ids: number[]; x: number; z: number } | { type: "fire-mission"; ids: number[]; x: number; z: number } | { type: "standing"; ids: number[]; mode: "hold" | "patrol" | "attack" | "holdfire"; x?: number; z?: number } | { type: "predeploy"; ids: number[]; mode: "move" | "attack" | "hold"; x?: number; z?: number } | { type: "priority"; ids: number[]; focus: "supply" | "generator" | "aa" } | { type: "depot-priority"; ids: number[]; focus: "ammo" | "fuel" | "repair" | "balanced" } | { type: "logistics-source"; ids:number[]; sourceIndex:number|null; paused?:boolean } | { type: "logistics-route"; ids: number[]; x: number; z: number; append?: boolean; clear?: boolean } | {type:"air-return";ids:number[]} | { type: "air-mission"; ids: number[]; mission: "cap" | "strike" | "sead" | "ground"; x?: number; z?: number }) & { team?: Team };
 
 export type SimEvent =
-  | { type: "impact"; x: number; y: number; z: number; weapon: string }
-  | { type: "fire"; team: Team; x: number; y: number; z: number; sourceId?: number; weapon?: string; caliber?: number }
+  | { type: "impact"; x: number; y: number; z: number; weapon: string;visual?:string;result?:"penetration"|"ricochet"|"ground"|"airburst"|"miss";size?:number }
+  | { type: "fire"; team: Team; x: number; y: number; z: number; sourceId?: number; weapon?: string; caliber?: number;visual?:string;dx?:number;dy?:number;dz?:number;weaponIndex?:number }
   | { type: "hit"; x: number; y: number; z: number }
   | { type: "build-complete"; team: Team; x: number; y: number; z: number; kind: UnitKind }
   | { type: "repair-complete"; team: Team; x: number; y: number; z: number; kind: UnitKind }

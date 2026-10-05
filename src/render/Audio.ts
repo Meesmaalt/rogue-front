@@ -30,13 +30,19 @@ export class AudioManager {
   events(events: readonly SimEvent[], _playerTeam = 0): void {
     for (const e of events) {
       if (e.type === "fire") {
-        const kind=e.weapon??"bullet",now=this.ctx?.currentTime??0;
+        const kind=e.visual??e.weapon??"rifle",now=this.ctx?.currentTime??0;
         if(now-(this.lastShot.get(kind)??-1)<(kind==="bullet"?.055:.08))continue;this.lastShot.set(kind,now);
-        if(kind==="missile")this.noise(.38,650,.16);
-        else if(kind==="cannon"){this.noise(.2,(e.caliber??20)>15?450:1300,.22);this.tone(55,.18,"triangle",.14);}
-        else this.noise(.065,2300,.12);
+        if(["atgm","sam","aam","manpad","rocket","rpg","mlrs"].includes(kind))this.noise(kind==="sam"||kind==="mlrs"?.5:.28,kind==="rpg"?1000:650,.16);
+        else if(["sabot","howitzer","mortar"].includes(kind)){this.noise(kind==="howitzer"?.36:.22,kind==="mortar"?850:430,.22);this.tone(kind==="mortar"?92:48,.22,"triangle",.14);}
+        else if(kind==="autocannon"||kind==="flak")this.noise(.11,1500,.17);
+        else if(kind==="sniper"){this.noise(.14,1800,.18);this.tone(105,.1,"triangle",.08);}
+        else if(kind!=="bomb")this.noise(.065,2300,.12);
       }
-      else if(e.type==="impact"){this.noise(.23,380,.16);this.tone(46,.16,"triangle",.1);}
+      else if(e.type==="impact"){
+        if(e.result==="ricochet")this.tone(1700,.12,"triangle",.08);
+        else if(e.weapon==="bullet")this.noise(.035,1400,.04);
+        else {const heavy=["bomb","howitzer","mlrs"].includes(e.visual??"");this.noise(heavy?.48:.23,heavy?250:550,heavy?.22:.12);this.tone(heavy?38:65,.2,"triangle",.1);}
+      }
       else if (e.type === "hit") this.tone(75, .05, "sawtooth", .1);
       else if (e.type === "death") {
         this.tone(e.big ? 48 : 62, e.big ? .24 : .12, "sawtooth", e.big ? .2 : .13);

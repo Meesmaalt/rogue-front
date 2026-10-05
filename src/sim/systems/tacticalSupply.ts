@@ -1,3 +1,4 @@
+import {weaponSpec,weaponAmmo} from "./combat";
 import {heightAt} from "../heightmap";
 import type { World } from "../World";
 import type { Entity } from "../types";
@@ -97,6 +98,10 @@ export function updateTacticalSupply(w: World, dt: number): void {
       const need=Math.min((e.maxAmmo??0)-(e.ammo??0),(e.def.resupplyRate??1)*4.5*eff*dt);
       const take=Math.min(need,depot.ammoStock??0); depot.ammoStock=(depot.ammoStock??0)-take; e.ammo=(e.ammo??0)+take;
     }
+    if(inRadius&&depot&&e.secondaryAmmo&&e.def.armor!=="air")for(let i=1;i<(e.def.weapons?.length??0);i++){
+      const spec=weaponSpec(e,i),need=Math.max(0,spec.ammoCapacity-weaponAmmo(e,i));
+      const take=Math.min(need,(e.def.resupplyRate??1)*4.5*eff*dt,depot.ammoStock??0);e.secondaryAmmo[i]+=take;depot.ammoStock=(depot.ammoStock??0)-take;
+    }
     // Soft operational degradation instead of an instant out-of-supply switch.
     if (!supplied || !commandLinked) {
       const s=e.supply??0;
@@ -110,5 +115,5 @@ export function outOfFuel(e: Entity): boolean {
 }
 
 export function outOfAmmo(e: Entity): boolean {
-  return (e.maxAmmo ?? 0) > 0 && (e.ammo ?? 0) <= 0;
+  return (e.maxAmmo ?? 0) > 0 && (e.ammo ?? 0) < (e.def.ammoUsePerShot??1) && !(e.def.weapons??[]).some((w,i)=>i>0&&weaponAmmo(e,i)>=w.ammoUsePerShot);
 }

@@ -19,6 +19,10 @@ npm ci && npm run dev
 
 ## Integreeritud mängu käivitamine
 
+Uus põhisuund: **Wargame’i taktikaline lahing + Real Wari baas, majandus ja füüsilised õhurajatised**. [Õhuväe baasitsükkel ja maaväe laskepositsioonid](docs/TACTICAL-AIRBASE-RELEASE.md): vali lennubaas/kopteriplats, määra õhuoperatsioon ning paremklõpsa sihtpunktile; „Baasi” kutsub lennugrupi tagasi.
+
+Viimane lahinguarendus: [relvakoosseisud, mürsufüüsika, efektid ja metsluure](docs/WEAPON-EFFECTS-RECON-RELEASE.md). IFV-de, kopterite ja mitmeotstarbeliste lennukite lisarelvad kasutavad eraldi laskemoonavarusid ja laadimisaegu.
+
 Uus 3D-pass: [tehnika materjalid, taimestik ja renderduse jõudlus](docs/ART-PERFORMANCE-RELEASE.md). 63 tehnikavariandil on detailne ja kaugusmudel; mäng valib sobiva detaili kaamerakauguse ning graafikaseade järgi.
 
 Viimane uuendus: [Roheoru liikumine, lahingu tagasiside, kaardikujundus ja tarnejuhtimine](docs/TACTICAL-MAP-LOGISTICS-RELEASE.md). Lao paneelis saab valida ressursiallika, lisada marsruudipunkte ning vedusid peatada. Shift lisab ühekordse liikumiskäsu järjekorda.

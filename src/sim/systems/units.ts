@@ -4,11 +4,11 @@ import logisticsConfig from "../../data/logistics.json";
 import mobility from "../../data/mobility.json";
 import { heightAt, MAP_SIZE } from "../heightmap";
 import { dist2d, turnToward, wrapAngle } from "../math";
-import { fireProjectile, canEngage, effectiveWeaponRange } from "./combat";
-import { isSpottedBy } from "./sensors";
+import { fireProjectile, canEngage, effectiveWeaponRange,selectWeapon,weaponSpec,weaponAmmo } from "./combat";
+import { coverValueAt,isSpottedBy } from "./sensors";
 import { moraleSpeedMul, moraleAccuracyMul, moraleState } from "./morale";
 import { outOfFuel, outOfAmmo } from "./tacticalSupply";
-import { updateAirDoctrine } from "./airDoctrine";
+import { updateAirDoctrine,airFacilityPoint,airParkingPoint,freeAirSlot,airOperationStatus,hasAirMissionAmmo } from "./airDoctrine";
 import { pointInFeature } from "../mapFeatures";
 import { findPath } from "../nav/Pathfinder";
 
@@ -38,6 +38,7 @@ export function nearestEnemy(w: World, u: Entity, range: number): Entity | null 
     if (d > range) return;
     if (!hasSpotter(w, u, e)) return;
     if (!canEngage(u,e)) return;
+    if(u.def.armor==="air"&&u.airMission==="cap"&&e.def.armor!=="air")return;
     if ((u.kind === "bunker" || u.kind === "aa" || u.kind === "spaa") && !inFiringArc(u, e)) return;
     let priority = d;
     if (u.def.weapon === "missile" && e.def.armor === "air") priority -= 22;
@@ -66,6 +67,28 @@ function bodyClear(w:World,u:Entity,p:Point):boolean {
     if(next<min&&next<old-.001)clear=false;
   });return clear;
 }
+/** A bounded, cached search for a reachable firing point instead of the enemy's center. */
+function firingPosition(w:World,u:Entity,target:Entity,range:number):Point|null {
+  const cfg=mobility.navigation,anchor=u.combatPositionAnchor;
+  if(u.combatPositionTarget===target.id&&anchor&&dist2d(anchor,target)<cfg.firingTargetMove&&w.time<(u.combatPositionRetryAt??0))return u.combatPosition??null;
+  u.combatPositionTarget=target.id;u.combatPositionAnchor={x:target.x,z:target.z};u.combatPositionRetryAt=w.time+cfg.firingPositionRetry;u.combatPosition=undefined;
+  const index=selectWeapon(u,target),spec=index>=0?weaponSpec(u,index):weaponSpec(u),radius=Math.max(spec.minimumRange+u.def.radius+target.def.radius,range*cfg.firingDistance+target.def.radius);
+  const angle=Math.atan2(u.x-target.x,u.z-target.z),candidates:Array<{point:Point;score:number}>=[];
+  for(const factor of [1,.65,.4])for(const offset of [0,.35,-.35,.7,-.7,1.1,-1.1,1.6,-1.6,Math.PI]){
+    const r=Math.max(spec.minimumRange+u.def.radius+target.def.radius,radius*factor),a=angle+offset+(u.id%3-1)*.06,p={x:target.x+Math.sin(a)*r,z:target.z+Math.cos(a)*r};
+    if(!w.nav.isWalkableWorld(p.x,p.z,u.def.radius)||!bodyClear(w,u,p))continue;
+    if(!["artillery","mortar","mlrs"].includes(u.kind)&&!w.vision.hasLineOfSight({...u,...p,y:heightAt(p.x,p.z)},target))continue;
+    const cover=u.def.category==="infantry"?coverValueAt(w,p.x,p.z)/34*cfg.coverPreference:0;
+    candidates.push({point:p,score:dist2d(u,p)-cover+Math.abs(offset)*3+(radius-r)*.3});
+  }
+  candidates.sort((a,b)=>a.score-b.score);
+  for(const c of candidates.slice(0,3)){
+    const path=findPath(w.nav,u,c.point,u.def.radius);if(!path.length)continue;
+    u.combatPosition=c.point;u.navPath=path;u.navPathIndex=0;u.roadPathGoal=c.point;u.roadPathRetryAt=w.time+cfg.firingPositionRetry;return c.point;
+  }
+  return null;
+}
+
 function smoothWaypoint(w:World,u:Entity):void {
   for(let i=u.navPathIndex+1;i<u.navPath.length;i++){
     if(dist2d(u,u.navPath[i])>mobility.navigation.lookAhead||!clearGroundSegment(w,u,u.navPath[i]))break;
@@ -189,6 +212,16 @@ function moveSeaTo(u: Entity, target: Point, dt: number): boolean {
   u.x += Math.sin(u.heading)*u.def.speed*componentSpeed*dt; u.z += Math.cos(u.heading)*u.def.speed*componentSpeed*dt;
   u.y = Math.max(0.4, heightAt(u.x,u.z)-0.8);
   return false;
+}
+
+function taxiTo(u:Entity,p:Point,dt:number):boolean {
+  const distance=dist2d(u,p),heading=Math.atan2(p.x-u.x,p.z-u.z);u.heading=turnToward(u.heading,heading,u.def.turnRate*dt);
+  const step=Math.min(distance,mobility.aircraft.taxiSpeed*dt);u.motionSpeed=distance>.3?mobility.aircraft.taxiSpeed:0;
+  if(distance>.001){u.x+=(p.x-u.x)/distance*step;u.z+=(p.z-u.z)/distance*step;}u.y=heightAt(u.x,u.z);u.flightBank=0;u.flightPitch=0;
+  return distance<=.3;
+}
+function runwayOccupied(w:World,u:Entity,pad:Entity):boolean {
+  return w.entities.some(e=>e!==u&&!e.dead&&e.airMissionHomeId===pad.id&&(e.airState==="taxi"&&e.airTaxiPhase!=="apron"||e.airState==="returning"&&e.airLandingPhase==="final"||e.airState==="landing"&&dist2d(e,airFacilityPoint(pad,6))<mobility.aircraft.parkingOffset||e.airState==="airborne"&&(e.airSortieTime??0)<mobility.aircraft.launchSeparation));
 }
 
 /** Kinematic flight is simulated: inertia, bank, climb and approach are saved state. */
@@ -359,7 +392,7 @@ export function updateUnits(w: World, dt: number): void {
 function stepUnit(w: World, u: Entity, dt: number): void {
   const d = u.def;
   if (u.kind === "cargoPlane") { updateCargoPlane(w, u, dt); return; }
-  if (u.kind === "transport") { updateTransport(w, u, dt); return; }
+  if (u.kind === "transport"&&u.supplyDepotId!=null) { updateTransport(w, u, dt); return; }
   if (u.kind === "logiTruck") { updateRoadTruck(w, u, dt); return; }
   if (u.kind === "landingcraft") { updateLandingCraft(w, u, dt); return; }
   if (u.kind === "special" && u.mode !== "attack") {
@@ -370,6 +403,7 @@ function stepUnit(w: World, u: Entity, dt: number): void {
   const combatSpeedFactor = disabled ? 0.25 : 1;
   if (u.kind === "engineer" && (u.mode === "build" || u.mode === "repair")) {
     const target = u.target;
+
     if (!target || target.dead) { u.mode = "idle"; u.target = null; u.dest = null; return; }
     if (target.def.speed > 0 && !target.def.building) {
       if (Math.hypot(u.x - target.x, u.z - target.z) <= 12) {
@@ -408,60 +442,82 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     return;
   }
   const supplyFactor = u.def.speed === 0 || (u.supply ?? 100) > 20 ? 1 : 0.65;
-  const effectiveRange = effectiveWeaponRange(u);u.firingRange=effectiveRange;
+  let effectiveRange = effectiveWeaponRange(u);u.firingRange=effectiveRange;
   u.cooldown = Math.max(0, u.cooldown - dt);
+  if(u.weaponCooldowns)for(let i=1;i<u.weaponCooldowns.length;i++)u.weaponCooldowns[i]=Math.max(0,u.weaponCooldowns[i]-dt);
 
   if (u.fireMission && !u.artilleryDisplace && ["artillery","mortar","mlrs"].includes(u.kind)) {u.target=null;return;}
   if (!d.damage && d.speed === 0) return;
 
   const isAir = d.armor === "air";
   if (isAir) {
-    const home=u.airMissionHomeId?w.byId.get(u.airMissionHomeId):null;
-    const helicopter=u.def.category==="heli";
-    const pads=w.entities.filter(e=>!e.dead&&!e.underConstruction&&e.team===u.team&&e.kind===(helicopter?"helipad":"airbase"));
-    const pad=home&&!home.dead&&!home.underConstruction?home:[...pads].sort((a,b)=>dist2d(u,a)-dist2d(u,b))[0]??null;
-    if(pad)u.airMissionHomeId=pad.id;
-    const atPad=!!pad&&dist2d(u,pad)<14;
-    if(atPad && u.y-heightAt(u.x,u.z)<4 && (u.airState==="returning"||u.airState==="landing")){u.airState="rearming";u.motionSpeed=0;u.y=heightAt(u.x,u.z);u.airLandingPhase=undefined;u.mode="idle";u.dest=null;u.target=null;}
-    if(atPad&&pad&&(u.airState==="rearming"||u.airState==="grounded")){
-      const depot=w.nearestSupplyDepot(u.team,pad,false);
-      if(depot&&dist2d(depot,pad)<80&&w.productionOperational(pad).operational){
-        const fuel=Math.min((u.maxFuel??0)-(u.fuel??0),34*dt,depot.fuelStock??0);
-        const ammo=Math.min((u.maxAmmo??0)-(u.ammo??0),2.2*dt,depot.ammoStock??0);
-        const repair=Math.min(u.def.hp-u.hp,u.def.hp*.05*dt,depot.repairStock??0);
-        u.fuel=(u.fuel??0)+fuel;u.ammo=(u.ammo??0)+ammo;u.hp+=repair;
-        depot.fuelStock=(depot.fuelStock??0)-fuel;depot.ammoStock=(depot.ammoStock??0)-ammo;depot.repairStock=(depot.repairStock??0)-repair;
+    const helicopter=d.category==="heli",home=w.byId.get(u.airMissionHomeId??-1);
+    let pad=home&&!home.dead&&!home.underConstruction&&home.kind===(helicopter?"helipad":"airbase")?home:null;
+    if(!pad){
+      const alternatives=w.entities.filter(e=>!e.dead&&!e.underConstruction&&e.team===u.team&&e.kind===(helicopter?"helipad":"airbase")&&freeAirSlot(w,e)>=0).sort((a,b)=>dist2d(u,a)-dist2d(u,b)||a.id-b.id);
+      pad=alternatives[0]??null;if(pad){u.airHomeSlot=freeAirSlot(w,pad);u.airMissionHomeId=pad.id;}
+    }
+    const armed=(u.maxAmmo??0)>0;
+    if(u.airState==="grounded"||u.airState==="rearming"){
+      const depot=pad?w.nearestSupplyDepot(u.team,pad,false):null;
+      if(pad&&depot&&dist2d(u,airParkingPoint(u,pad))<2&&dist2d(depot,pad)<80&&w.productionOperational(pad).operational){
+        const fuel=Math.max(0,Math.min((u.maxFuel??0)-(u.fuel??0),34*dt,depot.fuelStock??0));
+        const ammo=Math.max(0,Math.min((u.maxAmmo??0)-(u.ammo??0),2.2*dt,depot.ammoStock??0));
+        const repair=Math.max(0,Math.min(d.hp-u.hp,d.hp*.05*dt,depot.repairStock??0));
+        u.fuel=(u.fuel??0)+fuel;u.ammo=(u.ammo??0)+ammo;u.hp+=repair;depot.ammoStock=(depot.ammoStock??0)-ammo;
+        if(u.secondaryAmmo)for(let i=1;i<(d.weapons?.length??0);i++){const spec=weaponSpec(u,i),take=Math.max(0,Math.min(spec.ammoCapacity-weaponAmmo(u,i),4.5*dt,depot.ammoStock??0));u.secondaryAmmo[i]+=take;depot.ammoStock=(depot.ammoStock??0)-take;}
+        depot.fuelStock=(depot.fuelStock??0)-fuel;depot.repairStock=(depot.repairStock??0)-repair;
       }
-      if((u.ammo??0)>=(u.maxAmmo??0)*.95&&(u.fuel??0)>=(u.maxFuel??0)*.95)u.airState="grounded";
+      const loaded=(u.ammo??0)>=(u.maxAmmo??0)*.95&&(d.weapons??[]).every((s,i)=>i===0||weaponAmmo(u,i)>=s.ammoCapacity*.95);
+      if(u.airState==="rearming"&&loaded&&(u.fuel??0)>=(u.maxFuel??0)*.95)u.airState="grounded";
+      if(u.airState==="grounded"&&pad&&w.productionOperational(pad).operational&&(u.fuel??0)>(u.maxFuel??0)*.3&&hasAirMissionAmmo(u)&&["attack","amove","move","patrol","transport-load","transport-unload"].includes(u.mode)){
+        u.airState="taxi";u.airTaxiPhase="apron";u.airSortieTime=0;u.airReturnReason=null;
+      }else return;
     }
-    if(u.airState==="grounded"){
-      if(pad&&w.productionOperational(pad).operational&&(u.fuel??0)>(u.maxFuel??0)*.3&&(u.ammo??0)>0&&["attack","amove","move","patrol"].includes(u.mode)) {u.airState="taxi";u.airSortieTime=0;}
-      else return;
-    }
-    if(u.airState==="rearming")return;
     if(u.airState==="taxi"){
-      u.airSortieTime=(u.airSortieTime??0)+dt;const duration=helicopter?mobility.helicopter.takeoffTime:mobility.aircraft.takeoffTime;
-      if(!helicopter){u.x+=Math.sin(u.heading)*3*dt;u.z+=Math.cos(u.heading)*3*dt;}u.y=heightAt(u.x,u.z);
-      if(u.airSortieTime<duration)return;
+      if(!pad){u.airState=helicopter&&u.y-heightAt(u.x,u.z)>3?"airborne":"grounded";u.mode="idle";u.dest=null;u.motionSpeed=0;return;}
+      u.airSortieTime=(u.airSortieTime??0)+dt;
+      if(helicopter){
+        u.y=Math.min(heightAt(u.x,u.z)+mobility.helicopter.altitude,u.y+mobility.helicopter.climbRate*dt);u.motionSpeed=0;
+        if(u.airSortieTime<mobility.helicopter.takeoffTime)return;
+      }else {
+        if(u.airTaxiPhase==="apron"||u.airTaxiPhase==null){
+          const holding=airFacilityPoint(pad,mobility.aircraft.runwayStart,mobility.aircraft.parkingOffset);
+          if(!taxiTo(u,holding,dt)||runwayOccupied(w,u,pad))return;u.airTaxiPhase="lining-up";
+        }
+        if(u.airTaxiPhase==="lining-up"){
+          if(!taxiTo(u,airFacilityPoint(pad,mobility.aircraft.runwayStart),dt))return;u.airTaxiPhase="runway";u.motionSpeed=0;
+        }
+        u.heading=pad.heading;u.motionSpeed=Math.min(d.speed*.65,(u.motionSpeed??0)+mobility.aircraft.acceleration*dt);
+        u.x+=Math.sin(u.heading)*u.motionSpeed*dt;u.z+=Math.cos(u.heading)*u.motionSpeed*dt;u.y=heightAt(u.x,u.z);
+        const forward=(u.x-pad.x)*Math.sin(pad.heading)+(u.z-pad.z)*Math.cos(pad.heading);
+        if(forward<mobility.aircraft.runwayEnd)return;
+      }
       u.airState="airborne";u.airSortieCount=(u.airSortieCount??0)+1;u.airSortieTime=0;u.airLandingPhase=undefined;
     }
     u.airSortieTime=(u.airSortieTime??0)+dt;
-    if(u.airState==="airborne") updateAirDoctrine(w,u,dt);
-    const reason=(u.fuel??0)<(u.maxFuel??0)*.22?"fuel":(u.ammo??0)<=0?"ammo":u.hp<u.def.hp*.35?"damage":null;
-    if(reason&&u.airState!=="returning"){u.airState="returning";u.airReturnReason=reason;u.airLandingPhase="approach";}
-    if((u.fuel??0)<=0){u.hp=0;u.dead=true;w.lossValue[u.team]+=u.def.cost;return;}
-    if(u.airState==="returning"){
-      u.target=null;u.mode="move";u.dest=pad?{x:pad.x,z:pad.z}:null;
-      if(pad){
-        if(!helicopter && u.airLandingPhase!=="final"){
-          const approach={x:pad.x-Math.sin(pad.heading)*70,z:pad.z-Math.cos(pad.heading)*70};
-          if(dist2d(u,approach)>18){moveAirTo(u,approach,dt,w);return;}
-          u.airLandingPhase="final";
-        }
-        moveAirTo(u,pad,dt,w);
-      }
+    if(u.airState==="airborne")updateAirDoctrine(w,u,dt);
+    const reason=(u.fuel??0)<(u.maxFuel??0)*.22?"fuel":armed&&!hasAirMissionAmmo(u)?"ammo":u.hp<d.hp*.35?"damage":null;
+    if(reason&&u.airState!=="returning"&&u.airState!=="landing"){u.airState="returning";u.airReturnReason=reason;u.airLandingPhase="approach";}
+    if((u.fuel??0)<=0){u.hp=0;u.dead=true;w.lossValue[u.team]+=d.cost;return;}
+    if(u.airState==="landing"){
+      if(pad&&taxiTo(u,airParkingPoint(u,pad),dt)){u.airState="rearming";u.mode="idle";u.dest=null;u.target=null;u.airMission=null;u.airMissionPoint=null;u.patrolPoints=[];u.flightOrbitCenter=undefined;}
       return;
     }
+    if(u.airState==="returning"){
+      u.target=null;u.mode="move";
+      if(pad){
+        const touchdown=helicopter?airParkingPoint(u,pad):airFacilityPoint(pad,6);u.dest=touchdown;
+        if(!helicopter&&u.airLandingPhase!=="final"){
+          const approach=airFacilityPoint(pad,mobility.aircraft.runwayStart-70);
+          if(dist2d(u,approach)>18||runwayOccupied(w,u,pad)){moveAirTo(u,approach,dt,w);return;}
+          u.airLandingPhase="final";
+        }
+        if(moveAirTo(u,touchdown,dt,w)){u.airState="landing";u.flightBank=0;u.flightPitch=0;}
+      }else {u.dest=null;const angle=w.time*.22+u.id;moveAirTo(u,{x:u.x+Math.sin(angle)*35,z:u.z+Math.cos(angle)*35},dt,w,true);}
+      return;
+    }
+    if(u.kind==="transport"){updateTransport(w,u,dt);return;}
   }
 
   // sihtmärgi valik – throttle retarget (~every 4 ticks staggered by id)
@@ -489,34 +545,18 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     u.patrolIndex = (u.patrolIndex + 1) % u.patrolPoints.length; u.dest = u.patrolPoints[u.patrolIndex]; u.navPath = []; u.navPathIndex = 0;
   }
   const target = u.target;
+  if(target){effectiveRange=effectiveWeaponRange(u,target);u.firingRange=effectiveRange;}
   const inRange = !!target && dist2d(u, target) - target.def.radius <= effectiveRange * 0.92;
   let goal: Point | null = null;
   const indirect=["artillery","mortar","mlrs"].includes(u.kind);
   const clearShot=!target || indirect || w.vision.hasLineOfSight(u,target);
-  if (target && u.mode !== "move") {
-    if ((!inRange || !clearShot) && !u.holdPosition && u.mode!=="hold") {
-      goal = target;
-      if(!clearShot && inRange && d.armor!=="air") {
-        // Walk around the obstruction to a real firing position, retaining the attack order.
-        if(w.time >= (u.roadPathRetryAt??0) || !u.roadPathGoal) {
-          const angle=Math.atan2(u.x-target.x,u.z-target.z),radius=effectiveRange*.72;
-          for(const offset of [0,.55,-.55,1.1,-1.1,1.65,-1.65,Math.PI]){
-            const p={x:target.x+Math.sin(angle+offset)*radius,z:target.z+Math.cos(angle+offset)*radius};
-            if(!w.nav.isWalkableWorld(p.x,p.z,d.radius)||!w.vision.hasLineOfSight({...u,...p,y:heightAt(p.x,p.z)},target))continue;
-            const path=findPath(w.nav,u,p,d.radius);if(!path.length)continue;
-            u.navPath=path;u.navPathIndex=0;u.roadPathGoal=p;break;
-          }
-          u.roadPathRetryAt=w.time+2;
-        }
-        goal=u.roadPathGoal??target;
-      }
+  if(target&&u.mode!=="move"){
+    const index=selectWeapon(u,target),minimum=index>=0?weaponSpec(u,index).minimumRange:0;
+    if((!inRange||!clearShot||dist2d(u,target)<minimum)&&!u.holdPosition&&u.mode!=="hold"){
+      if(d.armor!=="air"&&d.domain!=="sea"&&d.speed>0)goal=firingPosition(w,u,target,effectiveRange);
+      else goal=target;
     }
-  } else if (["move","amove","patrol"].includes(u.mode)) goal = u.dest;
-  if(target && d.armor!=="air" && d.speed>0 && dist2d(u,target)<(d.minimumRange??0) && !u.holdPosition && u.mode!=="hold" && u.mode!=="move"){
-    const a=Math.atan2(u.x-target.x,u.z-target.z),distance=Math.max((d.minimumRange??0)*1.6,effectiveRange*.4);
-    const retreat={x:target.x+Math.sin(a)*distance,z:target.z+Math.cos(a)*distance};
-    if(w.nav.isWalkableWorld(retreat.x,retreat.z,d.radius))goal=retreat;
-  }
+  }else if(["move","amove","patrol"].includes(u.mode))goal=u.dest;
   if(target && d.category==="heli" && u.mode!=="move" && !u.holdPosition && u.mode!=="hold"){
     const distance=dist2d(u,target),standoff=effectiveRange*.78;
     if(distance<standoff*.68){const a=Math.atan2(u.x-target.x,u.z-target.z);goal={x:target.x+Math.sin(a)*standoff,z:target.z+Math.cos(a)*standoff};}
@@ -645,38 +685,16 @@ function stepUnit(w: World, u: Entity, dt: number): void {
 
   const stationaryOk = !mustStopToFire || !isMovingFast;
   const moveOk = canFireOnMove || !isMovingFast || (inRange && !mustStopToFire);
-  const rangeOk = !!target && dist2d(u, target) - target.def.radius <= effectiveRange && dist2d(u,target)>=(d.minimumRange??0);
-
-  // Must have LOS; for auto-fire also require Wargame "spotted" (attack orders keep target)
-  const spotted = target ? isSpottedBy(target, u.team, w.time) : false;
-  const canShootTarget = target && spotted && canEngage(u,target);
-  if (target && canShootTarget && rangeOk && aligned && stationaryOk && moveOk && !disabled && u.cooldown === 0 && d.damage
-      && moraleState(u) !== "routing"
-      && !outOfAmmo(u)
-      && u.standingOrder !== "holdfire"
-      && ((u.maxAmmo ?? 0) === 0 || (u.ammo ?? 0) > 0)
-      && (u.firingArc >= Math.PI * 2 - 0.01 || inFiringArc(u, target))
-      && hasSpotter(w, u, target)
-      && (["artillery","mortar","mlrs"].includes(u.kind) || w.vision.hasLineOfSight(u, target))) {
-    const a = u.heading + (d.turret ? u.turretYaw : 0);
-    const muzzle =
-      u.kind === "tank" || u.kind === "ifv" ? 4.2 :
-      u.kind === "artillery" || u.kind === "mlrs" || u.kind === "mortar" ? 3.2 :
-      u.kind === "aa" ? 2.4 :
-      u.kind === "inf" || u.kind === "special" ? 0.9 : 1.4;
-    const muzzleY =
-      u.kind === "inf" || u.kind === "special" || u.kind === "engineer" ? 1.35 :
-      u.kind === "tank" ? 2.55 :
-      u.kind === "artillery" || u.kind === "mortar" ? 3.0 : 2.2;
-    const veteranFactor = 1 + u.veteran * 0.06;
-    const moraleFactor = 0.65 + (w.teamMorale[u.team] / 100) * 0.35;
-    fireProjectile(w, u, target, u.x + Math.sin(a) * muzzle, u.y + muzzleY, u.z + Math.cos(a) * muzzle);
-    if (w.projectiles.length) {const p=w.projectiles[w.projectiles.length-1];const factor=veteranFactor*supplyFactor*moraleFactor*moraleAccuracyMul(u);p.damage*=factor;if(p.impactDamage!=null)p.impactDamage*=factor;}
-    const reloadJitter = u.kind === "tank" || u.kind === "artillery" ? (0.95 + w.rng() * 0.12) : (0.85 + w.rng() * 0.3);
-    const reloadSkill = d.reloadSkill ?? 1;
-    const turretPenalty = u.components ? 1 + (u.components.turret ?? 0) / 130 + (u.components.crew ?? 0) / 220 : 1;
-    u.cooldown = d.cooldown * reloadJitter * turretPenalty / Math.max(0.7, reloadSkill);
-    u.lastCombatTime = w.time;
+  const weaponIndex=target?selectWeapon(u,target,true):-1;
+  const spec=weaponIndex>=0?weaponSpec(u,weaponIndex):null;
+  const spotted=target?isSpottedBy(target,u.team,w.time):false;
+  if(target&&spec&&spotted&&aligned&&stationaryOk&&moveOk&&!disabled&&moraleState(u)!=="routing"&&u.standingOrder!=="holdfire"&&(u.firingArc>=Math.PI*2-.01||inFiringArc(u,target))&&hasSpotter(w,u,target)&&(indirect||w.vision.hasLineOfSight(u,target))){
+    const a=u.heading+(d.turret?u.turretYaw:0),wing=d.armor==="air"&&spec.weapon==="missile"?((Math.floor(weaponAmmo(u,weaponIndex))%2)?1.4:-1.4):0;
+    fireProjectile(w,u,target,u.x+Math.sin(a)*spec.muzzle+Math.cos(a)*wing,u.y+spec.muzzleHeight,u.z+Math.cos(a)*spec.muzzle-Math.sin(a)*wing,weaponIndex);
+    const p=w.projectiles[w.projectiles.length-1];if(p){const factor=(1+u.veteran*.06)*supplyFactor*(.65+w.teamMorale[u.team]/100*.35)*moraleAccuracyMul(u);p.damage*=factor;if(p.impactDamage!=null)p.impactDamage*=factor;}
+    const reload=spec.cooldown*(.95+w.rng()*.1)*(u.components?1+u.components.turret/130+u.components.crew/220:1)/Math.max(.7,d.reloadSkill??1);
+    if(weaponIndex===0)u.cooldown=reload;else {u.weaponCooldowns??=[];u.weaponCooldowns[weaponIndex]=reload;}
+    u.lastCombatTime=w.time;
   }
 }
 
@@ -685,12 +703,13 @@ function stepUnit(w: World, u: Entity, dt: number): void {
 export function combatStatus(w:World,u:Entity):string {
   if((u.disabledUntil??0)>w.time)return "Relvasüsteem häiritud";
   if(u.standingOrder==="holdfire")return "Tuli keelatud";
+  if(u.def.armor==="air"&&u.supplyDepotId==null&&u.kind!=="cargoPlane")return airOperationStatus(w,u);
   if(outOfAmmo(u))return "Laskemoon otsas — vaja varustust";
   if(moraleState(u)==="routing")return "Taandub";
   if(!u.target)return u.dest?"Liigub · otsib sihtmärki":"Valmis · sihtmärk puudub";
-  if(dist2d(u,u.target)-u.target.def.radius>effectiveWeaponRange(u))return "Läheneb sihtmärgile";
+  if(dist2d(u,u.target)-u.target.def.radius>effectiveWeaponRange(u,u.target))return "Läheneb sihtmärgile";
   if(!["artillery","mortar","mlrs"].includes(u.kind)&&!w.vision.hasLineOfSight(u,u.target))return "Tulejoon blokeeritud · otsib positsiooni";
   if(dist2d(u,u.target)<(u.def.minimumRange??0))return "Sihtmärk liiga lähedal";
-  if(u.cooldown>0)return "Laadimine";
+  if(selectWeapon(u,u.target,true)<0)return "Relv laadib / sihtmärk väljaspool sobiva relva ulatust";
   return "Sihib / avab tule";
 }

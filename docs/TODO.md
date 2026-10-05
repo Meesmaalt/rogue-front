@@ -127,3 +127,20 @@ Rakendatud renderduses ning eksporditud mänguvarades. Build ja lühike GLB stru
 - [x] Animatsiooniviited, vaateväljast väljas animatsioonide kärpimine ja staatilise varjukaardi taaskasutus
 - [x] Otserenderdus ilma väljalülitatud järelprotsessi puhvriteta; renderduse/UI sageduste piiramine
 - [ ] Brauseri visuaalne hinnang ja mõõdetud GPU/FPS võrdlus sama stseeni/kaameraga
+
+## Relvad, efektid ja metsluure
+
+- [x] Ühendatud relvakoosseisud, eraldi lisarelvade laskemoon ja laadimine; piiratud maapealne/õhubaasi varustus.
+- [x] Ballistiline kaudtuli, juhitava raketi piiratud pööramine ja juhtimise katkemine; füüsiline sein/maastik ja soomusetabamus.
+- [x] Relvapõhised mürsud, suitsujäljed, suudmeleegid, rikošetid ning maa-/õhuplahvatused; piiratud osakestepartiid.
+- [x] Metsakate ja läbi metsa nägemispiir; jalaväeluure eraldi sensorid ja üksuse detailpaneeli relvaridad.
+- [ ] Uute efektide brauseri visuaalne ülevaatus, GPU/FPS mõõtmine ja lahingute tasakaalustus päris tagasiside põhjal.
+
+## Wargame’i põhisuund, füüsiline õhuväebaas
+
+- [x] Rajatisest juhitav lennugrupp ja sobivad missioonid; käsitsi Baasi käsk.
+- [x] Piiratud parkimiskohad, tasemest sõltuv lennugrupi maht ja täis rajatise tootmispaus.
+- [x] Päris ruleerimine, ühe raja stardijärjekord, kopteri vertikaalne start, maandumine ja piiratud varustamine.
+- [x] Missiooniks sobiva laskemoona lõppemine käivitab RTB; CAP eristab õhu- ja maasihtmärke.
+- [x] Maaväe vahemällu salvestatud laskepositsioonid: ulatus, LOS, tee, jalaväekate ja lähenemisnurgad.
+- [ ] Uue baasi/rajapildi ja lahingupositsioonide viimistlemine päris brauseripildi ning mängija tagasiside põhjal.

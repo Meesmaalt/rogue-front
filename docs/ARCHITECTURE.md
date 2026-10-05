@@ -68,7 +68,7 @@ Roheorg (`src/data/maps/green-valley.json`) kasutab farmland-kõrgusprofiili. Pr
 
 `Architecture.ts` loob tekstuuritud tsiviil- ja baasigeomeetria ning liidab staatilised osad materjali järgi. `Terrain` kasutab seda kaardi hoonetel; `models.ts` tootmis-/juhtimishoonetel. Renderdus ei muuda simulatsiooni RNG-d.
 
-`mobility.json` annab olemasolevale üksusesüsteemile kiirendus-, pidurdus- ja lennuprofiilid. `motionSpeed`, `flightBank`, `flightPitch`, `flightOrbitCenter` ja `airLandingPhase` on entiteedi salvestatav olek; WorldHash sisaldab neid ja kõrgust. `UnitRenderer` kasutab simulatsiooni tegelikku lennukõrgust ning maastiku kerekaldeid. MAP_SIZE on 640; kaamera ja piirid kasutavad sama konstanti. Praegune Roheoru automaatsalvestuse võti kasutab `.layout4` paigutust; vanad salvestused jäävad alles.
+`mobility.json` annab olemasolevale üksusesüsteemile kiirendus-, pidurdus- ja lennuprofiilid. `motionSpeed`, `flightBank`, `flightPitch`, `flightOrbitCenter` ja `airLandingPhase` on entiteedi salvestatav olek; WorldHash sisaldab neid ja kõrgust. `UnitRenderer` kasutab simulatsiooni tegelikku lennukõrgust ning maastiku kerekaldeid. MAP_SIZE on 640; kaamera ja piirid kasutavad sama konstanti. Praegune Roheoru automaatsalvestuse võti kasutab `.layout6` paigutust; vanad salvestused jäävad alles.
 
 
 ## Relvad ja rajatiste veod
@@ -92,3 +92,17 @@ Roheoru hooned, õued, teed ja metsad pärinevad kaardiandmetest. `terrain.json`
 `Architecture.batchStaticScene` ühendab staatilise kaardi geomeetria materjali ja piirkonna kaupa. Seda kasutatakse ka hoonetaseme komplektil enne üksuse juurde lisamist; animeeritud üksused ei lähe sellesse partiisse. Arhitektuurimaterjalid on jagatud ja `sharedArt` kaitseb neid üksuse eemaldamisel vabastamise eest. Terrain kasutab lehestiku alpha-testiga instantsipartiisid piirkondade kaupa.
 
 `PostFX` eraldab composer'i ainult siis, kui järelprotsess on sisse lülitatud. Vaikimisi renderdatakse otse kanvasse. `RenderContext.updateShadows` kasutab UnitRenderer'i muutusmärki ja kvantitud kaameraankrut staatilise varjukaardi uuendamiseks. Minikaart 10 Hz ja intel-märgid 5 Hz on renderduse sagedused, mitte simulatsiooni omad.
+
+### Relvakoosseis, füüsiline lend ja metsluure
+
+`data/weapon-profiles.json` määrab visuaali, lennutüübi, juhitavuse ja üksuste relvakoosseisud; `units.json` annab üksuse põhirelva ning sensorite parameetrid. `sim/units.ts` lahendab need `WeaponSpec[]`-iks. `selectWeapon` kasutab päris sihtmärki, laskemoona, sobivust, ulatust ja eraldi laadimistaimereid. Maaüksuse lisarelva varustab olemasolev piiratud lao-/FOB-varu; õhusõiduk vajab varustatud lennubaasi/kopteriplatsi.
+
+`projectiles.ts` lahendab sirglennu, piiratud pöördega juhitava raketi või gravitatsiooniga kaudtule. Tabamus kasutab tegelikku lennuteed, maastikku/hooneid, tabamisrulli ja soomusenurka; lähedane möödalask surub üksust maha. `Fx` tarbib sama mürsu interpolatsiooni ja fire/impact-sündmusi: neli piiratud InstancedMesh-osakestepartiid, jagatud relvapõhised mürsumudelid ja kuni 24 lööklaineringi. Efektide juhuslikkus jääb renderdusse, simulatsiooni juhuslikkus kasutab World.rng-d.
+
+`Vision.forestDepth` piirab läbi metsa nägemist; sensors lisab katte, varjatuse, liikumise ja hiljutise tule allkirja. Jalaväeluure, snaiper ning eriüksus on jalaväe kategoorias ja kasutavad metsas jalaväe liikumist. Täissalvestus säilitab relvade ja mürskude oleku; Replay.worldHash sisaldab uusi laskemoona-, taimeri- ja lennuvälju. Automaatse skirmishi layout-versioon on 5; täissalvestuse versioon jääb 19 ja vana relvakoosseisuta salvestus kasutab olemasolevat ühe relva ühilduvust.
+
+## Füüsiline õhuväebaas ja laskepositsioonid
+
+`airDoctrine.ts` jagab rajatise kohalikke punkte, parkimiskohti, võimekusekontrolli ja õhugrupi käsuvalikut production/units/commands/Hud vahel. Tootmisest ja valmis skirmishi algolekust tulev õhusõiduk paigutatakse stationAircraft kaudu oma baasi. `units.ts` teeb parkimine → ooteala → rada → õhkutõus → missioon → lähenemine → maandumine → parkimine → piiratud laadimine. Ühe rajatise rada on eksklusiivne stardil ja lõppmaandumisel. `air-return` on tavaline deterministlik Command; rajatisele antud air-mission laieneb seotud sobivatele üksustele. Missiooni jaoks lõppenud laskemoon käivitab RTB sõltumata teise domeeni relvadest. Taktikaline transport läbib sama baasitsükli; ressursitransport säilitab oma logistikasüsteemi.
+
+`mobility.json` sisaldab parkimis-, raja-, mahu- ja positsiooniotsingu andmeid. `airHomeSlot`, `airTaxiPhase` ja positsiooniotsingu cache on täissalvestuse osa; Replay hash sisaldab neid, missioonipunkti, kodurajatist ning sortie olekut. `Architecture` rajamudel ja parkimisala vastavad simuleeritud baasipunktidele. Laskepositsiooni otsing kasutab relvaulatust, minimaalset kaugust, LOS-i, nav-i ja jalaväe katet ning talletab valiku piiratud kordusotsingu jaoks.

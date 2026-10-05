@@ -121,7 +121,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const cam = new RtsCamera(ctx.camera, heightAt, ctx.sun, topCanvas);
   cam.jumpTo(world.bases[world.playerTeam].x,world.bases[world.playerTeam].z);
   const units = new UnitRenderer(ctx.scene,ctx.camera);
-  const fx = new Fx(ctx.scene);
+  const fx = new Fx(ctx.scene,ctx.camera);
   const resourceSites=new ResourceSites(ctx.scene,world);
   const fog = new FogOfWar(fogCanvas);
   const picker = new Picker(ctx.camera, world);
@@ -178,12 +178,13 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   hud.onPriority = (ids, focus) => { if (running && !paused) world.issue({ type: "priority", ids, focus }); };
   hud.onPreDeploy = (ids, mode) => { if (running && !paused) world.issue({ type: "predeploy", ids, mode }); };
   hud.onFormation = (kind) => {if(running&&!paused)world.issue({type:"formation",kind});};
+  hud.onAirReturn=ids=>{if(running&&!paused)world.issue({type:"air-return",ids});};
   hud.onAirMission=(ids,mission)=>{if(running&&!paused){commands.startAirMission(ids,mission);hud.setWarning("Õhuoperatsioon: parem klõps sihtpunktile, Esc tühistab");}};
   hud.onCancelProduce = (producerId) => { if (running && !paused) world.issue({ type: "cancel-produce", producerId }); };
-  const saveKey = SAVE_PREFIX + mission.id + (mission.id==="roheorg"?".layout4":"") + "." + (skirmish ? activeMode : "campaign") + "." + faction;
+  const saveKey = SAVE_PREFIX + mission.id + (mission.id==="roheorg"?".layout6":"") + "." + (skirmish ? activeMode : "campaign") + "." + faction;
   const hasSave = () => localStorage.getItem(saveKey) !== null;
   const saveGame = () => { localStorage.setItem(saveKey, JSON.stringify(saveWorld(world))); localStorage.setItem("rogue-front.replay.v1." + mission.id, JSON.stringify(replayRecorder.file())); };
-  const loadGame = () => { const raw = localStorage.getItem(saveKey); if (!raw) return; try { loadWorld(world, JSON.parse(raw));units.reset();selection.selected.clear();replayRecorder.reset(world); running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); } catch (err) { console.error("Salvestuse laadimine ebaõnnestus", err); hud.setWarning("Salvestuse laadimine ebaõnnestus"); } };
+  const loadGame = () => { const raw = localStorage.getItem(saveKey); if (!raw) return; try { loadWorld(world, JSON.parse(raw));units.reset();fx.reset();selection.selected.clear();replayRecorder.reset(world); running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); } catch (err) { console.error("Salvestuse laadimine ebaõnnestus", err); hud.setWarning("Salvestuse laadimine ebaõnnestus"); } };
   const togglePause = () => { if(multiplayer){hud.setWarning("Võrgumäng peatub ühenduse katkemisel automaatselt.");return;} paused = !paused; setEnabled(running && !paused); hud.setPaused(paused); if (paused) audio.pause(); else { audio.unlock(); audio.resume(); } };
   hud.onPause = togglePause;
   hud.onSettings = () => settingsPanel.open();
@@ -249,7 +250,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       units.sync(world, alpha, selection.selected,frameDt,visualQuality);
       ctx.updateShadows(units.shadowDirty);units.shadowDirty=false;
       intelAcc+=frameDt;if(intelAcc>=.2){units.syncIntelGhosts(world);intelAcc=0;}
-      fx.handleEvents(events);
+      fx.handleEvents(events,world);
       audio.events(events, world.playerTeam);
       fx.syncProjectiles(world, alpha);
       resourceSites.sync(world);

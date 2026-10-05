@@ -62,9 +62,11 @@ export function createBuildingModel(kind:UnitKind,team:Team,faction:FactionId):{
   const industrial=["factory","supply","shipyard","airbase"].includes(kind),width=kind==="hq"?15:industrial?12:9,depth=industrial?11:8,height=industrial?4.5:kind==="hq"?5.5:3;
   box(g,width+1,.22,depth+1,0,.11,0,concrete);
   if(kind==="helipad"||kind==="airbase"){
-    box(g,kind==="airbase"?10:12,.12,kind==="airbase"?32:12,0,.12,6,dark);
-    const marking=material(0xc8c7b8);if(kind==="helipad"){box(g,.25,.03,4,-1,.21,6,marking);box(g,.25,.03,4,1,.21,6,marking);box(g,2,.03,.25,0,.21,6,marking);}else for(let z=-6;z<21;z+=5)box(g,.18,.03,2,0,.21,z,marking);
-    const shed=createCivilianBuilding(6,5,2.5,1);shed.position.set(0,0,-7);g.add(shed);box(g,1.2,.14,1.8,2,3,-7,trim);
+    box(g,kind==="airbase"?10:26,.12,kind==="airbase"?48:18,0,.12,6,dark);
+    const marking=material(0xc8c7b8);if(kind==="helipad"){box(g,.25,.03,4,-1,.21,6,marking);box(g,.25,.03,4,1,.21,6,marking);box(g,2,.03,.25,0,.21,6,marking);}else for(let z=-14;z<29;z+=5)box(g,.18,.03,2,0,.21,z,marking);
+    const shed=createCivilianBuilding(6,5,2.5,1);shed.position.set(kind==="airbase"?29:0,0,-7);g.add(shed);box(g,1.2,.14,1.8,kind==="airbase"?31:2,3,-7,trim);
+    if(kind==="airbase"){box(g,17,.12,36,15,.12,8,concrete);for(const x of [11,17])for(let z=-4;z<25;z+=6){box(g,4,.025,.15,x,.2,z+2,marking);box(g,.15,.025,4,x-2,.2,z,marking);}for(const x of [-5.3,5.3])for(let z=-16;z<30;z+=8)box(g,.25,.2,.25,x,.24,z,trim);}
+    else for(const x of [-7,7]){box(g,.25,.03,4,x-1,.21,6,marking);box(g,.25,.03,4,x+1,.21,6,marking);box(g,2,.03,.25,x,.21,6,marking);}
   }else if(kind==="generator"){
     box(g,7,1.4,4,0,.95,0,steel);for(const x of [-2.1,2.1]){cylinder(g,.38,3.8,x,2.4,0,dark);cylinder(g,.48,.15,x,4.4,0,dark);}for(let z=-1.5;z<2;z+=.45)box(g,7.08,.08,.06,0,1.2,z,dark);box(g,1.1,2,1.3,3,1.2,2.5,wall);
   }else if(kind==="refinery"){

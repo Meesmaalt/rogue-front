@@ -21,7 +21,11 @@
     "climbRate": 6.0,
     "descentRate": 5.5,
     "maxBank": 0.38,
-    "takeoffTime": 3.0
+    "takeoffTime": 3.0,
+    "padOffset": 6,
+    "parkingSpacing": 7,
+    "baseCapacity": 2,
+    "capacityPerLevel": 1
   },
   "aircraft": {
     "altitude": 80,
@@ -31,13 +35,25 @@
     "descentRate": 9.0,
     "maxBank": 0.75,
     "minimumSpeed": 0.65,
-    "takeoffTime": 6.0
+    "takeoffTime": 6.0,
+    "runwayStart": -14,
+    "runwayEnd": 26,
+    "taxiSpeed": 4,
+    "parkingOffset": 11,
+    "parkingSpacing": 6,
+    "launchSeparation": 6,
+    "baseCapacity": 4,
+    "capacityPerLevel": 2
   },
   "navigation": {
     "lookAhead": 7,
     "arrival": 1.2,
     "bodyClearance": 0.15,
     "sidestep": 0.8,
-    "destinationSearch": 28
+    "destinationSearch": 28,
+    "firingDistance": 0.8,
+    "firingPositionRetry": 1.5,
+    "firingTargetMove": 8,
+    "coverPreference": 18
   }
 }
