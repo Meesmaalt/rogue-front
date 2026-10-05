@@ -12,6 +12,8 @@ export interface MapFeatureDef {
   depth: number;
   rotation?: number;
   height?: number;
+  /** Absolute water surface / bridge deck elevation, shared by sim and render. */
+  surfaceHeight?:number;
   blocksMovement?: boolean;
   /** Optional tactical metadata used by UI/rendering. */
   label?: string;
@@ -49,6 +51,6 @@ export function forestDensityAt(x:number,z:number,features:readonly MapFeatureDe
     const edge=f.shape==="ellipse"?1-Math.sqrt((lx/(f.width/2))**2+(lz/(f.depth/2))**2):Math.min(1-Math.abs(lx)/(f.width/2),1-Math.abs(lz)/(f.depth/2));
     density=Math.max(density,(f.density??1)*Math.min(1,.35+edge*3));
   }
-  if(density&&features.some(f=>(f.kind==="road"||f.kind==="bridge"||f.appearance==="yard")&&pointInFeature(x,z,f,1)))return 0;
+  if(density&&features.some(f=>(f.kind==="road"||f.kind==="bridge"||f.kind==="water"||f.appearance==="yard")&&pointInFeature(x,z,f,1)))return 0;
   return Math.min(1,density);
 }

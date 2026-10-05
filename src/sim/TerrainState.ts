@@ -15,7 +15,7 @@ export class TerrainState {
   revision=0;
   private vegetation=new Map<string,MapFeatureDef[]>();
   constructor(features:readonly MapFeatureDef[]){
-    for(const f of features.filter(f=>f.kind==="cover"||f.kind==="road"||f.kind==="bridge"||f.appearance==="yard")){
+    for(const f of features.filter(f=>f.kind==="cover"||f.kind==="road"||f.kind==="bridge"||f.kind==="water"||f.appearance==="yard")){
       const r=Math.hypot(f.width,f.depth)/2+2;
       for(let x=Math.floor((f.x-r)/64);x<=Math.floor((f.x+r)/64);x++)for(let z=Math.floor((f.z-r)/64);z<=Math.floor((f.z+r)/64);z++){
         const key=`${x}/${z}`,list=this.vegetation.get(key)??[];list.push(f);this.vegetation.set(key,list);

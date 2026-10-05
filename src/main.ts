@@ -9,7 +9,7 @@ import { DeckBuilder } from "./ui/DeckBuilder";
 import { World } from "./sim/World";
 import { heightAt, loadHeightmap, setBases, ensureHeightCache, setProceduralSeed, setTerrainProfile, setMapSize } from "./sim/heightmap";
 import { createRenderContext } from "./render/Renderer";
-import { createTerrain,syncForestTerrain,syncGarrisonTerrain } from "./render/Terrain";
+import { createTerrain,syncForestTerrain,syncGarrisonTerrain,syncBridgeTerrain } from "./render/Terrain";
 import { RtsCamera } from "./render/RtsCamera";
 import { loadArtModels } from "./render/ArtModels";
 import { RangeOverlay } from "./render/RangeOverlay";
@@ -190,7 +190,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   hud.onAirReturn=ids=>{if(running&&!paused)world.issue({type:"air-return",ids});};
   hud.onAirMission=(ids,mission)=>{if(running&&!paused){commands.startAirMission(ids,mission);hud.setWarning("Õhuoperatsioon: parem klõps sihtpunktile, Esc tühistab");}};
   hud.onCancelProduce = (producerId) => { if (running && !paused) world.issue({ type: "cancel-produce", producerId }); };
-  const saveKey = SAVE_PREFIX + mission.id + (mission.id==="roheorg"?".layout10":"") + "." + (skirmish ? activeMode : "campaign") + "." + faction;
+  const saveKey = SAVE_PREFIX + mission.id + (mission.id==="roheorg"?".layout11":"") + "." + (skirmish ? activeMode : "campaign") + "." + faction;
   const hasSave = () => localStorage.getItem(saveKey) !== null;
   const saveGame = () => { localStorage.setItem(saveKey, JSON.stringify(saveWorld(world))); localStorage.setItem("rogue-front.replay.v1." + mission.id, JSON.stringify(replayRecorder.file())); };
   const loadGame = () => { const raw = localStorage.getItem(saveKey); if (!raw) return; try { loadWorld(world, JSON.parse(raw));units.reset();ranges.reset();fx.reset();selection.selected.clear();replayRecorder.reset(world); running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); } catch (err) { console.error("Salvestuse laadimine ebaõnnestus", err); hud.setWarning("Salvestuse laadimine ebaõnnestus"); } };
@@ -267,7 +267,8 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       if(terrainAcc>=.2){
         terrainAcc%=.2;
         const forestChanged=syncForestTerrain(terrainView,world),housesChanged=syncGarrisonTerrain(terrainView,world);
-        if(forestChanged||housesChanged)ctx.updateShadows(true);
+        const bridgesChanged=syncBridgeTerrain(terrainView,world);
+        if(forestChanged||housesChanged||bridgesChanged)ctx.updateShadows(true);
         resourceSites.sync(world);
       }
       fx.syncForestFires(world,frameDt);

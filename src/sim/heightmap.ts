@@ -1,3 +1,4 @@
+import type {MapFeatureDef} from "./mapFeatures";
 import terrain from "../data/terrain.json";
 /** Kaardi kõrgusväli. Puhas matemaatika, EI impordi three.js-i. */
 export let MAP_SIZE = 640;
@@ -25,6 +26,15 @@ let CACHE_CELLS = Math.round(MAP_SIZE / CACHE_CELL);
 let heightCache: Float32Array | null = null;
 let cacheValid = false;
 
+let hydrology: {f:MapFeatureDef;c:number;s:number}[]=[];
+let hydrologyKey="";
+/** Static map geometry, baked into the same height cache used by every consumer. */
+export function setTerrainFeatures(features:readonly MapFeatureDef[]):void {
+  const water=features.filter(f=>(f.kind==="water"||f.kind==="bridge")&&f.surfaceHeight!=null);
+  const key=JSON.stringify(water);if(key===hydrologyKey)return;
+  hydrologyKey=key;hydrology=water.map(f=>({f,c:Math.cos(f.rotation??0),s:Math.sin(f.rotation??0)}));
+  cacheValid=false;heightCache=null;
+}
 export const BASES = DEFAULT_BASES;
 export function getBases(): readonly BaseDef[] { return activeBases; }
 export function setBases(bases: readonly BaseDef[]): void {
@@ -34,6 +44,7 @@ export function setBases(bases: readonly BaseDef[]): void {
 export function setProceduralSeed(seed: number): void { proceduralSeed = seed | 0; cacheValid = false; heightCache = null; }
 
 export function resetHeightmap(): void {
+  hydrology=[];hydrologyKey="";
   setMapSize(640);
   activeHeightmap = null;
   terrainProfile = undefined;
@@ -111,8 +122,31 @@ function sampleHeightmap(x: number, z: number): number {
   return a * (1 - tz) + b * tz;
 }
 
-function computeRaw(x: number, z: number): number {
-  return activeHeightmap ? sampleHeightmap(x, z) : proceduralHeight(x, z);
+function computeRaw(x: number, z: number, decks=true): number {
+  let h=activeHeightmap?sampleHeightmap(x,z):proceduralHeight(x,z);
+  for(const {f,c,s} of hydrology){
+    if(f.kind!=="water")continue;
+    const dx=x-f.x,dz=z-f.z,lx=Math.abs(dx*c-dz*s),lz=Math.abs(dx*s+dz*c);
+    const outside=Math.max(lx-f.width/2,lz-f.depth/2,0);
+    if(outside<14){const blend=1-smooth(0,14,outside);h=Math.min(h,h+(f.surfaceHeight!-2.4-h)*blend);}
+  }
+  for(const {f,c,s} of hydrology){
+    if(!decks||f.kind!=="bridge")continue;
+    const dx=x-f.x,dz=z-f.z,lx=Math.abs(dx*c-dz*s),lz=Math.abs(dx*s+dz*c);
+    const outside=Math.max(lx-f.width/2,lz-f.depth/2,0);
+    if(outside<12){const blend=1-smooth(0,12,outside);h+=(f.surfaceHeight!-h)*blend;}
+  }
+  return h;
+}
+
+/** Render the riverbed below bridges; units use heightAt's elevated deck. */
+export function groundHeightAt(x:number,z:number):number {
+  for(const {f,c,s} of hydrology){
+    if(f.kind!=="bridge")continue;
+    const dx=x-f.x,dz=z-f.z;
+    if(Math.abs(dx*c-dz*s)<f.width/2+14&&Math.abs(dx*s+dz*c)<f.depth/2+14)return computeRaw(x,z,false);
+  }
+  return heightAt(x,z);
 }
 
 /** Build / rebuild the 2 m height cache. Call once after bases or heightmap change. */

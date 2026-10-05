@@ -75,7 +75,7 @@ export class Overlay {
     visible.sort((a,b)=>Number(sel.selected.has(b.id))-Number(sel.selected.has(a.id)));
     for (const u of visible) {
       const selectedUnit=sel.selected.has(u.id);
-      const distant=u.def.speed>0&&picker.pxPerUnit(u.x,u.y,u.z)<2.5;
+      const distant=u.def.speed>0&&picker.pxPerUnit(u.x,u.y,u.z)<4.2;
       if (u.dead || (u.team !== world.playerTeam && !world.isSpottedByTeam(u,world.playerTeam)) || (!distant && u.hp >= maxHitPoints(u) && !sel.selected.has(u.id) && u.team===world.playerTeam && (u.def.speed===0 || world.time-u.lastCombatTime>6))) continue;
       const p = picker.toScreen(u.x, u.y + u.def.height + 1, u.z);
       if (p.z > 1 || p.x < -40 || p.x > w + 40 || p.y < -40 || p.y > h + 40) continue;

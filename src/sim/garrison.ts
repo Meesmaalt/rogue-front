@@ -114,7 +114,7 @@ export function updateGarrisons(w:World,dt:number,applyDamage:(u:Entity,amount:n
 export function impactGarrisonBuildings(w:World,p:Projectile,applyDamage:(u:Entity,amount:number)=>void):void {
  if(p.weapon==='bullet')return;
  for(const f of w.mapFeatures){
-  if(!isGarrisonBuilding(f)||buildingCondition(w,f)>=1)continue;
+  if((!isGarrisonBuilding(f)&&f.kind!=="bridge")||buildingCondition(w,f)>=1)continue;
   const a=f.rotation??0,dx=p.x-f.x,dz=p.z-f.z,lx=dx*Math.cos(a)-dz*Math.sin(a),lz=dx*Math.sin(a)+dz*Math.cos(a);
   const distance=Math.hypot(Math.max(0,Math.abs(lx)-f.width/2),Math.max(0,Math.abs(lz)-f.depth/2));
   const splash=p.warhead==='kinetic'?0:p.splash??0;

@@ -1,13 +1,13 @@
 import {isGarrisonBuilding,GARRISON_RULES} from "../sim/garrison";
 import * as THREE from "three";
 import {createCivilianBuilding,createBuildingModel,batchStaticScene} from "./Architecture";
-import { getBases, MAP_SIZE, heightAt } from "../sim/heightmap";
+import { getBases, MAP_SIZE, heightAt,groundHeightAt } from "../sim/heightmap";
 import { mulberry32 } from "../sim/rng";
 import { pointInFeature, forestDensityAt, type MapFeatureDef } from "../sim/mapFeatures";
 import type {World} from "../sim/World";
 import type { Point } from "../sim/types";
 
-const SEG = 96;
+const SEG = 192;
 
 export function createTerrain(theme: "desert" | "mountains" | "city" | "temperate" = "desert", features: readonly MapFeatureDef[] = [], bases: readonly (Point & { r: number })[] = []): THREE.Group {
   const rnd = mulberry32(7);
@@ -16,14 +16,14 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
   const geo = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE, SEG, SEG);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position;
-  for (let i = 0; i < pos.count; i++) pos.setY(i, heightAt(pos.getX(i), pos.getZ(i)));
+  for (let i = 0; i < pos.count; i++) pos.setY(i, groundHeightAt(pos.getX(i), pos.getZ(i)));
   geo.computeVertexNormals();
 
   const nrm = geo.attributes.normal;
   const col = new Float32Array(pos.count * 3);
   const c = new THREE.Color();
   // Brighter Real War-style desert / mountain / city palettes
-  const palette = theme === "temperate" ? [0x71894e,0x7f925e,0x8a8975,0x9a988b,0x536c3e] : theme === "mountains"
+  const palette = theme === "temperate" ? [0x7e8960,0x929576,0x8a8975,0x9a988b,0x536c3e] : theme === "mountains"
     ? [0xa8a094, 0x8a857c, 0x6a6660, 0x9a9588, 0x7a8570]
     : theme === "city"
       ? [0x7a8078, 0x656c68, 0x505854, 0x8a8880, 0x6a7568]
@@ -44,6 +44,7 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
     }
     if (theme === "temperate") {
       for (const f of features) if (f.appearance === "field" && pointInFeature(x,z,f)) c.setHex(f.color ?? 0x879357).multiplyScalar(.95+rnd()*.1);
+      for(const f of features)if(f.kind==="water"&&pointInFeature(x,z,f,12))c.lerp(new THREE.Color(0x7b7964),.65);
       for (const f of features) if (f.appearance === "forest" && pointInFeature(x,z,f,3)) c.lerp(new THREE.Color(0x3b5335), .7);
     }
     col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
@@ -133,6 +134,7 @@ function createDecals(rnd: () => number): THREE.InstancedMesh {
 function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
   const group = new THREE.Group();
   group.name = "map-features";
+  const riverMaterial=new THREE.MeshStandardMaterial({color:0x426773,roughness:.32,metalness:.2});
   for (const f of features) {
     const y = heightAt(f.x, f.z);
     if(f.appearance==="yard"){group.add(drapedStrip(f,f.width,f.color??0x858578,.07));continue;}
@@ -142,10 +144,9 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
       (field.material as THREE.MeshStandardMaterial).map=fieldTexture();group.add(field);continue;
     }
     if (f.kind === "water") {
-      const geo = new THREE.BoxGeometry(f.width, 0.18, f.depth);
-      const mat = new THREE.MeshStandardMaterial({ color: 0x405b68, roughness: 0.25, metalness: 0.18, transparent: true, opacity: 0.9 });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(f.x, y - 0.55, f.z); mesh.rotation.y = f.rotation ?? 0; mesh.receiveShadow = true;
+      const geo=new THREE.PlaneGeometry(f.width,f.depth).rotateX(-Math.PI/2);
+      const mesh=new THREE.Mesh(geo,riverMaterial);
+      mesh.position.set(f.x,f.surfaceHeight??y-.55,f.z);mesh.rotation.y=f.rotation??0;mesh.receiveShadow=true;
       group.add(mesh);
       continue;
     }
@@ -156,7 +157,9 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
         for(let z=-f.depth/2+3;z<f.depth/2-2;z+=9) group.add(drapedStrip({...f,x:f.x+Math.sin(f.rotation??0)*z,z:f.z+Math.cos(f.rotation??0)*z,depth:3},.16,0xd6d1b8,.075));
       } else {
         const mesh=new THREE.Mesh(new THREE.BoxGeometry(f.width,.7,f.depth),new THREE.MeshStandardMaterial({color:0x8a8980,roughness:.9}));
-        mesh.position.set(f.x,y+.28,f.z);mesh.rotation.y=f.rotation??0;mesh.receiveShadow=true;group.add(mesh);addBridgeRails(group,f,y);
+        mesh.position.set(f.x,(f.surfaceHeight??y)-.29,f.z);mesh.rotation.y=f.rotation??0;mesh.receiveShadow=true;
+        const bridge=new THREE.Group();bridge.userData.bridgeId=f.id;bridge.add(mesh);
+        addBridgeRails(bridge,f,f.surfaceHeight??y);group.add(bridge);
       }
       continue;
     }
@@ -254,15 +257,17 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
   return group;
 }
 
-function addBridgeRails(group: THREE.Group, f: MapFeatureDef, y: number): void {
-  const railH = 0.9;
-  for (const side of [-1, 1]) {
-    const geo = new THREE.BoxGeometry(f.width, railH, 0.28);
-    const mat = new THREE.MeshStandardMaterial({ color: 0x3d3a35, roughness: 0.75, metalness: 0.25 });
-    const rail = new THREE.Mesh(geo, mat);
-    rail.position.set(f.x, y + 0.8, f.z + side * Math.max(0.8, f.depth / 2 - 0.2));
-    rail.rotation.y = f.rotation ?? 0;
-    group.add(rail);
+function addBridgeRails(group:THREE.Group,f:MapFeatureDef,y:number):void {
+  const c=Math.cos(f.rotation??0),s=Math.sin(f.rotation??0);
+  const mat=new THREE.MeshStandardMaterial({color:0x62665e,roughness:.8});
+  for(const side of [-1,1]){
+    const offset=side*(f.width/2-.3);
+    const rail=new THREE.Mesh(new THREE.BoxGeometry(.22,.8,f.depth),mat);
+    rail.position.set(f.x+offset*c,y+.6,f.z-offset*s);rail.rotation.y=f.rotation??0;group.add(rail);
+    for(let z=-f.depth/2+2;z<f.depth/2;z+=8){
+      const post=new THREE.Mesh(new THREE.BoxGeometry(.35,1,.35),mat);
+      post.position.set(f.x+offset*c+z*s,y+.5,f.z-offset*s+z*c);post.rotation.y=f.rotation??0;group.add(post);
+    }
   }
 }
 
@@ -389,6 +394,18 @@ function asphaltTexture():THREE.CanvasTexture {
   const t=new THREE.CanvasTexture(cv);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;cachedAsphalt=t;return t;
 }
 
+
+/** Bridge collapse visuals follow the same infrastructure state as navigation. */
+export function syncBridgeTerrain(group:THREE.Group,world:World):boolean {
+  let bridges=group.userData.bridgeRoots as THREE.Object3D[]|undefined;
+  if(!bridges){bridges=[];group.traverse(o=>{if(o.userData.bridgeId)bridges!.push(o);});group.userData.bridgeRoots=bridges;}
+  let changed=false;
+  for(const bridge of bridges){
+    const intact=(world.infrastructureDamage.get(bridge.userData.bridgeId as string)??0)<1;
+    if(bridge.visible!==intact){bridge.visible=intact;changed=true;}
+  }
+  return changed;
+}
 
 export function syncGarrisonTerrain(group:THREE.Group,world:World):boolean {
   let houses=group.userData.garrisonHouses as THREE.Object3D[]|undefined;

@@ -77,6 +77,7 @@ export class Minimap {
       const [mx, my] = this.w2m(f.x, f.z);
       c.save(); c.translate(mx, my); c.rotate(-(f.rotation ?? 0));
       c.fillStyle = f.appearance === "forest" ? "#304a2b" : f.appearance === "field" ? "#8b935e" : f.kind === "water" ? "rgba(55,105,125,.72)" : f.kind === "road" || f.kind === "bridge" ? "rgba(210,190,150,.48)" : featureBlocksMovement(f) ? "rgba(45,48,50,.78)" : "rgba(180,170,140,.35)";
+      if(f.kind==="bridge"&&(this.world.infrastructureDamage.get(f.id)??0)>=1)c.fillStyle="#524839";
       if(f.shape==="ellipse"){c.beginPath();c.ellipse(0,0,f.width/MAP_SIZE*S/2,f.depth/MAP_SIZE*S/2,0,0,Math.PI*2);c.fill();}
       else c.fillRect(-f.width / MAP_SIZE * S / 2, -f.depth / MAP_SIZE * S / 2, f.width / MAP_SIZE * S, f.depth / MAP_SIZE * S);
       c.restore();

@@ -2,7 +2,7 @@
   "id": "roheorg",
   "name": "Roheorg",
   "seed": 20261004,
-  "briefing": "1088 m Roheorg: kaks tihedat asulat väikeste elamute, siseõuede ja läbitavate tänavatega. Välised ringteed võimaldavad külgrünnakuid ning logistika ümbersuunamist. Jalavägi kasutab maju ja metsa; soomus liigub kiiremini maanteel. Kaitse ressursivedusid ja raja eesliini ladusid.",
+  "briefing": "1088 m Roheorg: looklev jõgi, sillad, kaks väikeste majade ja siseõuedega linnakvartalit ning tihedad metsad. Maaüksused ületavad jõe sildadel; jalavägi saab hõivata elamuid. Kaitse sillakoridore ja jõekalda ladu, kasuta külgmist teedevõrku ning luuret.",
   "objectives": [],
   "map": {
     "id": "roheorg",
@@ -57,8 +57,8 @@
         "label": "Ida ladu"
       },
       {
-        "x": 0.0,
-        "z": 20.736,
+        "x": -65,
+        "z": 32,
         "amount": 1200,
         "radius": 14,
         "controlledBy": null,
@@ -70,7 +70,7 @@
         "maxStock": 1700,
         "productionRate": 0,
         "disabledUntil": 0,
-        "label": "Külakeskus"
+        "label": "Jõekalda ladu"
       },
       {
         "x": -181.44,
@@ -2412,6 +2412,127 @@
         "height": 8,
         "density": 0.75,
         "blocksMovement": false
+      },
+      {
+        "id": "rohe-river-0",
+        "kind": "water",
+        "x": -22.5,
+        "z": -462.5,
+        "width": 26,
+        "depth": 216.124960961895,
+        "rotation": -0.22679884805388587,
+        "surfaceHeight": -0.8,
+        "label": "Rohe jõgi"
+      },
+      {
+        "id": "rohe-river-1",
+        "kind": "water",
+        "x": -6.5,
+        "z": -277.5,
+        "width": 26,
+        "depth": 207.19100397246729,
+        "rotation": 0.4145068745847859,
+        "surfaceHeight": -0.8,
+        "label": "Rohe jõgi"
+      },
+      {
+        "id": "rohe-river-2",
+        "kind": "water",
+        "x": 16.0,
+        "z": -95.0,
+        "width": 26,
+        "depth": 208.67589366602144,
+        "rotation": -0.1668551603997891,
+        "surfaceHeight": -0.8,
+        "label": "Rohe jõgi"
+      },
+      {
+        "id": "rohe-river-3",
+        "kind": "water",
+        "x": -16.0,
+        "z": 95.0,
+        "width": 26,
+        "depth": 208.67589366602144,
+        "rotation": -0.1668551603997891,
+        "surfaceHeight": -0.8,
+        "label": "Rohe jõgi"
+      },
+      {
+        "id": "rohe-river-4",
+        "kind": "water",
+        "x": 6.5,
+        "z": 277.5,
+        "width": 26,
+        "depth": 207.19100397246729,
+        "rotation": 0.4145068745847859,
+        "surfaceHeight": -0.8,
+        "label": "Rohe jõgi"
+      },
+      {
+        "id": "rohe-river-5",
+        "kind": "water",
+        "x": 22.5,
+        "z": 462.5,
+        "width": 26,
+        "depth": 216.124960961895,
+        "rotation": -0.22679884805388587,
+        "surfaceHeight": -0.8,
+        "label": "Rohe jõgi"
+      },
+      {
+        "id": "rohe-bridge-0",
+        "kind": "bridge",
+        "x": 0.0,
+        "z": 0.0,
+        "width": 12,
+        "depth": 60.91715811781158,
+        "rotation": 1.97568811307998,
+        "surfaceHeight": 1.2,
+        "label": "Rohe jõe sild"
+      },
+      {
+        "id": "rohe-bridge-1",
+        "kind": "bridge",
+        "x": 8.903979328165377,
+        "z": -242.49095607235142,
+        "width": 12,
+        "depth": 67.82912201034621,
+        "rotation": 1.1722738811284763,
+        "surfaceHeight": 1.2,
+        "label": "Rohe jõe sild"
+      },
+      {
+        "id": "rohe-bridge-2",
+        "kind": "bridge",
+        "x": 4.357894736842113,
+        "z": 272.63157894736844,
+        "width": 12,
+        "depth": 56.506676104640945,
+        "rotation": 1.7894652726688385,
+        "surfaceHeight": 1.2,
+        "label": "Rohe jõe sild"
+      },
+      {
+        "id": "rohe-bridge-3",
+        "kind": "bridge",
+        "x": 16.916210526315794,
+        "z": -100.44,
+        "width": 12,
+        "depth": 56.36617492271873,
+        "rotation": 1.5707963267948966,
+        "surfaceHeight": 1.2,
+        "label": "Rohe jõe sild"
+      },
+      {
+        "id": "rohe-bridge-4",
+        "kind": "bridge",
+        "x": -22.37305263157895,
+        "z": 132.84,
+        "width": 12,
+        "depth": 56.36617492271873,
+        "rotation": 1.5707963267948966,
+        "surfaceHeight": 1.2,
+        "label": "Rohe jõe sild"
       }
     ],
     "baseDefenses": false,

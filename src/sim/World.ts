@@ -5,7 +5,7 @@ import {freeAirSlot,airFacilityCapacity} from "./systems/airDoctrine";
 import logisticsConfig from "../data/logistics.json";
 import type { Command, Entity, GameStatus, Projectile, SimEvent, Team, UnitKind, MapResourceDef, IntelContact } from "./types";
 import { UNITS,factionUnitDefinition } from "./units";
-import { getBases, heightAt, setMapSize, ensureHeightCache, type BaseDef } from "./heightmap";
+import { getBases, heightAt, setTerrainFeatures, setMapSize, ensureHeightCache, type BaseDef } from "./heightmap";
 import {TerrainState} from "./TerrainState";
 import { Rng } from "./rng";
 import { ENEMY_AGGRO, INCOME_PER_SEC, STARTING_CREDITS, STARTING_RESOURCES, AIR_CARGO_INCOME_PER_SEC, AIR_CARGO_LOAD, AIR_CARGO_INTERVAL, RESOURCE_FACILITY_STARTUP, RESOURCE_FACILITY_MAX_STOCK, RESOURCE_FACILITY_PRODUCTION, ROAD_TRUCK_CARGO, ROAD_TRUCK_INTERVAL, ROAD_TRUCK_MAX_PER_DEPOT } from "./constants";
@@ -274,7 +274,7 @@ export class World {
     this.rngState = new Rng(seed);
     this.bases = bases.length ? bases.map((b) => ({ ...b })) : getBases();
     // Build height cache once bases are known (huge win for LOS / movement)
-    ensureHeightCache();
+    setTerrainFeatures(features);ensureHeightCache();
     this.resourcePoints = resources.length ? resources.map(r=>({...r})) : [
       { x: -70, z: 70, amount: 1000, radius: 12 }, { x: 70, z: -70, amount: 1000, radius: 12 },
     ];
@@ -432,6 +432,12 @@ export class World {
     const f = this.mapFeatures.find(x => x.id === id); if (!f || !["bridge","road","building"].includes(f.kind)) return;
     const old = this.infrastructureDamage.get(id) ?? 0;
     this.infrastructureDamage.set(id, Math.min(1, old + amount));
+    if(f.kind==="bridge"&&old<1&&old+amount>=1){
+      setTerrainFeatures(this.mapFeatures.filter(f=>f.kind!=="bridge"||(this.infrastructureDamage.get(f.id)??0)<1));ensureHeightCache();
+      this.nav.syncFeatures(this.mapFeatures.filter(f=>f.kind!=="bridge"||(this.infrastructureDamage.get(f.id)??0)<1));
+      this.nav.syncBuildings(this.entities);
+      for(const u of this.entities)if(!u.dead&&u.def.domain==="land"&&u.dest){u.navPath=[];u.roadPathGoal=undefined;u.roadPathRetryAt=0;}
+    }
     if (f.kind!=="building" && old < 1 && old + amount >= 1) this.events.push({ type: "supply-delivered", team: this.playerTeam, x: f.x, z: f.z, amount: 0 });
   }
 
@@ -533,6 +539,7 @@ export class World {
     if (!isBuildable(kind) || !this.canBuildKind(team, kind)) return false;
     if(Math.abs(x)+buildFootprint(kind)>this.mapSize/2-10||Math.abs(z)+buildFootprint(kind)>this.mapSize/2-10)return false;
     const r = buildFootprint(kind);
+    if(this.mapFeatures.some(f=>(f.kind==="water"||f.kind==="bridge")&&pointInFeature(x,z,f,r)))return false;
     // Soft walkability – allow gentle slopes so crater edges don't block builds
     if (!this.nav.isWalkableWorld(x, z, r * 0.45)) return false;
     if (this.entities.some(e => !e.dead && (e.def.speed === 0 || e.underConstruction) && Math.hypot(e.x - x, e.z - z) < r + e.def.radius + 1.2)) return false;
@@ -792,6 +799,7 @@ export class World {
     };
   }
   restoreRuntime(s: ReturnType<World["captureRuntime"]>): void {
+    setTerrainFeatures(this.mapFeatures.filter(f=>f.kind!=="bridge"||(this.infrastructureDamage.get(f.id)??0)<1));ensureHeightCache();
     if((s.mapSize??this.mapSize)!==this.mapSize){setMapSize(s.mapSize??this.mapSize);ensureHeightCache();this.nav=new NavGrid(this.entities,this.mapFeatures);this.spatial=new SpatialHash(16);this.spatial.rebuild(this.entities);this.vision=new Vision();this.vision.setFeatures(this.mapFeatures);this.vision.forestObscuration=(a,b)=>this.terrain.obscuration(a,b);}
     this.terrain.restore(s.terrain);
     this.playerTeam=s.playerTeam; this.playerFaction=s.playerFaction; this.enemyFaction=s.enemyFaction;
@@ -812,6 +820,7 @@ export class World {
     if (s.mode) { this.matchController=new MatchModeController(this,s.mode.mode); this.matchController.restore(s.mode.state); }
     else this.matchController=null;
     if(s.mission){this.missionController=new MissionController(s.mission.definition,this);this.missionController.restore(s.mission.state);}else this.missionController=null;
+    this.nav.syncFeatures(this.mapFeatures.filter(f=>f.kind!=="bridge"||(this.infrastructureDamage.get(f.id)??0)<1));
     this.nav.syncBuildings(this.entities); this.navDirty=false;
     this.powerCache=null; this.powerCacheTime=-1; this.spatial.rebuild(this.entities);
     this.fobManager.fobs.length=0; this.fobManager.tick(); this.operationalMap.tick(); this.frontline.tick(0);

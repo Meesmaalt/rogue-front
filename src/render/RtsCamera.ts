@@ -5,7 +5,7 @@ import {MAP_SIZE} from "../sim/heightmap";
 export class RtsCamera {
   // Tactical overview: unit identity comes from class markers at distance.
   x = -105; z = 105; yaw = -Math.PI / 4;
-  dist = 220; targetDist = 220; pitch = 0.83;
+  dist = 280; targetDist = 280; pitch = 0.83;
   groundY = 0;
   private keys = new Set<string>();
   private mouse = { x: -1, y: -1 };

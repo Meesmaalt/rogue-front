@@ -1,8 +1,9 @@
 import {it,expect,afterEach} from "vitest";
 import {World} from "./World";
-import {resetHeightmap,setMapSize,setBases,heightAt,setTerrainProfile,setProceduralSeed} from "./heightmap";
+import {resetHeightmap,setMapSize,setBases,heightAt,setTerrainProfile,setProceduralSeed,groundHeightAt} from "./heightmap";
 import {FOCUS_MAP} from "./proceduralMap";
 import {findPath} from "./nav/Pathfinder";
+import {pointInFeature} from "./mapFeatures";
 import type {MapFeatureDef} from "./mapFeatures";
 import {saveWorld,loadWorld} from "./SaveState";
 import {worldHash} from "./Replay";
@@ -36,4 +37,30 @@ it("terrain: 1088m Roheorg connects both bases with full-sized navigation and vi
  expect(w.mapSize).toBe(1088);expect(w.nav.width).toBe(544);expect(w.vision.width).toBe(272);
  const path=findPath(w.nav,{x:m.bases[0].x+20,z:m.bases[0].z},{x:m.bases[1].x-20,z:m.bases[1].z},1.5);expect(path.length).toBeGreaterThan(1);
  expect(m.features!.filter(f=>f.kind==="building").length).toBeGreaterThan(40);expect(heightAt(450,450)).toBeGreaterThanOrEqual(0);
+});
+
+it("Rohe river blocks ground passage except real decks; collapse and save restore close crossings",()=>{
+ const m=FOCUS_MAP.map;setMapSize(m.size);setBases(m.bases);setTerrainProfile("farmland");
+ const features=m.features as MapFeatureDef[],bridges=features.filter(f=>f.kind==="bridge"),water=features.filter(f=>f.kind==="water");
+ // Bridge precedence does not depend on JSON array order.
+ const w=new World(FOCUS_MAP.seed,false,m.resources,[...bridges,...features.filter(f=>f.kind!=="bridge")],m.bases,false);
+ const mid=water[0];expect(w.nav.isWalkableWorld(mid.x,mid.z,1)).toBe(false);
+ const b=bridges.find(f=>Math.hypot(f.x,f.z)<20)!;
+ expect(w.nav.isWalkableWorld(b.x,b.z,2)).toBe(true);
+ expect(heightAt(b.x,b.z)).toBeCloseTo(b.surfaceHeight!,1);
+ expect(groundHeightAt(b.x,b.z)).toBeLessThan(-2);
+ const path=findPath(w.nav,{x:-100,z:50},{x:100,z:-50},2);
+ expect(path.length).toBeGreaterThan(1);
+ const onBridge=path.some((p,i)=>i>0&&Array.from({length:20},(_,j)=>({x:path[i-1].x+(p.x-path[i-1].x)*j/19,z:path[i-1].z+(p.z-path[i-1].z)*j/19})).some(q=>bridges.some(f=>pointInFeature(q.x,q.z,f))));
+ expect(onBridge).toBe(true);
+ const arty=w.spawn("artillery",0,b.x-60,b.z);fireGroundProjectile(w,arty,b.x,b.z);
+ const shell=w.projectiles[w.projectiles.length-1];shell.damage=2000;shell.impactDamage=2000;
+ for(let i=0;i<240&&w.projectiles.length;i++)updateProjectiles(w,1/30);
+ expect(w.infrastructureDamage.get(b.id)).toBeGreaterThanOrEqual(1);
+ for(const bridge of bridges)w.damageInfrastructure(bridge.id,1);
+ expect(w.nav.isWalkableWorld(b.x,b.z,2)).toBe(false);
+ expect(heightAt(b.x,b.z)).toBeLessThan(-2);
+ const saved=JSON.parse(JSON.stringify(saveWorld(w))),copy=new World(FOCUS_MAP.seed,false,m.resources,features,m.bases,false);loadWorld(copy,saved);
+ expect(copy.nav.isWalkableWorld(b.x,b.z,2)).toBe(false);
+ expect(findPath(copy.nav,{x:-100,z:50},{x:100,z:-50},2)).toHaveLength(0);
 });

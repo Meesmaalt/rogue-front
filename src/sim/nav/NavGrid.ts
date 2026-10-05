@@ -56,7 +56,7 @@ export class NavGrid {
 
   syncFeatures(features: readonly MapFeatureDef[]): void {
     // Static map geometry occupies state 1; dynamic buildings use state 2.
-    for (let i = 0; i < this.blocked.length; i++) if (this.blocked[i] === 1) {
+    for (let i = 0; i < this.blocked.length; i++) if (this.blocked[i] !== 2) {
       // Preserve terrain slope cells by rebuilding them before applying features.
       const ix = i % this.width, iz = Math.floor(i / this.width);
       const p = this.cellToWorld(ix, iz);
@@ -65,7 +65,9 @@ export class NavGrid {
       const slope = Math.atan(Math.hypot(dx, dz) / (2 * this.cellSize));
       this.blocked[i] = slope > NAV_SLOPE_LIMIT ? 1 : 0;
     }
-    for (const f of features) {
+    // Bridges apply after water regardless of input feature order.
+    const ordered=[...features.filter(f=>f.kind!=="bridge"),...features.filter(f=>f.kind==="bridge")];
+    for (const f of ordered) {
       if (f.kind === "bridge") {
         const minX = Math.max(0, Math.floor((f.x - Math.hypot(f.width, f.depth) / 2) / this.cellSize + this.width / 2) - 1);
         const maxX = Math.min(this.width - 1, Math.ceil((f.x + Math.hypot(f.width, f.depth) / 2) / this.cellSize + this.width / 2) + 1);
