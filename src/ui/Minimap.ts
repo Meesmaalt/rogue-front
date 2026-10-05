@@ -77,9 +77,15 @@ export class Minimap {
       const [mx, my] = this.w2m(f.x, f.z);
       c.save(); c.translate(mx, my); c.rotate(-(f.rotation ?? 0));
       c.fillStyle = f.appearance === "forest" ? "#304a2b" : f.appearance === "field" ? "#8b935e" : f.kind === "water" ? "rgba(55,105,125,.72)" : f.kind === "road" || f.kind === "bridge" ? "rgba(210,190,150,.48)" : featureBlocksMovement(f) ? "rgba(45,48,50,.78)" : "rgba(180,170,140,.35)";
-      c.fillRect(-f.width / MAP_SIZE * S / 2, -f.depth / MAP_SIZE * S / 2, f.width / MAP_SIZE * S, f.depth / MAP_SIZE * S);
+      if(f.shape==="ellipse"){c.beginPath();c.ellipse(0,0,f.width/MAP_SIZE*S/2,f.depth/MAP_SIZE*S/2,0,0,Math.PI*2);c.fill();}
+      else c.fillRect(-f.width / MAP_SIZE * S / 2, -f.depth / MAP_SIZE * S / 2, f.width / MAP_SIZE * S, f.depth / MAP_SIZE * S);
       c.restore();
     }
+    for(const fire of this.world.terrain.fires()){
+      if(!this.world.vision.isVisible(this.world.playerTeam,fire.x,fire.z))continue;
+      const [x,z]=this.w2m(fire.x,fire.z);c.fillStyle=fire.burnt?"#63605a":"#ff9b36";c.beginPath();c.arc(x,z,2.5,0,Math.PI*2);c.fill();
+    }
+
 
     // Fog – rebuild every 3rd frame into cache
     if (this.frame - this.fogFrame >= 3 || !this.fogCache) {

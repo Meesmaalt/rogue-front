@@ -9,6 +9,7 @@ export class SelectionController {
   readonly selected = new Set<number>();
   drag: DragRect | null = null;
   enabled = false;
+  onInspectBuilding:(id:string)=>void=()=>{};
   private groups: Record<string, number[]> = {};
   private last = { t: 0, e: null as Entity | null };
 
@@ -49,12 +50,12 @@ export class SelectionController {
           this.set(this.world.entities.filter((o) => !o.dead && o.team === this.world.playerTeam && o.kind === u.kind && this.onScreen(o)), add);
         else this.set([u], add);
         this.last = { t: now, e: u };
-      } else if (!add) this.selected.clear();
+      } else if (!add) {this.selected.clear();const f=this.picker.pickGarrisonBuilding(d.x1,d.y1);if(f)this.onInspectBuilding(f.id);}
       return;
     }
     const x0 = Math.min(d.x0, d.x1), x1 = Math.max(d.x0, d.x1), y0 = Math.min(d.y0, d.y1), y1 = Math.max(d.y0, d.y1);
     this.set(this.world.entities.filter((u) => {
-      if (u.dead || u.team !== this.world.playerTeam || u.def.speed === 0) return false;
+      if (u.dead || u.loadedIntoId!=null || u.team !== this.world.playerTeam || u.def.speed === 0) return false;
       const p = this.picker.toScreen(u.x, u.y + u.def.height * 0.5, u.z);
       return p.z < 1 && p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1;
     }), add);

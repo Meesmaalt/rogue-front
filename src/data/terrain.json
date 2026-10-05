@@ -30,5 +30,18 @@
         "depth": 70
       }
     ]
+  },
+  "forest": {
+    "cellSize": 16,
+    "cover": 24,
+    "ignitionDamage": 24,
+    "burnDuration": 28,
+    "spreadInterval": 7,
+    "maxActiveFires": 64,
+    "infantryDamage": 2,
+    "vehicleDamage": 0.25,
+    "suppression": 7,
+    "smokeLifetime": 18,
+    "burntCover": 0.18
   }
 }

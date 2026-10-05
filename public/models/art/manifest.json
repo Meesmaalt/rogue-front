@@ -39,16 +39,16 @@
       "kind": "ifv",
       "lod": "detail",
       "path": "usa/ifv.glb",
-      "triangles": 5520,
-      "drawCalls": 7
+      "triangles": 5712,
+      "drawCalls": 8
     },
     {
       "faction": "usa",
       "kind": "ifv",
       "lod": "tactical",
       "path": "usa/ifv-lod.glb",
-      "triangles": 2076,
-      "drawCalls": 4
+      "triangles": 2268,
+      "drawCalls": 5
     },
     {
       "faction": "usa",
@@ -71,16 +71,16 @@
       "kind": "reconVehicle",
       "lod": "detail",
       "path": "usa/reconVehicle.glb",
-      "triangles": 2268,
-      "drawCalls": 6
+      "triangles": 2424,
+      "drawCalls": 8
     },
     {
       "faction": "usa",
       "kind": "reconVehicle",
       "lod": "tactical",
       "path": "usa/reconVehicle-lod.glb",
-      "triangles": 1920,
-      "drawCalls": 3
+      "triangles": 2076,
+      "drawCalls": 4
     },
     {
       "faction": "usa",
@@ -135,16 +135,16 @@
       "kind": "spaa",
       "lod": "detail",
       "path": "usa/spaa.glb",
-      "triangles": 2806,
-      "drawCalls": 8
+      "triangles": 2998,
+      "drawCalls": 10
     },
     {
       "faction": "usa",
       "kind": "spaa",
       "lod": "tactical",
       "path": "usa/spaa-lod.glb",
-      "triangles": 2566,
-      "drawCalls": 5
+      "triangles": 2758,
+      "drawCalls": 7
     },
     {
       "faction": "usa",
@@ -247,48 +247,48 @@
       "kind": "heli",
       "lod": "detail",
       "path": "usa/heli.glb",
-      "triangles": 2276,
-      "drawCalls": 8
+      "triangles": 5396,
+      "drawCalls": 10
     },
     {
       "faction": "usa",
       "kind": "heli",
       "lod": "tactical",
       "path": "usa/heli-lod.glb",
-      "triangles": 1380,
-      "drawCalls": 6
+      "triangles": 1860,
+      "drawCalls": 8
     },
     {
       "faction": "usa",
       "kind": "gunship",
       "lod": "detail",
       "path": "usa/gunship.glb",
-      "triangles": 2276,
-      "drawCalls": 8
+      "triangles": 5396,
+      "drawCalls": 10
     },
     {
       "faction": "usa",
       "kind": "gunship",
       "lod": "tactical",
       "path": "usa/gunship-lod.glb",
-      "triangles": 1380,
-      "drawCalls": 6
+      "triangles": 1860,
+      "drawCalls": 8
     },
     {
       "faction": "usa",
       "kind": "casHeli",
       "lod": "detail",
       "path": "usa/casHeli.glb",
-      "triangles": 2276,
-      "drawCalls": 8
+      "triangles": 2492,
+      "drawCalls": 10
     },
     {
       "faction": "usa",
       "kind": "casHeli",
       "lod": "tactical",
       "path": "usa/casHeli-lod.glb",
-      "triangles": 1380,
-      "drawCalls": 6
+      "triangles": 1260,
+      "drawCalls": 8
     },
     {
       "faction": "usa",
@@ -375,16 +375,16 @@
       "kind": "ifv",
       "lod": "detail",
       "path": "russia/ifv.glb",
-      "triangles": 5496,
-      "drawCalls": 7
+      "triangles": 5640,
+      "drawCalls": 8
     },
     {
       "faction": "russia",
       "kind": "ifv",
       "lod": "tactical",
       "path": "russia/ifv-lod.glb",
-      "triangles": 2064,
-      "drawCalls": 4
+      "triangles": 2208,
+      "drawCalls": 5
     },
     {
       "faction": "russia",
@@ -407,16 +407,16 @@
       "kind": "reconVehicle",
       "lod": "detail",
       "path": "russia/reconVehicle.glb",
-      "triangles": 1592,
-      "drawCalls": 6
+      "triangles": 1748,
+      "drawCalls": 8
     },
     {
       "faction": "russia",
       "kind": "reconVehicle",
       "lod": "tactical",
       "path": "russia/reconVehicle-lod.glb",
-      "triangles": 1280,
-      "drawCalls": 3
+      "triangles": 1436,
+      "drawCalls": 4
     },
     {
       "faction": "russia",
@@ -471,16 +471,16 @@
       "kind": "spaa",
       "lod": "detail",
       "path": "russia/spaa.glb",
-      "triangles": 2134,
-      "drawCalls": 8
+      "triangles": 2614,
+      "drawCalls": 10
     },
     {
       "faction": "russia",
       "kind": "spaa",
       "lod": "tactical",
       "path": "russia/spaa-lod.glb",
-      "triangles": 2134,
-      "drawCalls": 5
+      "triangles": 2614,
+      "drawCalls": 7
     },
     {
       "faction": "russia",
@@ -583,48 +583,48 @@
       "kind": "heli",
       "lod": "detail",
       "path": "russia/heli.glb",
-      "triangles": 2276,
-      "drawCalls": 8
+      "triangles": 5396,
+      "drawCalls": 10
     },
     {
       "faction": "russia",
       "kind": "heli",
       "lod": "tactical",
       "path": "russia/heli-lod.glb",
-      "triangles": 1380,
-      "drawCalls": 6
+      "triangles": 1860,
+      "drawCalls": 8
     },
     {
       "faction": "russia",
       "kind": "gunship",
       "lod": "detail",
       "path": "russia/gunship.glb",
-      "triangles": 2276,
-      "drawCalls": 8
+      "triangles": 5396,
+      "drawCalls": 10
     },
     {
       "faction": "russia",
       "kind": "gunship",
       "lod": "tactical",
       "path": "russia/gunship-lod.glb",
-      "triangles": 1380,
-      "drawCalls": 6
+      "triangles": 1860,
+      "drawCalls": 8
     },
     {
       "faction": "russia",
       "kind": "casHeli",
       "lod": "detail",
       "path": "russia/casHeli.glb",
-      "triangles": 2276,
-      "drawCalls": 8
+      "triangles": 2492,
+      "drawCalls": 10
     },
     {
       "faction": "russia",
       "kind": "casHeli",
       "lod": "tactical",
       "path": "russia/casHeli-lod.glb",
-      "triangles": 1380,
-      "drawCalls": 6
+      "triangles": 1260,
+      "drawCalls": 8
     },
     {
       "faction": "russia",
@@ -711,16 +711,16 @@
       "kind": "ifv",
       "lod": "detail",
       "path": "china/ifv.glb",
-      "triangles": 5496,
-      "drawCalls": 7
+      "triangles": 5700,
+      "drawCalls": 8
     },
     {
       "faction": "china",
       "kind": "ifv",
       "lod": "tactical",
       "path": "china/ifv-lod.glb",
-      "triangles": 2064,
-      "drawCalls": 4
+      "triangles": 2268,
+      "drawCalls": 5
     },
     {
       "faction": "china",
@@ -743,16 +743,16 @@
       "kind": "reconVehicle",
       "lod": "detail",
       "path": "china/reconVehicle.glb",
-      "triangles": 2256,
-      "drawCalls": 6
+      "triangles": 2412,
+      "drawCalls": 8
     },
     {
       "faction": "china",
       "kind": "reconVehicle",
       "lod": "tactical",
       "path": "china/reconVehicle-lod.glb",
-      "triangles": 1920,
-      "drawCalls": 3
+      "triangles": 2076,
+      "drawCalls": 4
     },
     {
       "faction": "china",
@@ -807,16 +807,16 @@
       "kind": "spaa",
       "lod": "detail",
       "path": "china/spaa.glb",
-      "triangles": 5902,
-      "drawCalls": 8
+      "triangles": 6094,
+      "drawCalls": 10
     },
     {
       "faction": "china",
       "kind": "spaa",
       "lod": "tactical",
       "path": "china/spaa-lod.glb",
-      "triangles": 2566,
-      "drawCalls": 5
+      "triangles": 2758,
+      "drawCalls": 7
     },
     {
       "faction": "china",
@@ -919,48 +919,48 @@
       "kind": "heli",
       "lod": "detail",
       "path": "china/heli.glb",
-      "triangles": 2276,
-      "drawCalls": 8
+      "triangles": 5396,
+      "drawCalls": 10
     },
     {
       "faction": "china",
       "kind": "heli",
       "lod": "tactical",
       "path": "china/heli-lod.glb",
-      "triangles": 1380,
-      "drawCalls": 6
+      "triangles": 1860,
+      "drawCalls": 8
     },
     {
       "faction": "china",
       "kind": "gunship",
       "lod": "detail",
       "path": "china/gunship.glb",
-      "triangles": 2276,
-      "drawCalls": 8
+      "triangles": 5396,
+      "drawCalls": 10
     },
     {
       "faction": "china",
       "kind": "gunship",
       "lod": "tactical",
       "path": "china/gunship-lod.glb",
-      "triangles": 1380,
-      "drawCalls": 6
+      "triangles": 1860,
+      "drawCalls": 8
     },
     {
       "faction": "china",
       "kind": "casHeli",
       "lod": "detail",
       "path": "china/casHeli.glb",
-      "triangles": 2276,
-      "drawCalls": 8
+      "triangles": 2492,
+      "drawCalls": 10
     },
     {
       "faction": "china",
       "kind": "casHeli",
       "lod": "tactical",
       "path": "china/casHeli-lod.glb",
-      "triangles": 1380,
-      "drawCalls": 6
+      "triangles": 1260,
+      "drawCalls": 8
     },
     {
       "faction": "china",

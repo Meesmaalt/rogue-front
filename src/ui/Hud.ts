@@ -1,13 +1,19 @@
+import logisticsRules from "../data/logistics.json";
+import {stockCapacity,stockTotal,logisticsStatus} from "../sim/stockLogistics";
+import {isGarrisonBuilding,garrisonCapacity,garrisonOccupants,buildingCondition,GARRISON_RULES} from "../sim/garrison";
+import {transportCapacity,occupiedSeats} from "../sim/transport";
+import {maxHitPoints,weaponPenetration,mobilityProfile,groundTerrainFactor,unitUpgradeStatus,researchStatus,UNIT_UPGRADES,type UnitUpgrade} from "../sim/unitStats";
 import {airUnitsForOrder,supportsAirMission,airOperationStatus} from "../sim/systems/airDoctrine";
-import {effectiveWeaponRange,weaponAmmo,weaponCooldown} from "../sim/systems/combat";
+import {effectiveWeaponRange,weaponAmmo,weaponCooldown,weaponImpactEstimate,movingFireFactor,weaponRange,shotAccuracy,weaponCanTarget,hitFace,armorValue,penetrationFactor,type AccuracyStep} from "../sim/systems/combat";
 import "./hud.css";
 import "./tactical.css";
+import {WEAPON_RANGE_COLORS} from "../render/RangeOverlay";
 import {icon,unitPicture} from "./icons";
 import {combatStatus} from "../sim/systems/units";
 import type { World } from "../sim/World";
 import { coverValueAt } from "../sim/systems/sensors";
 import type { MissionDef } from "../sim/types";
-import type { UnitKind } from "../sim/types";
+import type { UnitKind,Entity } from "../sim/types";
 import { UNITS } from "../sim/units";
 import { MAX_QUEUE } from "../sim/constants";
 import type { FactionId } from "../sim/factions";
@@ -15,6 +21,59 @@ import { FACTIONS, FACTION_LIST, factionLandUnits, factionAirUnits, factionSeaUn
 import { BUILDINGS } from "../sim/buildings";
 import { MODE_RULES, type MatchMode } from "../sim/gameModes";
 import { CAMPAIGN, loadCampaign, isUnlocked } from "../sim/campaign";
+
+function logisticsCard(w:World,u:Entity):string {
+ if(u.kind==='supply'){
+  const cap=stockCapacity(w,u),next=1+(Math.min(2,w.supplyDepotLevel(u)+1))*logisticsRules.depot.capacityPerLevel;
+  return `<div class="garrison-card"><b>Füüsiline ladu · ${Math.floor(stockTotal(u))}/${Math.floor(cap.ammo+cap.fuel+cap.repair)}</b><small>Moon ${Math.floor(u.ammoStock??0)}/${Math.floor(cap.ammo)} · Kütus ${Math.floor(u.fuelStock??0)}/${Math.floor(cap.fuel)} · Remont ${Math.floor(u.repairStock??0)}/${Math.floor(cap.repair)}</small><small>${w.supplyDepotLevel(u)<2?`Järgmine tase: mahud ×${next.toFixed(2)} baasist; kogumiskopteri koorem ja veoki maht suurenevad.`:'Laomaht MAX'} FOB-i uuendus suurendab juhtimist, mitte ei tekita tasuta varusid.</small></div>`;
+ }
+ const depot=w.byId.get(u.supplyDepotId??-1),source=u.logisticsSourceIndex!=null?w.resourcePoints[u.logisticsSourceIndex]:null,p=u.logisticsPayload;
+ return `<div class="garrison-card"><b>${logisticsStatus(w,u)}</b><small>Allikas: ${source?`ressursirajatis ${u.logisticsSourceIndex!+1}`:w.primarySupplyDepot(u.team)?'pealadu':'puudub'} → Ladu ${depot?.id??'puudub'}</small><small>Koorem ${Math.floor(u.cargo)}/${Math.floor(u.logisticsCargoCapacity??(u.kind==="transport"?logisticsRules.air.capacity+(depot?w.supplyDepotLevel(depot):0)*logisticsRules.air.capacityPerLevel:0))}${p?` · Moon ${Math.floor(p.ammo)} / kütus ${Math.floor(p.fuel)} / remont ${Math.floor(p.repair)}`:' · toorressurss'} · Marsruudi vahepunkte ${depot?.logisticsWaypoints?.length??0}</small></div>`;
+}
+
+function weaponCards(world:World,u:Pick<Entity,"def"|"team"|"activeWeapon"|"ammo"|"secondaryAmmo"|"cooldown"|"weaponCooldowns">,live?:Entity):string {
+  const team=u.team===0?1:0,tank=world.unitDefinition("tank",team),inf=world.unitDefinition("inf",team),ifv=world.unitDefinition("ifv",team),heli=world.unitDefinition("heli",team);
+  const value=(n:number)=>n<.05?"0":n<1?n.toFixed(1):n.toFixed(0);
+  return (u.def.weapons??[]).map((s,i)=>`<div class="weapon-card" style="--weapon-color:${WEAPON_RANGE_COLORS[i%WEAPON_RANGE_COLORS.length]}"><div><b>${i===(u.activeWeapon??0)?"▸ ":""}${s.name}</b><strong>${Math.floor(weaponAmmo(u,i))}/${s.ammoCapacity} moon</strong></div><span>${s.targets==="air"?"Õhutõrje":s.targets==="armor"?"Tankitõrje":s.flight==="ballistic"?"Kaudtuli":s.weapon==="bullet"?"Jalaväetuli":"Tuletoetus"} · ${s.minimumRange?`${s.minimumRange}–`:""}${Math.round(live?weaponRange(live,s):s.range)} m · AP baas ${s.penetration} · ${Math.round(s.accuracy*100)}% baas paigal / ${movingFireFactor(u.def,s)===0?"peatub":Math.round(s.accuracy*movingFireFactor(u.def,s)*100)+"% liikudes"} · Laadimise baas ${s.cooldown.toFixed(1)} s</span><div class="damage-strip" title="Ühe õnnestunud tabamuse baaskahjustus terve meeskonnaga ja ilma relvauuendusteta, lähikaugus ja avatud maastik. Tank E/K/T = esi/külg/taga. Sihtmärgid on vastasfraktsiooni põhiüksused; tegelik tabamus sõltub kaugusest, kattest, meeskonnast ja seisundist."><span>Jalavägi <b>${value(weaponImpactEstimate(s,inf))}</b></span><span>IFV <b>${value(weaponImpactEstimate(s,ifv))}</b></span><span>Tank E/K/T <b>${["front","side","rear"].map(f=>value(weaponImpactEstimate(s,tank,f as "front"|"side"|"rear"))).join("/")}</b></span><span>Kopter <b>${value(weaponImpactEstimate(s,heli))}</b></span></div><small>${s.guidance==="none"?s.flight==="ballistic"?"Ballistiline kaudtuli":"Juhitamatu":{command:"Juhtimine vajab laskuri kontakti",infrared:"Infrapuna · iseseisev juhtimine",radar:"Radarjuhtimine"}[s.guidance]} · ${weaponCooldown(u,i)>0?"Laadib "+weaponCooldown(u,i).toFixed(1)+" s":"Valmis"}</small><small>Kulu ${s.ammoUsePerShot} moon/lasu · Surve ${s.suppressionPower} · ${s.speed} m/s mürsk · ${s.warhead.toUpperCase()}</small>${live?liveWeaponReadout(world,live,i):""}</div>`).join("");
+}
+
+/** Only current spotted targets enter the readout; old intel never reveals live coordinates. */
+function liveWeaponReadout(world:World,u:Entity,index:number):string {
+  const spec=u.def.weapons![index],range=weaponRange(u,spec);
+  const target=u.target&&!u.target.dead&&world.isSpottedByTeam(u.target,u.team)?u.target:null;
+  const reach=`<button data-range-slot="${index}" class="range-slot">◎ ${index+1}. relva ulatus</button>`;
+  const curve=[.25,.5,.75,1].map(f=>`<span>${Math.round(range*f)} m: <b>×${(1-Math.min(1,range*f/Math.max(1,spec.range))*.32).toFixed(2)}</b></span>`).join("");
+  const ap=weaponPenetration(u,spec);
+  const apAt=(d:number)=>(ap*(spec.warhead==="kinetic"?Math.max(.65,1-d/500):1)).toFixed(1);
+  const reference=`<details class="accuracy-details" data-detail-key="range-${index}"><summary>Kauguse mõju · AP ${apAt(0)} → ${apAt(range)}</summary><small>Täpsuse kaugustegur; teised tegurid lisanduvad lasu ajal.</small><div class="distance-curve">${curve}</div><small>AP lähikaugus → maksimaalne ulatus. Ring mõõdab horisontaalset kaugust laskurist; sihtmärgi raadius võib lubada tabada ka ringi servast väljas.</small></details>`;
+  if(!target)return reach+`<small class="shot-preview">${u.target?"Sihtmärk pole praegu luuratud; jooksvaid lahinguandmeid ei näidata.":"Vali ründesihtmärk, et näha tegelikku tabamisvõimalust."}</small>`+reference;
+  const distance=Math.hypot(target.x-u.x,target.z-u.z),compatible=weaponCanTarget(spec,target);
+  const face=hitFace(u.x,u.z,target);
+  let block="";
+  if(!compatible)block="Sobimatu sihtmärgi liik";
+  else if(spec.warhead==="kinetic"&&penetrationFactor(spec.warhead,ap,armorValue(target,face),target.def.category==="infantry"||target.def.armor==="air",distance)<=0)block="Soomus peatab selle mürsu";
+  else if(weaponAmmo(u,index)<spec.ammoUsePerShot&&spec.ammoCapacity>0)block="Moon otsas";
+  else if(distance<spec.minimumRange)block="Liiga lähedal";
+  else if(distance-target.def.radius>range)block="Väljaspool ulatust";
+  else if((u.motionSpeed??0)>.5&&spec.fireOnMove===false)block="Peab tulistamiseks peatuma";
+  else if(weaponCooldown(u,index)>0)block=`Laadib ${weaponCooldown(u,index).toFixed(1)} s`;
+  else if(!["artillery","mortar","mlrs"].includes(u.kind)&&!world.vision.hasLineOfSight(u,target))block="Tulejoon blokeeritud";
+  const steps:AccuracyStep[]=[],chance=shotAccuracy(world,u,target,spec,distance,steps);
+  const faceName={front:"esi",side:"külg",rear:"taga"}[face];
+  return reach+`<div class="shot-preview"><b>${world.unitDisplayName(target.kind,target.team)} · ${distance.toFixed(1)} m</b><strong>${compatible?Math.round(chance*100)+"% tabamisvõimalus":"—"}</strong><small>${block||"Ulatuses · lasu luba sõltub ka sihtimisest, moraalist ja üksuse korraldusest"}</small>${compatible?`<small>AP ${apAt(distance)} vs ${faceName}soomus ${armorValue(target,face)} · Hinnanguline lennuaeg ${(distance/Math.max(1,spec.speed)).toFixed(1)} s</small><details class="accuracy-details" data-detail-key="accuracy-${index}"><summary>Tabamisvõimaluse arvutus</summary><small>Ühe käivitatud lasu tõenäosus; ei taga läbistamist ega lasu luba. Mürsu teekond ja sihtmärgi seisund võivad pärast lasku muutuda.</small><table><tbody>${steps.map(step=>`<tr><td>${step.label}</td><td>${(step.chance*100).toFixed(1)}%</td></tr>`).join("")}</tbody></table><small>Iga rida näitab tõenäosust pärast vastavat tegurit.</small></details>`:""}</div>`+reference;
+}
+
+function unitDevelopmentCards(world:World,u:Entity,running:boolean):string {
+  if(u.kind==="landStrategy"){
+    const status=researchStatus(world,u.team,"advanced-armor");
+    return `<div class="unit-development"><b>Täiustatud soomuse uuring</b><small>Avab maasoomukite soomuspaketi; üksuste uuendused ostetakse eraldi.</small><button data-research-armor ${!running||!status.allowed?"disabled":""}>Uuri · ${status.cost} krediiti + ${status.cost} ressurssi</button><small>${status.reason||"Strateegiakeskus töötab"}</small></div>`;
+  }
+  if(u.def.speed<=0||u.def.damage<=0)return "";
+  return `<details class="unit-development" data-detail-key="development"><summary>Üksuse uuendused</summary>${(["armor","weapon","range"] as const).filter(k=>k!=="armor"||u.def.category==="armor").map(k=>{
+    const status=unitUpgradeStatus(world,u,k),spec=UNIT_UPGRADES[k];
+    return `<div><b>${spec.name}</b><small>${spec.description}</small><button data-unit-upgrade="${k}" ${!running||!status.allowed?"disabled":""}>${u.upgrades.has(k)?"Paigaldatud":"Paigalda"} · ${spec.cost} krediiti + ${spec.cost} ressurssi + ${spec.repairCost} remondivaru</button><small>${status.reason||"Peatatud üksus · ühendatud ladu"}</small></div>`;
+  }).join("")}</details>`;
+}
 
 const fmt = (s: number) => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
 const unitIcon = (kind:UnitKind):string => unitPicture(kind,"usa");
@@ -52,8 +111,17 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 export class Hud {
+  showWeaponRanges=true;
+  rangeSlot:number|null=null;
+  private inspectedKind:UnitKind|null=null;
+  private inspectedBuildingId:string|null=null;
+  onGarrisonFace:(ids:number[])=>void=()=>{};
+  onGarrisonExit:(ids:number[])=>void=()=>{};
+  inspectBuilding(id:string):void {this.inspectedBuildingId=id;this.inspectedKind=null;this.selectionSignature="";this.selectedIds=[];}
+  private selectionSignature="";
+  private selectedMarkupContext="";
   readonly minimapCanvas: HTMLCanvasElement;
-  onOrder: (order:"move"|"attack"|"stop"|"focus")=>void = ()=>{};
+  onOrder: (order:"move"|"fast"|"attack"|"unload"|"stop"|"focus")=>void = ()=>{};
   onSelect: (ids:number[])=>void = ()=>{};
   onProduce: (kind: UnitKind, producerId?: number) => void = () => {};
   onPause: () => void = () => {};
@@ -61,6 +129,8 @@ export class Hud {
   onSave: () => void = () => {};
   onLoad: () => void = () => {};
   onBuild: (kind: "barracks"|"factory"|"helipad"|"airbase"|"refinery"|"supply"|"radar"|"bunker"|"aa"|"generator"|"shipyard"|"landCommand"|"airCommand"|"seaCommand"|"combatEngineer"|"landStrategy"|"airStrategy"|"seaStrategy") => void = () => {};
+  onUnitUpgrade:(ids:number[],upgrade:UnitUpgrade)=>void=()=>{};
+  onResearch:(tech:"advanced-armor")=>void=()=>{};
   onUpgradeSupply: (ids: number[]) => void = () => {};
   onUpgradeFOB: (ids: number[]) => void = () => {};
   onLogisticsEdit:(ids:number[],action:"source"|"route"|"clear"|"auto"|"pause")=>void=()=>{};
@@ -136,7 +206,7 @@ export class Hud {
             <button data-predeploy="attack" title="Valmis üksused ründavad teed mööda">Ründa teed</button>
             <button data-predeploy="hold" title="Valmis üksused hoiavad tootja juures">Hoia</button>
           </div>
-          <div class="order-bar">${(["move","attack","stop","focus"] as const).map(k=>`<button data-order="${k}" title="${k==="attack"?"Ründeliikumine: parem klõps sihtpunktile (A)":k==="move"?"Liigu: parem klõps sihtpunktile":k==="stop"?"Peata (X)":"Kaamera valikule"}">${icon(k)}<span>${k==="attack"?"Ründeliiku":k==="move"?"Liigu":k==="stop"?"Peata":"Fookus"}</span></button>`).join("")}</div><div class="help">Vasak hiir: vali · Parem: liigu/ründa · A+parem: ründeliikumine · H: hoia · P: patrull · WASD: kaamera · Rull: suum · X: peata · F+parem: suurtükituli · L: kustuta logistika marsruut · Ctrl+1–9: grupp</div>
+          <div class="order-bar">${(["move","fast","attack","unload","stop","focus"] as const).map(k=>`<button data-order="${k}" title="${k==="attack"?"Ründeliikumine: parem klõps sihtpunktile (A)":k==="move"?"Liigu: parem klõps sihtpunktile":k==="fast"?"Kiirliigu mööda teid (G)":k==="unload"?"Välju: U + paremklõps":k==="stop"?"Peata (X)":"Kaamera valikule"}">${icon(k==="fast"?"move":k==="unload"?"move":k)}<span>${k==="attack"?"Ründeliiku":k==="move"?"Liigu":k==="fast"?"Kiirliigu":k==="unload"?"Välju":k==="stop"?"Peata":"Fookus"}</span></button>`).join("")}</div><div class="help">Vasak hiir: vali · Parem: liigu/ründa · A+parem: ründeliikumine · G+parem: kiirliigu · U+parem: välju · H: hoia · P: patrull · WASD: kaamera · Rull: suum · X: peata · F+parem: suurtükituli · L: kustuta logistika marsruut · Ctrl+1–9: grupp</div>
         </div>
         <div class="panel build tactical">
           <div class="tab-bar">
@@ -188,8 +258,15 @@ export class Hud {
     this.minimapCanvas = root.querySelector(".mini") as HTMLCanvasElement;
     this.buttons = [...root.querySelectorAll<HTMLButtonElement>("button[data-kind]")];
     this.pauseButton = root.querySelector<HTMLButtonElement>('[data-action="pause"]');
-    root.querySelectorAll<HTMLButtonElement>("[data-order]").forEach(b=>b.onclick=()=>this.onOrder(b.dataset.order as "move"|"attack"|"stop"|"focus"));
-    this.el.selP.addEventListener("click",e=>{const b=(e.target as HTMLElement).closest<HTMLElement>("[data-select-unit]");if(b)this.onSelect([Number(b.dataset.selectUnit)]);});
+    root.querySelectorAll<HTMLButtonElement>("[data-order]").forEach(b=>b.onclick=()=>this.onOrder(b.dataset.order as "move"|"fast"|"attack"|"unload"|"stop"|"focus"));
+    this.buttons.forEach(b=>b.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();this.inspectedKind=b.dataset.kind as UnitKind;}));
+    this.el.selP.addEventListener("click",e=>{
+      const upgrade=(e.target as HTMLElement).closest<HTMLButtonElement>("[data-unit-upgrade]");if(upgrade&&!upgrade.disabled)this.onUnitUpgrade([...this.selectedIds],upgrade.dataset.unitUpgrade as UnitUpgrade);
+      const research=(e.target as HTMLElement).closest<HTMLButtonElement>("[data-research-armor]");if(research&&!research.disabled)this.onResearch("advanced-armor");
+
+      const toggle=(e.target as HTMLElement).closest("[data-range-toggle]");if(toggle)this.showWeaponRanges=!this.showWeaponRanges;
+      const slot=(e.target as HTMLElement).closest<HTMLElement>("[data-range-slot]");if(slot){const i=Number(slot.dataset.rangeSlot);this.rangeSlot=this.rangeSlot===i?null:i;this.showWeaponRanges=true;}
+if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKind=null;this.inspectedBuildingId=null;}if((e.target as HTMLElement).closest("[data-garrison-face]"))this.onGarrisonFace(this.selectedIds);if((e.target as HTMLElement).closest("[data-garrison-exit]"))this.onGarrisonExit(this.selectedIds);const b=(e.target as HTMLElement).closest<HTMLElement>("[data-select-unit]");if(b)this.onSelect([Number(b.dataset.selectUnit)]);});
     this.buttons.forEach((b) => b.addEventListener("click", () => {
       const pid = b.dataset.producerId ? Number(b.dataset.producerId) : undefined;
       this.onProduce(b.dataset.kind as UnitKind, pid);
@@ -251,9 +328,13 @@ export class Hud {
 
   private setSelectedMarkup(markup:string):void {
     if(this.el.selP.dataset.markup===markup)return;
-    const open=this.el.selP.querySelector("details")?.open,scroll=this.el.selP.querySelector("details")?.scrollTop??0;
+    const context=this.selectedIds.join(",")+"|"+(this.inspectedKind??this.inspectedBuildingId??"");
+    const states=new Map(context===this.selectedMarkupContext?[...this.el.selP.querySelectorAll("details")].map((d,i)=>[d.dataset.detailKey??String(i),{open:d.open,scroll:d.scrollTop}] as const):[]);
+    const scroll=this.el.selP.scrollTop;
+    this.selectedMarkupContext=context;
     this.el.selP.dataset.markup=markup;this.el.selP.innerHTML=markup;
-    const details=this.el.selP.querySelector("details");if(details&&open){details.open=true;details.scrollTop=scroll;}
+    this.el.selP.querySelectorAll("details").forEach((d,i)=>{const state=states.get(d.dataset.detailKey??String(i));if(state){d.open=state.open;d.scrollTop=state.scroll;}});
+    this.el.selP.scrollTop=scroll;
   }
 
   getBuildButtons(): HTMLButtonElement[] { return [...document.querySelectorAll<HTMLButtonElement>("button[data-build]")]; }
@@ -266,9 +347,10 @@ export class Hud {
   update(world: World, selection: ReadonlySet<number>, running: boolean, objectives: readonly { title: string; description: string; complete: boolean; progress: number }[] = [], missionMessage = ""): void {
     const changed=this.selectedIds.join(",") !== [...selection].join(",");
     this.selectedIds = [...selection];
+    const signature=this.selectedIds.join(",");if(signature!==this.selectionSignature){this.inspectedKind=null;this.inspectedBuildingId=null;this.rangeSlot=null;}this.selectionSignature=signature;
     if(changed && this.selectedIds.length){const first=world.byId.get(this.selectedIds[0]);if(first){const tab=["factory","barracks"].includes(first.kind)?"land":["helipad","airbase"].includes(first.kind)?"air":first.kind==="shipyard"?"sea":first.kind==="engineer"||first.def.building?"builds":first.def.armor==="air"?"air":first.def.domain==="sea"?"sea":"land";document.querySelector<HTMLButtonElement>(`button[data-tab="${tab}"]`)?.click();}}
     this.el.stanceBar.hidden=!this.selectedIds.some(id=>(world.byId.get(id)?.def.damage??0)>0);
-    document.querySelectorAll<HTMLButtonElement>("[data-order]").forEach(b=>b.disabled=!running||!selection.size);
+    document.querySelectorAll<HTMLButtonElement>("[data-order]").forEach(b=>b.disabled=!running||!selection.size||(b.dataset.order==="unload"&&!this.selectedIds.some(id=>{const u=world.byId.get(id);return !!u&&u.team===world.playerTeam&&(u.garrisonId||u.garrisonOrderId||(transportCapacity(u)>0||u.kind==="landingcraft")&&u.cargoUnitIds.length>0);})));
 
     if (this.el.airMissionBar) {
       const airSel=airUnitsForOrder(world,this.selectedIds,world.playerTeam);
@@ -343,7 +425,8 @@ export class Hud {
         const nm = world.unitDisplayName(k);
         const picture=b.querySelector<HTMLElement>(".unit-icon");
         if(picture && picture.dataset.faction!==world.playerFaction){picture.innerHTML=unitPicture(k,world.playerFaction);picture.dataset.faction=world.playerFaction;}
-        b.title = `Tooda ${nm} (${UNITS[k].cost})`;
+        const def=world.unitDefinition(k);const costEl=b.querySelector(".unit-cost");if(costEl)costEl.textContent=String(def.cost);
+        b.title = `Tooda ${nm} (${def.cost}) · Baastootmistöö ${def.buildTime} s · ${def.ability??def.roleLabel??""} · ${(def.weapons??[]).map(w=>w.name+" / "+w.range+" m").join(" · ")} · Parem klõps: koosseisukaart`;
       }
       b.style.display = "";
       const pKind = b.dataset.producer!;
@@ -360,7 +443,7 @@ export class Hud {
     for (const b of this.buttons) {
       const kind = b.dataset.kind as UnitKind;
       if (!kind || !UNITS[kind]) continue;
-      const cost = UNITS[kind].cost;
+      const cost = world.unitDefinition(kind).cost;
       const pKind = b.dataset.producer as "barracks"|"factory"|"helipad"|"airbase"|"shipyard";
       const prod = findProducer(pKind);
       const queueFull = (prod?.productionQueue.length ?? 0) >= MAX_QUEUE;
@@ -371,10 +454,10 @@ export class Hud {
       const lock=b.querySelector<HTMLElement>("[data-lock]");
       if(lock)lock.textContent=!prod?"Vajab tootjat":queueFull?"Järjekord täis":world.resources<cost||world.credits<cost?"Varustus puudub":!world.canProduceAtLevel(prod,kind)?"Vajab taset "+world.unitRequiredBuildingLevel(kind):!world.productionOperational(prod,kind).operational?"Tarne / energia":"";
       const req = world.unitRequiredBuildingLevel(kind);
-      b.title = !prod ? `Loo ${pKind} esimesena` : !world.productionOperational(prod,kind).operational ? world.productionOperational(prod,kind).reason : world.producerLevel(prod) < req ? `Vajab ${pKind} taset ${req}` : `Tooda ${world.unitDisplayName(kind)} (${UNITS[kind].cost})`;
+      b.title = !prod ? `Loo ${pKind} esimesena` : !world.productionOperational(prod,kind).operational ? world.productionOperational(prod,kind).reason : world.producerLevel(prod) < req ? `Vajab ${pKind} taset ${req}` : `Tooda ${world.unitDisplayName(kind)} (${cost}) · ${(world.unitDefinition(kind).weapons??[]).map(w=>w.name+" / "+w.range+" m").join(" · ")} · Parem klõps: koosseisukaart`;
     }
     this.refreshBuildPanel(world, selection, running, engineerSelected);
-    (this.el.qbar as HTMLElement).style.width = q.length ? Math.min(100, ((selectedProducer?.productionProgress??0) / UNITS[q[0]].buildTime) * 100) + "%" : "0";
+    (this.el.qbar as HTMLElement).style.width = q.length ? Math.min(100, ((selectedProducer?.productionProgress??0) / world.unitDefinition(q[0],selectedProducer?.team??world.playerTeam).buildTime) * 100) + "%" : "0";
     if (selectedProducer) {
       const pre = selectedProducer.preDeployOrder;
       const preTxt = pre ? ` · Pre-deploy: ${pre.mode}${pre.x != null ? " @ kaardil" : ""}` : "";
@@ -402,21 +485,34 @@ export class Hud {
     const depotControl = this.el.depotControlBar as HTMLElement | undefined; if (depotControl) depotControl.hidden=!supplyDepot;
 
     const sel = [...selection].map((id) => world.byId.get(id)).filter((e) => e && !e.dead);
-    if (!sel.length) {
+    if(this.inspectedBuildingId){
+      const f=world.mapFeatures.find(f=>f.id===this.inspectedBuildingId);
+      if(f&&isGarrisonBuilding(f)){
+        const own=garrisonOccupants(world,f.id,true).filter(u=>u.team===world.playerTeam),visible=world.vision.isVisible(world.playerTeam,f.x,f.z)||own.length>0;
+        const contacts=garrisonOccupants(world,f.id).filter(u=>u.team!==world.playerTeam&&world.isSpottedByTeam(u,world.playerTeam));
+        this.el.selT.textContent=f.label??"Tsiviilhoone";
+        this.setSelectedMarkup(`<button data-close-inspector>↩ Tagasi</button><div class="garrison-card"><b>Garnison · kuni ${garrisonCapacity(f)} rühma</b><small>${visible?`Hoone ${buildingCondition(world,f)>=1?"kasutuskõlbmatu":buildingCondition(world,f)>.35?"kahjustatud":"terve"} · Terviklikkus ${Math.round((1-buildingCondition(world,f))*100)}%`:"Seisund teadmata · luura hoonet"}</small><small>Jalavägi + paremklõps majale: sisene. U + paremklõps: välju. AT vajab ava; MANPAD kasutab katust. Kaudtuld hoonest ei tehta.</small>${own.length?own.map(u=>`<button data-select-unit="${u.id}">${world.unitDisplayName(u.kind,u.team)} · ${u.garrisonId?"sees":"sisenemas"}</button>`).join(""):contacts.length?"<small>Vaenlase luurekontakt · kogu hõive teadmata</small>":"<small>Oma garnison puudub; vaenlase puudumine pole kinnitatud.</small>"}</div>`);return;
+      }
+    }
+    if(this.inspectedKind){
+      const kind=this.inspectedKind,def=world.unitDefinition(kind),view={def,team:world.playerTeam,activeWeapon:0,ammo:def.ammoCapacity??0,secondaryAmmo:def.weapons?.map(w=>w.ammoCapacity),cooldown:0,weaponCooldowns:def.weapons?.map(()=>0)};
+      this.el.selT.textContent=world.unitDisplayName(kind)+" · Koosseisukaart";
+      this.setSelectedMarkup(`<button data-close-inspector>↩ Tagasi valiku juurde</button><div class="role-summary">${def.ability??def.roleLabel??""} · Hind ${def.cost} · Baastootmistöö ${def.buildTime} s · Hoone Lv${world.unitRequiredBuildingLevel(kind)}</div><small>${def.squadSize?`Mehi ${def.squadSize} · `:""}HP ${def.hp} · Soomus ${def.armorFront}/${def.armorSide}/${def.armorRear} · Optika ${def.optics} ${Math.round(def.opticsRange??0)} m · Kiirus ${def.speed.toFixed(1)} m/s · Kütus ${def.fuelCapacity??0} · Kulu ${def.fuelUsePerSec??0}/s</small>${weaponCards(world,view)}`);
+    }else if (!sel.length) {
       this.el.selT.textContent = "Üksusi pole valitud";
       this.setSelectedMarkup("Vali üksusi hiire vasaku nupuga või tõmba kast.");
     } else if (sel.length === 1) {
       const u = sel[0]!;
       this.el.selT.textContent = world.unitDisplayName(u.kind, u.team);
       const meter=(label:string,value:number,max:number)=>`<div class="unit-meter"><span>${label}</span><b>${Math.ceil(value)}/${Math.ceil(max)}</b><i><em style="width:${Math.min(100,Math.max(0,value/Math.max(1,max)*100))}%"></em></i></div>`;
-      const status=u.kind==="transport"&&u.supplyDepotId!=null?(world.byId.get(u.supplyDepotId)?.logisticsPaused&&u.cargo<=0?"Logistika peatatud · naaseb / ootab laos":u.cargo>0?`Varustusvedu · koorem ${Math.floor(u.cargo)} → ladu`:u.logisticsTarget?"Varustusvedu · ressursirajatise juurde":"Ootab töötavat ressursirajatist"):u.def.armor==="air"?airOperationStatus(world,u):u.def.damage?combatStatus(world,u):u.underConstruction?"Ehitamisel":u.def.building?"Hoone · tase "+world.producerLevel(u):u.mode==="move"?"Liigub":"Ootab käsku";
-      this.setSelectedMarkup(`<div class="selected-summary"><div class="selected-picture">${unitPicture(u.kind,(u.team===world.playerTeam?world.playerFaction:world.enemyFaction))}</div><div class="meters">${meter("Elud",u.hp,u.def.hp)}${(u.maxAmmo??0)>0?meter("Moon",u.ammo??0,u.maxAmmo!):""}${(u.maxFuel??0)>0?meter("Kütus",u.fuel??0,u.maxFuel!):""}${u.def.speed>0?meter("Moraal",u.morale??100,100):""}</div></div><span class="unit-status">${status}</span><small class="role-summary">${u.def.roleLabel??BUILD_LABELS[u.kind]??u.kind}${u.def.damage?` · Ulatus ${Math.round(effectiveWeaponRange(u))} m${u.def.minimumRange?` (min ${u.def.minimumRange})`:""} · Läbivus ${u.def.penetration??0}`:""}${u.kind==="supply"?` · Moon ${Math.floor(u.ammoStock??0)} · Kütus ${Math.floor(u.fuelStock??0)} · Remont ${Math.floor(u.repairStock??0)} · ${u.logisticsPaused?"VEOD PEATATUD":u.preferredResourceIndex!=null?"Rajatis "+(u.preferredResourceIndex+1):"Automaatne kogumine"} · Vahepunkte ${u.logisticsWaypoints?.length??0}`:""}</small><details class="unit-details"><summary>Taktikalised andmed</summary>Kate ${coverValueAt(world,u.x,u.z)} · Soomus ${u.def.armorFront??0}/${u.def.armorSide??0}/${u.def.armorRear??0} · Surve ${Math.round(u.suppression??0)} · Optika ${u.def.optics??"—"} (${Math.round(u.def.opticsRange??0)} m) · Varjatus ${u.def.stealthLevel??0} · Liikumine ${u.def.speed.toFixed(1)} m/s · Stabilisaator ${u.def.stabilizer??"none"} · ${world.isInSupply(u)?"Varustusalas":"Väljaspool varustusala"}${u.components?` · Kahjustused ${Math.round(Math.max(...Object.values(u.components)))}%`:""}${(u.def.weapons??[]).map((w,i)=>`<div class="weapon-row"><b>${i===(u.activeWeapon??0)?"▸ ":""}${w.name}</b><span>${Math.floor(weaponAmmo(u,i))}/${w.ammoCapacity} · ${w.range} m · Läbivus ${w.penetration} · Täpsus ${Math.round(w.accuracy*100)}% · ${w.cooldown.toFixed(1)} s</span><small>${w.guidance==="none"?w.flight==="ballistic"?"Kaudtuli / ballistiline":"Juhitamatu":"Juhtimine: "+({command:"laskuri kontakt",infrared:"infrapuna",radar:"radar"}[w.guidance])} · ${weaponCooldown(u,i)>0?"Laadib":"Valmis"}</small></div>`).join("")}</details>${["airbase","helipad"].includes(u.kind)?`<div class="air-roster"><small>${world.productionOperational(u).operational?"Lennurajatis töötab":world.productionOperational(u).reason} · Vali õhuoperatsioon ja paremklõpsa sihtpunktile.</small>${airUnitsForOrder(world,[u.id],u.team).map(a=>`<button data-select-unit="${a.id}"><span>${unitPicture(a.kind,u.team===world.playerTeam?world.playerFaction:world.enemyFaction)}</span><span><b>${world.unitDisplayName(a.kind,a.team)}</b><small>${airOperationStatus(world,a)}</small></span></button>`).join("")}</div>`:""}`);
+    const status=(u.kind==="logiTruck"||u.kind==="transport"&&u.supplyDepotId!=null)?logisticsStatus(world,u):u.def.armor==="air"?airOperationStatus(world,u):u.def.damage?combatStatus(world,u):u.underConstruction?"Ehitamisel":u.def.building?"Hoone · tase "+world.producerLevel(u):u.mode==="move"?"Liigub":"Ootab käsku";
+      this.setSelectedMarkup(`<div class="selected-summary"><div class="selected-picture">${unitPicture(u.kind,(u.team===world.playerTeam?world.playerFaction:world.enemyFaction))}</div><div class="meters">${meter("Elud",u.hp,maxHitPoints(u))}${(u.maxAmmo??0)>0?meter("Moon",u.ammo??0,u.maxAmmo!):""}${(u.maxFuel??0)>0?meter("Kütus",u.fuel??0,u.maxFuel!):""}${u.def.speed>0?meter("Moraal",u.morale??100,100):""}</div></div><span class="unit-status">${status}</span>${u.def.speed>0&&u.def.armor!=="air"?`<small class="terrain-status">${world.terrain.fireAt(u.x,u.z)?"🔥 METSATULEKAHJU · lahku alalt":world.terrain.burntAt(u.x,u.z)?"Põlenud mets · vähe katet":world.terrain.densityAt(u.x,u.z)>.65?"Sügav mets · tugevam varjatus":world.terrain.densityAt(u.x,u.z)>0?"Metsaserv · osaline kate":"Avatud maastik"} · ${(u.motionSpeed??0)>.2?"Liikumine suurendab märkamisohtu":u.lastCombatTime>0&&world.time-u.lastCombatTime<5?"Lasu jälg suurendab märkamisohtu":"Paigal; varjatus ei taga nähtamatust"}</small>`:""}<small class="role-summary">${u.squadMaxMembers?`Meeskond ${u.squadMembers}/${u.squadMaxMembers} · `:""}${u.def.roleLabel??BUILD_LABELS[u.kind]??u.kind}${u.def.damage?` · Ulatus ${Math.round(effectiveWeaponRange(u))} m${u.def.minimumRange?` (min ${u.def.minimumRange})`:""} · Läbivus ${u.def.weapons?.[0]?weaponPenetration(u,u.def.weapons[0]).toFixed(1):u.def.penetration??0}`:""}${u.kind==="supply"?` · Moon ${Math.floor(u.ammoStock??0)} · Kütus ${Math.floor(u.fuelStock??0)} · Remont ${Math.floor(u.repairStock??0)} · ${u.logisticsPaused?"VEOD PEATATUD":u.preferredResourceIndex!=null?"Rajatis "+(u.preferredResourceIndex+1):"Automaatne kogumine"} · Vahepunkte ${u.logisticsWaypoints?.length??0}`:""}</small><details class="unit-details"><summary>Taktikalised andmed</summary>Kate ${coverValueAt(world,u.x,u.z)} · Soomus ${armorValue(u,"front")}/${armorValue(u,"side")}/${armorValue(u,"rear")} · Surve ${Math.round(u.suppression??0)} · Optika ${u.def.optics??"—"} (${Math.round(u.def.opticsRange??0)} m) · Varjatus ${u.def.stealthLevel??0} · Liikumise baas ${u.def.speed.toFixed(1)} m/s${u.def.armor!=="air"&&u.def.domain!=="sea"?` · Tee ×${mobilityProfile(u).roadSpeed} · Maastik praegu ×${groundTerrainFactor(world,u).toFixed(2)}`:""} · Stabilisaator ${u.def.stabilizer??"none"} · ${world.isInSupply(u)?"Varustusalas":"Väljaspool varustusala"}${u.components?` · Kahjustused ${Math.round(Math.max(...Object.values(u.components)))}%`:""}</details>${u.def.damage?`<div class="range-controls"><button data-range-toggle aria-pressed="${this.showWeaponRanges}">◎ Ulatusringid ${this.showWeaponRanges?"sees":"väljas"}</button><small>${this.rangeSlot==null?"Kõik relvad":"Relv "+(this.rangeSlot+1)+" · sama nupp taastab kõik"} · Katkendjoon = minimaalne kaugus. Ulatus ei taga luuret ega tulejoont.</small></div>`:""}${u.garrisonId?`<div class="garrison-card"><b>Garnison · ${u.kind==="manpad"?"katusepositsioon":"laskeava"}</b><small>${world.mapFeatures.find(f=>f.id===u.garrisonId)?.label??"Tsiviilhoone"} · Sektor ${Math.round(GARRISON_RULES.firingArc*180/Math.PI)}° · HE ja hoone varisemine on ohtlikud</small>${u.team===world.playerTeam?`<button data-garrison-face>◎ Vaatesuund</button><button data-garrison-exit>↪ Välju hoonest</button>`:""}</div>`:""}${u.loadedIntoId!=null&&u.team===world.playerTeam?`<button data-select-unit="${u.loadedIntoId}">Vali transport · väljumine U + paremklõps</button>`:""}${transportCapacity(u)>0?`<div class="transport-status"><b>Transport ${occupiedSeats(world,u)}/${transportCapacity(u)} kohta</b><small> Broneeritud ${occupiedSeats(world,u,true)-occupiedSeats(world,u)} kohta (${u.transportQueue?.length??0} rühma) · Jalavägi → paremklõps transpordile. Väljumine: U + paremklõps kaardil.</small>${u.cargoUnitIds.map(id=>world.byId.get(id)).filter(p=>p&&!p.dead).map(p=>`<span>${world.unitDisplayName(p!.kind,p!.team)} (${p!.squadMembers??1})</span>`).join(" ")}${u.mode==="transport-unload"&&u.cargoUnitIds.length?"<small>Väljub pärast saabumist; takistatud väljapääsu korral jääb pardale.</small>":""}</div>`:""}${u.team===world.playerTeam&&(u.kind==="supply"||u.kind==="logiTruck"||u.kind==="transport"&&u.supplyDepotId!=null)?logisticsCard(world,u):""}${weaponCards(world,u,u)}${u.team===world.playerTeam?unitDevelopmentCards(world,u,running):""}${["airbase","helipad"].includes(u.kind)?`<div class="air-roster"><small>${world.productionOperational(u).operational?"Lennurajatis töötab":world.productionOperational(u).reason} · Vali õhuoperatsioon ja paremklõpsa sihtpunktile.</small>${airUnitsForOrder(world,[u.id],u.team).map(a=>`<button data-select-unit="${a.id}"><span>${unitPicture(a.kind,u.team===world.playerTeam?world.playerFaction:world.enemyFaction)}</span><span><b>${world.unitDisplayName(a.kind,a.team)}</b><small>${airOperationStatus(world,a)}</small></span></button>`).join("")}</div>`:""}`);
 
     } else {
       const c: Record<string, number> = {};
       sel.forEach((u) => { const n = world.unitDisplayName(u!.kind, u!.team); c[n] = (c[n] || 0) + 1; });
       this.el.selT.textContent = sel.length + " üksust";
-      this.setSelectedMarkup(`<div class="selected-units">${sel.map(u=>`<button data-select-unit="${u!.id}" title="${world.unitDisplayName(u!.kind,u!.team)}"><span>${unitPicture(u!.kind,(u!.team===world.playerTeam?world.playerFaction:world.enemyFaction))}</span><i style="width:${u!.hp/u!.def.hp*100}%"></i></button>`).join("")}</div><small>${Object.entries(c).map(([k,v])=>`${v} × ${k}`).join(", ")}</small>`);
+      this.setSelectedMarkup(`<div class="selected-units">${sel.map(u=>`<button data-select-unit="${u!.id}" title="${world.unitDisplayName(u!.kind,u!.team)}"><span>${unitPicture(u!.kind,(u!.team===world.playerTeam?world.playerFaction:world.enemyFaction))}</span><i style="width:${u!.hp/maxHitPoints(u!)*100}%"></i></button>`).join("")}</div><small>${Object.entries(c).map(([k,v])=>`${v} × ${k}`).join(", ")}</small>`);
     }
   }
 

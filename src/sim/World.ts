@@ -1,8 +1,12 @@
+import {receiveResourceCargo,stockCapacity,stockTotal} from "./stockLogistics";
+import {updateGarrisons} from "./garrison";
+import {damage as damageUnit} from "./systems/combat";
 import {freeAirSlot,airFacilityCapacity} from "./systems/airDoctrine";
 import logisticsConfig from "../data/logistics.json";
 import type { Command, Entity, GameStatus, Projectile, SimEvent, Team, UnitKind, MapResourceDef, IntelContact } from "./types";
-import { UNITS } from "./units";
-import { getBases, heightAt, MAP_SIZE, ensureHeightCache, type BaseDef } from "./heightmap";
+import { UNITS,factionUnitDefinition } from "./units";
+import { getBases, heightAt, setMapSize, ensureHeightCache, type BaseDef } from "./heightmap";
+import {TerrainState} from "./TerrainState";
 import { Rng } from "./rng";
 import { ENEMY_AGGRO, INCOME_PER_SEC, STARTING_CREDITS, STARTING_RESOURCES, AIR_CARGO_INCOME_PER_SEC, AIR_CARGO_LOAD, AIR_CARGO_INTERVAL, RESOURCE_FACILITY_STARTUP, RESOURCE_FACILITY_MAX_STOCK, RESOURCE_FACILITY_PRODUCTION, ROAD_TRUCK_CARGO, ROAD_TRUCK_INTERVAL, ROAD_TRUCK_MAX_PER_DEPOT } from "./constants";
 import { applyCommands } from "./systems/commands";
@@ -24,7 +28,7 @@ import { buildFootprint, isBuildable, BUILDINGS, type BuildableKind } from "./bu
 import { generateBaseFeatures } from "./baseLayout";
 import { SpatialHash } from "./SpatialHash";
 import type { FactionId } from "./factions";
-import { FACTIONS, factionUnitName } from "./factions";
+import {  factionUnitName } from "./factions";
 import { BattleGroupController } from "./battlegroup";
 import { OperationalMap, OperationalCommander, FOBManager } from "./operations";
 import { MissionController } from "./Mission";
@@ -40,10 +44,12 @@ export class World {
   readonly rngState: Rng;
   readonly ai = new WaveAI();
   readonly intel: [Map<number, IntelContact>, Map<number, IntelContact>] = [new Map(), new Map()];
-  readonly nav: NavGrid;
-  readonly vision: Vision;
+  nav: NavGrid;
+  vision: Vision;
+  readonly terrain:TerrainState;
+  get mapSize():number{return this.nav.width*this.nav.cellSize;}
   /** Spatial index rebuilt each tick for nearest/separation queries. */
-  readonly spatial = new SpatialHash(16);
+  spatial = new SpatialHash(16);
   playerFaction: FactionId = "usa";
   enemyFaction: FactionId = "russia";
   /** Optional Wargame deck limits production counts. */
@@ -220,7 +226,7 @@ export class World {
     if (producer.dead || producer.underConstruction) return { operational: false, command: false, power: false, logistics: false, strategy: false, reason: "Rajatis pole valmis" };
     const command = this.hasCommandLink(producer);
     const power = this.powerStatus(producer.team).ratio >= 0.25;
-    const depot = this.nearestSupplyDepot(producer.team, { x: producer.x, z: producer.z }, true);
+    const depot = this.nearestSupplyDepot(producer.team, { x: producer.x, z: producer.z }, true, true);
     const logistics = producer.kind === "barracks" || producer.kind === "factory" || producer.kind === "helipad" || producer.kind === "airbase" || producer.kind === "shipyard"
       ? !!depot && depot.kind === "supply" && Math.hypot(depot.x-producer.x,depot.z-producer.z) <= 80 && (depot.ammoStock ?? 0) > 0 && (depot.fuelStock ?? 0) > 0
       : true;
@@ -231,7 +237,7 @@ export class World {
     let reason = "Operatiivne";
     if (!command) reason = "Puudub command-link";
     else if (!power) reason = "Energiapuudus";
-    else if (!logistics) reason = "Logistikaühendus puudub";
+    else if (!logistics) reason = !depot || Math.hypot(depot.x-producer.x,depot.z-producer.z)>80 ? "Lähedal puudub toimiv varustusladu" : (depot.ammoStock??0)<=0 ? "Tootmine peatunud · laos pole laskemoona" : "Tootmine peatunud · laos pole kütust";
     else if (!strategy) reason = "Vajab vastava haru strateegiakeskust";
     else if(!parking)reason="Lennurajatise parkimiskohad on täis";
     else if ((producer.disabledUntil ?? 0) > this.time) reason = "Rajatis on kahjustatud";
@@ -276,32 +282,19 @@ export class World {
       ...this.resourcePoints.map((rp,i):MapFeatureDef=>({id:`resource-facility-${i}`,kind:"building",x:rp.x+18,z:rp.z,width:13,depth:12,height:6,appearance:rp.facility==="oilfield"?"resource-oil":"resource-industrial",label:"Ressursirajatis"}))];
     this.rng = () => this.rngState.next();
     this.nav = new NavGrid([], this.mapFeatures);
-    this.vision = new Vision();this.vision.setFeatures(this.mapFeatures);
+    this.terrain=new TerrainState(this.mapFeatures);
+    this.vision = new Vision();this.vision.structureDamage=this.infrastructureDamage;this.vision.setFeatures(this.mapFeatures);this.vision.forestObscuration=(a,b)=>this.terrain.obscuration(a,b);
     this.operationalMap = new OperationalMap(this);
     this.operationalCommander = new OperationalCommander(this.operationalMap, this);
     this.fobManager = new FOBManager(this);
     this.frontline = new FrontlineController(this);
   }
 
+  unitDefinition(kind:UnitKind,team:Team=this.playerTeam){return factionUnitDefinition(kind,team===this.playerTeam?this.playerFaction:this.enemyFaction);}
+
   spawn(kind: UnitKind, team: Team, x: number, z: number): Entity {
-    const baseDef = UNITS[kind];
-    const faction = team === this.playerTeam ? this.playerFaction : this.enemyFaction;
-    const b = FACTIONS[faction].bonuses;
-    // Per-faction slight stat skew (clone def so shared UNITS table stays pristine)
-    const def = baseDef.speed > 0 || baseDef.damage > 0 || baseDef.building
-      ? {
-          ...baseDef,
-          hp: Math.round(baseDef.hp * b.armorMul),
-          weapons:baseDef.weapons?.map(w=>({...w,damage:w.damage*b.damageMul})),
-          speed: baseDef.speed * b.speedMul,
-          damage: Math.round(baseDef.damage * b.damageMul),
-          cost: Math.round(baseDef.cost * b.buildCostMul),
-          opticsRange: (baseDef.opticsRange ?? 40) * (b.opticsMul ?? 1),
-          armorFront: baseDef.armorFront != null ? Math.round(baseDef.armorFront * b.armorMul) : baseDef.armorFront,
-          armorSide: baseDef.armorSide != null ? Math.round(baseDef.armorSide * b.armorMul) : baseDef.armorSide,
-          armorRear: baseDef.armorRear != null ? Math.round(baseDef.armorRear * b.armorMul) : baseDef.armorRear,
-        }
-      : { ...baseDef };
+    const resolved=this.unitDefinition(kind,team);
+    const def={...resolved,weapons:resolved.weapons?.map(w=>({...w}))};
     const y = heightAt(x, z), heading = team ? -Math.PI / 4 : Math.PI * 0.75;
     const e: Entity = {
       id: this.nextId++, kind, team, def, x, y, z, heading, turretYaw: 0,
@@ -314,11 +307,11 @@ export class World {
     };
     const squadDefs: Record<string, { max: number; role: NonNullable<Entity["squadRole"]> }> = {
       inf: { max: 8, role: "rifle" }, atInf: { max: 7, role: "at" }, mgInf: { max: 7, role: "mg" },
-      reconInf: { max: 6, role: "recon" }, sniper: { max: 4, role: "sniper" }, manpad: { max: 6, role: "manpad" },
+      reconInf: { max: 6, role: "recon" }, mortar:{max:4,role:"rifle"},sniper: { max: 4, role: "sniper" }, manpad: { max: 6, role: "manpad" },
       atgm: { max: 5, role: "at" }, engineer: { max: 6, role: "engineer" }, combatEngineer: { max: 6, role: "engineer" },
     };
     const squad = squadDefs[kind];
-    if (squad) { e.squadMaxMembers = squad.max; e.squadMembers = squad.max; e.squadRole = squad.role; e.squadFirepower = 1; }
+    if (squad) { e.squadMaxMembers = def.squadSize??squad.max; e.squadMembers = e.squadMaxMembers; e.squadRole = squad.role; e.squadFirepower = 1; }
     if (def.speed > 0 && !squad) e.components = { engine: 0, tracks: 0, turret: 0, weapon: 0, crew: 0, ammo: 0 };
     ensureLogisticsPools(e);
     if (kind === "hq") { e.ammoStock=120; e.fuelStock=200; e.repairStock=80; }
@@ -384,10 +377,11 @@ export class World {
     return (entity.spottedUntil[team] ?? 0) > this.time;
   }
 
-  nearestSupplyDepot(team: Team, p: {x:number;z:number}, connectedOnly = false): Entity | null {
+  nearestSupplyDepot(team: Team, p: {x:number;z:number}, connectedOnly = false, productionStock = false): Entity | null {
     const nodes = this.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === "supply");
     const allowed = connectedOnly ? nodes.filter(n => this.connectedSupplyNodes(team).some(c => c.id === n.id)) : nodes;
-    return allowed.sort((a,b) => Math.hypot(a.x-p.x,a.z-p.z)-Math.hypot(b.x-p.x,b.z-p.z))[0] ?? this.hq[team];
+    const stocked=allowed.filter(n=>productionStock?(n.ammoStock??0)>0&&(n.fuelStock??0)>0:stockTotal(n)>0);
+    return (stocked.length?stocked:allowed).sort((a,b) => Math.hypot(a.x-p.x,a.z-p.z)-Math.hypot(b.x-p.x,b.z-p.z))[0] ?? this.hq[team];
   }
 
   isInSupply(e: Entity): boolean {
@@ -435,10 +429,10 @@ export class World {
   }
 
   damageInfrastructure(id: string, amount: number): void {
-    const f = this.mapFeatures.find(x => x.id === id); if (!f || !["bridge","road"].includes(f.kind)) return;
+    const f = this.mapFeatures.find(x => x.id === id); if (!f || !["bridge","road","building"].includes(f.kind)) return;
     const old = this.infrastructureDamage.get(id) ?? 0;
     this.infrastructureDamage.set(id, Math.min(1, old + amount));
-    if (old < 1 && old + amount >= 1) this.events.push({ type: "supply-delivered", team: this.playerTeam, x: f.x, z: f.z, amount: 0 });
+    if (f.kind!=="building" && old < 1 && old + amount >= 1) this.events.push({ type: "supply-delivered", team: this.playerTeam, x: f.x, z: f.z, amount: 0 });
   }
 
   supplyRouteStatus(team: Team): { connected: number; total: number } {
@@ -494,9 +488,7 @@ export class World {
     depot.fobLevel = level + 1;
     depot.supplyLevel = Math.max(depot.supplyLevel ?? 0, 2 + level);
     depot.logisticsMaxStorage = Math.max(depot.logisticsMaxStorage ?? 0, 1800 + (depot.fobLevel ?? 0) * 900);
-    depot.ammoStock = Math.min(depot.logisticsMaxStorage, (depot.ammoStock ?? 0) + 360);
-    depot.fuelStock = Math.min(depot.logisticsMaxStorage, (depot.fuelStock ?? 0) + 500);
-    depot.repairStock = Math.min(depot.logisticsMaxStorage, (depot.repairStock ?? 0) + 180);
+    const capacity=stockCapacity(this,depot);depot.logisticsMaxStorage=capacity.ammo+capacity.fuel+capacity.repair;depot.logisticsStorage=stockTotal(depot);
     this.commandNetworkLevel[team] = Math.max(this.commandNetworkLevel[team], depot.fobLevel ?? 1);
     if (team === this.playerTeam) { this.resources = this.teamResources[team]; this.credits = this.teamCredits[team]; }
     return true;
@@ -510,7 +502,7 @@ export class World {
   clearLogisticsRoute(depot: Entity): void { depot.logisticsWaypoints = []; depot.logisticsRouteMode = "direct"; }
 
   addLogisticsWaypoint(depot: Entity, point: {x:number;z:number}, append = true): void {
-    if(!Number.isFinite(point.x)||!Number.isFinite(point.z)||Math.abs(point.x)>MAP_SIZE/2-10||Math.abs(point.z)>MAP_SIZE/2-10)return;
+    if(!Number.isFinite(point.x)||!Number.isFinite(point.z)||Math.abs(point.x)>this.mapSize/2-10||Math.abs(point.z)>this.mapSize/2-10)return;
     if (!depot.logisticsWaypoints) depot.logisticsWaypoints = [];
     if (!append) depot.logisticsWaypoints = [];
     if(depot.logisticsWaypoints.length>=24)return;
@@ -539,7 +531,7 @@ export class World {
 
   canPlaceBuilding(team: Team, kind: UnitKind, x: number, z: number): boolean {
     if (!isBuildable(kind) || !this.canBuildKind(team, kind)) return false;
-    if(Math.abs(x)+buildFootprint(kind)>MAP_SIZE/2-10||Math.abs(z)+buildFootprint(kind)>MAP_SIZE/2-10)return false;
+    if(Math.abs(x)+buildFootprint(kind)>this.mapSize/2-10||Math.abs(z)+buildFootprint(kind)>this.mapSize/2-10)return false;
     const r = buildFootprint(kind);
     // Soft walkability – allow gentle slopes so crater edges don't block builds
     if (!this.nav.isWalkableWorld(x, z, r * 0.45)) return false;
@@ -622,17 +614,7 @@ export class World {
     return true;
   }
 
-  receiveSupply(depot: Entity, amount: number): void {
-    const team=depot.team;
-    this.teamResources[team]+=amount*.6; this.teamCredits[team]+=amount*.6;
-    const priority=depot.logisticsPriority??"balanced";
-    const budget=amount*.4,capacity=1+this.supplyDepotLevel(depot)*logisticsConfig.depot.capacityPerLevel;
-    depot.ammoStock=Math.min(logisticsConfig.depot.ammoCapacity*capacity,(depot.ammoStock??0)+budget*(priority==="ammo"?.65:priority==="fuel"?.25:priority==="repair"?.25:.4));
-    depot.fuelStock=Math.min(logisticsConfig.depot.fuelCapacity*capacity,(depot.fuelStock??0)+budget*(priority==="fuel"?.65:priority==="ammo"?.25:priority==="repair"?.25:.4));
-    depot.repairStock=Math.min(logisticsConfig.depot.repairCapacity*capacity,(depot.repairStock??0)+budget*(priority==="repair"?.5:priority==="balanced"?.2:.1));
-    depot.logisticsStorage=(depot.ammoStock??0)+(depot.fuelStock??0)+(depot.repairStock??0);
-    if(team===this.playerTeam){this.credits=this.teamCredits[team];this.resources=this.teamResources[team];}
-  }
+  receiveSupply(depot: Entity, amount: number): number {return receiveResourceCargo(this,depot,amount);}
 
   resourceEconomyStatus(team: Team): { controlled: number; active: number; stock: number; rate: number; contested: number } {
     const points = this.resourcePoints.filter(r => r.controlledBy === team);
@@ -661,7 +643,7 @@ export class World {
       const amount = Math.min(AIR_CARGO_LOAD, Math.floor(this.airCargoPool[team]));
       this.airCargoPool[team] -= amount;
       this.airCargoLastSpawn[team] = this.time;
-      const edgeX = team === 0 ? -MAP_SIZE/2+15 : MAP_SIZE/2-15;
+      const edgeX = team === 0 ? -this.mapSize/2+15 : this.mapSize/2-15;
       const plane = this.spawn("cargoPlane", team, edgeX, base.z + (this.rng() - 0.5) * 40);
       plane.cargo = amount;
       plane.logisticsHome = { x: base.x, z: base.z };
@@ -787,6 +769,7 @@ export class World {
 
   captureRuntime() {
     return {
+      mapSize:this.mapSize,terrain:this.terrain.snapshot(),
       playerTeam: this.playerTeam, playerFaction: this.playerFaction, enemyFaction: this.enemyFaction,
       networkMode: this.networkMode, incomeMultiplier: this.incomeMultiplier, victoryMode: this.victoryMode,
       objectiveDriven: this.objectiveDriven, externalVictoryMode: this.externalVictoryMode,
@@ -809,6 +792,8 @@ export class World {
     };
   }
   restoreRuntime(s: ReturnType<World["captureRuntime"]>): void {
+    if((s.mapSize??this.mapSize)!==this.mapSize){setMapSize(s.mapSize??this.mapSize);ensureHeightCache();this.nav=new NavGrid(this.entities,this.mapFeatures);this.spatial=new SpatialHash(16);this.spatial.rebuild(this.entities);this.vision=new Vision();this.vision.setFeatures(this.mapFeatures);this.vision.forestObscuration=(a,b)=>this.terrain.obscuration(a,b);}
+    this.terrain.restore(s.terrain);
     this.playerTeam=s.playerTeam; this.playerFaction=s.playerFaction; this.enemyFaction=s.enemyFaction;
     this.networkMode=s.networkMode; this.incomeMultiplier=s.incomeMultiplier; this.victoryMode=s.victoryMode;
     this.objectiveDriven=s.objectiveDriven; this.externalVictoryMode=s.externalVictoryMode;
@@ -848,6 +833,7 @@ export class World {
     this.credits = this.teamCredits[this.playerTeam];
     this.resources = this.teamResources[this.playerTeam];
     if (this.navDirty) { this.nav.syncBuildings(this.entities); this.navDirty = false; }
+    updateGarrisons(this,dt,(u,amount)=>damageUnit(this,u,amount,{weapon:"cannon"}));
     this.vision.update(this.entities);
     applyCommands(this);
     this.teamCredits[this.playerTeam] = this.credits;
@@ -870,6 +856,7 @@ export class World {
     updateUnits(this, dt);
     updateMorale(this, dt);
     updateProjectiles(this, dt);
+    this.terrain.tick(this,dt);
     let removedBuilding = false;
     for (let i = this.entities.length - 1; i >= 0; i--) {
       const e = this.entities[i];

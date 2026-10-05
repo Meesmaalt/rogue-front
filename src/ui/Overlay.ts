@@ -1,3 +1,5 @@
+import {isGarrisonBuilding,garrisonOccupants,garrisonCapacity,buildingCondition} from "../sim/garrison";
+import {maxHitPoints} from "../sim/unitStats";
 import {effectiveWeaponRange} from "../sim/systems/combat";
 import type { World } from "../sim/World";
 import { heightAt } from "../sim/heightmap";
@@ -51,15 +53,24 @@ export class Overlay {
         for(const t of fleet){if(t.dest)line([t,...t.kind==="logiTruck"?t.navPath.slice(t.navPathIndex,t.navPathIndex+10):[],t.dest],t.cargo>0?"#b6d985":"rgba(195,203,186,.5)",true);const p=picker.toScreen(t.x,t.y+t.def.height+2,t.z);c.font="bold 11px sans-serif";c.fillStyle="#d5e7b5";if(p.z<=1)c.fillText(t.cargo>0?`Koorem ${Math.floor(t.cargo)}`:"Kogumisele",p.x+8,p.y);}
       }
     }
+    for(const f of world.mapFeatures){
+      if(!isGarrisonBuilding(f))continue;
+      const own=garrisonOccupants(world,f.id).filter(u=>u.team===world.playerTeam),known=world.vision.isVisible(world.playerTeam,f.x,f.z)||own.length>0;
+      const seen=garrisonOccupants(world,f.id).some(u=>u.team!==world.playerTeam&&world.isSpottedByTeam(u,world.playerTeam));
+      if(!own.length&&!seen&&!(known&&buildingCondition(world,f)>.35))continue;
+      const p=picker.toScreen(f.x,heightAt(f.x,f.z)+(f.height??3)+3,f.z);if(p.z>1||p.x<0||p.x>w||p.y<0||p.y>h)continue;
+      const text=own.length?`⌂ ${own.length}/${garrisonCapacity(f)} · garnison`:seen?"⌂ Vaenlase kontakt":buildingCondition(world,f)>=1?"⌂ Varemed":"⌂ Kahjustatud";
+      c.font="600 11px Segoe UI,sans-serif";c.textAlign="center";const width=c.measureText(text).width+12;c.fillStyle="#172824dd";c.fillRect(p.x-width/2,p.y-13,width,18);c.fillStyle=own.length?"#b9dda4":seen?"#eda591":"#d7bf95";c.fillText(text,p.x,p.y);c.textAlign="left";
+    }
     for (const u of world.entities) {
-      if (u.dead || (u.team !== world.playerTeam && !world.isSpottedByTeam(u,world.playerTeam)) || (u.hp >= u.def.hp && !sel.selected.has(u.id) && u.team===world.playerTeam && (u.def.speed===0 || world.time-u.lastCombatTime>6))) continue;
+      if (u.dead || (u.team !== world.playerTeam && !world.isSpottedByTeam(u,world.playerTeam)) || (u.hp >= maxHitPoints(u) && !sel.selected.has(u.id) && u.team===world.playerTeam && (u.def.speed===0 || world.time-u.lastCombatTime>6))) continue;
       const p = picker.toScreen(u.x, u.y + u.def.height + 1, u.z);
       if (p.z > 1 || p.x < -40 || p.x > w + 40 || p.y < -40 || p.y > h + 40) continue;
       const bw = Math.max(26, u.def.radius * picker.pxPerUnit(u.x, u.y, u.z) * 1.6);
       c.fillStyle = "rgba(8,10,11,.85)";
       c.fillRect(p.x - bw / 2 - 1, p.y - 1, bw + 2, 6);
       c.fillStyle = u.team !== world.playerTeam ? "#e0553f" : "#73bfe3";
-      c.fillRect(p.x - bw / 2, p.y, bw * Math.max(0, u.hp / u.def.hp), 4);
+      c.fillRect(p.x - bw / 2, p.y, bw * Math.min(1,Math.max(0, u.hp / maxHitPoints(u))), 4);
       if(sel.selected.has(u.id)||u.team!==world.playerTeam){c.font="600 11px Segoe UI, sans-serif";const name=world.unitDisplayName(u.kind,u.team),tw=c.measureText(name).width;c.fillStyle="rgba(15,25,28,.9)";c.fillRect(p.x-tw/2-5,p.y-19,tw+10,16);c.fillStyle=u.team===world.playerTeam?"#c6e8f4":"#ffb5a3";c.textAlign="center";c.fillText(name,p.x,p.y-7);c.textAlign="left";}
       if(sel.selected.has(u.id)||world.time-u.lastCombatTime<5){
         const suppression=u.suppression??0;

@@ -1,62 +1,52 @@
-import type { World } from "../World";
-import type { Entity, Team } from "../types";
+import {weaponSpec,weaponRange,canEngage} from '../systems/combat';
+import {aaThreatAt} from '../systems/airDoctrine';
+import {supplyRadiusFor} from '../systems/tacticalSupply';
+import {isGarrisonBuilding,garrisonCapacity,garrisonOccupants} from '../garrison';
+import {maxHitPoints} from '../unitStats';
+import {knownContacts,visibleEnemies,fieldCombat,needsRecovery,recoveryComplete,AI_RULES} from './knowledge';
+import type {World} from '../World';
+import type {Entity,Team} from '../types';
 
-function enemy(team: Team, e: Entity): boolean { return !e.dead && e.team !== team; }
-function batteries(w: World, team: Team): Entity[] { return w.entities.filter(e=>!e.dead&&e.team===team&&["artillery","mlrs","mortar"].includes(e.kind)); }
-function supply(w: World, team: Team): Entity[] { return w.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="supply"); }
-
-/** Phase 79: lightweight tactical AI that reasons about recon, artillery, AA and logistics before attacking. */
-export function updateTacticalAI(w: World, team: Team, dt: number): void {
-  const own = w.entities.filter(e=>!e.dead&&e.team===team);
-  const enemies = w.entities.filter(e=>enemy(team,e)&&w.isSpottedByTeam(e,team));
-  const arts = batteries(w,team);
-  const depots = supply(w,team);
-  const fresh = w.getFreshIntel(team, 18);
-  const enemyAA = enemies.filter(e=>["aa","spaa","bunker"].includes(e.kind));
-  const lowSupply = own.filter(e=>e.def.speed>0&&((e.supply??100)<22||((e.maxAmmo??0)>0&&(e.ammo??0)<(e.maxAmmo??1)*0.18)));
-
-  // Keep a fraction of recon units forward, rather than throwing the entire army into contact.
-  const recon = own.filter(e=>["reconInf","reconVehicle","sniper"].includes(e.kind));
-  for (const r of recon) {
-    if (r.aiIntent === "recon" && r.mode !== "move") continue;
-    const target = enemies.sort((a,b)=>Math.hypot(a.x-r.x,a.z-r.z)-Math.hypot(b.x-r.x,b.z-r.z))[0];
-    if (target && Math.hypot(target.x-r.x,target.z-r.z)>40) {
-      r.aiIntent="recon"; r.mode="move"; r.dest={x:target.x+(r.x-target.x)*0.35,z:target.z+(r.z-target.z)*0.35};
-    }
+/** Tactical decisions use the same command path as players and the same known contacts as operational AI. */
+export function updateTacticalAI(w:World,team:Team,dt:number):void {
+ if(dt<=0)return;
+ const own=w.entities.filter(e=>!e.dead&&e.team===team&&e.loadedIntoId==null),enemies=visibleEnemies(w,team),contacts=knownContacts(w,team);
+ const nodes=own.filter(e=>!e.underConstruction&&(e.disabledUntil??0)<=w.time&&['hq','supply'].includes(e.kind));
+ for(const u of own.filter(fieldCombat)){
+  if(w.time<(u.aiDecisionAt??0))continue;u.aiDecisionAt=w.time+AI_RULES.decisionInterval;
+  if(['returning','rearming','taxi','landing'].includes(u.airState??''))continue;
+  if(u.def.armor==='air'){
+   if(u.airState==='grounded'&&recoveryComplete(u)&&['retreat','resupply'].includes(u.aiIntent??''))u.aiIntent=null;
+   if(needsRecovery(u)||aaThreatAt(w,team,u.x,u.z)>.82&&u.airMission!=='sead'){u.aiIntent='retreat';w.issue({type:'air-return',ids:[u.id],team});}
+   continue;
   }
-
-  // Artillery prefers fresh intel and enemy support/AA instead of shooting random front-line units.
-  for (const a of arts) {
-    if (a.fireMission || (a.artilleryDisplace ?? null)) continue;
-    const contact = fresh.find(c=>["artillery","mlrs","aa","supply","factory","hq"].includes(c.kind) && Math.hypot(c.x-a.x,c.z-a.z)<a.def.range);
-    if (contact && (a.ammo??0)>0) {
-      a.fireMission={x:contact.x,z:contact.z};
-      a.aiIntent=contact.kind==="artillery"||contact.kind==="mlrs"?"counterbattery":"attack";
-    }
+  if(u.aiIntent==='resupply'||u.aiIntent==='retreat'){
+   if(recoveryComplete(u)){u.aiIntent=null;w.issue({type:'hold',ids:[u.id],team});}else recover(u);
+   continue;
   }
-
-  // If logistics are weak, pull damaged/support units toward the nearest depot rather than attack.
-  for (const u of lowSupply) {
-    if (!depots.length || u.aiIntent==="counterbattery") continue;
-    const d=depots.sort((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z))[0];
-    if (d && Math.hypot(d.x-u.x,d.z-u.z)>12) { u.aiIntent="resupply"; u.mode="move"; u.dest={x:d.x,z:d.z}; }
+  const hostile=enemies.filter(e=>canEngage(e,u)&&Math.hypot(e.x-u.x,e.z-u.z)<AI_RULES.localThreatRadius);
+  const friendly=own.filter(e=>fieldCombat(e)&&canEngage(e,hostile[0]??u)&&Math.hypot(e.x-u.x,e.z-u.z)<AI_RULES.localThreatRadius);
+  if(needsRecovery(u)||hostile.length>Math.max(2,friendly.length*AI_RULES.outnumberedRatio)){u.aiIntent='resupply';recover(u);continue;}
+  if(['artillery','mortar','mlrs'].includes(u.kind)){
+   if(u.garrisonId||u.fireMission||u.artilleryDisplace)continue;
+   const spec=weaponSpec(u),contact=contacts.find(c=>['artillery','mlrs','aa','supply','factory','hq'].includes(c.kind)&&Math.hypot(c.x-u.x,c.z-u.z)<=weaponRange(u,spec)&&Math.hypot(c.x-u.x,c.z-u.z)>=spec.minimumRange);
+   if(contact){u.aiIntent=contact.kind==='artillery'||contact.kind==='mlrs'?'counterbattery':'attack';w.issue({type:'fire-mission',ids:[u.id],x:contact.x,z:contact.z,team});}continue;
   }
-
-  // Do not send air-ground aircraft blindly through dense AA.
-  for (const a of own.filter(e=>e.def.category==="air"||e.def.category==="heli")) {
-    if (enemyAA.length && a.airMission!=="sead") {
-      const threat=enemyAA.reduce((m,e)=>Math.max(m,1-Math.min(1,Math.hypot(e.x-a.x,e.z-a.z)/Math.max(1,e.def.range))),0);
-      a.airThreat=threat;
-      if (threat>0.82) { a.aiIntent="retreat"; a.airState="returning"; const h=w.hq[team]; if(h){a.dest={x:h.x,z:h.z};a.mode="move";} }
-    }
+  if(['reconInf','reconVehicle','sniper'].includes(u.kind)){
+   if(u.garrisonId||u.garrisonOrderId||u.target&&!u.target.dead)continue;
+   const contact=contacts[0],base=w.bases[team],objective=contact??[...w.resourcePoints].sort((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z))[0];
+   if(objective){const d=Math.hypot(objective.x-base.x,objective.z-base.z)||1,standoff=contact?Math.min(AI_RULES.scoutStandoff,d*.4):0;u.aiIntent='recon';w.issue({type:'move',ids:[u.id],x:objective.x+(base.x-objective.x)/d*standoff,z:objective.z+(base.z-objective.z)/d*standoff,team});}continue;
   }
-
-  // If the front has no fresh contacts, prefer a cautious move instead of an unsupported rush.
-  const combat = own.filter(e=>e.def.speed>0&&!(["logiTruck","transport","cargoPlane"].includes(e.kind)));
-  const contactNearFront = fresh.some(c=>Math.hypot(c.x-(w.hq[team]?.x??0),c.z-(w.hq[team]?.z??0))>25);
-  if (!contactNearFront && combat.length && dt>0) {
-    for (const u of combat.filter(e=>["tank","ifv","apc"].includes(e.kind)).slice(0,2)) {
-      if (u.mode==="idle") { u.aiIntent="defend"; u.mode="hold"; u.holdPosition=true; }
-    }
+  if(u.aiIntent==='defend'&&u.squadMaxMembers&&!u.garrisonId&&!u.garrisonOrderId){
+   const house=w.mapFeatures.filter(f=>isGarrisonBuilding(f)&&(w.infrastructureDamage.get(f.id)??0)<1&&Math.hypot(f.x-u.x,f.z-u.z)<30&&garrisonOccupants(w,f.id,true).filter(e=>e.team===team).length<garrisonCapacity(f)&&!enemies.some(e=>e.garrisonId===f.id)).sort((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z))[0];
+   if(house)w.issue({type:'enter-building',ids:[u.id],featureId:house.id,team});
   }
+ }
+ function recover(u:Entity):void {
+  const needAmmo=(u.maxAmmo??0)>0,needFuel=(u.maxFuel??0)>0,needRepair=u.hp<maxHitPoints(u)*AI_RULES.readyHealth;
+  const d=nodes.filter(n=>(!needAmmo||(n.ammoStock??0)>0)&&(!needFuel||(n.fuelStock??0)>0)&&(!needRepair||(n.repairStock??0)>0)).sort((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z))[0];
+  if(!d){w.issue({type:'hold',ids:[u.id],team});return;}
+  if(Math.hypot(d.x-u.x,d.z-u.z)>supplyRadiusFor(d,w)*.75){const a=Math.atan2(u.x-d.x,u.z-d.z),r=d.def.radius+u.def.radius+6;w.issue({type:'move',ids:[u.id],x:d.x+Math.sin(a)*r,z:d.z+Math.cos(a)*r,team});}
+  else {w.issue({type:'hold',ids:[u.id],team});if(needRepair){const engineers=own.filter(e=>e.kind==='engineer'&&!e.garrisonId&&e.mode!=='build'&&Math.hypot(e.x-u.x,e.z-u.z)<supplyRadiusFor(d,w));if(engineers.length)w.issue({type:'repair',ids:[engineers[0].id],targetId:u.id,team});}}
+ }
 }

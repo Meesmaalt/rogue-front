@@ -142,7 +142,7 @@ export class UnitRenderer {
         // Authored GLBs retain the silhouette at tactical camera distance.
         const lod = new THREE.LOD();
         lod.autoUpdate=false;lod.addLevel(visual.group,0);
-        const far=createArtModel(e.kind,e.team,faction,true)?.group;
+        const far=createArtModel(e.kind,e.team,faction,true)?.group??(e.squadMaxMembers?createVisualModel(e.kind,e.team,faction,true).group:undefined);
         if(far)lod.addLevel(far,lodDistance,.15);
         const m = { group: lod, turret: visual.turret };
         const rotors: THREE.Object3D[] = [];
@@ -155,12 +155,11 @@ export class UnitRenderer {
         }
         const r = Math.max(e.def.radius, 1.2);
         const ring = new THREE.Mesh(new THREE.RingGeometry(r * 1.05, r * 1.22, 16).rotateX(-Math.PI / 2), this.ringMat);
-        const tacticalKinds = ["aa", "bunker", "artillery"];
-        const tactical = tacticalKinds.includes(e.kind) ? new THREE.Mesh(new THREE.RingGeometry(Math.max(2, e.firingRange * 0.96), Math.max(2.25, e.firingRange), 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x56a8d8, transparent: true, opacity: 0.10, depthWrite: false })) : null;
+        const tactical:THREE.Mesh|null=null;
         ring.position.y = 0.3;
         ring.visible = false;
         m.group.add(ring);
-        if (tactical) { tactical.position.y = 0.18; m.group.add(tactical); }
+
         // Enamik üksusi ei vaja dünaamilist shadow-map kirjutamist.
         // Hooneid võib varjutada, liikuvad üksused kasutavad odavamat valgustust.
         const staticBuilding = ["hq", "barracks", "factory", "helipad", "airbase", "refinery", "supply", "radar", "bunker", "aa", "generator", "shipyard", "landCommand", "airCommand", "seaCommand", "combatEngineer", "landStrategy", "airStrategy", "seaStrategy"].includes(e.kind);
@@ -181,14 +180,14 @@ export class UnitRenderer {
       if(!onScreen&&!v.staticBuilding)continue;
       const x=lerp(e.px,e.x,alpha),z=lerp(e.pz,e.z,alpha),h=lerpAngle(e.pHeading,e.heading,alpha);
       const distance=this.camera.position.distanceTo(this.bounds.center);
-      if(v.far){const limit=lodDistance*(v.far.visible?.85:1.1);const detailed=(quality!=="low"&&selected.size<=12&&selected.has(e.id))||distance<limit;v.near.visible=detailed;v.far.visible=!detailed;}
+      if(v.far){const unitLimit=e.squadMaxMembers?(quality==="high"?90:quality==="medium"?70:50):lodDistance;const limit=unitLimit*(v.far.visible?.85:1.1);const detailed=(quality!=="low"&&selected.size<=12&&selected.has(e.id))||distance<limit;v.near.visible=detailed;v.far.visible=!detailed;}
       const ground=heightAt(x,z);
       const flying=e.def.armor==="air"&&e.airState!=="grounded"&&e.airState!=="rearming"&&e.airState!=="taxi";
-      v.group.position.set(x,flying?e.y:ground,z);
+      v.group.position.set(x,flying||e.garrisonId?e.y:ground,z);
       const shadow=v.shadow;
       if(shadow)shadow.position.y=ground-v.group.position.y+.045;
       if(v.members.length){const alive=Math.max(1,e.squadMembers??e.squadMaxMembers!),spread=1-Math.min(.45,(e.suppression??0)/220);
-        for(const o of v.members){o.visible=Number(o.name.slice("SquadMember".length))<alive;const origin=o.userData.squadPosition as THREE.Vector3;o.position.x=origin.x*spread;o.position.z=origin.z*spread;}
+        for(const o of v.members){o.visible=Number(o.name.slice("SquadMember".length))<Math.min(alive,e.garrisonId?2:alive);const origin=o.userData.squadPosition as THREE.Vector3;o.position.x=origin.x*spread*(e.garrisonId?.2:1);o.position.z=origin.z*spread*(e.garrisonId?.2:1);}
       }
       const buildingLevel = e.buildingLevel ?? (e.upgrades.has("producer-3") ? 3 : e.upgrades.has("producer-2") ? 2 : 1);
       if (v.staticBuilding && v.lastBuildingLevel !== buildingLevel) {

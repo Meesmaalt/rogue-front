@@ -1,25 +1,28 @@
+import {garrisonFaces,GARRISON_RULES} from "./garrison";
 import type { Entity, Team } from "./types";
 import { MAP_SIZE, heightAt } from "./heightmap";
 import type { MapFeatureDef } from "./mapFeatures";
 import { featureBlocksMovement, pointInFeature } from "./mapFeatures";
 
 export const VISION_CELL_SIZE = 4;
-export const VISION_CELLS = Math.ceil(MAP_SIZE / VISION_CELL_SIZE);
+
 export type VisibilityState = 0 | 1 | 2;
 
 /** Fog of war with terrain/structure line-of-sight. Heavily optimised for 30 Hz. */
 export class Vision {
+  forestObscuration?: (a:Entity,b:Entity)=>number;
   readonly cellSize = VISION_CELL_SIZE;
-  readonly width = VISION_CELLS;
-  readonly height = VISION_CELLS;
+  readonly width = Math.ceil(MAP_SIZE/VISION_CELL_SIZE);
+  readonly height = this.width;
   private readonly states: [Uint8Array, Uint8Array] = [
-    new Uint8Array(VISION_CELLS * VISION_CELLS),
-    new Uint8Array(VISION_CELLS * VISION_CELLS),
+    new Uint8Array(this.width*this.height),
+    new Uint8Array(this.width*this.height),
   ];
   /** Only static blocking features (pre-filtered). */
   private forests:MapFeatureDef[]=[];
   private blockingFeatures: MapFeatureDef[] = [];
   /** Buildings that block LOS (speed === 0). Updated each vision tick. */
+  structureDamage:ReadonlyMap<string,number>=new Map();
   private buildings: Entity[] = [];
   private tickCounter = 0;
 
@@ -46,14 +49,14 @@ export class Vision {
     return ix >= 0 && iz >= 0 && ix < this.width && iz < this.height;
   }
   worldToCell(x: number, z: number) {
-    const half = MAP_SIZE / 2;
+    const half = this.width*this.cellSize/2;
     return {
       x: Math.max(0, Math.min(this.width - 1, Math.floor((x + half) / this.cellSize))),
       z: Math.max(0, Math.min(this.height - 1, Math.floor((z + half) / this.cellSize))),
     };
   }
   cellToWorld(ix: number, iz: number) {
-    const half = MAP_SIZE / 2;
+    const half = this.width*this.cellSize/2;
     return {
       x: -half + (ix + 0.5) * this.cellSize,
       z: -half + (iz + 0.5) * this.cellSize,
@@ -75,6 +78,7 @@ export class Vision {
    * Building occlusion only on long rays (rare for short-range fire).
    */
   forestDepth(a:Entity,b:Entity):number {
+    if(this.forestObscuration)return this.forestObscuration(a,b);
     if(!this.forests.length)return 0;
     const dx=b.x-a.x,dz=b.z-a.z,d=Math.hypot(dx,dz),steps=Math.max(1,Math.ceil(d/5));let length=0;
     for(let i=0;i<steps;i++){const t=(i+.5)/steps,x=a.x+dx*t,z=a.z+dz*t,y=a.y+a.def.height*.7+(b.y+b.def.height*.65-a.y-a.def.height*.7)*t;
@@ -82,6 +86,7 @@ export class Vision {
     }return length;
   }
   hasLineOfSight(a: Entity, b: Entity): boolean {
+    if(!garrisonFaces(a,b))return false;
     if(this.forestDepth(a,b)>38)return false;
     const dx = b.x - a.x;
     const dz = b.z - a.z;
@@ -104,7 +109,7 @@ export class Vision {
       if (checkFeatures) {
         for (let fi = 0; fi < nFeat; fi++) {
           const feature=this.blockingFeatures[fi];
-          if (pointInFeature(x, z, feature, 0.15) && heightAt(x,z)+(feature.height??3)>ay+(by-ay)*t) return false;
+          if (pointInFeature(x, z, feature, 0.15) && heightAt(x,z)+(feature.kind==="building"&&(this.structureDamage.get(feature.id)??0)>=1?GARRISON_RULES.rubbleHeight:feature.height??3)>ay+(by-ay)*t) return false;
         }
       }
     }
@@ -176,7 +181,7 @@ export class Vision {
     let best: Entity | null = null;
     let bestD = Infinity;
     for (const u of entities) {
-      if (u.dead || u.team !== team) continue;
+      if (u.dead || u.loadedIntoId!=null || u.team !== team) continue;
       const d = Math.hypot(u.x - x, u.z - z);
       if (d > this.getVisionRadius(u) + this.cellSize) continue;
       if (d < bestD) {

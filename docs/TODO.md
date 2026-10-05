@@ -1,3 +1,22 @@
+# Aktiivne arendusjärjekord — 05.10.2026
+
+Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on järgmise arenduse alus; hilisemad vanad etapid ja märkeruudud jäävad ajalooliseks loendiks. Pakett loetakse tehtuks põhiplaani lõpetamistingimuste järgi, mitte funktsiooni nime olemasolu järgi.
+
+- [x] Praeguse koodi ülevaatus ja viimistlusele keskenduva alpha/beta arenguplaani koostamine.
+- [x] A1: ühised efektiivsed andmed, päris research/uuenduse käsud ja HUD, armor/AP/HP/remont, fraktsiooni tootmistöö ning range/maastikureeglite tarbijad. Kood + 9 sihitud kontrolli; brauseripilt/pikk matš ootel, vt A1-SHARED-RULES-RELEASE.md.
+- [x] A2: kiirliikumise käsk/HUD, aja järgi tee-metsa-nõlva marsruut, kolonn ja peatuvatest üksustest möödumine, APC/IFV/kopteri istmepõhine transport ning nav-ohutu väljumine. Build ja 4 sihitud A2 kontrolli + 3 A1 regressioonikontrolli; brauseri visuaalne ülevaatus ja kahe kliendi matš ootel. Vt A2-MOVEMENT-TRANSPORT-RELEASE.md.
+- [x] A3: uksele lähenemine ja ohutu väljumine, relva-/luuresektorid, AT/MANPAD positsioonid, kahjustusega vähenev kate, struktuurikahju ja varisemine, hoone HUD/renderdus ning save/hash. Kood ja 3 sihitud A3 kontrolli + 4 A2 regressioonikontrolli; brauseri visuaalne ülevaatus, FPS ja multiplayer ootel. Vt A3-GARRISON-RELEASE.md.
+- [x] A4: mahupiiridega osatarne/koorma säilimine, finite FOB-i üleandmine, lao/FOB-i uuenduste mahu ühtlustamine, tankimisabi ja marsruudi saabumise parandused, logistika-HUD, tootmise taastumine ning lennuraja/teeninduse/alternatiivbaasi ühendused. 5 uut sihitud kontrolli + 3 varasemat logistika/uuenduse kontrolli; brauseripilt, FPS, pikk matš ja multiplayer ootel. Vt A4-LOGISTICS-AIR-RELEASE.md.
+- [x] A5: ühine mälukoordinaatidega intel-allikas, peidetud vastase live-päringute eemaldamine, Conquesti sektorivalik/reserv, taastumise kaitse, lisarelva moona arvestus, päris lao/remondi/RTB käsud ja majanduse esmane tasakaal. 4 sihitud kontrolli + 5 A4 regressioonikontrolli; pika Roheoru matši raskus/tasakaal ning brauseri/FPS/multiplayeri läbipääs ootel. Vt A5-AI-SKIRMISH-RELEASE.md.
+- [ ] A6: õpetus, save/load, visuaalne viimistlus ja maalahingu alpha läbipääs.
+- [ ] B1: olemasolev merevägi, päris veenavigatsioon/sadam ja üks lõpetatud rannikumissioon.
+- [ ] B2: režiimide/kampaania/multiplayeri lõpetamine ning beta läbipääs.
+- [ ] C: hilisem valitav strateegiline tuumarežiim pärast kaugmaa relvade ja vastumeetmete lõpetamist.
+
+---
+
+## Varasem tööloend (ajalooline)
+
 # Rogue Front — To-do (Real War: Rogue States sihtmärk)
 
 Mäng peab tunduma nagu *Real War: Rogue States*, aga sujuvam ja loetavam.
@@ -144,3 +163,44 @@ Rakendatud renderduses ning eksporditud mänguvarades. Build ja lühike GLB stru
 - [x] Missiooniks sobiva laskemoona lõppemine käivitab RTB; CAP eristab õhu- ja maasihtmärke.
 - [x] Maaväe vahemällu salvestatud laskepositsioonid: ulatus, LOS, tee, jalaväekate ja lähenemisnurgad.
 - [ ] Uue baasi/rajapildi ja lahingupositsioonide viimistlemine päris brauseripildi ning mängija tagasiside põhjal.
+
+
+## Fraktsioonide relvastus ja jalaväemudelid
+
+- [x] 30 sisulist jalaväekoosseisu: relvad, meeskonna suurus, HP, piiratud laskemoon ja tegelikud tankitõrje/õhutõrje erinevused.
+- [x] Ühine fraktsioonimääratlus spawn'is, tootmishinnas, materjalikulus ja tagasimakses.
+- [x] Nähtavad relvakaardid, sama soomusearvutusega tanki esi/külg/tagakahju ning ostueelne koosseisukaart.
+- [x] Koosseisule vastav jalaväevarustus, fraktsioonikamo, jagatud geomeetria ja kaugvaate partiide ühendamine.
+- [x] Tegelike jalaväemudelite ja relvastuse vaatamine 3D Arsenalis.
+- [ ] Kamo shaderi ja uute meeskonnamudelite brauseripildi ülevaatus ning vajaduse järgi visuaalne viimistlus.
+- [ ] Uute koosseisude pika lahingu tasakaal ja mõõdetud FPS samas stseenis.
+
+
+## Tehnika põhjalikkus ja vastav varustus
+
+- [x] Fraktsioonide tanki/kergtanki/IFV/APC/luure/AT/AA/kopteri rollide, soomuse ja relvavarude erinevused.
+- [x] Relvapõhine liikumiselt laskmise luba ja stabiliseerimine; sama tegur lahingus, HUD-is ja Arsenalis.
+- [x] Kahuri/raketi valik ühise kahjustusarvutuse ning tegeliku ulatuse/varude järgi.
+- [x] Uuendatud tehnikamudelite kaitserelvad, IFV/AA torud ja eraldi kopteri raketipodid/AT-raketid.
+- [ ] Uuendatud tehnikamudelite brauserivaate ülevaatus ja pika lahingu tasakaal.
+- [ ] Ülejäänud lennukite/laevade fraktsioonivarustuse läbivaatamine samade gameplay-kriteeriumide järgi.
+
+
+## Suurem kaart ja dünaamiline mets
+
+- [x] Roheorg 960 m; kaardisuurus ühendatud kõrgusvälja, nav'i, nähtavuse, ruumiindeksi ja UI-ga.
+- [x] Kaks lisasulat, tänavad/kõnniteed, uued metsasagarad ja metsateed, senises hoonemõõtkavas.
+- [x] Sama metsatihedus puude paigutuses, liikumises, lahingukattes ja vaatekiire takistuses.
+- [x] HE-tabamusest algav piiratud/deterministlik tulekahju, suits, mõlema poole kahju ja püsiv põlenud kate.
+- [x] Põlengu HUD/minikaart/olemasolevad osakesed, võrade tumenemine/kahanemine ja metsa save/hash.
+- [ ] Uue metsa/suitsu ja 960 m kaardi brauseripildi ülevaatus ning teede/asulate pildipõhine viimistlus.
+- [ ] Pikemate ressursivedude/lahingute tasakaal ja mõõdetud kaardijõudlus.
+
+## Relvade numbrid ja tulejuhtimine
+
+- [x] Jagatud tegelik tabamisvõimalus ja HUD-i tegurite kaupa arvutus ilma sim/RNG mutatsioonita.
+- [x] Värvilised iga relva maksimum- ja miinimumulatusringid, eraldi relva valik ning HUD-i lüliti.
+- [x] Luurekontaktiga seotud kaugus/AP/soomuskülg/moon/laadimine/LOS info; kaotatud kontakt ei avalda elavat kaugust.
+- [x] Koordinaattule ja sihtmärgitule ühine ulatuskordaja, suurtükirelvade andmepõhised minimaalsed kaugused.
+- [x] HUD-i avatud detailide/kerimise säilitamine ja paigal oleva ulatusgeomeetria vahemälu.
+- [ ] Ulatusringide/tekstisuuruse brauseripildi kontroll eri suumidel ning uute miinimumkauguste matšitasakaal.

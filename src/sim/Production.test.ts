@@ -46,3 +46,10 @@ it("physical air operations: helicopter rises vertically and cannot fly without 
   expect(u.airState).toBe("taxi");expect(u.x).toBe(x);expect(u.z).toBe(z);expect(u.y).toBeGreaterThan(heightAt(x,z)+4);
   const orphan=w.spawn("heli",0,-100,-180);orphan.airState="grounded";pad.dead=true;w.issue({type:"move",ids:[orphan.id],x:0,z:-100});for(let i=0;i<10;i++)w.tick(SIM_STEP);expect(orphan.airState).toBe("grounded");expect(orphan.x).toBe(-100);
 });
+
+it("faction loadouts: production and cancellation use the displayed faction price",()=>{
+  const w=airWorld(),b=w.spawn("barracks",0,10,-200);b.buildingLevel=3;w.spawn("landCommand",0,-20,-200);w.spawn("landStrategy",0,-20,-220);
+  const cost=w.unitDefinition("atInf",0).cost,start=w.teamResources[0];w.issue({type:"produce",kind:"atInf",producerId:b.id});w.tick(SIM_STEP);
+  expect(b.productionQueue).toContain("atInf");expect(w.teamResources[0]).toBe(start-cost);
+  w.issue({type:"cancel-produce",producerId:b.id});w.tick(SIM_STEP);expect(w.teamResources[0]).toBe(start-cost+Math.floor(cost*.75));
+});

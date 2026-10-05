@@ -6,16 +6,15 @@ import { featureBlocksMovement, pointInFeature } from "../mapFeatures";
 export const NAV_CELL_SIZE = 2;
 export const NAV_SLOPE_LIMIT_DEG = 35;
 export const NAV_SLOPE_LIMIT = NAV_SLOPE_LIMIT_DEG * Math.PI / 180;
-const HALF = MAP_SIZE / 2;
-const CELLS = Math.round(MAP_SIZE / NAV_CELL_SIZE);
 
 export interface NavCell { x: number; z: number }
 
 export class NavGrid {
   readonly cellSize = NAV_CELL_SIZE;
-  readonly width = CELLS;
-  readonly height = CELLS;
-  readonly blocked = new Uint8Array(CELLS * CELLS);
+  private readonly half=MAP_SIZE/2;
+  readonly width = Math.round(MAP_SIZE/NAV_CELL_SIZE);
+  readonly height = this.width;
+  readonly blocked = new Uint8Array(this.width*this.height);
 
   constructor(entities: readonly Entity[] = [], features: readonly MapFeatureDef[] = []) {
     this.buildTerrain();
@@ -28,13 +27,13 @@ export class NavGrid {
 
   worldToCell(x: number, z: number): NavCell {
     return {
-      x: Math.max(0, Math.min(this.width - 1, Math.floor((x + HALF) / this.cellSize))),
-      z: Math.max(0, Math.min(this.height - 1, Math.floor((z + HALF) / this.cellSize))),
+      x: Math.max(0, Math.min(this.width - 1, Math.floor((x + this.half) / this.cellSize))),
+      z: Math.max(0, Math.min(this.height - 1, Math.floor((z + this.half) / this.cellSize))),
     };
   }
 
   cellToWorld(ix: number, iz: number): Point {
-    return { x: -HALF + (ix + 0.5) * this.cellSize, z: -HALF + (iz + 0.5) * this.cellSize };
+    return { x: -this.half + (ix + 0.5) * this.cellSize, z: -this.half + (iz + 0.5) * this.cellSize };
   }
 
   isBlocked(ix: number, iz: number, radius = 0): boolean {

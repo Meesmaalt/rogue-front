@@ -4,7 +4,8 @@
 import * as T from 'three';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
+const loadouts=JSON.parse(await readFile(new URL('../../src/data/faction-loadouts.json',import.meta.url),'utf8'));
 
 // GLTFExporter only needs FileReader for binary geometry (no browser canvas).
 globalThis.FileReader = class {
@@ -64,9 +65,11 @@ function armored(f,kind){const p=new T.Group();const recon=kind==='reconVehicle'
   if(wheeled)tires(p,w,l,small?2:4,.46);else tracks(p,w,l,.38);
   const h=f==='russia'?1.6:1.95;loft(p,[[-l/2,w*.8,.62,h-.1],[-l*.25,w,.53,h],[l*.2,w,.54,h],[l/2,w*.72,.82,h-.48]],'armor');fittings(p,w,l,h);hatch(p,-.65,h+.06,.75,.26);
   box(p,1.3,.65,.06,'trim',0,1.15,-l/2-.015);for(let i=0;i<3;i++)optic(p,-.55+i*.5,h-.17,l*.3,.2);
-  const t=group(p,'Turret',0,h,-.05);if(recon){cyl(t,.05,1.25,'steel',0,.65,0);box(t,.55,.35,.4,'trim',0,1.35,0);optic(t,0,1.35,.23,.4);antenna(p,.9,h,-1.2,1.7);}
+  const t=group(p,'Turret',0,h,-.05);if(recon){cyl(t,.05,1.25,'steel',-.4,.65,-.35);box(t,.55,.35,.4,'trim',-.4,1.35,-.35);optic(t,-.4,1.35,-.12,.4);antenna(p,.9,h,-1.2,1.7);gun(t,f==='china'?1.45:.9,f==='china'?.055:.035,.3,.4,.25);box(t,.5,.28,.4,'armor',.25,.3,.05);}
   else if(td){box(t,1.4,.36,1.1,'dark',0,.3,0);for(const s of[-1,1])for(const y of[.16,.43])cyl(t,.13,1.25,'trim',s*.4,y,.2,Math.PI/2);}
-  else{loft(t,[[-.65,1.05,0,.55],[.3,1.15,0,.5],[.65,.7,.1,.3]],'armor');gun(t,ifv?1.65:.95,ifv?.055:.035,.3,.45);hatch(t,-.2,.57,-.15,.2);if(ifv&&f==='usa')box(t,.4,.48,.95,'trim',-.82,.3,0);}
+  else{loft(t,[[-.65,1.05,0,.55],[.3,1.15,0,.5],[.65,.7,.1,.3]],'armor');gun(t,ifv||f!=='usa'?1.65:.95,ifv||f!=='usa'?.055:.035,.3,.45);hatch(t,-.2,.57,-.15,.2);
+    if(ifv&&f==='russia')gun(t,1.75,.085,.3,.45,-.16);
+    else if(ifv){const rack=group(t,'WeaponRack',-.82,.3,0);box(rack,.4,.48,.95,'trim');for(const y of[-.13,.13]){cyl(rack,.095,1.05,'steel',0,y,0,Math.PI/2);cyl(rack,.076,.045,'dark',0,y,.54,Math.PI/2);}}}
   armoredDetail(p,t,w,l,f);return p;}
 function truck(f,kind){const p=new T.Group(),l=kind==='mlrs'?6.7:6.1,w=2.45;tires(p,w,l,kind==='mlrs'?4:3,.48);box(p,w*.76,.32,l,'dark',0,.73,0);
   loft(p,[[l*.07,w,.7,2.4],[l*.3,w,.7,2.4],[l*.46,w*.9,.85,1.85]],'armor');box(p,1.9,.64,.045,'glass',0,1.94,l*.385,-.36);for(const s of[-1,1])box(p,.035,.54,.8,'glass',s*w*.48,1.9,l*.23);fittings(p,w,l,1.1);
@@ -77,7 +80,7 @@ function artillery(f,kind){if(kind==='mlrs'&&f!=='usa'){const p=truck(f,kind),t=
   if(kind==='mlrs'){const rack=group(t,'Launcher',0,.6,-.25);rack.rotation.x=-.25;for(const s of[-1,1]){box(rack,1.15,1.22,2.9,'armor',s*.64,.3,0);for(let i=0;i<2;i++)for(let j=0;j<3;j++)cyl(rack,.13,.06,'dark',s*.64-.32+j*.32,.02+i*.52,1.49,Math.PI/2);} }
   else{loft(t,[[-1.65,2.55,0,1.25],[.65,2.65,0,1.3],[1.12,1.72,.15,1.1]],'armor');hatch(t,-.55,1.33,-.4);optic(t,.5,1.24,.92);gun(t,f==='russia'?4.6:3.8,.12,.5,1,-0,-.16);for(const s of[-1,1])box(t,.4,.7,.65,'stowage',s*1.36,.57,-1);}
   return p;}
-function spaa(f){const p=f==='usa'?armored(f,'apc'):f==='russia'?truck(f,'spaa'):armored(f,'ifv');const old=p.getObjectByName('Turret');old?.removeFromParent();const t=group(p,'Turret',0,f==='russia'?1.6:1.9,-.4);box(t,1.45,.75,1.4,'armor',0,.36,0);for(const s of[-1,1]){gun(t,1.55,.047,.42,.48,s*.83);for(let i=0;i<(f==='russia'?3:2);i++)cyl(t,.11,1.25,'trim',s*(.9+i*.23),.92,.15,Math.PI/2);}
+function spaa(f){const p=f==='usa'?armored(f,'apc'):f==='russia'?truck(f,'spaa'):armored(f,'ifv');const old=p.getObjectByName('Turret');old?.removeFromParent();const t=group(p,'Turret',0,f==='russia'?1.6:1.9,-.4);box(t,1.45,.75,1.4,'armor',0,.36,0);for(const s of[-1,1]){gun(t,1.55,.047,.42,.48,s*.83);const rack=group(t,'WeaponRack',s*.95,.92,.15);for(let i=0;i<(f==='russia'?4:2);i++){const y=f==='russia'?Math.floor(i/2)*.25:0,x=s*(i%2)*.23;cyl(rack,.11,1.25,'trim',x,y,0,Math.PI/2);cyl(rack,.086,.04,'dark',x,y,.65,Math.PI/2);}}
   cyl(t,.08,.75,'steel',0,1.1,-.25);const radar=mesh(t,new T.SphereGeometry(.53,14,8,0,Math.PI*2,0,Math.PI/2),'dark',0,1.55,-.25,Math.PI/2);radar.scale.z=.24;return p;}
 function wing(p,points,y,m='armor',th=.085){const shape=new T.Shape();points.forEach(([x,z],i)=>i?shape.lineTo(x,-z):shape.moveTo(x,-z));shape.closePath();const g=new T.ExtrudeGeometry(shape,{depth:th,bevelEnabled:false});g.rotateX(-Math.PI/2);return mesh(p,g,m,0,y,0);}
 function jet(f,kind){const p=new T.Group();const twin=f==='russia'||kind==='interceptor'||kind==='ecm',attack=kind==='attackAircraft',cargo=kind==='cargoPlane',bomb=kind==='bomber';const length=cargo?10:bomb?10.5:7.5,w=cargo?1.75:bomb?1.3:1.05;const y=1.08;
@@ -95,7 +98,15 @@ function jet(f,kind){const p=new T.Group();const twin=f==='russia'||kind==='inte
 function helicopter(f,kind){const p=new T.Group(),transport=kind==='transport',coax=f==='russia'&&kind==='heli',tandem=transport&&f==='usa';const w=transport?1.9:coax?1.55:.85,l=transport?6.8:4.6;
   loft(p,[[-l*.45,w*.65,.8,1.9],[-l*.2,w, .6,transport?2.5:2.15],[l*.18,w,.65,2.1],[l*.45,w*.6,.9,1.55],[l*.53,.2,1,1.32]],'armor');sphere(p,.5,'glass',0,1.75,l*.23,w*.84,.69,1.5);box(p,.045,.4,1.25,'trim',0,1.91,l*.23);
   loft(p,[[-5.4,.2,1.8,2.1],[-l*.35,.65,1.2,1.83]],'armor');wing(p,[[0,-4.6],[.9,-5.1],[0,-5.45],[-.9,-5.1]],1.9);
-  for(const s of[-1,1]){sphere(p,.4,'trim',s*w*.58,2,-.55,.75,.65,1.6);cyl(p,.19,.4,'dark',s*w*.6,2.04,-1.22,Math.PI/2);if(!transport){wing(p,[[s*.3,.2],[s*1.95,-.35],[s*1.9,-.7],[s*.3,-.6]],1.1);box(p,.5,.28,.9,'dark',s*1.6,.89,-.3);for(let i=0;i<3;i++)cyl(p,.07,.94,'steel',s*(1.4+i*.18),.89,-.27,Math.PI/2);}}
+  for(const s of[-1,1]){sphere(p,.4,'trim',s*w*.58,2,-.55,.75,.65,1.6);cyl(p,.19,.4,'dark',s*w*.6,2.04,-1.22,Math.PI/2);if(!transport){
+    wing(p,[[s*.3,.2],[s*1.95,-.35],[s*1.9,-.7],[s*.3,-.6]],1.1);
+    const rack=group(p,'WeaponRack',0,0,0);
+    cyl(rack,.25,1.05,'trim',s*1.25,.9,-.1,Math.PI/2);cyl(rack,.23,.055,'dark',s*1.25,.9,.45,Math.PI/2);
+    if(detail)for(let i=0;i<7;i++){const a=i*Math.PI*2/6,r=i===6?0:.14;cyl(rack,.045,.025,'steel',s*1.25+Math.cos(a)*r,.9+Math.sin(a)*r,.49,Math.PI/2,0,0,6);}
+    if(loadouts[f][kind].weapons.some(w=>w.guidance==='command')){box(rack,.46,.13,.9,'dark',s*1.68,.94,-.1);for(const y of[.76,1.06])for(const x of[1.55,1.8]){
+      cyl(rack,.065,1.15,'steel',s*x,y,-.1,Math.PI/2);sphere(rack,.07,'dark',s*x,y,.5,1,1,1.6);box(rack,.22,.025,.12,'trim',s*x,y,-.5);box(rack,.025,.22,.12,'trim',s*x,y,-.5);
+    }}
+  }}
   const positions=tandem?[-2.25,2.05]:[0];for(const z of positions){cyl(p,.07,.58,'steel',0,2.48,z);const r=group(p,'RotorMain'+(z||''),0,2.78,z);for(let i=0;i<(coax?3:4);i++){const blade=group(r,'Blade');blade.rotation.y=i*Math.PI*2/(coax?3:4);box(blade,.13,.055,transport?2.8:2.35,'dark',0,0,transport?1.4:1.175);}cyl(r,.2,.12,'steel',0,.04,0);}
   if(coax){const r=group(p,'RotorCounter',0,3.13,0);for(let i=0;i<3;i++){const blade=group(r,'Blade');blade.rotation.y=i*Math.PI*2/3;box(blade,.13,.045,2.35,'dark',0,0,1.175);}}
   else if(!tandem){const r=group(p,'TailRotor',.14,2.15,-5);for(let i=0;i<2;i++)box(r,.04,.12,1.25,'dark').rotation.x=i*Math.PI/2;}

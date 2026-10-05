@@ -1,3 +1,4 @@
+import {maxHitPoints} from "./unitStats";
 import type { World } from "./World";
 import type { Entity, Point, Team } from "./types";
 
@@ -99,7 +100,7 @@ export class FrontlineController {
 
   private value(e: Entity): number {
     if (e.def.speed <= 0) return .2;
-    const hp = Math.max(.1, e.hp / Math.max(1, e.def.hp));
+    const hp = Math.max(.1, e.hp / Math.max(1, maxHitPoints(e)));
     const supply = e.maxSupply ? Math.max(.2, (e.supply ?? 100) / e.maxSupply) : 1;
     return Math.max(.4, (e.def.damage || 1) / 12) * hp * supply * (1 + e.veteran * .1);
   }

@@ -16,6 +16,7 @@ function particleTexture():THREE.CanvasTexture {
 }
 /** Bounded billboard batches; trails follow actual simulated 3D flight. */
 export class Fx {
+  private forestTimer=0;
   private pools:Record<ParticleKind,Pool>;
   private shells=new Map<number,Shell>();
   private models=new Map<string,THREE.Group>();
@@ -49,6 +50,15 @@ export class Fx {
   private emit(kind:ParticleKind,x:number,y:number,z:number,size:number,life:number,color:number,vx=0,vy=0,vz=0,stretch=1):void {
     const pool=this.pools[kind];if(pool.particles.length>=pool.capacity)return;
     pool.particles.push({x,y,z,vx,vy,vz,t:0,life,size,color,stretch});
+  }
+  syncForestFires(world:World,dt:number):void {
+    this.forestTimer+=dt;if(this.forestTimer<.18)return;this.forestTimer=0;
+    for(const c of world.terrain.fires()){
+      if(!world.vision.isVisible(world.playerTeam,c.x,c.z))continue;
+      const x=c.x+this.r(10),z=c.z+this.r(10),y=heightAt(x,z);
+      this.emit("smoke",x,y+4,z,3.2,4,0x595b50,.8,2.8,.3);
+      if(!c.burnt){this.emit("glow",x,y+1,z,2.5,.65,0xff942d,0,2.5,0,2);this.emit("spark",x,y+1,z,.16,1.2,0xffd56a,this.r(2),4,this.r(2));}
+    }
   }
   handleEvents(events:SimEvent[],world:World):void {
     for(const e of events){

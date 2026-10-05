@@ -1,10 +1,10 @@
+import {knownContacts,availableCombat,fieldCombat,needsRecovery,AI_RULES} from "./knowledge";
+import {researchStatus,unitUpgradeStatus} from "../unitStats";
 import {MAP_SIZE} from "../heightmap";
 import type { World } from "../World";
 import type { UnitKind } from "../types";
 import { BUILDINGS } from "../buildings";
 import type { BuildableKind } from "../buildings";
-import { assignAirMission } from "../systems/airDoctrine";
-import { isTacticallySupplied } from "../systems/tacticalSupply";
 import { FACTIONS } from "../factions";
 
 export type AIPersonality = "aggressive" | "defensive" | "economic";
@@ -24,6 +24,7 @@ export type DoctrinePhase =
  * Reageerib: heli-mass → AA; ladude rünnak → QRF; puhas tank → ATGM/flank/õhk.
  */
 export class WaveAI {
+  private productionBudgetUsed=0;
   buildTimer = 3.5;
   attackTimer = 22;
   scoutTimer = 5;
@@ -43,6 +44,7 @@ export class WaveAI {
   }
 
   update(w: World, dt: number): void {
+    this.productionBudgetUsed=0;
     const hq = w.hq[1];
     if (!hq || hq.dead) return;
 
@@ -68,11 +70,10 @@ export class WaveAI {
     if (this.buildTimer <= 0) {
       this.buildTimer = this.personality === "economic" ? 5.5 : 4.2;
       this.developBase(w);
+      this.developUnits(w);
       if (!w.hasTech(1, "air") && w.teamResources[1] >= 240 && w.teamCredits[1] >= 240 &&
           (w.hasBuilding(1, "helipad") || w.hasBuilding(1, "airbase"))) {
-        w.teamResources[1] -= 240;
-        w.teamCredits[1] -= Math.min(w.teamCredits[1], 240);
-        w.teamTechs[1].add("air");
+        w.issue({type:"research",tech:"air",team:1});
       }
     }
 
@@ -108,7 +109,7 @@ export class WaveAI {
     const supplies = this.count(w, "supply");
     const aa = this.count(w, "aa");
     const army = w.entities.filter(e =>
-      !e.dead && e.team === 1 && e.def.speed > 0 && e.kind !== "engineer" && e.kind !== "transport"
+      e.team===1&&fieldCombat(e)
     ).length;
     const hasLandCmd = this.has(w, 1, "landCommand");
     const hasFactory = this.has(w, 1, "factory");
@@ -143,7 +144,7 @@ export class WaveAI {
       if (e.dead || e.team !== 1) continue;
       if (e.kind !== "supply" && e.kind !== "generator" && !(e.kind === "transport" && e.supplyDepotId != null)) continue;
       for (const enemy of w.entities) {
-        if (enemy.dead || enemy.team !== 0 || enemy.def.speed === 0) continue;
+        if (enemy.dead || enemy.team !== 0 || !w.isSpottedByTeam(enemy,1) || enemy.loadedIntoId!=null || enemy.def.speed === 0) continue;
         if (Math.hypot(enemy.x - e.x, enemy.z - e.z) < 45) return true;
       }
     }
@@ -153,10 +154,10 @@ export class WaveAI {
   /** Event-driven reactions (Wargame combined-arms answers). */
   private reactToPlayer(w: World): void {
     const playerAir = w.entities.filter(e =>
-      !e.dead && e.team === 0 &&
+      !e.dead && e.team === 0 && w.isSpottedByTeam(e,1) && e.loadedIntoId==null &&
       (e.def.armor === "air" || ["heli", "gunship", "fighter", "bomber"].includes(e.kind))
     ).length;
-    const playerTanks = w.entities.filter(e => !e.dead && e.team === 0 && e.kind === "tank").length;
+    const playerTanks = w.entities.filter(e => !e.dead && e.team === 0 && w.isSpottedByTeam(e,1) && e.loadedIntoId==null && e.kind === "tank").length;
     const myAA = this.count(w, "aa");
 
     // Player massing helis/air → build AA + CAP
@@ -165,7 +166,7 @@ export class WaveAI {
     }
     if (playerAir >= 2) {
       for (const f of w.entities.filter(e => !e.dead && e.team === 1 && (e.kind === "fighter" || e.kind === "interceptor"))) {
-        if (f.airMission !== "cap") assignAirMission(f, "cap", w.bases[1]);
+        if (f.airMission !== "cap"&&availableCombat(f))w.issue({type:"air-mission",ids:[f.id],mission:"cap",...w.bases[1],team:1});
       }
     }
 
@@ -199,40 +200,38 @@ export class WaveAI {
       !e.dead && e.team === 1 && (e.kind === "gunship" || e.kind === "heli") &&
       (e.airState === "grounded" || e.airState === "airborne" || !e.airState)
     );
-    const playerAA = w.entities.filter(e => !e.dead && e.team === 0 && e.kind === "aa");
+    const playerAA = w.entities.filter(e => !e.dead && e.team === 0 && w.isSpottedByTeam(e,1) && e.loadedIntoId==null && e.kind === "aa");
 
     // CAP over own base
     for (const f of fighters.slice(0, 2)) {
-      assignAirMission(f, "cap", w.bases[1]);
+      if(availableCombat(f))w.issue({type:"air-mission",ids:[f.id],mission:"cap",...w.bases[1],team:1});
     }
 
     // SEAD if player has AA and we have gunships
     if (playerAA.length && gunships.length && this.difficulty !== "easy") {
       const aa = playerAA[0];
-      assignAirMission(gunships[0], "sead", { x: aa.x, z: aa.z });
+      if(availableCombat(gunships[0]))w.issue({type:"air-mission",ids:[gunships[0].id],mission:"sead",x:aa.x,z:aa.z,team:1});
     }
 
     // Strike logistics in pressure/decisive
     if ((this.phase === "pressure" || this.phase === "decisive") && gunships.length > 1) {
-      const supply = w.entities.find(e => !e.dead && e.team === 0 && e.kind === "supply");
-      const gen = w.entities.find(e => !e.dead && e.team === 0 && e.kind === "generator");
-      const t = supply ?? gen ?? w.hq[0];
-      if (t) assignAirMission(gunships[gunships.length > 1 ? 1 : 0], "strike", { x: t.x, z: t.z });
+      const contacts=knownContacts(w,1);const t=contacts.find(c=>c.kind==="supply")??contacts.find(c=>c.kind==="generator");
+      if(t&&availableCombat(gunships[1]))w.issue({type:"air-mission",ids:[gunships[1].id],mission:"strike",x:t.x,z:t.z,team:1});
     }
   }
 
   private scout(w: World): void {
+    if(w.entities.some(e=>e.team===1&&!e.dead&&e.loadedIntoId==null&&(e.aiIntent==="recon"||["reconInf","reconVehicle","sniper"].includes(e.kind))))return;
     const scouts = w.entities.filter(e =>
       !e.dead && e.team === 1 && e.def.speed > 0 &&
-      ["inf", "tank", "gunship", "fighter", "special"].includes(e.kind) &&
-      e.loadedIntoId === null
+      ["reconInf", "reconVehicle", "sniper", "inf"].includes(e.kind) &&
+      e.loadedIntoId === null && availableCombat(e)
     );
     if (!scouts.length) return;
     const u = scouts[Math.floor(this.rngPick(w) * scouts.length)];
     const midX = (w.bases[0].x + w.bases[1].x) / 2;
     const midZ = (w.bases[0].z + w.bases[1].z) / 2;
-    u.mode = "amove";
-    u.dest = { x: midX + (this.rngPick(w) - 0.5) * 40, z: midZ + (this.rngPick(w) - 0.5) * 40 };
+    u.aiIntent="recon";w.issue({type:"amove",ids:[u.id],x:midX+(this.rngPick(w)-.5)*40,z:midZ+(this.rngPick(w)-.5)*40,team:1});
   }
 
   private developBase(w: World): void {
@@ -268,17 +267,16 @@ export class WaveAI {
     );
     for (const h of helis) {
       const threat = w.entities.find(e =>
-        !e.dead && e.team === 0 && e.def.speed > 0 && Math.hypot(e.x - h.x, e.z - h.z) < 35
+        !e.dead && e.team === 0 && w.isSpottedByTeam(e,1) && e.loadedIntoId==null && e.def.speed > 0 && Math.hypot(e.x - h.x, e.z - h.z) < 35
       );
       if (!threat) continue;
       // QRF
       const qrf = w.entities.filter(e =>
-        !e.dead && e.team === 1 && ["tank", "ifv", "inf", "gunship"].includes(e.kind) && e.loadedIntoId === null
+        !e.dead && e.team === 1 && ["tank", "ifv", "inf", "gunship"].includes(e.kind) && availableCombat(e)
       ).slice(0, 5);
       for (const u of qrf) {
-        u.mode = "amove";
-        u.dest = { x: h.x, z: h.z };
-        u.target = threat;
+        if(w.time<(u.aiDecisionAt??0))continue;u.aiDecisionAt=w.time+AI_RULES.decisionInterval;
+        u.aiIntent="defend";w.issue(u.def.armor==="air"?{type:"air-mission",ids:[u.id],mission:"ground",x:threat.x,z:threat.z,team:1}:{type:"amove",ids:[u.id],x:threat.x,z:threat.z,team:1});
       }
     }
     // Guard depots that are forward / under-supplied
@@ -288,12 +286,10 @@ export class WaveAI {
       ).length;
       if (near >= 2) continue;
       const guard = w.entities.find(e =>
-        !e.dead && e.team === 1 && ["inf", "apc", "ifv"].includes(e.kind) && e.mode === "idle"
+        !e.dead && e.team === 1 && ["inf", "apc", "ifv"].includes(e.kind) && e.mode === "idle" && availableCombat(e)
       );
       if (guard) {
-        guard.mode = "move";
-        guard.dest = { x: depot.x + 6, z: depot.z + 4 };
-        guard.holdPosition = true;
+        guard.aiIntent="defend";const a=Math.atan2(guard.x-depot.x,guard.z-depot.z),r=depot.def.radius+guard.def.radius+6;w.issue({type:"move",ids:[guard.id],x:depot.x+Math.sin(a)*r,z:depot.z+Math.cos(a)*r,team:1});
       }
     }
   }
@@ -313,6 +309,15 @@ export class WaveAI {
     if (this.count(w, "supply") >= 3) return;
     if (w.teamResources[1] < 130 || !w.canBuildKind(1, "supply")) return;
     w.issue({ type: "build", ids: [engineer.id], kind: "supply", x: target.x, z: target.z, team: 1 });
+  }
+
+  private developUnits(w:World):void {
+    // Small reserve-only retrofit budget; purchases use the player's command rules.
+    if(w.teamResources[1]<1000||w.teamCredits[1]<1000)return;
+    if(researchStatus(w,1,"advanced-armor").allowed){w.issue({type:"research",tech:"advanced-armor",team:1});return;}
+    for(const u of w.entities.filter(e=>!e.dead&&e.team===1&&e.def.category==="armor")){
+      for(const upgrade of ["armor","weapon","range"] as const)if(unitUpgradeStatus(w,u,upgrade).allowed){w.issue({type:"upgrade",ids:[u.id],upgrade,team:1});return;}
+    }
   }
 
   private upgradeProducers(w: World): void {
@@ -388,113 +393,70 @@ export class WaveAI {
     const hq = w.hq[1];
     if (!hq) return;
     const threat = w.entities.find(e =>
-      !e.dead && e.team === 0 && e.def.speed > 0 && Math.hypot(e.x - hq.x, e.z - hq.z) < 70
+      !e.dead && e.team === 0 && w.isSpottedByTeam(e,1) && e.loadedIntoId==null && e.def.speed > 0 && Math.hypot(e.x - hq.x, e.z - hq.z) < 70
     );
     if (!threat) return;
     const defenders = w.entities.filter(e =>
       !e.dead && e.team === 1 && e.def.speed > 0 &&
       ["tank", "lightTank", "tankDestroyer", "ifv", "inf", "atInf", "atgm", "gunship", "casHeli", "spaa"].includes(e.kind) &&
-      e.loadedIntoId === null
+      e.loadedIntoId === null && availableCombat(e)
     );
     for (const u of defenders.slice(0, 10)) {
-      u.mode = "amove";
-      u.target = threat;
-      u.dest = { x: threat.x, z: threat.z };
+      u.aiIntent="defend";w.issue(u.def.armor==="air"?{type:"air-mission",ids:[u.id],mission:"ground",x:threat.x,z:threat.z,team:1}:{type:"amove",ids:[u.id],x:threat.x,z:threat.z,team:1});
     }
   }
 
   private counterAttack(w: World): void {
     if (this.phase === "bootstrap") return;
     const threatened = w.resourcePoints
-      .filter(r => r.controlledBy === 0 && r.amount > 0)
+      .filter(r => w.vision.isVisible(1,r.x,r.z) && r.controlledBy === 0 && r.amount > 0)
       .map(r => ({ r, d: Math.hypot(r.x - w.bases[1].x, r.z - w.bases[1].z) }))
       .sort((a, b) => a.d - b.d)[0];
     if (!threatened) return;
-    const army = w.entities.filter(e =>
-      !e.dead && e.team === 1 &&
-      ["tank", "inf", "artillery", "special", "gunship", "ifv"].includes(e.kind) &&
-      e.loadedIntoId === null
-    );
+    const candidates=w.entities.filter(e=>e.team===1&&availableCombat(e)&&!needsRecovery(e)&&["tank","inf","artillery","special","ifv"].includes(e.kind));
+    const army=candidates.slice(Math.max(1,Math.floor(candidates.length*AI_RULES.reserveRatio)));
     if (army.length < 4) return;
     army.filter(e => e.kind !== "artillery").forEach((u, i) => {
-      u.mode = "amove";
-      u.dest = { x: threatened.r.x + (i % 3 - 1) * 8, z: threatened.r.z + (i % 2) * 6 };
-      u.target = null;
+      u.aiIntent='attack';w.issue({type:'amove',ids:[u.id],x:threatened.r.x+(i%3-1)*8,z:threatened.r.z+(i%2)*6,team:1});
     });
-    army.filter(e => e.kind === "artillery").forEach(u => {
-      u.fireMission = { x: threatened.r.x, z: threatened.r.z };
-      u.mode = "attack";
-      u.target = null;
-    });
+    army.filter(e=>e.kind==='artillery').forEach(u=>w.issue({type:'fire-mission',ids:[u.id],x:threatened.r.x,z:threatened.r.z,team:1}));
   }
 
   private launchAttack(w: World): void {
     const army = w.entities.filter(e =>
       !e.dead && e.team === 1 && e.def.speed > 0 &&
-      !["engineer", "transport"].includes(e.kind) && e.loadedIntoId === null
+      !["engineer", "transport"].includes(e.kind) && e.loadedIntoId === null && availableCombat(e) && !needsRecovery(e)
     );
     const minArmy = this.phase === "decisive" ? 8 : this.phase === "pressure" ? 6 : 5;
     if (army.length < minArmy) return;
 
     // Prefer logistics targets (Wargame)
-    const targets = w.entities
-      .filter(e => !e.dead && e.team === 0 && ["supply", "generator", "refinery", "factory", "barracks", "helipad", "airbase", "hq"].includes(e.kind))
-      .map(e => ({ e, v: this.attackValue(e.kind) - Math.hypot(e.x - w.bases[1].x, e.z - w.bases[1].z) * 0.05 }))
-      .sort((a, b) => b.v - a.v);
-
-    const target = targets[0]?.e ?? w.hq[0];
-    if (!target) return;
-
+    const targets=knownContacts(w,1).filter(c=>['supply','generator','refinery','factory','barracks','helipad','airbase','hq'].includes(c.kind)).sort((a,b)=>this.attackValue(b.kind)-this.attackValue(a.kind));
+    const target=targets[0]??{...w.bases[0],kind:'hq' as const};
     // Only commit units that are in supply (don't overextend dry)
-    const committed = army.filter(u => isTacticallySupplied(w, u) || this.phase === "decisive");
-    const force = committed.length >= minArmy ? committed : army;
+    const committed=army.filter(u=>(u.supply??100)>=AI_RULES.recoveredSupply);
+    const reserve=Math.max(1,Math.floor(committed.length*AI_RULES.reserveRatio));
+    const force=committed.slice(reserve);if(force.length<minArmy)return;
 
-    for (const u of force.filter(e => e.kind !== "artillery" && e.def.armor !== "air")) {
-      u.mode = "amove";
-      u.dest = { x: target.x + (this.rngPick(w) - 0.5) * 16, z: target.z + (this.rngPick(w) - 0.5) * 16 };
-      u.target = target.def.speed === 0 ? target : null;
-      u.priorityFocus = target.kind === "supply" || target.kind === "generator" ? target.kind as "supply" | "generator" : u.priorityFocus;
+    for (const u of force.filter(e => !["artillery","mortar","mlrs"].includes(e.kind) && e.def.armor !== "air")) {
+      u.aiIntent='attack';w.issue({type:'amove',ids:[u.id],x:target.x+(this.rngPick(w)-.5)*16,z:target.z+(this.rngPick(w)-.5)*16,team:1});
     }
-    for (const u of force.filter(e => e.kind === "artillery")) {
-      u.fireMission = { x: target.x, z: target.z };
-      u.mode = "attack";
-      u.dest = null;
-      u.target = null;
-    }
-    for (const u of force.filter(e => e.kind === "fighter" || e.kind === "gunship")) {
-      assignAirMission(u, u.kind === "fighter" ? "cap" : "strike", { x: target.x, z: target.z });
-    }
+    const fresh=knownContacts(w,1).some(c=>c.x===target.x&&c.z===target.z);
+    for(const u of force.filter(e=>['artillery','mortar','mlrs'].includes(e.kind)))if(fresh)w.issue({type:'fire-mission',ids:[u.id],x:target.x,z:target.z,team:1});
+    for(const u of force.filter(e=>e.kind==='fighter'||e.kind==='gunship'))w.issue({type:'air-mission',ids:[u.id],mission:u.kind==='fighter'?'cap':'strike',x:target.x,z:target.z,team:1});
     this.useTacticalTransport(w, { x: target.x, z: target.z });
   }
 
   private attackValue(kind: UnitKind | string): number {
-    const values: Record<string, number> = {
-      supply: 140, generator: 130, refinery: 125, factory: 110,
-      helipad: 100, airbase: 105, barracks: 90, aa: 75, bunker: 65, hq: 55,
-    };
-    return values[kind] ?? 20;
+    return (AI_RULES.raidValues as Record<string,number>)[kind]??20;
   }
 
-  private useTacticalTransport(w: World, target: { x: number; z: number }): void {
-    const transport = w.entities.find(e =>
-      !e.dead && e.team === 1 && e.kind === "transport" &&
-      e.cargoUnitIds.length === 0 && e.supplyDepotId == null
-    );
-    if (!transport) return;
-    const infantry = w.entities.filter(e =>
-      !e.dead && e.team === 1 && ["inf", "special", "engineer"].includes(e.kind) &&
-      e.loadedIntoId === null && Math.hypot(e.x - transport.x, e.z - transport.z) < 40
-    );
-    const passenger = infantry[0];
-    if (passenger) {
-      transport.transportTargetId = passenger.id;
-      transport.mode = "transport-load";
-      transport.dest = { x: passenger.x, z: passenger.z };
-    } else if (transport.cargoUnitIds.length) {
-      transport.unloadPoint = { x: target.x - 14, z: target.z - 10 };
-      transport.mode = "transport-unload";
-      transport.dest = transport.unloadPoint;
-    }
+  private useTacticalTransport(w:World,target:{x:number;z:number}):void {
+    const transport=w.entities.find(e=>!e.dead&&e.team===1&&e.kind==='transport'&&e.supplyDepotId==null&&e.mode!=='transport-load'&&e.mode!=='transport-unload');
+    if(!transport)return;
+    if(transport.cargoUnitIds.length){w.issue({type:'unload',ids:[transport.id],x:target.x-14,z:target.z-10,team:1});return;}
+    const passenger=w.entities.find(e=>e.team===1&&availableCombat(e)&&['inf','special'].includes(e.kind)&&Math.hypot(e.x-transport.x,e.z-transport.z)<40);
+    if(passenger)w.issue({type:'load',ids:[transport.id],targetId:passenger.id,team:1});
   }
 
   private rngPick(w: World): number { return w.rng(); }
@@ -503,8 +465,9 @@ export class WaveAI {
     const def = w.entities.find(e =>
       !e.dead && !e.underConstruction && e.team === 1 && e.kind === producer
     );
-    if (!def) return;
+    if (!def||!w.canProduceAtLevel(def,kind)||!w.productionOperational(def,kind).operational||w.teamCredits[1]-this.productionBudgetUsed-w.unitDefinition(kind,1).cost<AI_RULES.economyReserve||w.teamResources[1]-this.productionBudgetUsed-w.unitDefinition(kind,1).cost<AI_RULES.economyReserve) return;
     w.issue({ type: "produce", kind, producerId: def.id, team: 1 });
+    this.productionBudgetUsed+=w.unitDefinition(kind,1).cost;
   }
 
   private count(w: World, kind: UnitKind): number {

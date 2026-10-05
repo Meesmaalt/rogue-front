@@ -1,3 +1,4 @@
+import {garrisonConcealment} from "../garrison";
 import type { World } from "../World";
 import type { Entity, Team } from "../types";
 import { pointInFeature } from "../mapFeatures";
@@ -23,7 +24,7 @@ export function coverValueAt(w: World, x: number, z: number): number {
   let value = 0;
   for (const f of w.mapFeatures) {
     if (!pointInFeature(x, z, f, 0.25)) continue;
-    if(f.appearance==="forest")value=Math.max(value,24);
+    if(f.appearance==="forest")value=Math.max(value,24*w.terrain.foliageAt(x,z));
     else if (f.kind === "cover" && f.appearance!=="field" && f.appearance!=="yard") value = Math.max(value, (f.height ?? 1.5) >= 2 ? 22 : 16);
     else if (f.kind === "wall" || f.kind === "chokepoint") value = Math.max(value, 28);
     else if (f.kind === "building") value = Math.max(value, 34);
@@ -50,7 +51,7 @@ export function terrainLineOfSight(a: Entity, b: Entity): boolean {
  * Wargame-style detection: does observer spot target right now?
  * Score uses optics, stealth, size, distance, movement, cover (forest features).
  */
-export function detectionScore(observer: Entity, target: Entity, coverPenalty = 0): number {
+export function detectionScore(observer: Entity, target: Entity, coverPenalty = 0,now=0): number {
   const optics = observer.def.optics ?? "normal";
   const baseRange = (observer.def.opticsRange ?? 40) * (OPTICS_MUL[optics] ?? 1);
   // Radar buildings / radar units get bonus vs air
@@ -72,19 +73,20 @@ export function detectionScore(observer: Entity, target: Entity, coverPenalty = 
   const moving = (target.motionSpeed??0)>.2 ? 12 : 0;
   // Distance falloff 0..100 inside range
   const proximity = (1 - dist / Math.max(range, 1)) * 100;
-  const score = proximity + size + moving - stealth * 8 - coverPenalty;
+  const firing=(target.lastCombatTime??0)>0&&now-(target.lastCombatTime??0)<5?20:0;
+  const score = proximity + size + moving + firing - stealth * 8 - coverPenalty;
   return score;
 }
 
-export function canSpot(observer: Entity, target: Entity, coverPenalty = 0): boolean {
+export function canSpot(observer: Entity, target: Entity, coverPenalty = 0,now=0): boolean {
   if (observer.dead || target.dead || observer.team === target.team) return false;
   if (observer.underConstruction) return false;
-  return detectionScore(observer, target, coverPenalty) >= 22;
+  return detectionScore(observer, target, coverPenalty,now) >= 22;
 }
 
 /** How long a spot lasts once achieved (seconds). */
-export const SPOT_DURATION = 8;
-export const SPOT_DURATION_RADAR = 14;
+export const SPOT_DURATION = 3;
+export const SPOT_DURATION_RADAR = 6;
 
 /**
  * Update spottedUntil for all entities. Throttled by caller.
@@ -109,10 +111,9 @@ export function updateSensors(w: World): void {
       if (target.dead || target.loadedIntoId!=null || target.team === team) return;
       if (!w.vision.hasLineOfSight(observer, target)) return;
       const forest=w.vision.forestDepth(observer,target);
-      const cover=coverValueAt(w,target.x,target.z)+forest*.35;
+      const cover=coverValueAt(w,target.x,target.z)+forest*.35+garrisonConcealment(w,target);
       const close=Math.hypot(target.x-observer.x,target.z-observer.z)<7;
-      const signature=target.lastCombatTime>0&&now-target.lastCombatTime<3?26:0;
-      if(!close&&!canSpot(observer,target,cover-signature))return;
+      if(!close&&!canSpot(observer,target,cover,now))return;
       const radarLevel = observer.kind === "radar" ? (observer.buildingLevel ?? 1) : 1;
       const dur = observer.kind === "radar" ? SPOT_DURATION_RADAR * (radarLevel >= 3 ? 1.45 : radarLevel >= 2 ? 1.2 : 1) : SPOT_DURATION;
       const until = now + dur;

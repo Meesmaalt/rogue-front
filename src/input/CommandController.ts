@@ -1,3 +1,5 @@
+import {transportCapacity,isPassenger} from "../sim/transport";
+import {maxHitPoints} from "../sim/unitStats";
 import type { World } from "../sim/World";
 import type { Picker } from "./Picker";
 import type { SelectionController } from "./SelectionController";
@@ -10,6 +12,9 @@ import { loadSettings } from "../ui/Settings";
 export class CommandController {
   enabled = false;
   attackMoveMode = false;
+  fastMoveMode = false;
+  unloadMode = false;
+  garrisonFaceMode = false;
   buildMode: BuildableKind | null = null;
   buildRotation = 0;
   buildPoint: { x: number; z: number } | null = null;
@@ -62,15 +67,19 @@ export class CommandController {
         if (ids.length) { this.world.issue({type:"fire-mission",ids,x:p.x,z:p.z}); this.fx.ping(p.x,p.z,0xff7a33); }
         this.fireMissionMode=false; el.style.cursor="crosshair"; return;
       }
+      if(this.garrisonFaceMode){const p=this.picker.groundAt(e.clientX,e.clientY);this.world.issue({type:"face-building",ids:this.ids(),x:p.x,z:p.z});this.garrisonFaceMode=false;return;}
+      if(this.fastMoveMode){const p=this.picker.groundAt(e.clientX,e.clientY);this.moveTo(p.x,p.z,e.shiftKey);return;}
+      if(this.unloadMode){const p=this.picker.groundAt(e.clientX,e.clientY);this.exitAt(p.x,p.z);this.unloadMode=false;this.fx.ping(p.x,p.z,0x55b7ff);return;}
       const friendly = this.picker.pickEntity(e.clientX, e.clientY, this.world.playerTeam);
-      const selectedTransports = this.selection.selectedIds().filter(id => { const u=this.world.byId.get(id); return !!u && !u.dead && u.team===this.world.playerTeam && u.kind==="transport"; });
-      if (friendly && selectedTransports.length && ["inf", "engineer"].includes(friendly.kind) && friendly.loadedIntoId === null) {
+      const selectedTransports = this.selection.selectedIds().filter(id => { const u=this.world.byId.get(id); return !!u && !u.dead && u.team===this.world.playerTeam && (transportCapacity(u)>0||u.kind==="landingcraft"); });
+      if (friendly && selectedTransports.length && isPassenger(friendly) && friendly.loadedIntoId === null) {
         this.world.issue({ type: "load", ids: selectedTransports, targetId: friendly.id });
         this.fx.ping(friendly.x, friendly.z, 0x55b7ff);
         return;
       }
+      if(friendly&&transportCapacity(friendly)>0&&this.ids().some(id=>{const p=this.world.byId.get(id);return !!p&&isPassenger(p);})){this.world.issue({type:"load",ids:this.ids(),targetId:friendly.id});this.fx.ping(friendly.x,friendly.z,0x55b7ff);return;}
       const engineers = this.selection.selectedIds().filter(id => { const u=this.world.byId.get(id); return !!u && !u.dead && u.team===this.world.playerTeam && u.kind==="engineer"; });
-      if (friendly && (friendly.hp < friendly.def.hp || (friendly.components && Object.values(friendly.components).some(v=>v>0))) && engineers.length) {
+      if (friendly && (friendly.hp < maxHitPoints(friendly) || (friendly.components && Object.values(friendly.components).some(v=>v>0))) && engineers.length) {
         this.world.issue({ type: "repair", ids: engineers, targetId: friendly.id });
         this.fx.ping(friendly.x, friendly.z, 0x66d9a0);
         return;
@@ -93,27 +102,28 @@ export class CommandController {
         }
         return;
       }
-      if (this.attackMoveMode && !enemy) { this.world.issue({ type: "amove", ids: this.ids(), x: this.picker.groundAt(e.clientX,e.clientY).x, z: this.picker.groundAt(e.clientX,e.clientY).z }); this.attackMoveMode = false; el.style.cursor = "crosshair"; return; }
+      if (this.attackMoveMode && !enemy) {const p=this.picker.groundAt(e.clientX,e.clientY);this.moveTo(p.x,p.z,e.shiftKey);return;}
+      const house=this.picker.pickGarrisonBuilding(e.clientX,e.clientY);
+      if(!enemy&&!this.attackMoveMode&&house&&this.ids().some(id=>{const u=this.world.byId.get(id);return !!u&&isPassenger(u);})){this.world.issue({type:"enter-building",ids:this.ids(),featureId:house.id});this.fx.ping(house.x,house.z,0x9bc98d);return;}
       if (enemy) {
         this.world.issue({ type: "attack", ids: this.ids(), targetId: enemy.id });
         this.fx.ping(enemy.x, enemy.z, 0xe0553f);
       } else {
         const p = this.picker.groundAt(e.clientX, e.clientY);
-        if (selectedTransports.length && selectedTransports.some(id => (this.world.byId.get(id)?.cargoUnitIds.length ?? 0) > 0)) {
-          this.world.issue({ type: "unload", ids: selectedTransports, x: p.x, z: p.z });
-          this.fx.ping(p.x, p.z, 0x55b7ff);
-        } else this.moveTo(p.x, p.z, e.shiftKey);
+        this.moveTo(p.x, p.z, e.shiftKey);
       }
     },true);
     addEventListener("keydown", (e) => {
       if (!this.enabled) return;
-      if(e.key==="Escape"){this.logisticsOrder=null;this.airOrder=null;this.attackMoveMode=false;this.cancelBuild(el);return;}
+      if(e.key==="Escape"){this.logisticsOrder=null;this.airOrder=null;this.attackMoveMode=false;this.fastMoveMode=false;this.unloadMode=false;this.garrisonFaceMode=false;this.cancelBuild(el);return;}
       const k=e.key.toLowerCase(), keys = loadSettings().keys;
       if (k === keys.stop) this.world.issue({ type: "stop", ids: this.ids() });
-      if (k === keys.attackMove) { this.attackMoveMode = true; el.style.cursor = "crosshair"; }
+      if (k === keys.attackMove) { this.garrisonFaceMode=false; this.attackMoveMode = true;this.fastMoveMode=false;this.unloadMode=false; el.style.cursor = "crosshair"; }
       if (k === keys.hold) this.world.issue({ type: "hold", ids: this.ids() });
       if (k === keys.patrol) { const q=this.picker.groundAt(innerWidth/2, innerHeight/2); this.world.issue({ type:"patrol", ids:this.ids(), x:q.x, z:q.z }); }
-      if (k === "f") { const hasArtillery=this.ids().some(id=>["artillery","mortar","mlrs"].includes(this.world.byId.get(id)?.kind??"")); if(hasArtillery){this.fireMissionMode=true;el.style.cursor="crosshair";} }
+      if (k === "f") { const hasArtillery=this.ids().some(id=>["artillery","mortar","mlrs"].includes(this.world.byId.get(id)?.kind??"")); if(hasArtillery){this.garrisonFaceMode=false;this.fireMissionMode=true;el.style.cursor="crosshair";} }
+      if (k === "g") {this.garrisonFaceMode=false;this.fastMoveMode=true;this.attackMoveMode=false;this.unloadMode=false;el.style.cursor="crosshair";}
+      if (k === "u") {this.garrisonFaceMode=false;this.unloadMode=true;this.fastMoveMode=false;this.attackMoveMode=false;el.style.cursor="crosshair";}
       if (k === "l") { const depots=this.selection.selectedIds().filter(id=>this.world.byId.get(id)?.kind==="supply"); if(depots.length) this.world.issue({type:"logistics-route",ids:depots,x:0,z:0,clear:true}); }
       if (this.buildMode && k === "r") { this.buildRotation = (this.buildRotation + Math.PI / 2) % (Math.PI * 2); }
     });
@@ -140,11 +150,20 @@ export class CommandController {
 
   moveTo(x: number, z: number, append = false): void {
     if (!this.enabled) return;
-    const cmd: import("../sim/types").Command = { type: this.attackMoveMode ? "amove" : "move", ids: this.ids(), x, z };
+    if(this.garrisonFaceMode){this.garrisonFaceMode=false;this.world.issue({type:"face-building",ids:this.ids(),x,z});return;}
+    const cmd: import("../sim/types").Command = { type: this.attackMoveMode ? "amove" : this.fastMoveMode ? "fast-move" : "move", ids: this.ids(), x, z };
     if (append) (cmd as { append?: boolean }).append = true;
-    this.attackMoveMode=false;
+    this.attackMoveMode=false;this.fastMoveMode=false;
+    if(this.unloadMode){this.unloadMode=false;this.exitAt(x,z);return;}
     this.world.issue(cmd);
     this.fx.ping(x, z, append ? 0x9b7cff : 0xf2a33a);
+  }
+
+  private exitAt(x:number,z:number):void {
+    const ids=this.ids();
+    const housed=ids.filter(id=>{const u=this.world.byId.get(id);return !!u&&(u.garrisonId||u.garrisonOrderId);});
+    if(housed.length)this.world.issue({type:"leave-building",ids:housed,x,z});
+    this.world.issue({type:"unload",ids:ids.filter(id=>!housed.includes(id)),x,z});
   }
 
   private ids(): number[] {

@@ -1,3 +1,5 @@
+import mobility from "../data/mobility.json";
+import {factionUnitDefinition} from "../sim/units";
 import * as THREE from "three";
 import {createBuildingModel} from "./Architecture";
 import {mergeGeometries} from "three/addons/utils/BufferGeometryUtils.js";
@@ -247,33 +249,104 @@ function addBuildingFactionDetails(g: THREE.Group, faction: FactionId, kind: Uni
   }
 }
 
+
+const infantryKinds=new Set<UnitKind>(["inf","atInf","mgInf","reconInf","sniper","manpad","atgm","engineer","special","mortar"]);
+const infantryCache=new Map<string,THREE.Group>(),humanMaterials=new Map<FactionId,THREE.MeshStandardMaterial>();
+function humanMaterial(faction:FactionId):THREE.MeshStandardMaterial {
+  let material=humanMaterials.get(faction);if(material)return material;
+  material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.94,metalness:0});material.userData.sharedArt=true;
+  if(typeof document!=="undefined"){
+    const texture=new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}models/art/${faction}/camouflage.png`);texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.colorSpace=THREE.SRGBColorSpace;
+    material.onBeforeCompile=shader=>{
+      shader.uniforms.uniformPattern={value:texture};
+      shader.vertexShader="attribute float camoMask;varying float vCamoMask;varying vec2 vUniformUv;\n"+shader.vertexShader;
+      shader.vertexShader=shader.vertexShader.replace("#include <begin_vertex>","#include <begin_vertex>\nvCamoMask=camoMask;vUniformUv=uv;");
+      shader.fragmentShader="uniform sampler2D uniformPattern;varying float vCamoMask;varying vec2 vUniformUv;\n"+shader.fragmentShader;
+      shader.fragmentShader=shader.fragmentShader.replace("#include <color_fragment>","#include <color_fragment>\ndiffuseColor.rgb*=mix(vec3(1.0),texture2D(uniformPattern,vUniformUv).rgb*1.4,clamp(vCamoMask,0.0,1.0)*0.7);");
+    };
+    material.customProgramCacheKey=()=>"human-camouflage-v1";
+  }
+  humanMaterials.set(faction,material);return material;
+}
+/** Vertex colours allow skin, fabric, kit and weapon to share one draw per body part. */
+function mergeHumanParts(parent:THREE.Group,faction:FactionId,uniform:number):void {
+  const geometries:THREE.BufferGeometry[]=[];
+  for(const child of [...parent.children])if(child instanceof THREE.Mesh&&child.material instanceof THREE.MeshStandardMaterial){
+    child.updateMatrix();const clone=child.geometry.clone().applyMatrix4(child.matrix),geometry=clone.index?clone.toNonIndexed():clone;if(geometry!==clone)clone.dispose();
+    const count=geometry.getAttribute("position").count,color=child.material.color,colors=new Float32Array(count*3),mask=new Float32Array(count);
+    for(let i=0;i<count;i++){colors[i*3]=color.r;colors[i*3+1]=color.g;colors[i*3+2]=color.b;mask[i]=color.getHex()===uniform?1:0;}
+    geometry.setAttribute("color",new THREE.BufferAttribute(colors,3));geometry.setAttribute("camoMask",new THREE.BufferAttribute(mask,1));geometries.push(geometry);parent.remove(child);child.geometry.dispose();child.material.dispose();
+  }
+  if(geometries.length){const geometry=mergeGeometries(geometries)!;geometries.forEach(g=>g.dispose());geometry.userData.sharedArt=true;const mesh=new THREE.Mesh(geometry,humanMaterial(faction));mesh.castShadow=mesh.receiveShadow=true;parent.add(mesh);}
+}
+function equipment(parent:THREE.Group,kit:string,faction:FactionId):void {
+  const green=faction==="usa"?0x696747:faction==="russia"?0x4d6143:0x63715b;
+  const tube=(r:number,length:number,x:number,y:number,z:number,color:number)=>{const m=cyl(r,r,length,color,x,y,z,12);m.rotation.x=Math.PI/2;parent.add(m);};
+  if(kit==="engineer"){detailBox(.045,.06,.7,METAL,.15,1.03,.35,parent);detailBox(.2,.06,.22,METAL,.15,1.03,.71,parent);detailBox(.25,.14,.2,green,-.19,.9,-.23,parent);return;}
+  if(["law","rpg","javelin","manpad"].includes(kit)){
+    const r=kit==="javelin"?.1:kit==="manpad"?.055:.075,length=kit==="manpad"?1.35:kit==="rpg"?1.05:1.1;
+    tube(r,length,-.27,1.24,.36,green);tube(r*1.12,.08,-.27,1.24,.36-length/2,DARK);tube(r*1.12,.08,-.27,1.24,.36+length/2,DARK);
+    detailBox(.12,.2,.1,DARK,-.27,1.1,.38,parent);detailBox(.08,.13,.13,DARK,-.16,1.38,.36,parent);
+    if(kit==="javelin"){detailBox(.23,.2,.3,DARK,-.1,1.2,.05,parent);detailBox(.1,.09,.035,0x263c45,-.1,1.23,.22,parent);}
+    if(kit==="rpg"){const nose=new THREE.Mesh(new THREE.ConeGeometry(.105,.34,12),mat(green));nose.rotation.x=Math.PI/2;nose.position.set(-.27,1.24,1.04);parent.add(nose);}
+    if(kit==="manpad"){detailBox(.08,.19,.13,DARK,-.18,1.08,.24,parent);detailBox(.12,.09,.22,green,-.12,1.37,.14,parent);}
+    return;
+  }
+  const sniper=kit==="sniper",mg=kit==="mg",bullpup=kit==="bullpup",length=sniper?1.04:mg?.91:kit==="carbine"?.6:.75;
+  detailBox(.09,.1,length,DARK,.14,1.04,.35,parent);tube(.021,sniper?.32:mg?.3:.16,.14,1.05,.35+length/2,DARK);
+  detailBox(.055,.16,.12,METAL,.14,.91,bullpup?.12:.39,parent);detailBox(.11,.12,.19,0x44483e,.14,1.04,.35-length/2,parent);
+  if(sniper||kit==="carbine"){tube(.032,.18,.14,1.15,.35,DARK);detailBox(.055,.07,.12,DARK,.14,1.1,.35,parent);}
+  if(mg){detailBox(.18,.19,.16,green,.23,.92,.42,parent);for(const side of [-1,1]){const bipod=box(.025,.25,.025,DARK,.14+side*.06,.92,.78);bipod.rotation.z=side*.3;parent.add(bipod);}}
+}
+function equippedSoldier(member:THREE.Group,faction:FactionId,uniform:number,kit:string,team:Team):void {
+  const torso=new THREE.Group();member.add(torso);const gear=faction==="usa"?0x84795b:faction==="russia"?0x46513c:0x62694c;
+  for(const side of [-1,1]){
+    const leg=new THREE.Group();leg.name=side<0?"LeftLeg":"RightLeg";leg.position.set(side*.12,.8,0);
+    leg.add(box(.19,.34,.21,uniform,0,-.18,0),box(.17,.31,.19,uniform,0,-.5,0),box(.2,.13,.31,DARK,0,-.72,.07),box(.2,.12,.08,gear,0,-.36,.12));torso.add(leg);mergeHumanParts(leg,faction,uniform);
+  }
+  const chest=cyl(.235,.19,.49,uniform,0,1.04,0,12);chest.scale.z=.74;torso.add(chest);
+  torso.add(box(.43,.35,.1,gear,0,1.06,.18),box(.3,.38,.2,gear,0,1.05,-.23));
+  for(const x of [-.13,0,.13])torso.add(box(.1,.14,.09,gear,x,.98,.25));
+  torso.add(cyl(.07,.07,.09,SKIN,0,1.33,0,8));const head=new THREE.Mesh(new THREE.SphereGeometry(.13,12,8),mat(SKIN,.95,0));head.position.y=1.44;torso.add(head);
+  const helmet=new THREE.Mesh(new THREE.SphereGeometry(.17,16,8,0,Math.PI*2,0,Math.PI*.62),mat(uniform));helmet.position.y=1.52;torso.add(helmet);
+  for(const side of [-1,1]){const arm=box(.15,.32,.17,uniform,side*.26,1.17,.06);arm.rotation.z=side*.32;torso.add(arm);const forearm=box(.14,.14,.29,uniform,side*.2,1,.24);forearm.rotation.y=side*.3;torso.add(forearm);torso.add(box(.08,.1,.09,SKIN,side*.15,1.02,.4));}
+  torso.add(box(.05,.1,.09,ACC[team],-.35,1.2,.07),box(.09,.12,.13,gear,.24,1.2,-.19));
+  if(kit==="sniper"){for(let i=0;i<5;i++)torso.add(box(.1,.14,.07,uniform,(i%3-1)*.13,1.17+Math.floor(i/3)*.17,-.24));}
+  equipment(torso,["tripod","mortar"].includes(kit)?faction==="china"?"bullpup":"carbine":kit,faction);mergeHumanParts(torso,faction,uniform);
+  if(kit==="tripod"||kit==="mortar"){
+    const mount=new THREE.Group();mount.position.set(.5,0,.45);member.add(mount);
+    for(const side of [-1,1]){const leg=box(.04,.65,.04,METAL,side*.2,.32,0);leg.rotation.z=side*.45;mount.add(leg);}
+    if(kit==="tripod"){const launcher=cyl(.12,.12,1.15,0x596448,0,.72,.2,12);launcher.rotation.x=Math.PI/2;mount.add(launcher,box(.2,.18,.25,DARK,.18,.75,-.12));}
+    else {mount.add(box(.52,.06,.45,METAL,0,.05,-.15));const barrel=cyl(.075,.085,1.05,METAL,0,.53,.04,12);barrel.rotation.x=.55;mount.add(barrel);}
+    mergeHumanParts(mount,faction,uniform);
+  }
+}
+function flattenMember(member:THREE.Group,faction:FactionId):void {
+  member.updateMatrixWorld(true);const inverse=member.matrixWorld.clone().invert(),parts:THREE.BufferGeometry[]=[];
+  member.traverse(o=>{if(o instanceof THREE.Mesh)parts.push(o.geometry.clone().applyMatrix4(inverse.clone().multiply(o.matrixWorld)));});
+  const geometry=mergeGeometries(parts)!;parts.forEach(g=>g.dispose());geometry.userData.sharedArt=true;member.clear();const mesh=new THREE.Mesh(geometry,humanMaterial(faction));mesh.castShadow=mesh.receiveShadow=true;member.add(mesh);
+}
+function infantryModel(kind:UnitKind,team:Team,faction:FactionId,tactical:boolean):Model {
+  const key=[kind,team,faction,tactical].join(":"),cached=infantryCache.get(key);if(cached)return {group:cached.clone(true),turret:null};
+  const g=new THREE.Group(),def=factionUnitDefinition(kind,faction),uniform=faction==="usa"?0x8b906e:faction==="russia"?0x647859:0x798879;
+  const positions=mobility.infantry.squadLayout;
+  const rifle=faction==="china"?"bullpup":faction==="usa"?"carbine":"rifle";
+  positions.slice(0,def.squadSize??(kind==="engineer"?4:8)).forEach(([x,z],i)=>{
+    const member=new THREE.Group();member.name=`SquadMember${i}`;member.position.set(x,0,z);
+    const kit=kind==="engineer"?"engineer":def.weapons?.[i]?.model??(i===0?def.weapons?.[0]?.model:rifle)??rifle;
+    equippedSoldier(member,faction,uniform,kit,team);g.add(member);if(tactical)flattenMember(member,faction);
+  });
+  infantryCache.set(key,g);return {group:g.clone(true),turret:null};
+}
+
 /** Detailed procedural military models – readable silhouettes at RTS scale. */
-export function createModel(kind: UnitKind, team: Team, faction: FactionId = team === 0 ? "usa" : "russia"): Model {
+export function createModel(kind: UnitKind, team: Team, faction: FactionId = team === 0 ? "usa" : "russia",tactical=false): Model {
   const architecture=createBuildingModel(kind,team,faction);if(architecture)return architecture;
   const g = new THREE.Group();
   let turret: THREE.Group | null = null;
   const body = BODY[team], acc = ACC[team];
 
-  // New unit families use deliberately distinct silhouettes so tactical roles remain readable even before bespoke GLB art.
-  const infantryKinds = new Set(["inf","atInf","mgInf","reconInf","sniper","manpad","atgm","engineer"]);
-  if (infantryKinds.has(kind)) {
-    // Phase 74: render a complete squad. The renderer hides individual members as casualties occur.
-    const role = kind === "sniper" ? "sniper" : kind === "reconInf" ? "recon" : kind === "mgInf" ? "mg" : kind === "manpad" ? "manpad" : kind === "atInf" || kind === "atgm" ? "at" : kind.includes("Engineer") || kind.includes("engineer") ? "engineer" : "rifle";
-    const uniform = role === "recon" || role === "sniper" ? 0x46523e : role === "engineer" ? 0x68563d : role === "at" ? 0x5a4a38 : faction==="usa"?0x737a58:faction==="russia"?0x586744:0x6c7350;
-    const formation: Array<[number,number]> = [[-1.15,-1.0],[0,-1.15],[1.15,-1.0],[-1.5,0],[0,0],[1.5,0],[-0.95,1.15],[0.95,1.15]];
-    formation.forEach(([x,z], i) => {
-      const member = new THREE.Group(); member.name = `SquadMember${i}`;
-      const gear = role === "mg" ? DARK : role === "engineer" ? 0x806744 : uniform;
-      soldier(member, 0, 0, uniform, gear, true); member.position.set(x, 0, z);
-      if (role === "mg" && i === 0) { detailBox(0.12,0.12,1.5,DARK,0.28,0.72,0.5,member); detailBox(0.16,0.16,0.55,METAL,0.28,0.65,1.2,member); }
-      if (role === "sniper" && i < 4) detailBox(0.08,0.08,1.75,DARK,0.26,0.72,0.55,member);
-      if (role === "at" && i < 3) { detailBox(0.16,0.16,1.35,METAL,-0.28,0.9,0.55,member); detailBox(0.26,0.22,0.4,0x3f3328,0,0.82,-0.15,member); }
-      if (role === "manpad" && i < 2) detailBox(0.18,0.18,1.4,METAL,-0.28,1.0,0.45,member);
-      if (role === "engineer" && i < 3) detailBox(0.26,0.12,0.48,METAL,0.24,0.76,-0.18,member);
-      g.add(member);
-    });
-    return { group:g, turret:null };
-  }
+  if(infantryKinds.has(kind))return infantryModel(kind,team,faction,tactical);
   if (["reconVehicle","lightTank","tankDestroyer","spaa"].includes(kind)) {
     const hullColor = kind === "reconVehicle" ? 0x66705a : kind === "lightTank" ? 0x6f7650 : body;
     if (kind === "reconVehicle") {

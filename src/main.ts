@@ -1,3 +1,4 @@
+import {maxHitPoints} from "./sim/unitStats";
 import "./style.css";
 import * as THREE from "three";
 import { GameLoop } from "./core/GameLoop";
@@ -6,11 +7,12 @@ import type { FactionId } from "./sim/factions";
 import { FACTION_LIST, FACTIONS } from "./sim/factions";
 import { DeckBuilder } from "./ui/DeckBuilder";
 import { World } from "./sim/World";
-import { heightAt, loadHeightmap, setBases, ensureHeightCache, setProceduralSeed, setTerrainProfile } from "./sim/heightmap";
+import { heightAt, loadHeightmap, setBases, ensureHeightCache, setProceduralSeed, setTerrainProfile, setMapSize } from "./sim/heightmap";
 import { createRenderContext } from "./render/Renderer";
-import { createTerrain } from "./render/Terrain";
+import { createTerrain,syncForestTerrain,syncGarrisonTerrain } from "./render/Terrain";
 import { RtsCamera } from "./render/RtsCamera";
 import { loadArtModels } from "./render/ArtModels";
+import { RangeOverlay } from "./render/RangeOverlay";
 import { UnitRenderer } from "./render/UnitRenderer";
 import {ResourceSites} from "./render/ResourceSites";
 import { Fx } from "./render/Fx";
@@ -62,6 +64,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     console.warn("3D asset loading failed", error);
     hud.setWarning("Osa 3D-mudeleid ei laadinud. Kasutan varumudeleid.");
   }
+  setMapSize(mission.map.size??640);
   setBases(mission.map.bases);
   setProceduralSeed(mission.seed);
   setTerrainProfile(mission.map.terrainProfile);
@@ -116,11 +119,12 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const fogCanvas = document.getElementById("fog") as HTMLCanvasElement;
   const ctx = createRenderContext(glCanvas, mission.map.theme === "temperate");
   ctx.setQuality(visualQuality);
-  ctx.scene.add(createTerrain(mission.map.theme, world.mapFeatures, mission.map.bases));
+  const terrainView=createTerrain(mission.map.theme, world.mapFeatures, mission.map.bases);ctx.scene.add(terrainView);
 
   const cam = new RtsCamera(ctx.camera, heightAt, ctx.sun, topCanvas);
   cam.jumpTo(world.bases[world.playerTeam].x,world.bases[world.playerTeam].z);
   const units = new UnitRenderer(ctx.scene,ctx.camera);
+  const ranges=new RangeOverlay(ctx.scene);
   const fx = new Fx(ctx.scene,ctx.camera);
   const resourceSites=new ResourceSites(ctx.scene,world);
   const fog = new FogOfWar(fogCanvas);
@@ -142,7 +146,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
           world.playerFaction = members[team]!.faction;
           world.enemyFaction = members[1-team]!.faction;
           world.setNetworkDecks([members[0]!.deck,members[1]!.deck]);
-          createSkirmish(world); replayRecorder.reset(world); units.reset();
+          createSkirmish(world); replayRecorder.reset(world); units.reset();ranges.reset();
           cam.jumpTo(world.bases[team].x,world.bases[team].z);
         }
         if (rules) { world.setMatchRules(rules); fog.setMode(rules.fog || "wargame"); } hud.setNetworkStatus(`1v1 · meeskond ${team + 1}`); },
@@ -160,10 +164,15 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
 
   minimap.onJump = (x, z) => cam.jumpTo(x, z);
   minimap.onOrder = (x, z) => commands.moveTo(x, z);
+  selection.onInspectBuilding=id=>hud.inspectBuilding(id);
+  hud.onGarrisonFace=()=>{if(running&&!paused){commands.garrisonFaceMode=true;commands.unloadMode=false;commands.fastMoveMode=false;commands.attackMoveMode=false;hud.setWarning("Garnisoni vaatesuund: parem klõps kaardil või minikaardil");}};
+  hud.onGarrisonExit=ids=>{if(running&&!paused)world.issue({type:"leave-building",ids});};
   hud.onSelect=ids=>{selection.selected.clear();ids.forEach(id=>selection.selected.add(id));};
-  hud.onOrder=order=>{if(!running||paused)return;if(order==="stop")world.issue({type:"stop",ids:selection.selectedIds()});else if(order==="focus"){const list=selection.selectedIds().map(id=>world.byId.get(id)).filter(e=>e&&!e.dead);if(list.length)cam.jumpTo(list.reduce((n,e)=>n+e!.x,0)/list.length,list.reduce((n,e)=>n+e!.z,0)/list.length);}else {commands.attackMoveMode=order==="attack";hud.setWarning(order==="attack"?"Ründeliikumine: parem klõps kaardil või minikaardil":"Liigu: parem klõps sihtpunktile");}};
+  hud.onOrder=order=>{if(!running||paused)return;if(order==="stop")world.issue({type:"stop",ids:selection.selectedIds()});else if(order==="focus"){const list=selection.selectedIds().map(id=>world.byId.get(id)).filter(e=>e&&!e.dead);if(list.length)cam.jumpTo(list.reduce((n,e)=>n+e!.x,0)/list.length,list.reduce((n,e)=>n+e!.z,0)/list.length);}else {commands.garrisonFaceMode=false;commands.attackMoveMode=order==="attack";commands.fastMoveMode=order==="fast";commands.unloadMode=order==="unload";hud.setWarning(order==="fast"?"Kiirliigu: parem klõps kaardil või minikaardil":order==="unload"?"Välju transpordist: parem klõps sihtpunktile":order==="attack"?"Ründeliikumine: parem klõps kaardil või minikaardil":"Liigu: parem klõps sihtpunktile");}};
   hud.onProduce = (kind, producerId) => { if (running && !paused) world.issue({ type: "produce", kind, producerId }); };
   hud.onBuild = (kind) => { if (running && !paused) commands.startBuild(kind); };
+  hud.onUnitUpgrade=(ids,upgrade)=>{if(running&&!paused)world.issue({type:"upgrade",ids,upgrade});};
+  hud.onResearch=tech=>{if(running&&!paused)world.issue({type:"research",tech});};
   hud.onUpgradeSupply = (ids) => { if (running && !paused) world.issue({ type: "upgrade", ids, upgrade: "supply-depot" }); };
   hud.onUpgradeFOB = (ids) => { if (running && !paused) world.issue({ type: "upgrade", ids, upgrade: "fob" }); };
   hud.onLogisticsEdit=(ids,action)=>{
@@ -181,10 +190,10 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   hud.onAirReturn=ids=>{if(running&&!paused)world.issue({type:"air-return",ids});};
   hud.onAirMission=(ids,mission)=>{if(running&&!paused){commands.startAirMission(ids,mission);hud.setWarning("Õhuoperatsioon: parem klõps sihtpunktile, Esc tühistab");}};
   hud.onCancelProduce = (producerId) => { if (running && !paused) world.issue({ type: "cancel-produce", producerId }); };
-  const saveKey = SAVE_PREFIX + mission.id + (mission.id==="roheorg"?".layout6":"") + "." + (skirmish ? activeMode : "campaign") + "." + faction;
+  const saveKey = SAVE_PREFIX + mission.id + (mission.id==="roheorg"?".layout9":"") + "." + (skirmish ? activeMode : "campaign") + "." + faction;
   const hasSave = () => localStorage.getItem(saveKey) !== null;
   const saveGame = () => { localStorage.setItem(saveKey, JSON.stringify(saveWorld(world))); localStorage.setItem("rogue-front.replay.v1." + mission.id, JSON.stringify(replayRecorder.file())); };
-  const loadGame = () => { const raw = localStorage.getItem(saveKey); if (!raw) return; try { loadWorld(world, JSON.parse(raw));units.reset();fx.reset();selection.selected.clear();replayRecorder.reset(world); running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); } catch (err) { console.error("Salvestuse laadimine ebaõnnestus", err); hud.setWarning("Salvestuse laadimine ebaõnnestus"); } };
+  const loadGame = () => { const raw = localStorage.getItem(saveKey); if (!raw) return; try { loadWorld(world, JSON.parse(raw));units.reset();ranges.reset();fx.reset();selection.selected.clear();replayRecorder.reset(world); running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); } catch (err) { console.error("Salvestuse laadimine ebaõnnestus", err); hud.setWarning("Salvestuse laadimine ebaõnnestus"); } };
   const togglePause = () => { if(multiplayer){hud.setWarning("Võrgumäng peatub ühenduse katkemisel automaatselt.");return;} paused = !paused; setEnabled(running && !paused); hud.setPaused(paused); if (paused) audio.pause(); else { audio.unlock(); audio.resume(); } };
   hud.onPause = togglePause;
   hud.onSettings = () => settingsPanel.open();
@@ -248,11 +257,14 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       const events = world.drainEvents();
       units.handleEvents(events);
       units.sync(world, alpha, selection.selected,frameDt,visualQuality);
+      ranges.sync(world,selection.selected,hud.showWeaponRanges,hud.rangeSlot);
       ctx.updateShadows(units.shadowDirty);units.shadowDirty=false;
       intelAcc+=frameDt;if(intelAcc>=.2){units.syncIntelGhosts(world);intelAcc=0;}
       fx.handleEvents(events,world);
       audio.events(events, world.playerTeam);
       fx.syncProjectiles(world, alpha);
+      const forestChanged=syncForestTerrain(terrainView,world),housesChanged=syncGarrisonTerrain(terrainView,world);if(forestChanged||housesChanged)ctx.updateShadows(true);
+      fx.syncForestFires(world,frameDt);
       resourceSites.sync(world);
       fx.update(frameDt);
       const animateWater = ctx.water.material as THREE.ShaderMaterial;
@@ -267,7 +279,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
         hud.update(world, selection.selected, running && !paused, skirmish ? [] : (world.missionController?.summary()??[]), skirmish ? (world.matchController?.label()??modeController.label()) : (world.missionController?.messageText??""));
       }
       const ownHq = world.hq[world.playerTeam];
-      if (ownHq && ownHq.hp < ownHq.def.hp * .35 && world.status === "running") hud.setWarning("HOIATUS: baas on tugeva tule all");
+      if (ownHq && ownHq.hp < maxHitPoints(ownHq) * .35 && world.status === "running") hud.setWarning("HOIATUS: baas on tugeva tule all");
       if (fpsAcc >= 0.5) { hud.setFps(Math.round(frames / fpsAcc)); frames = 0; fpsAcc = 0; }
     },
   );

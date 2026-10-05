@@ -94,6 +94,7 @@ function batch(g:THREE.Group):THREE.Group {
 /** Batch static map surfaces per material and 64 m cell. Cell bounds preserve
  * frustum culling; animated buildings/units never enter this function. */
 export function batchStaticScene(source:THREE.Group,cellSize=64):THREE.Group {
+  const retained=source.children.filter(o=>o.userData.structureId);retained.forEach(o=>source.remove(o));
   source.updateMatrixWorld(true);
   const buckets=new Map<string,{material:THREE.MeshStandardMaterial;parts:THREE.BufferGeometry[];cast:boolean;receive:boolean}>();
   source.traverse(o=>{
@@ -113,5 +114,6 @@ export function batchStaticScene(source:THREE.Group,cellSize=64):THREE.Group {
     if(!geometry)continue;geometry.computeBoundingSphere();
     const mesh=new THREE.Mesh(geometry,b.material);mesh.castShadow=b.cast;mesh.receiveShadow=b.receive;mesh.matrixAutoUpdate=false;source.add(mesh);
   }
+  source.add(...retained);
   return source;
 }

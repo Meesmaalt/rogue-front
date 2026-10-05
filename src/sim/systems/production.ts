@@ -1,6 +1,5 @@
 import type { World } from "../World";
 import {freeAirSlot,stationAircraft} from "./airDoctrine";
-import { UNITS } from "../units";
 import type { Entity, UnitKind } from "../types";
 import { BUILDINGS } from "../buildings";
 
@@ -19,13 +18,14 @@ function exitPoint(producer: Entity, distance: number): { x: number; z: number }
 }
 
 function spawnProduced(w: World, producer: Entity, kind: UnitKind): boolean {
-  const air=UNITS[kind].armor==="air",slot=air?freeAirSlot(w,producer):-1;
+  const def=w.unitDefinition(kind,producer.team);
+  const air=def.armor==="air",slot=air?freeAirSlot(w,producer):-1;
   if(air&&slot<0)return false;
   const battlegroup = w.battlegroupForTeam(producer.team);
   if (battlegroup && kind !== "engineer" && !battlegroup.deploy(kind, 1)) return false;
   const counts = w.producedForTeam(producer.team);
   if (w.networkMode || producer.team === w.playerTeam) counts[kind] = (counts[kind] ?? 0) + 1;
-  const p = exitPoint(producer,Math.max(10,producer.def.radius+UNITS[kind].radius+4));
+  const p = exitPoint(producer,Math.max(10,producer.def.radius+def.radius+4));
   const u = w.spawn(kind, producer.team, p.x, p.z);
   if (air) stationAircraft(w,u,producer,slot);
   if (producer.preDeployOrder) { const o = producer.preDeployOrder; u.mode = o.mode === "attack" ? "amove" : o.mode; u.dest = o.x !== undefined && o.z !== undefined ? {x:o.x,z:o.z} : null; if (o.mode === "hold") u.holdPosition = true; }
@@ -48,13 +48,14 @@ export function updateProduction(w: World, dt: number): void {
   for (const producer of w.entities) {
     if (producer.dead || producer.underConstruction || (producer.disabledUntil ?? 0) > w.time || !producer.productionQueue.length) continue;
     const kind = producer.productionQueue[0];
+    const def=w.unitDefinition(kind,producer.team);
     const buildingKind = producerKind(kind);
     if (producer.kind !== buildingKind) continue;
     if (!w.canProduceAtLevel(producer, kind)) { producer.productionQueue.shift(); continue; }
     // Phase 71: queued production is persistent, but progress stops while the
     // producer loses command, power, logistics or its strategic branch.
     // This makes destroying a command node/logistics route materially affect the base.
-    if(UNITS[kind].armor==="air"&&freeAirSlot(w,producer)<0)continue;
+    if(def.armor==="air"&&freeAirSlot(w,producer)<0)continue;
     const operational = w.productionOperational(producer, kind);
     if (!operational.operational) continue;
     const powerRatio = w.powerStatus(producer.team).ratio;
@@ -68,15 +69,15 @@ export function updateProduction(w: World, dt: number): void {
       (["barracks","factory"].includes(producer.kind) && w.hasBuilding(producer.team, "landStrategy")) ||
       (["helipad","airbase"].includes(producer.kind) && w.hasBuilding(producer.team, "airStrategy")) ||
       (producer.kind === "shipyard" && w.hasBuilding(producer.team, "seaStrategy")) ? 1.12 : 1;
-    const depot = w.nearestSupplyDepot(producer.team, producer, true);
+    const depot = w.nearestSupplyDepot(producer.team, producer, true, true);
     if (!depot) continue;
     const wanted = dt * Math.max(0.2, powerRatio) * baseSpeed * levelSpeed * strategyBonus * commandBonus;
-    const materialRate = Math.max(1, UNITS[kind].cost / Math.max(1, UNITS[kind].buildTime) * 0.12);
-    const progress = Math.min(wanted, (depot.ammoStock ?? 0) / materialRate, (depot.fuelStock ?? 0) / materialRate);
+    const materialRate = Math.max(1, def.cost / Math.max(1, def.buildTime) * 0.12);
+    const progress = Math.min(wanted, Math.max(0,def.buildTime-producer.productionProgress), (depot.ammoStock ?? 0) / materialRate, (depot.fuelStock ?? 0) / materialRate);
     depot.ammoStock = Math.max(0, (depot.ammoStock ?? 0) - progress * materialRate);
     depot.fuelStock = Math.max(0, (depot.fuelStock ?? 0) - progress * materialRate);
     producer.productionProgress += progress;
-    if (producer.productionProgress < UNITS[kind].buildTime) continue;
+    if (producer.productionProgress < def.buildTime) continue;
     if (!spawnProduced(w, producer, kind)) continue;
     producer.productionProgress = 0;
     producer.productionQueue.shift();

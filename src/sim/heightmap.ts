@@ -1,6 +1,10 @@
 import terrain from "../data/terrain.json";
 /** Kaardi kõrgusväli. Puhas matemaatika, EI impordi three.js-i. */
-export const MAP_SIZE = 640;
+export let MAP_SIZE = 640;
+export function setMapSize(size=640):void {
+  const next=Math.max(320,Math.min(1600,Math.round(size/16)*16));
+  if(next===MAP_SIZE)return;MAP_SIZE=next;CACHE_HALF=next/2;CACHE_CELLS=Math.round(next/CACHE_CELL);cacheValid=false;heightCache=null;
+}
 export interface BaseDef { x: number; z: number; r: number }
 export interface HeightmapSource { width: number; height: number; data: Uint8Array; maxHeight: number }
 
@@ -16,8 +20,8 @@ export function setTerrainProfile(profile?: "farmland"): void { terrainProfile=p
 
 /** Cached height grid (2 m cells) — built once after bases/heightmap are set. */
 const CACHE_CELL = 2;
-const CACHE_HALF = MAP_SIZE / 2;
-const CACHE_CELLS = Math.round(MAP_SIZE / CACHE_CELL);
+let CACHE_HALF = MAP_SIZE / 2;
+let CACHE_CELLS = Math.round(MAP_SIZE / CACHE_CELL);
 let heightCache: Float32Array | null = null;
 let cacheValid = false;
 
@@ -30,6 +34,7 @@ export function setBases(bases: readonly BaseDef[]): void {
 export function setProceduralSeed(seed: number): void { proceduralSeed = seed | 0; cacheValid = false; heightCache = null; }
 
 export function resetHeightmap(): void {
+  setMapSize(640);
   activeHeightmap = null;
   terrainProfile = undefined;
   activeBases = DEFAULT_BASES;

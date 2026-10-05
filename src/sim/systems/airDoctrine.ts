@@ -45,11 +45,12 @@ export function requestAirReturn(u:Entity):void {
 }
 export function airOperationStatus(w:World,u:Entity):string {
   const pad=w.byId.get(u.airMissionHomeId??-1);
+  if(u.airState==="grounded"&&pad&&!pad.dead&&w.productionOperational(pad).operational){if(!hasAirMissionAmmo(u))return "Baasis · missiooni laskemoon otsas";if((u.fuel??0)<=(u.maxFuel??0)*.3)return "Baasis · tankimise ootel";}
   if(u.airState==="grounded")return pad&&!pad.dead?(w.productionOperational(pad).operational?"Baasis · valmis missiooniks":"Baasis · "+w.productionOperational(pad).reason):"Baasis · lennurajatis puudub";
   if(u.airState==="taxi")return u.def.category==="heli"?"Kopteriplatsilt õhkutõus":u.airTaxiPhase==="runway"?"Stardirada · hoovõtt":"Ruleerib · ootab vaba rada";
   if(u.airState==="landing")return "Maandunud · ruleerib parkimiskohale";
   if(u.airState==="rearming")return "Baasis · laskemoona, kütuse ja remondi ootel";
-  if(u.airState==="returning")return "Naaseb baasi · "+({fuel:"kütus",ammo:"laskemoon",damage:"kahjustus / õhutõrje",manual:"mängija käsk"}[u.airReturnReason??"manual"])+(pad&&!pad.dead?"":" · lennurajatis puudub");
+  if(u.airState==="returning")return "Naaseb baasi · "+({fuel:"kütus",ammo:"laskemoon",damage:"kahjustus / õhutõrje",manual:"mängija käsk",base:"baas kadunud või rada suletud"}[u.airReturnReason??"manual"])+(pad&&!pad.dead?"":" · lennurajatis puudub");
   return "Lennul · "+({cap:"õhukaitse",strike:"baasirünnak",sead:"õhutõrje rünnak",ground:"maaväe toetus"}[u.airMission??"ground"]);
 }
 

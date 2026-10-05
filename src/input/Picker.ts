@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import type { World } from "../sim/World";
 import type { Entity, Point, Team } from "../sim/types";
+import {isGarrisonBuilding} from "../sim/garrison";
+import {pointInFeature,type MapFeatureDef} from "../sim/mapFeatures";
 import { heightAt } from "../sim/heightmap";
 
 /** Ekraani ↔ maailma teisendused: üksuse valik hiirega ja maapinna leidmine. */
@@ -23,12 +25,26 @@ export class Picker {
   pickEntity(mx: number, my: number, team: Team): Entity | null {
     let best: Entity | null = null, bs = 0;
     for (const e of this.world.entities) {
-      if (e.dead || e.team !== team) continue;
+      if (e.dead || e.loadedIntoId!=null || e.team !== team) continue;
       if (team !== this.world.playerTeam && !this.world.isSpottedByTeam(e, this.world.playerTeam)) continue;
       const cy = e.y + e.def.height * 0.5, p = this.toScreen(e.x, cy, e.z);
       if (p.z > 1) continue;
       const lim = 12 + e.def.radius * this.pxPerUnit(e.x, cy, e.z), d = Math.hypot(p.x - mx, p.y - my);
       if (d < lim && (best === null || d - lim < bs)) { best = e; bs = d - lim; }
+    }
+    return best;
+  }
+
+  pickGarrisonBuilding(mx:number,my:number):MapFeatureDef|null {
+    this.ray.setFromCamera(new THREE.Vector2(mx/innerWidth*2-1,-my/innerHeight*2+1),this.camera);
+    const {origin:o,direction:d}=this.ray.ray;if(Math.abs(d.y)<.001)return null;
+    let best:MapFeatureDef|null=null,nearest=Infinity;
+    for(const f of this.world.mapFeatures){
+      if(!isGarrisonBuilding(f))continue;
+      const own=this.world.entities.some(u=>!u.dead&&u.team===this.world.playerTeam&&u.garrisonId===f.id);
+      if(!own&&!this.world.vision.isExplored(this.world.playerTeam,f.x,f.z))continue;
+      const y=heightAt(f.x,f.z)+(f.height??3),t=(y-o.y)/d.y;
+      if(t>=0&&t<nearest&&pointInFeature(o.x+d.x*t,o.z+d.z*t,f,1)){best=f;nearest=t;}
     }
     return best;
   }

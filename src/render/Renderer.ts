@@ -29,7 +29,7 @@ export function createRenderContext(canvas: HTMLCanvasElement, temperate = false
   // Real War desert haze – warm sand, not muddy grey
   const haze = new THREE.Color(temperate ? 0xb7c6cc : 0xd4c49a);
   scene.background = haze;
-  scene.fog = new THREE.Fog(haze, 260, 780);
+  scene.fog = new THREE.Fog(haze, temperate?420:260, temperate?1100:780);
   if (!temperate) scene.add(createSky());
 
   const camera = new THREE.PerspectiveCamera(42, 1, 1, 1400);

@@ -1,3 +1,5 @@
+import {stockCapacity,stockTotal} from "../stockLogistics";
+import {maxHitPoints} from "../unitStats";
 import type { World } from "../World";
 import type { Entity } from "../types";
 import { BUILDINGS, isBuildable } from "../buildings";
@@ -37,13 +39,13 @@ export function updateConstruction(w: World, dt: number): void {
           if (building.buildingLevel >= 2) building.upgrades.add("producer-2");
           if (building.buildingLevel >= 3) building.upgrades.add("producer-3");
           building.upgrading = false; building.upgradeProgress = building.upgradeTime = 0; building.upgradeKind = undefined;
-          building.def = { ...building.def, hp: building.def.hp * 1.15 };
-          building.hp = building.def.hp;
+          building.def = { ...building.def, hp: maxHitPoints(building) * 1.15 };
+          building.hp = maxHitPoints(building);
         }
-        if (!building.upgrading) building.hp=building.def.hp;
+        if (!building.upgrading) building.hp=maxHitPoints(building);
         if (building.kind === "supply") {
           building.supplyLevel=Math.max(building.supplyLevel??0,(building.buildingLevel??1)-1);
-          building.logisticsMaxStorage=900+((building.buildingLevel??1)-1)*700;
+          const cap=stockCapacity(w,building);building.logisticsMaxStorage=cap.ammo+cap.fuel+cap.repair;building.logisticsStorage=stockTotal(building);
         }
         w.invalidateNavigation();
         building.builderIds = [];
@@ -56,7 +58,7 @@ export function updateConstruction(w: World, dt: number): void {
     }
 
     // Engineers can repair a friendly damaged structure by being assigned through a repair command.
-    if (building.hp < building.def.hp && building.builderIds.length) {
+    if (building.hp < maxHitPoints(building) && building.builderIds.length) {
       const active = builders.filter(b => dist2d(b, building) <= 13);
       if (active.length) {
         const depot = w.nearestSupplyDepot(building.team, {x:building.x,z:building.z}, true);
@@ -64,10 +66,10 @@ export function updateConstruction(w: World, dt: number): void {
         const wanted = active.length * spec.repairPerSec * w.repairMultiplier(building.team) * dt;
         const repair = Math.min(wanted, available);
         if (depot) depot.repairStock = Math.max(0, available - repair);
-        building.hp = Math.min(building.def.hp, building.hp + repair);
+        building.hp = Math.min(maxHitPoints(building), building.hp + repair);
         for (const b of active) { b.mode = "repair"; b.dest = { x: building.x, z: building.z }; b.target = building; }
-        if (building.hp >= building.def.hp - 0.01) {
-          building.hp = building.def.hp; building.builderIds = [];
+        if (building.hp >= maxHitPoints(building) - 0.01) {
+          building.hp = maxHitPoints(building); building.builderIds = [];
           for (const b of active) { b.target = null; b.dest = null; b.mode = "idle"; }
           w.events.push({ type: "repair-complete", team: building.team, x: building.x, y: building.y, z: building.z, kind: building.kind });
         }

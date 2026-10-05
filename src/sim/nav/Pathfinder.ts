@@ -24,7 +24,9 @@ class MinHeap {
 
 const heuristic = (x: number, z: number, tx: number, tz: number): number => Math.hypot(tx - x, tz - z);
 
-export function findPath(grid: NavGrid, from: Point, to: Point, radius = 0): Point[] {
+export interface PathCost { cell(x:number,z:number):number; edge?(ax:number,az:number,bx:number,bz:number):number; minimum:number }
+export function findPath(grid: NavGrid, from: Point, to: Point, radius = 0, cost?:PathCost,avoid:readonly (Point&{radius:number})[]=[]): Point[] {
+  const blocked=(x:number,z:number)=>{if(grid.isBlocked(x,z,radius))return true;if(!avoid.length)return false;const p=grid.cellToWorld(x,z);return avoid.some(o=>Math.hypot(p.x-o.x,p.z-o.z)<o.radius+radius+.3);};
   const s = grid.nearestWalkable(from, radius), g = grid.nearestWalkable(to, radius);
   if (!s || !g) return [];
   const sc = grid.worldToCell(s.x, s.z), gc = grid.worldToCell(g.x, g.z);
@@ -34,7 +36,7 @@ export function findPath(grid: NavGrid, from: Point, to: Point, radius = 0): Poi
   const closed = new Uint8Array(n);
   const heap = new MinHeap();
   const sid = grid.index(sc.x, sc.z), gid = grid.index(gc.x, gc.z);
-  gs[sid] = 0; heap.push({ id: sid, g: 0, f: heuristic(sc.x, sc.z, gc.x, gc.z) });
+  gs[sid] = 0; heap.push({ id: sid, g: 0, f: heuristic(sc.x, sc.z, gc.x, gc.z)*(cost?.minimum??1) });
   const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]] as const;
   while (heap.length) {
     const cur = heap.pop()!;
@@ -44,37 +46,40 @@ export function findPath(grid: NavGrid, from: Point, to: Point, radius = 0): Poi
     const cx = cur.id % grid.width, cz = Math.floor(cur.id / grid.width);
     for (const [dx,dz] of dirs) {
       const nx = cx + dx, nz = cz + dz;
-      if (!grid.inBounds(nx,nz) || grid.isBlocked(nx,nz,radius)) continue;
-      if (dx && dz && (grid.isBlocked(cx + dx, cz, radius) || grid.isBlocked(cx, cz + dz, radius))) continue;
-      const id = grid.index(nx,nz), step = dx && dz ? 1.41421356237 : 1, ng = gs[cur.id] + step;
+      if (!grid.inBounds(nx,nz) || blocked(nx,nz)) continue;
+      if (dx && dz && (blocked(cx + dx, cz) || blocked(cx, cz + dz))) continue;
+      const id = grid.index(nx,nz), step = dx && dz ? 1.41421356237 : 1, ng = gs[cur.id] + step*(cost?(cost.edge?.(cx,cz,nx,nz)??(cost.cell(cx,cz)+cost.cell(nx,nz))*.5):1);
       if (ng >= gs[id]) continue;
       gs[id] = ng; parent[id] = cur.id;
-      heap.push({ id, g: ng, f: ng + heuristic(nx,nz,gc.x,gc.z) });
+      heap.push({ id, g: ng, f: ng + heuristic(nx,nz,gc.x,gc.z)*(cost?.minimum??1) });
     }
   }
   if (sid !== gid && parent[gid] < 0) return [];
   const cells: NavCell[] = [];
   for (let id = gid; id >= 0; id = parent[id]) { cells.push({ x: id % grid.width, z: Math.floor(id / grid.width) }); if (id === sid) break; }
   cells.reverse();
-  return smoothPath(grid, cells, radius);
+  return smoothPath(grid, cells, radius,cost,blocked);
 }
 
 interface NavCell { x: number; z: number }
-function clearLine(grid: NavGrid, a: NavCell, b: NavCell, radius: number): boolean {
+function clearLine(grid: NavGrid, a: NavCell, b: NavCell, radius: number,blocked?:(x:number,z:number)=>boolean): boolean {
   const steps = Math.max(Math.abs(b.x-a.x), Math.abs(b.z-a.z)) * 2;
   for (let i = 0; i <= steps; i++) {
     const t = steps ? i / steps : 0, x = Math.round(a.x + (b.x-a.x)*t), z = Math.round(a.z + (b.z-a.z)*t);
-    if (grid.isBlocked(x,z,radius)) return false;
+    if (blocked?blocked(x,z):grid.isBlocked(x,z,radius)) return false;
   }
   return true;
 }
-function smoothPath(grid: NavGrid, cells: NavCell[], radius: number): Point[] {
+function smoothPath(grid: NavGrid, cells: NavCell[], radius: number,cost?:PathCost,blocked?:(x:number,z:number)=>boolean): Point[] {
+  const cumulative=[0];
+  for(let i=1;i<cells.length;i++){const a=cells[i-1],b=cells[i];cumulative.push(cumulative[i-1]+Math.hypot(b.x-a.x,b.z-a.z)*(cost?(cost.edge?.(a.x,a.z,b.x,b.z)??(cost.cell(a.x,a.z)+cost.cell(b.x,b.z))*.5):1));}
+  const noSlower=(a:NavCell,b:NavCell,budget:number)=>{if(!cost)return true;const length=Math.hypot(b.x-a.x,b.z-a.z),n=Math.max(1,Math.ceil(length*2));let sum=0;for(let j=0;j<n;j++){const t=j/n,t2=(j+1)/n,ax=Math.round(a.x+(b.x-a.x)*t),az=Math.round(a.z+(b.z-a.z)*t),bx=Math.round(a.x+(b.x-a.x)*t2),bz=Math.round(a.z+(b.z-a.z)*t2);sum+=cost.edge?.(ax,az,bx,bz)??cost.cell(bx,bz);}return length*sum/n<=budget*1.015;};
   if (cells.length < 2) return cells.map(c => grid.cellToWorld(c.x,c.z));
   const out: Point[] = [grid.cellToWorld(cells[0].x,cells[0].z)];
   let anchor = 0;
   while (anchor < cells.length - 1) {
     let far = anchor + 1;
-    for (let i = far + 1; i < cells.length; i++) if (clearLine(grid,cells[anchor],cells[i],radius)) far = i; else break;
+    for (let i = far + 1; i < Math.min(cells.length,anchor+65); i++) if (!clearLine(grid,cells[anchor],cells[i],radius,blocked)) break; else if(noSlower(cells[anchor],cells[i],cumulative[i]-cumulative[anchor])) far = i;
     out.push(grid.cellToWorld(cells[far].x,cells[far].z)); anchor = far;
   }
   return out;

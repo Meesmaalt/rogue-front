@@ -1,5 +1,7 @@
 # Arhitektuur
 
+Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 960 m, vana 640 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
+
 ## Põhimõte
 Kolm kihti, sõltuvused ainult allapoole: **ui/input → sim ← render** (render ja ui *loevad* sim olekut, annavad käske, kuid sim ei tea neist midagi).
 
@@ -106,3 +108,75 @@ Roheoru hooned, õued, teed ja metsad pärinevad kaardiandmetest. `terrain.json`
 `airDoctrine.ts` jagab rajatise kohalikke punkte, parkimiskohti, võimekusekontrolli ja õhugrupi käsuvalikut production/units/commands/Hud vahel. Tootmisest ja valmis skirmishi algolekust tulev õhusõiduk paigutatakse stationAircraft kaudu oma baasi. `units.ts` teeb parkimine → ooteala → rada → õhkutõus → missioon → lähenemine → maandumine → parkimine → piiratud laadimine. Ühe rajatise rada on eksklusiivne stardil ja lõppmaandumisel. `air-return` on tavaline deterministlik Command; rajatisele antud air-mission laieneb seotud sobivatele üksustele. Missiooni jaoks lõppenud laskemoon käivitab RTB sõltumata teise domeeni relvadest. Taktikaline transport läbib sama baasitsükli; ressursitransport säilitab oma logistikasüsteemi.
 
 `mobility.json` sisaldab parkimis-, raja-, mahu- ja positsiooniotsingu andmeid. `airHomeSlot`, `airTaxiPhase` ja positsiooniotsingu cache on täissalvestuse osa; Replay hash sisaldab neid, missioonipunkti, kodurajatist ning sortie olekut. `Architecture` rajamudel ja parkimisala vastavad simuleeritud baasipunktidele. Laskepositsiooni otsing kasutab relvaulatust, minimaalset kaugust, LOS-i, nav-i ja jalaväe katet ning talletab valiku piiratud kordusotsingu jaoks.
+
+
+## Fraktsioonide koosseisud ja relvamudelid
+
+`src/data/faction-loadouts.json` täpsustab olemasolevat üksuse- ja relvaprofiili. `factionUnitDefinition` rakendab fraktsiooniboonused üks kord; `World.unitDefinition` annab tootmisele, materjalikulule, HUD-ile ja spawn'ile sama tulemuse. SquadSize määrab meeskonna ja mudeli liikmete arvu. Käskude ja deterministliku simulatsiooni arhitektuur ei muutu.
+
+Combat.weaponImpactEstimate ning projectile'i tabamus jagavad penetrationFactor funktsiooni. HUD kuvab nominaalse võrdlustabamuse, mitte olukorrast sõltuvat garanteeritud kahju. Kineetiline nullkahju välistab relva automaatvalikust. Relvade laskemoon ja laadimine jäävad iseseisvateks.
+
+`models.ts` loob fraktsiooni/rolli kaupa jagatud jalaväeprototüübid: detailvaates keha ja kaks animeeritavat jalga, kaugvaates üks ühendatud mesh mehe kohta. CamoMask piirab kamotekstuuri vormi pindadele. UnitRenderer valib kauguse/graafikaseade järgi mudeli ja säilitab kaotuste rühmaviited. Arsenal kasutab samu prototüüpe ja fraktsiooni relvaandmeid.
+
+
+## Relvapõhine liikuvus ja tehnika varustus
+
+WeaponSpec.stabilizer/fireOnMove/muzzleSide täpsustavad iga relvapesa. `selectWeapon(..., true)` välistab liikudes keelatud relva; `movingFireFactor` on ühine live-tabavusele ja UI baasandmetele. Relvavaliku hinne kasutab jagatud `weaponImpactEstimate` soomusearvutust. Relva väljalase arvestab külgnihet ja õhumasina pooltevahetust. Fraktsioonivariant võib üle kirjutada UnitDef-i taktikalisi välju; kõik tootmise/varustuse/spawn'i tarbijad saavad endiselt sama lahendatud määratluse.
+
+Art'i eksport loeb sama `faction-loadouts.json` faili AT-kopteri rack'i olemasolu jaoks. GLB-de WeaponRack grupid säilitavad detail-/kaugmudeli ja olemasoleva materjalipartiide ühendamise. Ülevaade VEHICLE-DEPTH-RELEASE.md.
+
+
+## Kaardisuurus ja dünaamiline metsaolek
+
+MissionMapDef.size → setMapSize enne World'i loomist. Kõrgusvahemälu/nav/vision/ruumiindeks on suurusele vastavad; NavGrid ja Vision hoiavad oma ruudustikumõõte. Vaikimisi kaart 640 m, Roheorg 960 m. World.mapSize tuleneb nav-võrgu tegelikust ulatusest. Renderer, kaamera ja minikaart kasutavad aktiivset kõrgusvälja suurust.
+
+World.terrain = TerrainState: metsatihedus ja teekoridorid on piirkondlikult indekseeritud; põleng, suits ja põlenud rakud on sim-seisund. Projectiles Impact võib HE puhul metsa süüdata; World.tick uuendab metsa pärast mürske. Metsatihedus on jagatud mapFeatures.ts funktsioon, mida kasutavad ka puude paigutus ja nägemistakistus. Combat/sensors arvestavad elusat/põlenud katet, units metsaliikumist ja Vision metsasuitsu. Käskude ja külvatud simulatsiooni arhitektuur säilib.
+
+Metsa snapshot ning keskkonna sammuloendur kuuluvad captureRuntime/restoreRuntime ja worldHash hulka. Visuaalne charred-canopy olek tuletatakse simist; Fx kasutab olemasolevaid piiratud osakesepartiisid, nähtavusfiltriga. Ülevaade FOREST-MAP-RELEASE.md.
+
+### Tulejuhtimise andmed ja ulatusringid
+
+`systems/combat.ts` ekspordib puhta `shotAccuracy` arvutuse ja per-slot `weaponRange` funktsiooni. Mürsu loomine ja HUD kasutavad sama täpsust; relva valik ja suurtükiväe koordinaattuli kasutavad sama ulatust. HUD pärib jooksvaid vaenlase andmeid ainult praegu luuratud sihtmärgi jaoks. `render/RangeOverlay.ts` hoiab ühe valiku jaoks piiratud taaskasutatavaid maailma koordinaatides joonpuhvreid ja silte; UI lülitid ei kuulu save/lockstep olekusse. Lähem kirjeldus: `FIRE-CONTROL-RELEASE.md`.
+
+
+### A1: ühised efektiivsed väärtused
+
+`unitStats.ts` loeb `unit-upgrades.json`, `tech.json` ja `mobility.json` andmeid ning annab sama HP/soomuse, relvauuenduse/ulatuse ja ostureegli simile ning UI-le. Command valideerib iga ostu uuesti, kulutab raha/ressurssi/remondivaru ning säilitab soomustamisel tervise suhtarvu. Nominaalset Entity.def-i ei kirjutata ostuga ümber; olemasolev upgrades/techs seisund jääb save/hash aluseks. Tootmine ja qbar kasutavad sama lahendatud UnitDef.buildTime-i. TerrainState indekseeritud tee/katte päring ning mobility klass seovad tavalise maa- ja logistilise veoki maastikuteguri. Kaudtule kontaktipunktid säilivad intel-koordinaatidena. A2 marsruudihind ja kiirliikumise käsk on ühendatud allpool kirjeldatud viisil. Brauseri ostupaneeli ülevaatus ja pika matši tasakaal on ootel.
+
+
+### A2: marsruut, läbipääs ja reisijad
+
+`fast-move` on eraldi Command, kuid kasutab olemasolevat Entity.mode="move" liikumist: see ei peatu ise tulevahetuseks. Igal Shift-vahepunktil on oma move/amove/fast-move stiil. `travelPathCost()` kasutab mobility klassi teekiirust ja metsatihedust ning suunapõhist nõlvategurit; heuristika alumine piir arvestab ka võimalikku allamäge kiirenemist. A* silumine kontrollib nii läbipääsu kui eeldatava ajakulu säilimist. Ticki look-ahead ei lõika kiirliikumise ega ressursiveoki kaalutud marsruuti sirgeks. Maastikukulu on World/klassi järgi tuletatud vahemälu, mitte uus simulatsiooniseisund.
+
+Command annab ühise marsitelje ja lõppformatsiooni kohad. `updateUnits()` jagab grupi liikmete päringu ühe sammu sees; kitsas koridoris määrab järjekorra tegelik edenemine ning järgneja hoiab eelmisega vahet. Pärast läbipääsu kasutatakse algseid lõppkohti. Takerdunud üksuse A* saab lisatakistustena seisvad maaüksused, ka silumine arvestab neid. Algse nav-raku poole tagasi pöördumist väldib ruudustikusammu suurusega saabumistolerants. See pole vastassuunalise sõidukiliikluse täielik ristmikusimulaator.
+
+`transport.ts` ühendab `load/unload` käsud, APC/IFV tavaliikumise ja taktikakopteri olemasoleva lennutsükli. `transportCapacity` on UnitDef-i fraktsioonipõhine istmete arv. Broneering loeb elavaid rühmaliikmeid; tervet rühma ei jagata automaatselt. Laadimiskäsu saab anda jalaväelt kandjale või kandjalt jalaväele. Kopter valib maandumiseks hoonejälgedest vaba ala ja vajadusel kogub rühma sinna; laadimine/väljumine ootab maapinnale jõudmist. Väljumisel kontrollitakse jalaväe raadiusega nav-i, takistusteta lõiku ja teisi üksusi. Vaba koha puudumisel reisija jääb pardale; otsing kordub piiratud sagedusega. Kogumine katkeb tähtaja möödudes.
+
+Lao `supplyDepotId`-ga kogumiskopterid ei ole vägede kandjad. Nende senine ressursside tsükkel ja dessantlaeva ajalooline käitumine säilivad; veenavigatsiooni lõpetamine kuulub B1-sse. Laaditud üksusi välistavad jätkuvalt units, sensors, Vision, combat ja territooriumi süsteemid.
+
+Uued marsi-/järjekorra-/transpordiväljad kuuluvad v19 täisoleku salvestusse ning worldHash-i. Vanas v19-s puuduv transportCapacity täidetakse pärast fraktsioonide taastamist, ülejäänud salvestatud üksuseandmed säilivad. Tuletatud vahemälud ja HUD-i kursori režiim ei kuulu lockstep-olekusse. Sama build on endiselt multiplayeri/replay eeltingimus.
+
+
+### A3: garnison, laskepunktid ja struktuur
+
+`garrison.ts` kasutab `garrison.json` reegleid ja olemasoleva World-i nav-i, mapFeatures ning infrastructureDamage kaarti. Entity.garrisonId on sõltumatu loadedIntoId-st: garnison näeb ja tulistab, pardal olev üksus ei tee kumbagi. Sisenemiskäsk broneerib koha ja annab päris marsruudi uksele; updateGarrisons lõpetab sisenemise alles saabumisel. Väljumine kontrollib vaba nav-jälge ja teiste üksuste kehasid. Katkine väljapääs jääb ooteseisundiks. World.tick uuendab garnisoni enne Vision-i; kõik käsud ja olekumuutused on endiselt fikseeritud simulatsioonis.
+
+Aknaport asub vahetult fassaadist väljaspool ja katuseport üle katuse. Vision piirab allika sektorit; combat-i relvavalik kasutab sama sektorit ja ei luba garnisoni ballistilist relva. Mürsu lähtepunkt ei kasuta garnisonis meeskonna maapinna hajutust. Shared garrisonCover/garrisonProtection/garrisonConcealment seovad struktuurikahju tabavuse, kahju ja sensors varjatusega. Projectile impact edastab majale struktuurikahju ning seesolijale kahju/suppression; varisemine käivitab evakuatsiooni. Kõrvalmaja LOS jääb kehtima; vareme kõrgus on Vision-is ja projectile collision-is sama.
+
+Entity garnisoniväljad kuuluvad v19 täielikku JSON-salvestusse ja Replay.worldHash-i; infrastructureDamage oli juba salvestatav/hashitav. Uut paralleelset salvestussüsteemi ei lisatud. Hoone renderdusjuur säilib Terrain/Architecture batšis; kahjustuse värvi/kuju muudetakse ainult seisundivahetusel ning nähtava info järgi. Materjalikoopia tekib alles maja kahjustamisel. UI annab enter/leave/face-building käske ja ei kirjuta simi olekut otse. Picker ning valik välistavad transporditud üksused; vaenlase hoonemärk ei avalda peidetud kogu hõivet.
+
+
+### A4: laomahud, osatarne ja lennurajatiste katkestused
+
+`stockLogistics.ts` on olemasoleva füüsilise majanduse ühine mahureegel, mitte eraldi majandus. `stockCapacity` loeb logistics.json ja World.supplyDepotLevel-i; `depositPayload` liigutab kindlat stock payload-i raha loomata; `receiveResourceCargo` jaotab ainult vastu võetud toorressursi tuluks ning piiratud varuks. Mõlemad tagastavad vastu võetud koguse. World.receiveSupply ning units.ts veoki/kopteri/kaubalennuki mahalaadimine jätavad ülejäägi Entity.cargo/logisticsPayload-i. Construction, FOBManager ja HUD kasutavad sama mahuallikat. FOB-i ost ei anna tasuta stock'i.
+
+Road truck peab marsruudi lõpule viima enne lõppsaabumist. Vahepunkti pidurduskaugus erineb lao teeninduskaugusest; blokeeritud lao keskme puhul otsitakse välist läbitavat sihti. TacticalSupply valib vajaliku varuga kohaliku lao ja kasutab lähedase konvoi payload.fuel-i piiratud tankimisabiks. Seisva üksuse käsurežiim üksi ei kuluta kütust. Tootmise operatiivsus ja production.ts kasutavad sama stock'e vajavat lao valikut.
+
+Air service töötab maas parkimispunktis rajatise/energia/juhtimise ja eraldi teenuse varu järgi, sõltumata tootmise kahe varuliigi nõudest. Ruleerimiskatkestus peatab stardi; õhusõiduki kodubaasi/radaraja kaotus suunab olemasoleva vaba kohaga alternatiivbaasi. Maapealset lennukit ei teisaldada. Kaubalennuk suunatakse vastuvõtubaasi kaotusel ümber või väljub tagastatava koormaga. Uus airReturnReason="base" kuulub SaveState-i ning senise hash-välja kaudu Replay-sse. Hash hõlmab nüüd ka lao seost/tasemeid, cargo capacity't, logisticsPriority't ja logisticsWaypoints'e. Sama multiplayer build jääb nõutavaks.
+
+
+### A5: ühine AI teadmine ja ülesannete kaitse
+
+`ai/knowledge.ts` ühendab nähtavate vastaste ja värskete jagatud mälukontaktide päringu. Peidetud live Entity ei kirjuta kontakti koordinaate üle. WaveAI logistika-/baasirünnakud, nähtavate ohtude kaitse ja õhuülesanded kasutavad seda teadmist; avalik algbaasi punkt ei anna Entity target-viidet. OperationalCommander kasutab avalikke sektoreid, oma kohalolekut ja kontakte, mitte OperationalMap-i peidetud vastase threat/control väärtusi. Conquesti korral on sektorivalik seotud ressursipunktidega.
+
+fieldCombat/availableCombat eristavad päris lahingujõudu logistika-, cargo-, garnisoni-, luure- ja taastumisülesannetest. TacticalAI käsud läbivad sama commands.ts valideerimise nagu mängija omad. Relvapesade moona ühine suhtarv väldib tühja põhirelva tõttu ekslikku taandumist. Taastumine valib vajalike stock'idega sõlme; remont kasutab inseneri käsuteed, õhk air-return käsuteed. aiDecisionAt vähendab käsu/marsruudi nullimist iga tick ning kuulub koos aiIntent-iga worldHash-i ja v19 täielikku Entity olekusse. JSON ai-tactics määrab kontakti vanuse, otsuse intervalli, reservi ja taastumise lävendid; uut AI kõrvalsimulatsiooni ei lisatud.

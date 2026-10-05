@@ -1,8 +1,11 @@
+import {orderGarrison,leaveGarrison,requestGarrisonExit} from "../garrison";
+import {queuePassenger,transportCapacity} from "../transport";
+import {travelPathCost} from "../unitStats";
+import {UNIT_UPGRADES,maxHitPoints,researchStatus,unitUpgradeStatus} from "../unitStats";
 import type { World } from "../World";
 import { assignAirMission,airUnitsForOrder,requestAirReturn } from "./airDoctrine";
 import { deckRemaining } from "../deck";
 import type { Command, Entity, Point } from "../types";
-import { UNITS } from "../units";
 import { MAX_QUEUE } from "../constants";
 import { findPath } from "../nav/Pathfinder";
 import mobility from "../../data/mobility.json";
@@ -57,7 +60,15 @@ export function applyCommands(w: World): void {
 
 function apply(w: World, c: Command): void {
   switch (c.type) {
+    case "face-building": {for(const u of mobile(w,c.ids,c.team))if(u.garrisonId){u.garrisonLookPoint={x:c.x,z:c.z};u.garrisonShiftAt=w.time;u.target=null;}break;}
+    case "enter-building": {
+      const f=w.mapFeatures.find(f=>f.id===c.featureId);if(f)for(const u of mobile(w,c.ids,c.team))orderGarrison(w,u,f);break;
+    }
+    case "leave-building": {
+      for(const u of mobile(w,c.ids,c.team))requestGarrisonExit(w,u,c.x!=null&&c.z!=null?{x:c.x,z:c.z}:undefined);break;
+    }
     case "formation": {w.teamFormations[c.team??w.playerTeam]=c.kind;break;}
+    case "fast-move":
     case "move":
     case "amove": {
       const us = mobile(w,c.ids,c.team);
@@ -68,6 +79,7 @@ function apply(w: World, c: Command): void {
       us.sort((a,b)=>lateral(a)-lateral(b)||a.id-b.id);pts.sort((a,b)=>lateral(a)-lateral(b));
       const assigned: Array<Point & {radius:number}>=[];
       const append = !!c.append;
+      const marchGroup=us.filter(e=>e.def.domain!=="air"&&e.def.domain!=="sea").sort((a,b)=>Math.hypot(a.x-c.x,a.z-c.z)-Math.hypot(b.x-c.x,b.z-c.z)||a.id-b.id).map(e=>e.id);
       us.forEach((u, i) => {
         let point=pts[i];
         if(u.def.domain!=="air"&&u.def.domain!=="sea"){
@@ -82,34 +94,36 @@ function apply(w: World, c: Command): void {
           }
           assigned.push({...point,radius:u.def.radius});
         }
+        if(u.garrisonId&&!leaveGarrison(w,u)){requestGarrisonExit(w,u,point);return;}u.garrisonOrderId=undefined;
         if (append && u.dest && ["move","amove","patrol"].includes(u.mode)) {
-          u.moveQueue??=[];u.moveQueue.push({...point});u.queuedMoveType=c.type;
+          u.moveQueue??=[];u.moveQueue.push({...point});u.moveQueueStyles??=[];u.moveQueueStyles.push(c.type);
         } else {
-          u.mode = c.type === "move" ? "move" : "amove";
-          u.dest = point;u.moveQueue=[];u.queuedMoveType=c.type;
+          u.mode = c.type === "amove" ? "amove" : "move";
+          u.fastMove=c.type==="fast-move";u.moveAxis={x:sin,z:cos};u.moveGroup=marchGroup;
+          u.dest = point;u.moveQueue=[];u.moveQueueStyles=[];u.queuedMoveType=u.mode;u.transportQueue=[];
           u.patrolPoints = [];
           u.patrolIndex = 0;
           u.holdPosition = false;
-          u.navPath = u.def.domain==="air"||u.def.domain==="sea"?[]:findPath(w.nav,u,point,u.def.radius);
+          u.navPath = u.def.domain==="air"||u.def.domain==="sea"?[]:findPath(w.nav,u,point,u.def.radius,u.fastMove?travelPathCost(w,u):undefined);
           u.roadPathGoal = {...point};
           u.navPathIndex = 0;
           u.flowField = null;
           u.stuckTime = 0; u.stuckX = u.x; u.stuckZ = u.z;
-          if (c.type === "move") u.target = null;
+          if (c.type !== "amove") u.target = null;
         }
       });
       break;
     }
     case "attack": {
       const t = w.byId.get(c.targetId);
-      if (!t || t.dead) break;
-      for (const u of mobile(w, c.ids, c.team)) if (u.team !== t.team) { u.moveQueue=[];u.mode = "attack"; u.holdPosition=false; u.target = t; u.dest = {x:t.x,z:t.z}; u.navPath = []; u.navPathIndex = 0; u.flowField = null; }
+      if (!t || t.dead || !w.isSpottedByTeam(t,c.team??w.playerTeam)) break;
+      for (const u of mobile(w, c.ids, c.team)) if (u.team !== t.team) { u.garrisonLookPoint=undefined;u.moveQueue=[];u.mode = "attack"; u.holdPosition=!!u.garrisonId; u.target = t; u.dest = {x:t.x,z:t.z}; u.navPath = []; u.navPathIndex = 0; u.flowField = null; }
       break;
     }
     case "stop":
       for (const u of mobile(w, c.ids, c.team)) {
         for (const b of w.entities) if (!b.dead && b.builderIds.includes(u.id)) b.builderIds = b.builderIds.filter(id => id !== u.id);
-        u.moveQueue=[];u.fireMission=null;u.artilleryDisplace=null;u.mode = "idle"; u.dest = null; u.target = null; u.navPath = []; u.navPathIndex = 0; u.flowField = null; u.holdPosition = false; u.patrolPoints = []; }
+        u.moveGroup=undefined;u.fastMove=false;u.moveQueueStyles=[];u.transportQueue=[];u.transportTargetId=null;u.transportPickupPoint=undefined;u.unloadPoint=null;u.moveQueue=[];u.fireMission=null;u.artilleryDisplace=null;u.mode = "idle"; u.dest = null; u.target = null; u.navPath = []; u.navPathIndex = 0; u.flowField = null; u.holdPosition = false; u.patrolPoints = []; }
       break;
     case "rally": {
       for (const b of w.entities) {
@@ -122,8 +136,8 @@ function apply(w: World, c: Command): void {
     }
     case "repair": {
       const target = w.byId.get(c.targetId);
-      if (!target || target.dead || target.team !== (c.team ?? w.playerTeam) || (target.hp >= target.def.hp && !Object.values(target.components ?? {}).some(v => v > 0))) break;
-      const engineers = mobile(w, c.ids, c.team).filter(u => u.kind === "engineer");
+      if (!target || target.dead || target.team !== (c.team ?? w.playerTeam) || (target.hp >= maxHitPoints(target) && !Object.values(target.components ?? {}).some(v => v > 0))) break;
+      const engineers = mobile(w, c.ids, c.team).filter(u => u.kind === "engineer" && (!u.garrisonId || leaveGarrison(w,u)));
       if (!engineers.length) break;
       target.builderIds = engineers.slice(0, 2).map(u => u.id);
       for (const u of engineers.slice(0, 2)) { u.mode = "repair"; u.target = target; u.dest = { x: target.x, z: target.z }; }
@@ -134,16 +148,16 @@ function apply(w: World, c: Command): void {
       break;
     case "patrol": {
       const us = mobile(w, c.ids, c.team);
-      for (const u of us) { u.mode = "patrol"; u.patrolPoints = [{x:c.x,z:c.z},{x:u.x,z:u.z}]; u.patrolIndex = 0; u.dest = u.patrolPoints[0]; u.target = null; }
+      for (const u of us) { if(u.garrisonId&&!leaveGarrison(w,u)){requestGarrisonExit(w,u,{x:c.x,z:c.z});continue;}u.mode = "patrol"; u.patrolPoints = [{x:c.x,z:c.z},{x:u.x,z:u.z}]; u.patrolIndex = 0; u.dest = u.patrolPoints[0]; u.target = null; }
       break;
     }
     case "build": {
       const team = c.team ?? w.playerTeam;
       // Prefer selected engineers; fall back to nearest friendly engineer
-      let builders = mobile(w, c.ids, team).filter(u => u.kind === "engineer");
+      let builders = mobile(w, c.ids, team).filter(u => u.kind === "engineer" && (!u.garrisonId || leaveGarrison(w,u)));
       if (!builders.length) {
         const nearest = w.entities
-          .filter(e => !e.dead && e.team === team && e.kind === "engineer" && e.loadedIntoId === null)
+          .filter(e => !e.dead && e.team === team && e.kind === "engineer" && e.loadedIntoId === null && !e.garrisonId)
           .sort((a, b) => Math.hypot(a.x - c.x, a.z - c.z) - Math.hypot(b.x - c.x, b.z - c.z))[0];
         if (nearest) builders = [nearest];
       }
@@ -160,7 +174,7 @@ function apply(w: World, c: Command): void {
       const b = w.spawn(c.kind, team, c.x, c.z);
       b.underConstruction = true;
       b.constructionProgress = 0;
-      b.hp = Math.max(1, b.def.hp * 0.15);
+      b.hp = Math.max(1, maxHitPoints(b) * 0.15);
       b.constructionTime = spec.buildTime;
       b.builderIds = builders.slice(0, spec.maxBuilders).map(u => u.id);
       b.heading = c.rotation ?? b.heading;
@@ -175,12 +189,10 @@ function apply(w: World, c: Command): void {
       break;
     }
     case "research": {
-      const cost = c.tech === "air" ? 240 : 220;
-      const team = c.team ?? w.playerTeam;
-      if (w.hasTech(team, c.tech) || w.teamCredits[team] < cost || w.teamResources[team] < cost) break;
-      const requires = c.tech === "air" ? "engineering" : "engineering";
-      if (!w.hasTech(team, requires)) break;
-      w.teamCredits[team] -= cost; w.teamResources[team] -= cost; if (team === w.playerTeam) { w.credits = w.teamCredits[team]; w.resources = w.teamResources[team]; } w.teamTechs[team].add(c.tech);
+      const team=c.team??w.playerTeam,status=researchStatus(w,team,c.tech);
+      if(!status.allowed)break;
+      w.teamCredits[team]-=status.cost;w.teamResources[team]-=status.cost;w.teamTechs[team].add(c.tech);
+      if(team===w.playerTeam){w.credits=w.teamCredits[team];w.resources=w.teamResources[team];}
       break;
     }
     case "upgrade": {
@@ -213,27 +225,32 @@ function apply(w: World, c: Command): void {
         for (const u of c.ids.map(id => w.byId.get(id)).filter((e): e is Entity => !!e && !e.dead && e.team === team && e.kind === "supply")) w.upgradeFOB(team, u.id);
         break;
       }
-      const cost = 140;
-      if (w.teamResources[team] < cost || w.teamCredits[team] < cost) break;
-      const us = mobile(w, c.ids, team);
-      for (const u of us) if (!u.upgrades.has(c.upgrade) && w.teamResources[team] >= cost && w.teamCredits[team] >= cost) { w.teamCredits[team] -= cost; w.teamResources[team] -= cost; u.upgrades.add(c.upgrade); if (c.upgrade === "armor") u.hp += u.def.hp * 0.15; }
+      for(const u of mobile(w,c.ids,team)){
+        const status=unitUpgradeStatus(w,u,c.upgrade);if(!status.allowed)continue;
+        const before=maxHitPoints(u);u.upgrades.add(c.upgrade);
+        // Preserve health fraction: retrofitting is not a free repair.
+        if(c.upgrade==="armor")u.hp=u.hp/before*maxHitPoints(u);
+        w.teamCredits[team]-=status.cost;w.teamResources[team]-=status.cost;
+        const depot=w.byId.get(status.depotId!);if(depot)depot.repairStock=Math.max(0,(depot.repairStock??0)-UNIT_UPGRADES[c.upgrade].repairCost);
+      }
       w.credits = w.teamCredits[w.playerTeam]; w.resources = w.teamResources[w.playerTeam];
       break;
     }
     case "load": {
-      const transport = mobile(w, c.ids, c.team).find(u => u.kind === "transport" || u.kind === "landingcraft");
-      const target = w.byId.get(c.targetId);
-      if (!transport || !target || target.dead || target.team !== transport.team || target === transport || target.loadedIntoId !== null) break;
-      if (!["inf", "engineer"].includes(target.kind)) break;
-      const capacity = 8;
-      if (transport.cargoUnitIds.length >= capacity) break;
-      transport.transportTargetId = target.id;
-      transport.mode = "transport-load";
-      transport.dest = { x: target.x, z: target.z };
+      const selected=mobile(w,c.ids,c.team),target=w.byId.get(c.targetId);
+      if(!target)break;
+      if(target.garrisonId&&!leaveGarrison(w,target))break;
+      for(const u of selected)if(u.garrisonId)leaveGarrison(w,u);
+      // Preserve the existing landing-craft orders until water navigation is completed in B1.
+      const boat=selected.find(u=>u.kind==="landingcraft");
+      if(boat&&target.team===boat.team&&!target.dead&&target.loadedIntoId==null&&["inf","engineer"].includes(target.kind)&&boat.cargoUnitIds.length<8){boat.transportTargetId=target.id;boat.mode="transport-load";boat.dest={x:target.x,z:target.z};break;}
+      if(transportCapacity(target)&&target.team===(c.team??w.playerTeam)){
+        for(const p of selected)queuePassenger(w,target,p);
+      }else for(const u of selected)if(queuePassenger(w,u,target))break;
       break;
     }
     case "fire-mission": {
-      const artillery = mobile(w, c.ids, c.team).filter(u => ["artillery","mortar","mlrs"].includes(u.kind));
+      const artillery = mobile(w, c.ids, c.team).filter(u => ["artillery","mortar","mlrs"].includes(u.kind)&&!u.garrisonId);
       for (const u of artillery) { u.fireMission = {x:c.x,z:c.z}; u.mode = "attack"; u.target = null; u.dest = null; }
       break;
     }
@@ -242,7 +259,7 @@ function apply(w: World, c: Command): void {
         u.standingOrder = c.mode;
         if (c.mode === "hold") { u.mode = "hold"; u.holdPosition = true; u.dest = null; u.target = null; }
         else if (c.mode === "holdfire") { u.mode = "hold"; u.holdPosition = true; u.dest = null; u.target = null; }
-        else if (c.mode === "patrol" && c.x !== undefined && c.z !== undefined) { u.mode = "patrol"; u.patrolPoints = [{x:c.x,z:c.z},{x:u.x,z:u.z}]; u.patrolIndex = 0; u.dest = u.patrolPoints[0]; }
+        else if (c.mode === "patrol" && c.x !== undefined && c.z !== undefined) { if(u.garrisonId&&!leaveGarrison(w,u)){requestGarrisonExit(w,u,{x:c.x,z:c.z});continue;}u.mode = "patrol"; u.patrolPoints = [{x:c.x,z:c.z},{x:u.x,z:u.z}]; u.patrolIndex = 0; u.dest = u.patrolPoints[0]; }
         else if (c.mode === "attack") { u.holdPosition=false; u.mode = "amove"; u.dest = c.x !== undefined && c.z !== undefined ? {x:c.x,z:c.z} : null; }
       }
       break;
@@ -303,16 +320,20 @@ function apply(w: World, c: Command): void {
       break;
     }
     case "unload": {
-      for (const transport of mobile(w, c.ids, c.team).filter(u => u.kind === "transport" || u.kind === "landingcraft")) {
+      for (const transport of mobile(w, c.ids, c.team).filter(u => transportCapacity(u)>0||u.kind==="landingcraft")) {
         if (!transport.cargoUnitIds.length) continue;
-        transport.unloadPoint = { x: c.x, z: c.z };
+        if(transport.kind==="landingcraft"){transport.unloadPoint={x:c.x,z:c.z};transport.mode="transport-unload";transport.dest=transport.unloadPoint;continue;}
+        const point=w.nav.nearestWalkable({x:c.x,z:c.z},transport.def.radius+(transport.def.domain==="air"?mobility.transport.landingMargin:0));
+        if(!point||Math.hypot(point.x-c.x,point.z-c.z)>20)continue;
+        transport.transportQueue=[];transport.transportPickupPoint=undefined;transport.transportExitRetryAt=0;transport.target=null;transport.navPath=[];transport.moveGroup=undefined;
+        transport.unloadPoint = point;
         transport.mode = "transport-unload";
-        transport.dest = { x: c.x, z: c.z };
+        transport.dest = point;
       }
       break;
     }
     case "produce": {
-      const def = UNITS[c.kind], team = c.team ?? w.playerTeam, hq = w.hq[team];
+      const team=c.team??w.playerTeam,def=w.unitDefinition(c.kind,team),hq=w.hq[team];
       const deck = w.deckForTeam(team), battlegroup = w.battlegroupForTeam(team);
       if (deck) {
         const left = deckRemaining(deck, c.kind, w.producedForTeam(team)[c.kind] ?? 0);
@@ -372,7 +393,7 @@ function apply(w: World, c: Command): void {
       if (!producer || producer.dead || producer.team !== (c.team ?? w.playerTeam)) break;
       if (!producer.productionQueue.length) break;
       const cancelled = producer.productionQueue.pop()!;
-      const def = UNITS[cancelled];
+      const def = w.unitDefinition(cancelled,c.team??w.playerTeam);
       // Refund 75% – better than original Real War (often 0 refund)
       const refund = Math.floor(def.cost * 0.75);
       const team = producer.team;

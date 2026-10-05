@@ -58,3 +58,83 @@ it("tactical firing position: approaches to weapon range instead of driving into
   expect(u.combatPosition).toBeDefined();expect(Math.hypot(u.combatPosition!.x-target.x,u.combatPosition!.z-target.z)).toBeGreaterThan(u.def.range*.6);
   for(let i=0;i<420;i++)w.tick(SIM_STEP);expect(Math.hypot(u.x-target.x,u.z-target.z)).toBeGreaterThan(u.def.range*.6);expect(w.events.some(e=>e.type==="fire"&&e.sourceId===u.id)).toBe(true);
 });
+
+import {factionUnitDefinition} from "./units";
+import {weaponSpec,weaponImpactEstimate,hitFace,movingFireFactor,weaponMuzzle} from "./systems/combat";
+it("faction loadouts: rifle squad has finite AT, Stinger cannot hit tanks, Javelin and RPG fly differently",()=>{
+  const w=tacticalWorld(),rifles=w.spawn("inf",0,-20,-200),tank=w.spawn("tank",1,15,-200),us=w.spawn("atInf",0,-15,-210),ru=w.spawn("atInf",1,15,-210);
+  expect(rifles.def.weapons?.length).toBe(3);expect(selectWeapon(rifles,tank)).toBe(2);const spec=weaponSpec(rifles,2);
+  expect(weaponImpactEstimate(spec,tank.def,"rear")).toBeGreaterThan(weaponImpactEstimate(spec,tank.def,"front"));
+  expect(weaponSpec(us).guidance).toBe("infrared");expect(weaponSpec(ru).flight).toBe("direct");expect(us.squadMembers).toBe(4);
+  const stinger=factionUnitDefinition("manpad","usa");expect(stinger.weapons![0].name).toContain("Stinger");expect(weaponImpactEstimate(stinger.weapons![0],tank.def)).toBe(0);expect(weaponImpactEstimate(stinger.weapons![0],factionUnitDefinition("heli","russia"))).toBeGreaterThan(30);
+  rifles.secondaryAmmo![2]=0;expect(selectWeapon(rifles,tank)).not.toBe(2);const copy=tacticalWorld();loadWorld(copy,JSON.parse(JSON.stringify(saveWorld(w))));expect(worldHash(copy)).toBe(worldHash(w));
+});
+it("faction loadouts: displayed tank damage agrees with the actual penetrating hit",()=>{
+  const w=tacticalWorld(),u=w.spawn("atInf",0,-15,-200),t=w.spawn("tank",1,15,-200);t.heading=Math.atan2(u.x-t.x,u.z-t.z);t.spottedUntil[0]=100;w.spatial.rebuild(w.entities);
+  const spec=weaponSpec(u),expected=weaponImpactEstimate(spec,t.def,hitFace(u.x,u.z,t)),hp=t.hp,ammo=u.ammo!;
+  fireProjectile(w,u,t,u.x,u.y+1.4,u.z,0);w.projectiles[0].hitChance=1;w.projectiles[0].hitRoll=0;
+  for(let i=0;i<120;i++)updateProjectiles(w,SIM_STEP);
+  expect(hp-t.hp).toBeCloseTo(expected,3);expect(u.ammo).toBe(ammo-1);
+});
+
+it("vehicle depth: stopped IFV missile, moving cannon and shared stabilizer factor",()=>{
+  const w=tacticalWorld(),u=w.spawn("ifv",0,-20,-200),t=w.spawn("tank",1,20,-200);
+  u.cooldown=0;expect(selectWeapon(u,t,true)).toBe(1);
+  u.motionSpeed=5;expect(selectWeapon(u,t,true)).toBe(0);
+  expect(movingFireFactor(u.def,weaponSpec(u,1))).toBe(0);
+  expect(movingFireFactor(u.def,weaponSpec(u,0))).toBe(1);
+  u.motionSpeed=0;expect(selectWeapon(u,t,true)).toBe(1);
+  const tank=factionUnitDefinition("tank","usa"),light=factionUnitDefinition("lightTank","usa");
+  expect(tank.armorFront).toBeGreaterThan(light.armorFront!);
+  expect(weaponImpactEstimate(light.weapons![0],tank,"front",60)).toBe(0);
+  expect(weaponImpactEstimate(light.weapons![0],tank,"rear",60)).toBeGreaterThan(0);
+});
+it("vehicle depth: AA selects long range missiles and short range guns with independent ammunition",()=>{
+  const w=tacticalWorld(),u=w.spawn("spaa",0,-20,-200),t=w.spawn("heli",1,60,-200),inf=w.spawn("inf",1,0,-200);
+  u.cooldown=0;expect(selectWeapon(u,t,true)).toBe(1);expect(selectWeapon(u,inf,true)).toBe(0);
+  u.secondaryAmmo![1]=0;expect(selectWeapon(u,t,true)).toBe(-1);
+  t.x=10;expect(selectWeapon(u,t,true)).toBe(0);
+  u.secondaryAmmo![1]=4;t.x=60;u.motionSpeed=5;expect(selectWeapon(u,t,true)).toBe(-1);
+  const copy=tacticalWorld();loadWorld(copy,JSON.parse(JSON.stringify(saveWorld(w))));expect(worldHash(copy)).toBe(worldHash(w));
+});
+it("vehicle depth: helicopter rockets launch from separate racks and cannot rearm over a depot",()=>{
+  const w=tacticalWorld(),u=w.spawn("heli",0,-20,-200);
+  expect(u.ammo).toBe(8);expect(weaponAmmo(u,2)).toBe(38);
+  const a=weaponMuzzle(u,weaponSpec(u,0),0);u.ammo!--;const b=weaponMuzzle(u,weaponSpec(u,0),0);
+  expect(Math.hypot(a.x-b.x,a.z-b.z)).toBeCloseTo(3.3);expect(a.y).toBeCloseTo(u.y+.89);
+  const depot=w.spawn("supply",0,-25,-200);depot.ammoStock=.2;
+  const before=u.ammo!;updateTacticalSupply(w,.1);
+  expect(u.ammo).toBe(before);expect(depot.ammoStock).toBeCloseTo(.2);
+  const cas=factionUnitDefinition("casHeli","usa");expect(cas.weapons!.some(s=>s.targets==="armor")).toBe(false);
+});
+
+import {shotAccuracy,weaponRange,type AccuracyStep} from "./systems/combat";
+import {combatStatus} from "./systems/units";
+it("combat readout: probability equals launched shot and preview preserves simulation/RNG",()=>{
+  const w=tacticalWorld(),u=w.spawn("tank",0,-20,-200),target=w.spawn("tank",1,25,-200);
+  u.motionSpeed=2;u.supply=65;u.suppression=35;u.morale=72;u.veteran=2;
+  target.motionSpeed=3;u.components={engine:0,tracks:0,turret:15,weapon:0,crew:20,ammo:0};
+  const spec=weaponSpec(u,0),steps:AccuracyStep[]=[],before=worldHash(w);
+  const chance=shotAccuracy(w,u,target,spec,undefined,steps);
+  expect(worldHash(w)).toBe(before);expect(steps.at(-1)?.chance).toBe(chance);
+  fireProjectile(w,u,target,u.x,u.y+2,u.z,0);
+  expect(w.projectiles.at(-1)?.hitChance).toBe(chance);
+  expect(shotAccuracy(w,u,target,spec,10)).toBeGreaterThan(shotAccuracy(w,u,target,spec,spec.range));
+});
+it("combat readout: per-slot range includes upgrades, low supply and target radius at boundary",()=>{
+  const w=tacticalWorld(),u=w.spawn("manpad",0,-20,-200),target=w.spawn("fighter",1,20,-200),spec=weaponSpec(u,0);
+  u.upgrades.add("range");u.supply=5;u.cooldown=0;
+  const range=weaponRange(u,spec);expect(range).toBeCloseTo(spec.range*1.2*.9);
+  target.x=u.x+range+target.def.radius-.01;target.z=u.z;
+  expect(selectWeapon(u,target,true)).toBe(0);
+  target.x+=.02;expect(selectWeapon(u,target,true)).toBe(-1);
+  const battery=w.spawn("artillery",0,-20,-210),ground=w.spawn("tank",1,-15,-210);battery.cooldown=0;
+  expect(weaponSpec(battery).minimumRange).toBeGreaterThan(0);
+  ground.x=battery.x+weaponSpec(battery).minimumRange-.01;expect(selectWeapon(battery,ground,true)).toBe(-1);
+});
+it("combat readout: lost contact never reports enemy live range or firing status",()=>{
+  const w=tacticalWorld(),u=w.spawn("tank",0,-20,-200),target=w.spawn("tank",1,20,-200);
+  u.target=target;target.spottedUntil[0]=0;
+  expect(combatStatus(w,u)).toBe("Luurekontakt kadunud");
+  target.x=240;expect(combatStatus(w,u)).toBe("Luurekontakt kadunud");
+});

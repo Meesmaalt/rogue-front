@@ -156,7 +156,8 @@
       "gravity": 18,
       "minFlight": 1.6,
       "muzzle": 3.2,
-      "muzzleHeight": 3.0
+      "muzzleHeight": 3.0,
+      "minimumRange": 12
     },
     "mortar": {
       "name": "Miinipildujamiin",
@@ -170,7 +171,8 @@
       "gravity": 25,
       "minFlight": 2,
       "muzzle": 0.6,
-      "muzzleHeight": 1.4
+      "muzzleHeight": 1.4,
+      "minimumRange": 5
     },
     "mlrs": {
       "name": "Mitmikraketiheitja rakett",
@@ -184,7 +186,8 @@
       "gravity": 13,
       "minFlight": 1.8,
       "muzzle": 1.4,
-      "muzzleHeight": 3
+      "muzzleHeight": 3,
+      "minimumRange": 15
     },
     "bomb": {
       "name": "Lennukipomm",

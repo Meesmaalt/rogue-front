@@ -85,7 +85,8 @@
     "producible": true,
     "turret": true,
     "armor": "light",
-    "weapon": "bullet"
+    "weapon": "bullet",
+    "transportCapacity": 10
   },
   "ifv": {
     "category": "armor",
@@ -129,7 +130,8 @@
     "producible": true,
     "turret": true,
     "armor": "medium",
-    "weapon": "cannon"
+    "weapon": "cannon",
+    "transportCapacity": 8
   },
   "inf": {
     "category": "infantry",
@@ -899,7 +901,8 @@
     "producible": true,
     "turret": false,
     "armor": "air",
-    "weapon": "none"
+    "weapon": "none",
+    "transportCapacity": 24
   },
   "cargoPlane": {
     "category": "logistics",

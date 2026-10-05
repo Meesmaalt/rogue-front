@@ -8,7 +8,7 @@ export type UnitKind =
   | "supply" | "radar" | "generator" | "destroyer" | "submarine" | "landingcraft" | "frigate" | "missileBoat" | "special"
   | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer"
   | "landStrategy" | "airStrategy" | "seaStrategy";
-export type Mode = "idle" | "move" | "attack" | "amove" | "patrol" | "hold" | "build" | "repair" | "transport-load" | "transport-unload" | "standing" | "sabotage";
+export type Mode = "idle" | "enter-building" | "leave-building" | "move" | "attack" | "amove" | "patrol" | "hold" | "build" | "repair" | "transport-load" | "transport-unload" | "standing" | "sabotage";
 export type AirState = "grounded" | "taxi" | "airborne" | "returning" | "landing" | "rearming";
 /** Wargame-style air tasking. */
 export type AirMission = "cap" | "strike" | "sead" | "ground" | null;
@@ -26,7 +26,8 @@ export type UnitCategory = "infantry" | "armor" | "recon" | "support" | "heli" |
 export type ProjectileFlight="direct"|"guided"|"ballistic";
 export type Guidance="none"|"command"|"infrared"|"radar";
 export interface WeaponSpec {
-  profile:string;name:string;weapon:"bullet"|"cannon"|"missile";visual:string;flight:ProjectileFlight;guidance:Guidance;
+  stabilizer?:Stabilizer;fireOnMove?:boolean;muzzleSide?:number;
+  profile:string;name:string;model?:string;weapon:"bullet"|"cannon"|"missile";visual:string;flight:ProjectileFlight;guidance:Guidance;
   warhead:"kinetic"|"heat"|"he";targets:"ground"|"armor"|"air"|"all";
   range:number;minimumRange:number;damage:number;cooldown:number;penetration:number;accuracy:number;splash:number;
   ammoCapacity:number;ammoUsePerShot:number;suppressionPower:number;
@@ -34,6 +35,7 @@ export interface WeaponSpec {
   muzzle:number;muzzleHeight:number;
 }
 export interface UnitDef {
+  transportCapacity?: number;
   weapons?:WeaponSpec[];
   name: string; hp: number; speed: number; turnRate: number; range: number; damage: number; cooldown: number;
   radius: number; height: number; cost: number; buildTime: number; projectileSpeed: number;
@@ -70,6 +72,7 @@ export interface UnitDef {
   repairable?: boolean;
   /** Phase 59 combat model: weapon accuracy, penetration and suppression profile. */
   accuracy?: number;
+  squadSize?:number;
   penetration?: number;
   suppressionPower?: number;
   reloadSkill?: number;
@@ -94,6 +97,8 @@ export interface Entity {
   hp: number; cooldown: number; mode: Mode; dest: Point | null; target: Entity | null;
   aggro: number; dead: boolean;
   navPath: Point[]; navPathIndex: number; flowField: FlowField | null; stuckTime: number; stuckX: number; stuckZ: number;
+  garrisonLookPoint?:Point; garrisonId?:string; garrisonSlot?:number; garrisonFacing?:number; garrisonOrderId?:string; garrisonEntryPoint?:Point; garrisonOrderDeadline?:number; garrisonShiftAt?:number; garrisonExitPoint?:Point; garrisonExitRetryAt?:number; garrisonCollapseSeen?:boolean;
+  fastMove?: boolean; moveAxis?:Point; moveGroup?: number[]; moveQueueStyles?: Array<"move"|"amove"|"fast-move">; transportQueue?: number[]; transportPickupDeadline?: number; transportPickupPoint?:Point; transportExitRetryAt?:number;
   moveQueue?: Point[]; queuedMoveType?: "move" | "amove";
   preferredResourceIndex?: number | null; logisticsPaused?: boolean; routeWaypointIndex?: number; routeLeg?: string;
   xp: number; veteran: number;
@@ -139,11 +144,12 @@ export interface Entity {
   /** Phase 77 artillery battery state. */
   artilleryReadyAt?: number; artilleryLastFire?: number; artillerySignatureUntil?: number; artilleryShotsInSalvo?: number; artilleryDisplace?: Point | null; artilleryMissionRound?: number;
   /** Phase 78 air sortie / weapons state. */
-  airSortieCount?: number; airThreat?: number; airWeaponCooldown?: number; airReturnReason?: "fuel" | "ammo" | "damage" | "manual" | null;
+  airSortieCount?: number; airThreat?: number; airWeaponCooldown?: number; airReturnReason?: "fuel" | "ammo" | "damage" | "manual" | "base" | null;
   /** Phase 86 dynamic frontline assignment. */
   frontlineSector?: string;
   deploymentState?: "reserve" | "deploying" | "frontline" | "fallback";
   /** Phase 79 AI tactical intent. */
+  aiDecisionAt?: number;
   aiIntent?: "attack" | "defend" | "recon" | "resupply" | "counterbattery" | "retreat" | null;
   gunElevation?:number;weaponCooldowns?:number[];secondaryAmmo?:number[];activeWeapon?:number;
   motionSpeed?: number; flightBank?: number; flightPitch?: number; flightOrbitCenter?: Point; airLandingPhase?: "approach"|"final";
@@ -166,9 +172,9 @@ export interface Projectile {
   hitRoll?:number;missX?:number;missZ?:number;
 }
 
-export type Command = ({
+export type Command = ({type:"face-building";ids:number[];x:number;z:number} | {type:"enter-building";ids:number[];featureId:string} | {type:"leave-building";ids:number[];x?:number;z?:number} | {
   type: "move"; ids: number[]; x: number; z: number; append?: boolean
-} | { type: "amove"; ids: number[]; x: number; z: number; append?: boolean } | { type: "attack"; ids: number[]; targetId: number } |
+} | { type: "fast-move"; ids: number[]; x: number; z: number; append?: boolean } | { type: "amove"; ids: number[]; x: number; z: number; append?: boolean } | { type: "attack"; ids: number[]; targetId: number } |
   { type: "formation"; kind: "box" | "line" | "wedge" | "column" } | { type: "stop"; ids: number[] } | { type: "repair"; ids: number[]; targetId: number } | { type: "rally"; ids: number[]; x: number; z: number } | { type: "patrol"; ids: number[]; x: number; z: number } | { type: "hold"; ids: number[] } |
   { type: "build"; ids: number[]; kind: "hq" | "bunker" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase" | "supply" | "radar" | "generator" | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer" | "landStrategy" | "airStrategy" | "seaStrategy"; x: number; z: number; rotation?: number } |
   { type: "upgrade"; ids: number[]; upgrade: "armor" | "weapon" | "range" | "supply-depot" | "producer" | "fob" } |
@@ -223,6 +229,7 @@ export interface MapResourceDef {
   roadAccess?: boolean;
 }
 export interface MissionMapDef {
+  size?:number;
   id: string;
   name: string;
   theme: "desert" | "mountains" | "city" | "temperate";

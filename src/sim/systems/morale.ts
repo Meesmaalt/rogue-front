@@ -1,3 +1,4 @@
+import {requestGarrisonExit} from "../garrison";
 import type { World } from "../World";
 import type { Entity } from "../types";
 import { FACTIONS } from "../factions";
@@ -59,6 +60,7 @@ export function updateMorale(w: World, dt: number): void {
         if (d < best) { best = d; dest = { x: b.x, z: b.z }; }
       }
       if (dest) {
+        if(u.garrisonId){requestGarrisonExit(w,u,dest);continue;}
         u.mode = "move";
         u.dest = dest;
         u.target = null;

@@ -20,3 +20,29 @@
 .unit-details[open]{max-height:150px;overflow:auto}.weapon-row{border-top:1px solid #3c4948;margin-top:5px;padding-top:4px;display:flex;flex-direction:column;gap:2px}.weapon-row b{color:#d7dcc4}.weapon-row span,.weapon-row small{font-size:10px;color:#b0bdb5}
 
 .air-roster{display:grid;gap:4px;max-height:140px;overflow:auto;margin-top:6px}.air-roster button{display:grid;grid-template-columns:32px 1fr;gap:6px;text-align:left;padding:4px}.air-roster button img{width:32px;height:28px;object-fit:contain}.air-roster small{display:block;font-size:10px;line-height:1.3}.air-roster b{font-size:11px}
+
+.weapon-card{margin-top:5px;padding:5px 6px;border:1px solid #526563;background:#15252b;font-size:10px}.weapon-card>div:first-child{display:flex;justify-content:space-between;gap:5px}.weapon-card strong{color:#d7cfad;font-size:10px;white-space:nowrap}.weapon-card>span,.weapon-card>small{display:block;margin-top:3px;color:#a7bcb5}.damage-strip{display:flex;flex-wrap:wrap;gap:3px 8px;margin-top:4px}.damage-strip b{color:#dce6d8}.weapon-card>div:first-child b{color:#dce6d8}.sel p{margin:2px 0}.sel{scrollbar-width:thin}
+
+.terrain-status{display:block;margin:5px 0;color:#bfceaf;line-height:1.45}
+
+.weapon-card { border-left: 3px solid var(--weapon-color,#79c9ff); }
+.range-controls { display:grid; gap:5px; margin:8px 0; }
+.range-controls small,.shot-preview small { display:block; color:#bdc9d1; line-height:1.45; }
+.range-slot { color:var(--weapon-color); border-color:var(--weapon-color); margin:6px 0; }
+.shot-preview { border-top:1px solid #34444e; padding-top:6px; display:grid; gap:4px; }
+.shot-preview>strong { color:var(--weapon-color); font-size:15px; }
+.accuracy-details { margin-top:6px; font-variant-numeric:tabular-nums; }
+.accuracy-details summary { cursor:pointer; color:#d5e0e6; }
+.accuracy-details table { width:100%; border-collapse:collapse; }
+.accuracy-details td { padding:2px 4px; border-bottom:1px solid #263740; }
+.accuracy-details td:last-child { text-align:right; }
+.distance-curve { display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:5px 0; }
+.unit-development { margin-top:8px; border-top:1px solid #34444e; padding-top:6px; }
+.unit-development>div { display:grid; gap:4px; padding:7px 0; }
+.unit-development small { display:block; color:#bdc9d1; line-height:1.4; }
+.unit-development summary { cursor:pointer; }
+.unit-development button { margin:4px 0; font-size:10px; }
+
+.transport-status{display:grid;gap:3px;margin:6px 0;padding:6px;border:1px solid #48646a;font-size:10px}.transport-status small{color:#adbfbd}.transport-status span{color:#d1dabc}
+
+.garrison-card{display:grid;gap:5px;padding:7px;margin:5px 0;border-left:3px solid #94b681;background:#223634;font-size:11px}.garrison-card small{color:#b4c5ba}.garrison-card button{padding:5px;border:1px solid #536c5f;background:#304941;color:#dfebdf;cursor:pointer}

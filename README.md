@@ -1,6 +1,12 @@
 # Rogue Front
 
-Brauseripõhine RTS (Three.js + TypeScript + Vite), inspireeritud mängust *Real War: Rogue States*.
+Brauseripõhine RTS (Three.js + TypeScript + Vite): Wargame’i taktikaline lahing ning Real Wari baas ja ressursihaldus.
+
+Relvade ulatusringid ja tegeliku lasuarvutusega seotud lahinguandmed: [tulejuhtimise muudatus](docs/FIRE-CONTROL-RELEASE.md).
+
+Viimane mängukoodi muudatus: [A5 — luurepõhine AI, reserv ja taastumine](docs/A5-AI-SKIRMISH-RELEASE.md). AI kasutab nähtavaid kontakte ja mälukoordinaate, hoiab reservi, arvestab kõigi relvade moona ning taastub päris laos/lennubaasis. Pika matši tasakaal ja alpha läbipääs on veel ootel. ZIP sisaldab ka [A4 logistikat](docs/A4-LOGISTICS-AIR-RELEASE.md), [A3 garnisoni](docs/A3-GARRISON-RELEASE.md) ja [A2 teeliikumist/transporti](docs/A2-MOVEMENT-TRANSPORT-RELEASE.md). Järgmine tööpakett on A6 (õpetus, salvestuse sobivus ja alpha viimistlus).
+
+Järgmise arenduse põhiplaan: [viimistlus → alpha → beta](docs/DEVELOPMENT-PLAN.md). Aktiivne tööjärjekord on TODO alguses; vanad etapinimed ei määra uut arendust.
 
 ## Käivitamine Dockeris
 
@@ -11,6 +17,16 @@ docker compose run --rm dev npm run typecheck
 docker compose --profile prod up --build prod multiplayer   # tootmisbuild nginxis: http://localhost:8080
 ```
 
+## Kaasasolev brauseribuild
+
+ZIP sisaldab `dist/` valmisbuildi, lähtekoodi, mudeleid ja serverit. Kiireks üksikmängu proovimiseks ava projekti kaustas terminal:
+
+```bash
+python3 -m http.server 8000 --directory dist
+```
+
+Seejärel ava `http://localhost:8000`. Konto/lobby/multiplayer vajavad eraldi serverit; nende jaoks kasuta alltoodud arendus- või Docker-käivitust. HTML-faili otse failihaldurist avamine ei asenda veebiserverit.
+
 ## Käivitamine ilma Dockerita
 
 ```bash
@@ -18,6 +34,12 @@ npm ci && npm run dev
 ```
 
 ## Integreeritud mängu käivitamine
+
+Uus maastikuarendus: [960 m Roheorg, dünaamiline mets ja tulekahjud](docs/FOREST-MAP-RELEASE.md). Metsatihedus mõjutab varjatust, nähtavust, katet ja liikumist; HE-tabamustest põlev mets tekitab suitsu, kahju ning püsiva põlenud ala. Kaardil on uued asulad/kõnniteed ja metsa läbivad kõrvalteed.
+
+Uus tehnika-arendus: [fraktsioonide soomus, relvad, liikuv tuli ja mudeli varustus](docs/VEHICLE-DEPTH-RELEASE.md). IFV ja tankitõrjesoomuk peatuvad raketilasuks, liikuv AA kasutab kahurit/rakette ning kopterite eraldi varud ja mudeli rack’id vastavad lahingu relvastusele.
+
+Viimane uuendus: [fraktsioonide relvakoosseisud ja jalaväemudelid](docs/UNIT-LOADOUT-MODELS-RELEASE.md). 30 jalaväekoosseisu, tegelikud tankitõrje/õhutõrjerelvad ning nähtavad relvakaardid. Tootmisnupu parem klõps avab koosseisukaardi ostmata; 3D ARSENAL näitab samu jalaväemudeleid ja relvastust.
 
 Uus põhisuund: **Wargame’i taktikaline lahing + Real Wari baas, majandus ja füüsilised õhurajatised**. [Õhuväe baasitsükkel ja maaväe laskepositsioonid](docs/TACTICAL-AIRBASE-RELEASE.md): vali lennubaas/kopteriplats, määra õhuoperatsioon ning paremklõpsa sihtpunktile; „Baasi” kutsub lennugrupi tagasi.
 
@@ -29,7 +51,7 @@ Viimane uuendus: [Roheoru liikumine, lahingu tagasiside, kaardikujundus ja tarne
 
 Ava `http://localhost:5173`, vali fraktsioon, kaart, režiim ja vaba roster või salvestatud deck. Kontot üksikmänguks ei vaja.
 
-Roheorg on praegu viimistluse fookuskaart. Vaikimisi alustad Conquest-režiimis valmis baasi ja väikese lahingugrupiga. F1 valib soomuse; Fookus toob kaamera valikule; Ründeliiku + parem klõps annab lahingukäsu. Saad valida ka HQ ja inseneridega alguse. Roheorg on nüüd 640 × 640 m, kaugema kaamera, detailsemate hoonete ning kiirenduse ja lennukõrgusega liikumisega; [uus muudatusülevaade](docs/ARCHITECTURE-MOTION-RELEASE.md). Relvade ja füüsiliste ressursivedude viimane muudatus: [docs/WEAPONS-LOGISTICS-RELEASE.md](docs/WEAPONS-LOGISTICS-RELEASE.md). Ühe kaardi varasemad muudatused ja piirid: [docs/ROHEORG-RELEASE.md](docs/ROHEORG-RELEASE.md).
+Roheorg on praegu viimistluse fookuskaart. Vaikimisi alustad Conquest-režiimis valmis baasi ja väikese lahingugrupiga. F1 valib soomuse; Fookus toob kaamera valikule; Ründeliiku + parem klõps annab lahingukäsu. Saad valida ka HQ ja inseneridega alguse. Roheorg on nüüd 960 × 960 m, kaugema kaamera, detailsemate hoonete ning kiirenduse ja lennukõrgusega liikumisega; [uus muudatusülevaade](docs/ARCHITECTURE-MOTION-RELEASE.md). Relvade ja füüsiliste ressursivedude viimane muudatus: [docs/WEAPONS-LOGISTICS-RELEASE.md](docs/WEAPONS-LOGISTICS-RELEASE.md). Ühe kaardi varasemad muudatused ja piirid: [docs/ROHEORG-RELEASE.md](docs/ROHEORG-RELEASE.md).
 
 Ehitusalgus: F2 valib insenerid. BUILDS → generaator → varustusladu. Saada teine insener ressursipunkti. Ehita maaväe juhtimiskeskus, vali see ning ehita soomustehas. LAND-paneelist tooda tank. Hoia ladu ja ressursitransport töös: tootmine ning eesliini laskemoon, kütus ja remont sõltuvad piiratud varudest.
 
@@ -133,7 +155,7 @@ Ground logistics now operates as a physical convoy network. Captured resource si
 
 ## 3D-tehnika ja multiplayer’i uuendus
 
-Peamenüü **3D ARSENAL** avab pööratava mudelivaate. Sama GLB-tehnika on kasutusel lahingus: tankid, IFV/APC, luure, suurtükid, MLRS, SPAA, lennukid, kopterid ning varustusveokid. 21 rolli × USA/Venemaa/Hiina = 63 originaalset stiliseeritud varianti. Jalavägi, hooned ja merevägi kasutavad veel varasemaid mudeleid.
+Peamenüü **3D ARSENAL** avab pööratava mudelivaate. Sama GLB-tehnika on kasutusel lahingus: tankid, IFV/APC, luure, suurtükid, MLRS, SPAA, lennukid, kopterid ning varustusveokid. 21 rolli × USA/Venemaa/Hiina = 63 originaalset stiliseeritud varianti. Jalavägi on hilisema koosseisu- ja mudeliuuendusega asendatud; hooned ja merevägi kasutavad oma olemasolevaid mudeleid.
 
 Ilma Dockerita käivita multiplayer’i jaoks teises terminalis `npm ci --prefix server && npm start --prefix server`. Ava mõlemad kliendid Vite kaudu aadressil `http://localhost:5173`. Nginx/Compose ja Vite kasutavad sama päritolu `/api` ning `/ws` proxy’t. Eraldi avaliku websocket-serveri puhul määra enne build’i `VITE_WS_URL=wss://sinu-server/ws`.
 

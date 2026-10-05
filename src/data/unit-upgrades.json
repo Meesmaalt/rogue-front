@@ -1,0 +1,5 @@
+{
+  "armor": {"name":"Soomuspakett","cost":140,"repairCost":30,"armorMultiplier":1.2,"hpMultiplier":1.15,"requiresTech":"advanced-armor","description":"Soomus E/K/T +20%; maksimumelud +15%."},
+  "weapon": {"name":"Relvauuendus","cost":140,"repairCost":20,"damageMultiplier":1.15,"penetrationMultiplier":1.08,"description":"Relvakahju +15%; läbivus +8%."},
+  "range": {"name":"Tulejuhtimine","cost":140,"repairCost":15,"rangeMultiplier":1.2,"description":"Kõigi relvade maksimumulatus +20%; baastäpsus ja miinimumkaugus säilivad."}
+}

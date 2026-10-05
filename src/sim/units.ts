@@ -1,3 +1,5 @@
+import factionLoadouts from "../data/faction-loadouts.json";
+import {FACTIONS,type FactionId} from "./factions";
 import weaponData from "../data/weapon-profiles.json";
 import raw from "../data/units.json";
 import type { UnitDef, UnitKind, OpticsRating, UnitSize, Stabilizer, Discipline, UnitCategory,WeaponSpec } from "./types";
@@ -213,3 +215,24 @@ export function parseUnits(data: unknown): Record<UnitKind, UnitDef> {
 }
 
 export const UNITS = parseUnits(raw);
+
+const factionCache=new Map<string,UnitDef>();
+/** One source for production prices, gameplay loadouts and model equipment. */
+export function factionUnitDefinition(kind:UnitKind,faction:FactionId):UnitDef {
+  const key=faction+":"+kind,cached=factionCache.get(key);if(cached)return cached;
+  const base=UNITS[kind],bonus=FACTIONS[faction].bonuses;
+  const variants=factionLoadouts as unknown as Record<FactionId,Partial<Record<UnitKind,Omit<Partial<UnitDef>,"weapons">&{weapons?:Partial<WeaponSpec>[]}>>>;
+  const variant=variants[faction][kind]??{},profiles=weaponData.profiles as Record<string,Record<string,string|number>>;
+  const def={...base,...variant} as UnitDef;
+  if(variant.weapons)def.weapons=variant.weapons.map((override,i)=>{
+    const primary=base.weapons?.[i]??base.weapons?.[0];
+    const profile=override.profile??primary?.profile??"rifle";
+    return {...primary,...(override.profile?profiles[profile]:{}),...override,profile} as WeaponSpec;
+  });
+  def.weapons=def.weapons?.map(w=>({...w,damage:w.damage*bonus.damageMul}));
+  if(def.weapons?.length){const p=def.weapons[0];def.range=Math.max(...def.weapons.map(w=>w.range));def.weapon=p.weapon;def.damage=p.damage;def.cooldown=p.cooldown;def.penetration=p.penetration;def.accuracy=p.accuracy;def.ammoCapacity=p.ammoCapacity;def.ammoUsePerShot=p.ammoUsePerShot;def.minimumRange=p.minimumRange;def.splash=p.splash;}
+  if(def.squadSize!=null)def.crew=def.squadSize;
+  def.hp=Math.round(def.hp*bonus.armorMul);def.speed*=bonus.speedMul;def.cost=Math.round(def.cost*bonus.buildCostMul);def.opticsRange=(def.opticsRange??40)*bonus.opticsMul;
+  for(const face of ["armorFront","armorSide","armorRear"] as const)if(def[face]!=null)def[face]=Math.round(def[face]!*bonus.armorMul);
+  factionCache.set(key,def);return def;
+}

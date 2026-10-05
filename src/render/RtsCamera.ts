@@ -5,7 +5,7 @@ import {MAP_SIZE} from "../sim/heightmap";
 export class RtsCamera {
   // Real War-like isometric: shallower pitch, closer default zoom
   x = -105; z = 105; yaw = -Math.PI / 4;
-  dist = 150; targetDist = 150; pitch = 0.83;
+  dist = 180; targetDist = 180; pitch = 0.83;
   groundY = 0;
   private keys = new Set<string>();
   private mouse = { x: -1, y: -1 };
@@ -23,7 +23,7 @@ export class RtsCamera {
     document.addEventListener("mouseleave", () => { this.mouse.x = this.mouse.y = -1; });
     el.addEventListener("wheel", (e) => {
       e.preventDefault();
-      this.targetDist = Math.max(58, Math.min(360, this.targetDist * (1 + Math.sign(e.deltaY) * 0.11)));
+      this.targetDist = Math.max(58, Math.min(MAP_SIZE*.62, this.targetDist * (1 + Math.sign(e.deltaY) * 0.11)));
     }, { passive: false });
   }
 

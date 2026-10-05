@@ -1,0 +1,1814 @@
+{
+  "usa": {
+    "tank": {
+      "weapons": [
+        {
+          "name": "M256 120 mm APFSDS",
+          "range": 86,
+          "penetration": 29,
+          "accuracy": 0.8,
+          "cooldown": 2.8,
+          "ammoCapacity": 40,
+          "stabilizer": "full",
+          "splash": 0,
+          "muzzleHeight": 1.85
+        },
+        {
+          "name": "M240 7.62 mm",
+          "stabilizer": "full",
+          "muzzle": 0.6,
+          "muzzleHeight": 2.5,
+          "muzzleSide": -0.62
+        }
+      ],
+      "armorFront": 21,
+      "armorSide": 12,
+      "armorRear": 7,
+      "opticsRange": 60,
+      "fuelCapacity": 1000,
+      "fuelUsePerSec": 1.15,
+      "cost": 185,
+      "ability": "Põhilahingtank: tugev esisoomus ja stabiliseeritud AP-kahur; kuulipilduja lähikaitseks, suur kütusekulu"
+    },
+    "apc": {
+      "weapons": [
+        {
+          "name": "M2 12.7 mm",
+          "stabilizer": "partial",
+          "muzzle": 1.4,
+          "muzzleHeight": 2.25,
+          "damage": 5,
+          "cooldown": 0.28,
+          "range": 36,
+          "penetration": 5,
+          "accuracy": 0.6,
+          "ammoCapacity": 400
+        }
+      ],
+      "armorFront": 6,
+      "armorSide": 4,
+      "armorRear": 3,
+      "ability": "Soomustransportöör: vägede vedu ja lähituletoetus; õhuke soomus, väldi tankiduelli",
+      "transportCapacity": 9
+    },
+    "ifv": {
+      "weapons": [
+        {
+          "name": "M242 25 mm",
+          "damage": 8,
+          "range": 48,
+          "cooldown": 0.35,
+          "penetration": 11,
+          "ammoCapacity": 300,
+          "accuracy": 0.72,
+          "stabilizer": "full",
+          "muzzle": 2.1,
+          "muzzleHeight": 2.25
+        },
+        {
+          "name": "BGM-71 TOW-2",
+          "penetration": 25,
+          "range": 84,
+          "ammoCapacity": 6,
+          "cooldown": 6,
+          "fireOnMove": false,
+          "stabilizer": "none",
+          "muzzleSide": -0.82,
+          "muzzle": 1,
+          "muzzleHeight": 2.3
+        }
+      ],
+      "armorFront": 11,
+      "armorSide": 7,
+      "armorRear": 4,
+      "ability": "IFV: jalaväevedu, automaatkahur ja piiratud kaug-tankitõrje; raketi jaoks peatub",
+      "transportCapacity": 6
+    },
+    "inf": {
+      "weapons": [
+        {
+          "name": "M4A1 5.56 mm",
+          "model": "carbine",
+          "damage": 5,
+          "cooldown": 0.55,
+          "ammoCapacity": 240,
+          "muzzleHeight": 1.05
+        },
+        {
+          "profile": "mg",
+          "name": "M249 5.56 mm",
+          "model": "mg",
+          "range": 34,
+          "damage": 4,
+          "cooldown": 0.3,
+          "penetration": 3,
+          "accuracy": 0.55,
+          "ammoCapacity": 300,
+          "suppressionPower": 1.4,
+          "splash": 0,
+          "muzzleHeight": 1.05
+        },
+        {
+          "profile": "at-rocket",
+          "name": "M72 LAW",
+          "model": "law",
+          "range": 27,
+          "damage": 18,
+          "penetration": 9,
+          "cooldown": 5,
+          "accuracy": 0.52,
+          "ammoCapacity": 4,
+          "targets": "armor",
+          "splash": 1,
+          "muzzleHeight": 1.24
+        }
+      ],
+      "squadSize": 8,
+      "ability": "Liinijalavägi: automaadid, kerge kuulipilduja ja piiratud lähitankitõrje",
+      "hp": 48
+    },
+    "atInf": {
+      "weapons": [
+        {
+          "profile": "atgm",
+          "name": "FGM-148 Javelin",
+          "model": "javelin",
+          "guidance": "infrared",
+          "range": 68,
+          "minimumRange": 10,
+          "damage": 34,
+          "penetration": 23,
+          "cooldown": 6,
+          "ammoCapacity": 4,
+          "accuracy": 0.78,
+          "splash": 1.5,
+          "muzzleHeight": 1.24
+        },
+        {
+          "name": "M4A1 5.56 mm",
+          "model": "carbine",
+          "damage": 4,
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 4,
+      "cost": 80,
+      "hp": 36
+    },
+    "mgInf": {
+      "weapons": [
+        {
+          "name": "M240B 7.62 mm",
+          "model": "mg",
+          "damage": 6,
+          "ammoCapacity": 800,
+          "range": 39,
+          "suppressionPower": 1.8,
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 5,
+      "ability": "Kuulipildujameeskond: mahasurumine ja jalaväe tõrje; raske soomuse vastu nõrk",
+      "hp": 40
+    },
+    "reconInf": {
+      "weapons": [
+        {
+          "name": "M4A1 5.56 mm",
+          "model": "carbine",
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 6,
+      "ability": "Jalaväeluure: hea optika ja varjatus; lähikaitse, mitte tankitõrje",
+      "hp": 48
+    },
+    "sniper": {
+      "weapons": [
+        {
+          "name": "M110 SASS 7.62 mm",
+          "model": "sniper",
+          "range": 68,
+          "damage": 20,
+          "ammoCapacity": 36,
+          "penetration": 5,
+          "muzzleHeight": 1.05
+        },
+        {
+          "profile": "rifle",
+          "name": "M4A1 5.56 mm",
+          "model": "carbine",
+          "damage": 3,
+          "range": 24,
+          "minimumRange": 0,
+          "cooldown": 0.7,
+          "penetration": 3,
+          "accuracy": 0.55,
+          "ammoCapacity": 100,
+          "splash": 0,
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 2,
+      "ability": "Snaipripaar: kaugvaatlus ja täpne jalaväetuli; soomuse vastu nõrk",
+      "hp": 18
+    },
+    "mortar": {
+      "weapons": [
+        {
+          "name": "M252 81 mm",
+          "model": "mortar",
+          "muzzleHeight": 1.05
+        },
+        {
+          "profile": "rifle",
+          "name": "M4A1 5.56 mm",
+          "model": "carbine",
+          "damage": 3,
+          "range": 24,
+          "minimumRange": 0,
+          "cooldown": 0.7,
+          "penetration": 3,
+          "accuracy": 0.55,
+          "ammoCapacity": 100,
+          "splash": 0,
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 4,
+      "category": "infantry",
+      "ability": "Miinipildujameeskond: nähtud sihtmärgi kaudtuli ja jalaväe mahasurumine",
+      "hp": 40
+    },
+    "manpad": {
+      "weapons": [
+        {
+          "name": "FIM-92 Stinger",
+          "model": "manpad",
+          "range": 85,
+          "damage": 32,
+          "cooldown": 4,
+          "ammoCapacity": 5,
+          "accuracy": 0.78,
+          "muzzleHeight": 1.24
+        },
+        {
+          "name": "M4A1 5.56 mm",
+          "model": "carbine",
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 3,
+      "ability": "MANPADS-meeskond: infrapunaraketid õhusihtmärkidele; automaat lähikaitseks",
+      "hp": 24
+    },
+    "atgm": {
+      "weapons": [
+        {
+          "name": "BGM-71 TOW-2",
+          "model": "tripod",
+          "range": 108,
+          "damage": 42,
+          "penetration": 27,
+          "cooldown": 5.5,
+          "ammoCapacity": 6,
+          "minimumRange": 12,
+          "muzzleHeight": 0.8
+        },
+        {
+          "name": "M4A1 5.56 mm",
+          "model": "carbine",
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 3,
+      "ability": "Raske ATGM-meeskond: pikk ulatus; peatub laskmiseks ja vajab juhitava lasu ajal kontakti",
+      "hp": 30
+    },
+    "reconVehicle": {
+      "weapons": [
+        {
+          "name": "M2 12.7 mm",
+          "profile": "mg",
+          "damage": 4,
+          "range": 34,
+          "penetration": 4,
+          "cooldown": 0.25,
+          "ammoCapacity": 400,
+          "accuracy": 0.58,
+          "splash": 0,
+          "stabilizer": "partial",
+          "muzzleHeight": 2.4
+        }
+      ],
+      "optics": "exceptional",
+      "opticsRange": 85,
+      "stealthLevel": 2,
+      "ability": "Luuresoomuk: kaugvaatlus ja mastiga optika; lähikaitserelv, väldi raske soomuse duelli"
+    },
+    "lightTank": {
+      "weapons": [
+        {
+          "name": "M35 105 mm APFSDS",
+          "range": 66,
+          "penetration": 18,
+          "accuracy": 0.74,
+          "ammoCapacity": 30,
+          "cooldown": 2.4,
+          "stabilizer": "full",
+          "splash": 0,
+          "muzzle": 2.85,
+          "muzzleHeight": 1.8
+        },
+        {
+          "name": "M240 7.62 mm",
+          "stabilizer": "full",
+          "muzzle": 0.4,
+          "muzzleHeight": 2.35,
+          "muzzleSide": -0.5
+        }
+      ],
+      "armorFront": 10,
+      "armorSide": 6,
+      "armorRear": 4,
+      "speed": 12,
+      "ability": "Kergtank: kiire kahuritoetus ja küljerünnak; põhitanki esisoomuse vastu piiratud"
+    },
+    "tankDestroyer": {
+      "weapons": [
+        {
+          "name": "BGM-71 TOW-2",
+          "range": 112,
+          "penetration": 28,
+          "damage": 42,
+          "ammoCapacity": 10,
+          "cooldown": 6,
+          "accuracy": 0.8,
+          "guidance": "command",
+          "fireOnMove": false,
+          "stabilizer": "none",
+          "muzzle": 1.45,
+          "muzzleHeight": 2.25,
+          "muzzleSide": -0.4
+        }
+      ],
+      "armorFront": 7,
+      "armorSide": 4,
+      "armorRear": 3,
+      "ability": "Tankitõrjesoomuk: kaugvaritsus ja raske rakett; laskmiseks peatub, habras lähivõitluses"
+    },
+    "spaa": {
+      "weapons": [
+        {
+          "name": "XM914 30 mm",
+          "damage": 5,
+          "range": 58,
+          "cooldown": 0.22,
+          "ammoCapacity": 400,
+          "penetration": 7,
+          "accuracy": 0.7,
+          "targets": "all",
+          "stabilizer": "full",
+          "splash": 0.8,
+          "muzzle": 2.03,
+          "muzzleHeight": 2.32,
+          "muzzleSide": 0.83
+        },
+        {
+          "profile": "manpad",
+          "name": "FIM-92 Stinger",
+          "damage": 30,
+          "range": 90,
+          "minimumRange": 8,
+          "cooldown": 4.5,
+          "penetration": 5,
+          "accuracy": 0.75,
+          "ammoCapacity": 4,
+          "splash": 1.5,
+          "fireOnMove": false,
+          "stabilizer": "none",
+          "muzzleHeight": 2.82,
+          "muzzle": 0.8,
+          "muzzleSide": 0.95
+        }
+      ],
+      "ability": "Mobiilne õhutõrje: kahur lähiohu ja jalaväe vastu; piiratud raketid pikemale õhuohule, peatub raketilasuks"
+    },
+    "bunker": {
+      "weapons": [
+        {}
+      ]
+    },
+    "heli": {
+      "weapons": [
+        {
+          "name": "AGM-114 Hellfire",
+          "range": 110,
+          "damage": 32,
+          "penetration": 28,
+          "ammoCapacity": 8,
+          "accuracy": 0.8,
+          "cooldown": 5,
+          "guidance": "command",
+          "stabilizer": "full",
+          "muzzle": 0.25,
+          "muzzleHeight": 0.89,
+          "muzzleSide": 1.65
+        },
+        {
+          "name": "M230 30 mm",
+          "ammoCapacity": 300,
+          "stabilizer": "full",
+          "muzzle": 2.6,
+          "muzzleHeight": 0.66,
+          "muzzleSide": 0
+        },
+        {
+          "name": "Hydra 70",
+          "ammoCapacity": 38,
+          "stabilizer": "partial",
+          "muzzle": 0.45,
+          "muzzleHeight": 0.9,
+          "muzzleSide": 1.25
+        }
+      ],
+      "ability": "Ründekopter: kaug-tankitõrje vajab laskuri kontakti; kahur ja raketid lähitoetuseks, AA vastu habras"
+    },
+    "gunship": {
+      "weapons": [
+        {
+          "name": "AGM-114 Hellfire",
+          "range": 96,
+          "damage": 28,
+          "penetration": 25,
+          "ammoCapacity": 8,
+          "accuracy": 0.8,
+          "cooldown": 5,
+          "guidance": "command",
+          "stabilizer": "full",
+          "muzzle": 0.25,
+          "muzzleHeight": 0.89,
+          "muzzleSide": 1.65
+        },
+        {
+          "name": "M197 20 mm",
+          "ammoCapacity": 300,
+          "stabilizer": "full",
+          "muzzle": 2.6,
+          "muzzleHeight": 0.66,
+          "muzzleSide": 0
+        },
+        {
+          "name": "Hydra 70",
+          "ammoCapacity": 38,
+          "stabilizer": "partial",
+          "muzzle": 0.45,
+          "muzzleHeight": 0.9,
+          "muzzleSide": 1.25
+        }
+      ],
+      "ability": "Ründekopter: kaug-tankitõrje vajab laskuri kontakti; kahur ja raketid lähitoetuseks, AA vastu habras"
+    },
+    "casHeli": {
+      "weapons": [
+        {
+          "name": "M197 20 mm",
+          "ammoCapacity": 300,
+          "stabilizer": "full",
+          "muzzle": 2.6,
+          "muzzleHeight": 0.66,
+          "muzzleSide": 0
+        },
+        {
+          "name": "Hydra 70",
+          "ammoCapacity": 38,
+          "stabilizer": "partial",
+          "muzzle": 0.45,
+          "muzzleHeight": 0.9,
+          "muzzleSide": 1.25
+        }
+      ],
+      "ability": "Lähitoetuskopter: kahur ja juhitamatud HE-raketid jalaväe vastu; raske tanki tõrjeks vali AT-kopter"
+    },
+    "fighter": {
+      "weapons": [
+        {
+          "name": "AIM-120 AMRAAM"
+        }
+      ]
+    },
+    "interceptor": {
+      "weapons": [
+        {
+          "name": "AIM-120 AMRAAM"
+        }
+      ]
+    },
+    "bomber": {
+      "weapons": [
+        {}
+      ]
+    },
+    "ecm": {
+      "weapons": [
+        {}
+      ]
+    },
+    "multirole": {
+      "weapons": [
+        {},
+        {}
+      ]
+    },
+    "attackAircraft": {
+      "weapons": [
+        {},
+        {}
+      ]
+    },
+    "artillery": {
+      "weapons": [
+        {
+          "name": "M284 155 mm HE"
+        }
+      ]
+    },
+    "mlrs": {
+      "weapons": [
+        {
+          "name": "M26 227 mm"
+        }
+      ]
+    },
+    "aa": {
+      "weapons": [
+        {
+          "name": "AIM-120 NASAMS"
+        }
+      ]
+    },
+    "destroyer": {
+      "weapons": [
+        {}
+      ]
+    },
+    "submarine": {
+      "weapons": [
+        {}
+      ]
+    },
+    "frigate": {
+      "weapons": [
+        {}
+      ]
+    },
+    "missileBoat": {
+      "weapons": [
+        {}
+      ]
+    },
+    "special": {
+      "weapons": [
+        {
+          "name": "M4A1 5.56 mm",
+          "model": "carbine",
+          "muzzleHeight": 1.05
+        },
+        {
+          "profile": "at-rocket",
+          "name": "M72 LAW",
+          "model": "law",
+          "range": 29,
+          "damage": 20,
+          "penetration": 12,
+          "cooldown": 5,
+          "accuracy": 0.68,
+          "ammoCapacity": 4,
+          "targets": "armor",
+          "splash": 1,
+          "muzzleHeight": 1.24
+        }
+      ],
+      "squadSize": 4,
+      "discipline": "high",
+      "ability": "Eriüksus: varjatud luure, lähilahing ja piiratud tankitõrje",
+      "hp": 48
+    },
+    "engineer": {
+      "squadSize": 4,
+      "ability": "Insenerimeeskond: ehitus ja lao varudest remont; relvastamata",
+      "hp": 48
+    },
+    "transport": {
+      "transportCapacity": 32
+    }
+  },
+  "russia": {
+    "tank": {
+      "weapons": [
+        {
+          "name": "2A46M 125 mm APFSDS",
+          "range": 80,
+          "penetration": 28,
+          "accuracy": 0.74,
+          "cooldown": 3.2,
+          "ammoCapacity": 42,
+          "stabilizer": "full",
+          "splash": 0,
+          "muzzleHeight": 1.85
+        },
+        {
+          "name": "PKT 7.62 mm",
+          "stabilizer": "full",
+          "muzzle": 0.6,
+          "muzzleHeight": 2.5,
+          "muzzleSide": -0.62
+        }
+      ],
+      "armorFront": 20,
+      "armorSide": 10,
+      "armorRear": 6,
+      "opticsRange": 52,
+      "fuelCapacity": 900,
+      "fuelUsePerSec": 0.95,
+      "cost": 170,
+      "ability": "Põhilahingtank: tugev esisoomus ja stabiliseeritud AP-kahur; kuulipilduja lähikaitseks, suur kütusekulu"
+    },
+    "apc": {
+      "weapons": [
+        {
+          "name": "2A72 30 mm",
+          "profile": "autocannon",
+          "damage": 8,
+          "range": 40,
+          "cooldown": 0.4,
+          "penetration": 9,
+          "ammoCapacity": 300,
+          "splash": 0.8,
+          "stabilizer": "partial",
+          "muzzle": 2.1,
+          "muzzleHeight": 1.9
+        }
+      ],
+      "armorFront": 5,
+      "armorSide": 3,
+      "armorRear": 2,
+      "ability": "Soomustransportöör: vägede vedu ja lähituletoetus; õhuke soomus, väldi tankiduelli",
+      "transportCapacity": 8
+    },
+    "ifv": {
+      "weapons": [
+        {
+          "name": "2A72 30 mm",
+          "damage": 10,
+          "range": 46,
+          "cooldown": 0.45,
+          "penetration": 12,
+          "ammoCapacity": 300,
+          "accuracy": 0.66,
+          "stabilizer": "full",
+          "muzzle": 2.1,
+          "muzzleHeight": 1.9
+        },
+        {
+          "name": "9M117 Bastion",
+          "penetration": 23,
+          "range": 78,
+          "ammoCapacity": 5,
+          "cooldown": 6.5,
+          "fireOnMove": false,
+          "stabilizer": "none",
+          "muzzleSide": 0,
+          "muzzle": 2.2,
+          "muzzleHeight": 1.9
+        }
+      ],
+      "armorFront": 8,
+      "armorSide": 5,
+      "armorRear": 3,
+      "ability": "IFV: jalaväevedu, automaatkahur ja piiratud kaug-tankitõrje; raketi jaoks peatub",
+      "transportCapacity": 8
+    },
+    "inf": {
+      "weapons": [
+        {
+          "name": "AK-74M 5.45 mm",
+          "model": "rifle",
+          "damage": 5,
+          "cooldown": 0.55,
+          "ammoCapacity": 240,
+          "muzzleHeight": 1.05
+        },
+        {
+          "profile": "mg",
+          "name": "RPK-74 5.45 mm",
+          "model": "mg",
+          "range": 34,
+          "damage": 4,
+          "cooldown": 0.3,
+          "penetration": 3,
+          "accuracy": 0.55,
+          "ammoCapacity": 300,
+          "suppressionPower": 1.4,
+          "splash": 0,
+          "muzzleHeight": 1.05
+        },
+        {
+          "profile": "at-rocket",
+          "name": "RPG-7V",
+          "model": "rpg",
+          "range": 30,
+          "damage": 18,
+          "penetration": 11,
+          "cooldown": 5,
+          "accuracy": 0.52,
+          "ammoCapacity": 4,
+          "targets": "armor",
+          "splash": 1,
+          "muzzleHeight": 1.24
+        }
+      ],
+      "squadSize": 8,
+      "ability": "Liinijalavägi: automaadid, kerge kuulipilduja ja piiratud lähitankitõrje",
+      "hp": 48
+    },
+    "atInf": {
+      "weapons": [
+        {
+          "profile": "at-rocket",
+          "name": "RPG-7V",
+          "model": "rpg",
+          "range": 34,
+          "minimumRange": 0,
+          "damage": 28,
+          "penetration": 17,
+          "cooldown": 4,
+          "ammoCapacity": 7,
+          "accuracy": 0.6,
+          "splash": 1.5,
+          "muzzleHeight": 1.24
+        },
+        {
+          "name": "AK-74M 5.45 mm",
+          "model": "rifle",
+          "damage": 4,
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 4,
+      "cost": 55,
+      "hp": 36
+    },
+    "mgInf": {
+      "weapons": [
+        {
+          "name": "PKM 7.62 mm",
+          "model": "mg",
+          "damage": 6,
+          "ammoCapacity": 800,
+          "range": 39,
+          "suppressionPower": 1.8,
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 5,
+      "ability": "Kuulipildujameeskond: mahasurumine ja jalaväe tõrje; raske soomuse vastu nõrk",
+      "hp": 40
+    },
+    "reconInf": {
+      "weapons": [
+        {
+          "name": "AK-74M 5.45 mm",
+          "model": "rifle",
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 6,
+      "ability": "Jalaväeluure: hea optika ja varjatus; lähikaitse, mitte tankitõrje",
+      "hp": 48
+    },
+    "sniper": {
+      "weapons": [
+        {
+          "name": "SVD 7.62 mm",
+          "model": "sniper",
+          "range": 62,
+          "damage": 20,
+          "ammoCapacity": 36,
+          "penetration": 5,
+          "muzzleHeight": 1.05
+        },
+        {
+          "profile": "rifle",
+          "name": "AK-74M 5.45 mm",
+          "model": "rifle",
+          "damage": 3,
+          "range": 24,
+          "minimumRange": 0,
+          "cooldown": 0.7,
+          "penetration": 3,
+          "accuracy": 0.55,
+          "ammoCapacity": 100,
+          "splash": 0,
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 2,
+      "ability": "Snaipripaar: kaugvaatlus ja täpne jalaväetuli; soomuse vastu nõrk",
+      "hp": 18
+    },
+    "mortar": {
+      "weapons": [
+        {
+          "name": "2B14 82 mm",
+          "model": "mortar",
+          "muzzleHeight": 1.05
+        },
+        {
+          "profile": "rifle",
+          "name": "AK-74M 5.45 mm",
+          "model": "rifle",
+          "damage": 3,
+          "range": 24,
+          "minimumRange": 0,
+          "cooldown": 0.7,
+          "penetration": 3,
+          "accuracy": 0.55,
+          "ammoCapacity": 100,
+          "splash": 0,
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 4,
+      "category": "infantry",
+      "ability": "Miinipildujameeskond: nähtud sihtmärgi kaudtuli ja jalaväe mahasurumine",
+      "hp": 40
+    },
+    "manpad": {
+      "weapons": [
+        {
+          "name": "9K38 Igla",
+          "model": "manpad",
+          "range": 78,
+          "damage": 32,
+          "cooldown": 4,
+          "ammoCapacity": 5,
+          "accuracy": 0.73,
+          "muzzleHeight": 1.24
+        },
+        {
+          "name": "AK-74M 5.45 mm",
+          "model": "rifle",
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 3,
+      "ability": "MANPADS-meeskond: infrapunaraketid õhusihtmärkidele; automaat lähikaitseks",
+      "hp": 24
+    },
+    "atgm": {
+      "weapons": [
+        {
+          "name": "9M133 Kornet",
+          "model": "tripod",
+          "range": 115,
+          "damage": 42,
+          "penetration": 29,
+          "cooldown": 5.5,
+          "ammoCapacity": 6,
+          "minimumRange": 12,
+          "muzzleHeight": 0.8
+        },
+        {
+          "name": "AK-74M 5.45 mm",
+          "model": "rifle",
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 3,
+      "ability": "Raske ATGM-meeskond: pikk ulatus; peatub laskmiseks ja vajab juhitava lasu ajal kontakti",
+      "hp": 30
+    },
+    "reconVehicle": {
+      "weapons": [
+        {
+          "name": "KPVT 14.5 mm",
+          "profile": "mg",
+          "damage": 5,
+          "range": 38,
+          "penetration": 6,
+          "cooldown": 0.3,
+          "ammoCapacity": 400,
+          "accuracy": 0.55,
+          "splash": 0,
+          "stabilizer": "partial",
+          "muzzleHeight": 2.1
+        }
+      ],
+      "optics": "exceptional",
+      "opticsRange": 78,
+      "stealthLevel": 2,
+      "ability": "Luuresoomuk: kaugvaatlus ja mastiga optika; lähikaitserelv, väldi raske soomuse duelli"
+    },
+    "lightTank": {
+      "weapons": [
+        {
+          "name": "2A75 125 mm APFSDS",
+          "range": 72,
+          "penetration": 23,
+          "accuracy": 0.67,
+          "ammoCapacity": 32,
+          "cooldown": 3.2,
+          "stabilizer": "full",
+          "splash": 0,
+          "muzzle": 2.85,
+          "muzzleHeight": 1.8
+        },
+        {
+          "name": "PKT 7.62 mm",
+          "stabilizer": "full",
+          "muzzle": 0.4,
+          "muzzleHeight": 2.35,
+          "muzzleSide": -0.5
+        }
+      ],
+      "armorFront": 8,
+      "armorSide": 5,
+      "armorRear": 3,
+      "speed": 13,
+      "ability": "Kergtank: kiire kahuritoetus ja küljerünnak; põhitanki esisoomuse vastu piiratud"
+    },
+    "tankDestroyer": {
+      "weapons": [
+        {
+          "name": "9M123 Khrizantema",
+          "range": 118,
+          "penetration": 30,
+          "damage": 44,
+          "ammoCapacity": 12,
+          "cooldown": 5.5,
+          "accuracy": 0.78,
+          "guidance": "command",
+          "fireOnMove": false,
+          "stabilizer": "none",
+          "muzzle": 1.45,
+          "muzzleHeight": 1.95,
+          "muzzleSide": -0.4
+        }
+      ],
+      "armorFront": 10,
+      "armorSide": 6,
+      "armorRear": 4,
+      "ability": "Tankitõrjesoomuk: kaugvaritsus ja raske rakett; laskmiseks peatub, habras lähivõitluses"
+    },
+    "spaa": {
+      "weapons": [
+        {
+          "name": "2A38M 30 mm",
+          "damage": 6,
+          "range": 64,
+          "cooldown": 0.18,
+          "ammoCapacity": 600,
+          "penetration": 8,
+          "accuracy": 0.72,
+          "targets": "all",
+          "stabilizer": "full",
+          "splash": 0.8,
+          "muzzle": 2.03,
+          "muzzleHeight": 2.02,
+          "muzzleSide": 0.83
+        },
+        {
+          "profile": "sam",
+          "name": "9M311 Tunguska",
+          "damage": 30,
+          "range": 100,
+          "minimumRange": 8,
+          "cooldown": 4.5,
+          "penetration": 5,
+          "accuracy": 0.72,
+          "ammoCapacity": 8,
+          "splash": 1.5,
+          "fireOnMove": false,
+          "stabilizer": "none",
+          "muzzleHeight": 2.52,
+          "muzzle": 0.8,
+          "muzzleSide": 0.95
+        }
+      ],
+      "ability": "Mobiilne õhutõrje: kahur lähiohu ja jalaväe vastu; piiratud raketid pikemale õhuohule, peatub raketilasuks"
+    },
+    "bunker": {
+      "weapons": [
+        {}
+      ]
+    },
+    "heli": {
+      "weapons": [
+        {
+          "name": "9K121 Vikhr",
+          "range": 106,
+          "damage": 30,
+          "penetration": 27,
+          "ammoCapacity": 12,
+          "accuracy": 0.75,
+          "cooldown": 5,
+          "guidance": "command",
+          "stabilizer": "full",
+          "muzzle": 0.25,
+          "muzzleHeight": 0.89,
+          "muzzleSide": 1.65
+        },
+        {
+          "name": "2A42 30 mm",
+          "ammoCapacity": 240,
+          "stabilizer": "full",
+          "muzzle": 2.6,
+          "muzzleHeight": 0.66,
+          "muzzleSide": 0
+        },
+        {
+          "name": "S-8 80 mm",
+          "ammoCapacity": 40,
+          "stabilizer": "partial",
+          "muzzle": 0.45,
+          "muzzleHeight": 0.9,
+          "muzzleSide": 1.25
+        }
+      ],
+      "ability": "Ründekopter: kaug-tankitõrje vajab laskuri kontakti; kahur ja raketid lähitoetuseks, AA vastu habras"
+    },
+    "gunship": {
+      "weapons": [
+        {
+          "name": "9M120 Ataka",
+          "range": 92,
+          "damage": 30,
+          "penetration": 26,
+          "ammoCapacity": 8,
+          "accuracy": 0.75,
+          "cooldown": 5,
+          "guidance": "command",
+          "stabilizer": "full",
+          "muzzle": 0.25,
+          "muzzleHeight": 0.89,
+          "muzzleSide": 1.65
+        },
+        {
+          "name": "2A42 30 mm",
+          "ammoCapacity": 240,
+          "stabilizer": "full",
+          "muzzle": 2.6,
+          "muzzleHeight": 0.66,
+          "muzzleSide": 0
+        },
+        {
+          "name": "S-8 80 mm",
+          "ammoCapacity": 40,
+          "stabilizer": "partial",
+          "muzzle": 0.45,
+          "muzzleHeight": 0.9,
+          "muzzleSide": 1.25
+        }
+      ],
+      "ability": "Ründekopter: kaug-tankitõrje vajab laskuri kontakti; kahur ja raketid lähitoetuseks, AA vastu habras"
+    },
+    "casHeli": {
+      "weapons": [
+        {
+          "name": "2A42 30 mm",
+          "ammoCapacity": 300,
+          "stabilizer": "full",
+          "muzzle": 2.6,
+          "muzzleHeight": 0.66,
+          "muzzleSide": 0
+        },
+        {
+          "name": "S-8 80 mm",
+          "ammoCapacity": 40,
+          "stabilizer": "partial",
+          "muzzle": 0.45,
+          "muzzleHeight": 0.9,
+          "muzzleSide": 1.25
+        }
+      ],
+      "ability": "Lähitoetuskopter: kahur ja juhitamatud HE-raketid jalaväe vastu; raske tanki tõrjeks vali AT-kopter"
+    },
+    "fighter": {
+      "weapons": [
+        {
+          "name": "R-77"
+        }
+      ]
+    },
+    "interceptor": {
+      "weapons": [
+        {
+          "name": "R-77M"
+        }
+      ]
+    },
+    "bomber": {
+      "weapons": [
+        {}
+      ]
+    },
+    "ecm": {
+      "weapons": [
+        {}
+      ]
+    },
+    "multirole": {
+      "weapons": [
+        {},
+        {}
+      ]
+    },
+    "attackAircraft": {
+      "weapons": [
+        {},
+        {}
+      ]
+    },
+    "artillery": {
+      "weapons": [
+        {
+          "name": "2A64 152 mm HE"
+        }
+      ]
+    },
+    "mlrs": {
+      "weapons": [
+        {
+          "name": "9M55 300 mm"
+        }
+      ]
+    },
+    "aa": {
+      "weapons": [
+        {
+          "name": "9M330 Tor"
+        }
+      ]
+    },
+    "destroyer": {
+      "weapons": [
+        {}
+      ]
+    },
+    "submarine": {
+      "weapons": [
+        {}
+      ]
+    },
+    "frigate": {
+      "weapons": [
+        {}
+      ]
+    },
+    "missileBoat": {
+      "weapons": [
+        {}
+      ]
+    },
+    "special": {
+      "weapons": [
+        {
+          "name": "AK-74M 5.45 mm",
+          "model": "rifle",
+          "muzzleHeight": 1.05
+        },
+        {
+          "profile": "at-rocket",
+          "name": "RPG-7V",
+          "model": "rpg",
+          "range": 29,
+          "damage": 20,
+          "penetration": 12,
+          "cooldown": 5,
+          "accuracy": 0.68,
+          "ammoCapacity": 4,
+          "targets": "armor",
+          "splash": 1,
+          "muzzleHeight": 1.24
+        }
+      ],
+      "squadSize": 4,
+      "discipline": "high",
+      "ability": "Eriüksus: varjatud luure, lähilahing ja piiratud tankitõrje",
+      "hp": 48
+    },
+    "engineer": {
+      "squadSize": 4,
+      "ability": "Insenerimeeskond: ehitus ja lao varudest remont; relvastamata",
+      "hp": 48
+    },
+    "transport": {
+      "transportCapacity": 48
+    }
+  },
+  "china": {
+    "tank": {
+      "weapons": [
+        {
+          "name": "ZPT-98 125 mm APFSDS",
+          "range": 82,
+          "penetration": 27,
+          "accuracy": 0.76,
+          "cooldown": 3,
+          "ammoCapacity": 38,
+          "stabilizer": "full",
+          "splash": 0,
+          "muzzleHeight": 1.85
+        },
+        {
+          "name": "Type 86 7.62 mm",
+          "stabilizer": "full",
+          "muzzle": 0.6,
+          "muzzleHeight": 2.5,
+          "muzzleSide": -0.62
+        }
+      ],
+      "armorFront": 19,
+      "armorSide": 11,
+      "armorRear": 6,
+      "opticsRange": 54,
+      "fuelCapacity": 850,
+      "fuelUsePerSec": 1,
+      "cost": 165,
+      "ability": "Põhilahingtank: tugev esisoomus ja stabiliseeritud AP-kahur; kuulipilduja lähikaitseks, suur kütusekulu"
+    },
+    "apc": {
+      "weapons": [
+        {
+          "name": "ZPT-99 30 mm",
+          "profile": "autocannon",
+          "damage": 8,
+          "range": 40,
+          "cooldown": 0.4,
+          "penetration": 9,
+          "ammoCapacity": 300,
+          "splash": 0.8,
+          "stabilizer": "partial",
+          "muzzle": 2.1,
+          "muzzleHeight": 2.25
+        }
+      ],
+      "armorFront": 7,
+      "armorSide": 4,
+      "armorRear": 3,
+      "ability": "Soomustransportöör: vägede vedu ja lähituletoetus; õhuke soomus, väldi tankiduelli",
+      "transportCapacity": 10
+    },
+    "ifv": {
+      "weapons": [
+        {
+          "name": "ZPT-99 30 mm",
+          "damage": 9,
+          "range": 47,
+          "cooldown": 0.4,
+          "penetration": 11,
+          "ammoCapacity": 320,
+          "accuracy": 0.69,
+          "stabilizer": "full",
+          "muzzle": 2.1,
+          "muzzleHeight": 2.25
+        },
+        {
+          "name": "HJ-73",
+          "penetration": 22,
+          "range": 80,
+          "ammoCapacity": 6,
+          "cooldown": 6,
+          "fireOnMove": false,
+          "stabilizer": "none",
+          "muzzleSide": -0.8,
+          "muzzle": 1.2,
+          "muzzleHeight": 2.3
+        }
+      ],
+      "armorFront": 10,
+      "armorSide": 6,
+      "armorRear": 4,
+      "ability": "IFV: jalaväevedu, automaatkahur ja piiratud kaug-tankitõrje; raketi jaoks peatub",
+      "transportCapacity": 7
+    },
+    "inf": {
+      "weapons": [
+        {
+          "name": "QBZ-95 5.8 mm",
+          "model": "bullpup",
+          "damage": 5,
+          "cooldown": 0.55,
+          "ammoCapacity": 240,
+          "muzzleHeight": 1.05
+        },
+        {
+          "profile": "mg",
+          "name": "QJB-95 5.8 mm",
+          "model": "mg",
+          "range": 34,
+          "damage": 4,
+          "cooldown": 0.3,
+          "penetration": 3,
+          "accuracy": 0.55,
+          "ammoCapacity": 300,
+          "suppressionPower": 1.4,
+          "splash": 0,
+          "muzzleHeight": 1.05
+        },
+        {
+          "profile": "at-rocket",
+          "name": "PF-89",
+          "model": "law",
+          "range": 30,
+          "damage": 18,
+          "penetration": 11,
+          "cooldown": 5,
+          "accuracy": 0.52,
+          "ammoCapacity": 4,
+          "targets": "armor",
+          "splash": 1,
+          "muzzleHeight": 1.24
+        }
+      ],
+      "squadSize": 8,
+      "ability": "Liinijalavägi: automaadid, kerge kuulipilduja ja piiratud lähitankitõrje",
+      "hp": 48
+    },
+    "atInf": {
+      "weapons": [
+        {
+          "profile": "at-rocket",
+          "name": "PF-98",
+          "model": "law",
+          "range": 42,
+          "minimumRange": 0,
+          "damage": 30,
+          "penetration": 19,
+          "cooldown": 5,
+          "ammoCapacity": 5,
+          "accuracy": 0.66,
+          "splash": 1.5,
+          "muzzleHeight": 1.24
+        },
+        {
+          "name": "QBZ-95 5.8 mm",
+          "model": "bullpup",
+          "damage": 4,
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 4,
+      "cost": 65,
+      "hp": 36
+    },
+    "mgInf": {
+      "weapons": [
+        {
+          "name": "QJY-88 5.8 mm",
+          "model": "mg",
+          "damage": 6,
+          "ammoCapacity": 800,
+          "range": 37,
+          "suppressionPower": 1.8,
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 5,
+      "ability": "Kuulipildujameeskond: mahasurumine ja jalaväe tõrje; raske soomuse vastu nõrk",
+      "hp": 40
+    },
+    "reconInf": {
+      "weapons": [
+        {
+          "name": "QBZ-95 5.8 mm",
+          "model": "bullpup",
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 6,
+      "ability": "Jalaväeluure: hea optika ja varjatus; lähikaitse, mitte tankitõrje",
+      "hp": 48
+    },
+    "sniper": {
+      "weapons": [
+        {
+          "name": "QBU-88 5.8 mm",
+          "model": "sniper",
+          "range": 62,
+          "damage": 20,
+          "ammoCapacity": 36,
+          "penetration": 5,
+          "muzzleHeight": 1.05
+        },
+        {
+          "profile": "rifle",
+          "name": "QBZ-95 5.8 mm",
+          "model": "bullpup",
+          "damage": 3,
+          "range": 24,
+          "minimumRange": 0,
+          "cooldown": 0.7,
+          "penetration": 3,
+          "accuracy": 0.55,
+          "ammoCapacity": 100,
+          "splash": 0,
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 2,
+      "ability": "Snaipripaar: kaugvaatlus ja täpne jalaväetuli; soomuse vastu nõrk",
+      "hp": 18
+    },
+    "mortar": {
+      "weapons": [
+        {
+          "name": "PP87 82 mm",
+          "model": "mortar",
+          "muzzleHeight": 1.05
+        },
+        {
+          "profile": "rifle",
+          "name": "QBZ-95 5.8 mm",
+          "model": "bullpup",
+          "damage": 3,
+          "range": 24,
+          "minimumRange": 0,
+          "cooldown": 0.7,
+          "penetration": 3,
+          "accuracy": 0.55,
+          "ammoCapacity": 100,
+          "splash": 0,
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 4,
+      "category": "infantry",
+      "ability": "Miinipildujameeskond: nähtud sihtmärgi kaudtuli ja jalaväe mahasurumine",
+      "hp": 40
+    },
+    "manpad": {
+      "weapons": [
+        {
+          "name": "QW-2",
+          "model": "manpad",
+          "range": 80,
+          "damage": 32,
+          "cooldown": 4,
+          "ammoCapacity": 5,
+          "accuracy": 0.74,
+          "muzzleHeight": 1.24
+        },
+        {
+          "name": "QBZ-95 5.8 mm",
+          "model": "bullpup",
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 3,
+      "ability": "MANPADS-meeskond: infrapunaraketid õhusihtmärkidele; automaat lähikaitseks",
+      "hp": 24
+    },
+    "atgm": {
+      "weapons": [
+        {
+          "name": "HJ-8",
+          "model": "tripod",
+          "range": 100,
+          "damage": 42,
+          "penetration": 24,
+          "cooldown": 5.5,
+          "ammoCapacity": 6,
+          "minimumRange": 12,
+          "muzzleHeight": 0.8
+        },
+        {
+          "name": "QBZ-95 5.8 mm",
+          "model": "bullpup",
+          "muzzleHeight": 1.05
+        }
+      ],
+      "squadSize": 3,
+      "ability": "Raske ATGM-meeskond: pikk ulatus; peatub laskmiseks ja vajab juhitava lasu ajal kontakti",
+      "hp": 30
+    },
+    "reconVehicle": {
+      "weapons": [
+        {
+          "name": "ZPT-99 30 mm",
+          "profile": "autocannon",
+          "damage": 7,
+          "range": 42,
+          "penetration": 9,
+          "cooldown": 0.45,
+          "ammoCapacity": 200,
+          "accuracy": 0.63,
+          "splash": 0.6,
+          "stabilizer": "partial",
+          "muzzleHeight": 2.4
+        }
+      ],
+      "optics": "exceptional",
+      "opticsRange": 82,
+      "stealthLevel": 2,
+      "ability": "Luuresoomuk: kaugvaatlus ja mastiga optika; lähikaitserelv, väldi raske soomuse duelli"
+    },
+    "lightTank": {
+      "weapons": [
+        {
+          "name": "105 mm APFSDS",
+          "range": 68,
+          "penetration": 20,
+          "accuracy": 0.72,
+          "ammoCapacity": 28,
+          "cooldown": 2.8,
+          "stabilizer": "full",
+          "splash": 0,
+          "muzzle": 2.85,
+          "muzzleHeight": 1.8
+        },
+        {
+          "name": "Type 86 7.62 mm",
+          "stabilizer": "full",
+          "muzzle": 0.4,
+          "muzzleHeight": 2.35,
+          "muzzleSide": -0.5
+        }
+      ],
+      "armorFront": 12,
+      "armorSide": 7,
+      "armorRear": 4,
+      "speed": 11.5,
+      "ability": "Kergtank: kiire kahuritoetus ja küljerünnak; põhitanki esisoomuse vastu piiratud"
+    },
+    "tankDestroyer": {
+      "weapons": [
+        {
+          "name": "HJ-10",
+          "range": 120,
+          "penetration": 28,
+          "damage": 42,
+          "ammoCapacity": 8,
+          "cooldown": 6.5,
+          "accuracy": 0.79,
+          "guidance": "infrared",
+          "fireOnMove": false,
+          "stabilizer": "none",
+          "muzzle": 1.45,
+          "muzzleHeight": 2.25,
+          "muzzleSide": -0.4
+        }
+      ],
+      "armorFront": 8,
+      "armorSide": 5,
+      "armorRear": 3,
+      "ability": "Tankitõrjesoomuk: kaugvaritsus ja raske rakett; laskmiseks peatub, habras lähivõitluses"
+    },
+    "spaa": {
+      "weapons": [
+        {
+          "name": "35 mm õhutõrjekahurid",
+          "damage": 7,
+          "range": 68,
+          "cooldown": 0.25,
+          "ammoCapacity": 400,
+          "penetration": 9,
+          "accuracy": 0.76,
+          "targets": "all",
+          "stabilizer": "full",
+          "splash": 0.8,
+          "muzzle": 2.03,
+          "muzzleHeight": 2.32,
+          "muzzleSide": 0.83
+        },
+        {
+          "profile": "sam",
+          "name": "HQ-6",
+          "damage": 30,
+          "range": 110,
+          "minimumRange": 8,
+          "cooldown": 4.5,
+          "penetration": 5,
+          "accuracy": 0.74,
+          "ammoCapacity": 4,
+          "splash": 1.5,
+          "fireOnMove": false,
+          "stabilizer": "none",
+          "muzzleHeight": 2.82,
+          "muzzle": 0.8,
+          "muzzleSide": 0.95
+        }
+      ],
+      "ability": "Mobiilne õhutõrje: kahur lähiohu ja jalaväe vastu; piiratud raketid pikemale õhuohule, peatub raketilasuks"
+    },
+    "bunker": {
+      "weapons": [
+        {}
+      ]
+    },
+    "heli": {
+      "weapons": [
+        {
+          "name": "HJ-10",
+          "range": 100,
+          "damage": 29,
+          "penetration": 25,
+          "ammoCapacity": 8,
+          "accuracy": 0.73,
+          "cooldown": 5,
+          "guidance": "command",
+          "stabilizer": "full",
+          "muzzle": 0.25,
+          "muzzleHeight": 0.89,
+          "muzzleSide": 1.65
+        },
+        {
+          "name": "23 mm automaatkahur",
+          "ammoCapacity": 240,
+          "stabilizer": "full",
+          "muzzle": 2.6,
+          "muzzleHeight": 0.66,
+          "muzzleSide": 0
+        },
+        {
+          "name": "90 mm raketid",
+          "ammoCapacity": 32,
+          "stabilizer": "partial",
+          "muzzle": 0.45,
+          "muzzleHeight": 0.9,
+          "muzzleSide": 1.25
+        }
+      ],
+      "ability": "Ründekopter: kaug-tankitõrje vajab laskuri kontakti; kahur ja raketid lähitoetuseks, AA vastu habras"
+    },
+    "gunship": {
+      "weapons": [
+        {
+          "name": "HJ-8",
+          "range": 88,
+          "damage": 26,
+          "penetration": 23,
+          "ammoCapacity": 8,
+          "accuracy": 0.73,
+          "cooldown": 5,
+          "guidance": "command",
+          "stabilizer": "full",
+          "muzzle": 0.25,
+          "muzzleHeight": 0.89,
+          "muzzleSide": 1.65
+        },
+        {
+          "name": "23 mm automaatkahur",
+          "ammoCapacity": 240,
+          "stabilizer": "full",
+          "muzzle": 2.6,
+          "muzzleHeight": 0.66,
+          "muzzleSide": 0
+        },
+        {
+          "name": "90 mm raketid",
+          "ammoCapacity": 32,
+          "stabilizer": "partial",
+          "muzzle": 0.45,
+          "muzzleHeight": 0.9,
+          "muzzleSide": 1.25
+        }
+      ],
+      "ability": "Ründekopter: kaug-tankitõrje vajab laskuri kontakti; kahur ja raketid lähitoetuseks, AA vastu habras"
+    },
+    "casHeli": {
+      "weapons": [
+        {
+          "name": "23 mm automaatkahur",
+          "ammoCapacity": 300,
+          "stabilizer": "full",
+          "muzzle": 2.6,
+          "muzzleHeight": 0.66,
+          "muzzleSide": 0
+        },
+        {
+          "name": "90 mm raketid",
+          "ammoCapacity": 32,
+          "stabilizer": "partial",
+          "muzzle": 0.45,
+          "muzzleHeight": 0.9,
+          "muzzleSide": 1.25
+        }
+      ],
+      "ability": "Lähitoetuskopter: kahur ja juhitamatud HE-raketid jalaväe vastu; raske tanki tõrjeks vali AT-kopter"
+    },
+    "fighter": {
+      "weapons": [
+        {
+          "name": "PL-12"
+        }
+      ]
+    },
+    "interceptor": {
+      "weapons": [
+        {
+          "name": "PL-15"
+        }
+      ]
+    },
+    "bomber": {
+      "weapons": [
+        {}
+      ]
+    },
+    "ecm": {
+      "weapons": [
+        {}
+      ]
+    },
+    "multirole": {
+      "weapons": [
+        {},
+        {}
+      ]
+    },
+    "attackAircraft": {
+      "weapons": [
+        {},
+        {}
+      ]
+    },
+    "artillery": {
+      "weapons": [
+        {
+          "name": "PLZ-05 155 mm HE"
+        }
+      ]
+    },
+    "mlrs": {
+      "weapons": [
+        {
+          "name": "PHL-03 300 mm"
+        }
+      ]
+    },
+    "aa": {
+      "weapons": [
+        {
+          "name": "HQ-17"
+        }
+      ]
+    },
+    "destroyer": {
+      "weapons": [
+        {}
+      ]
+    },
+    "submarine": {
+      "weapons": [
+        {}
+      ]
+    },
+    "frigate": {
+      "weapons": [
+        {}
+      ]
+    },
+    "missileBoat": {
+      "weapons": [
+        {}
+      ]
+    },
+    "special": {
+      "weapons": [
+        {
+          "name": "QBZ-95 5.8 mm",
+          "model": "bullpup",
+          "muzzleHeight": 1.05
+        },
+        {
+          "profile": "at-rocket",
+          "name": "PF-89",
+          "model": "law",
+          "range": 29,
+          "damage": 20,
+          "penetration": 12,
+          "cooldown": 5,
+          "accuracy": 0.68,
+          "ammoCapacity": 4,
+          "targets": "armor",
+          "splash": 1,
+          "muzzleHeight": 1.24
+        }
+      ],
+      "squadSize": 4,
+      "discipline": "high",
+      "ability": "Eriüksus: varjatud luure, lähilahing ja piiratud tankitõrje",
+      "hp": 48
+    },
+    "engineer": {
+      "squadSize": 4,
+      "ability": "Insenerimeeskond: ehitus ja lao varudest remont; relvastamata",
+      "hp": 48
+    },
+    "transport": {
+      "transportCapacity": 24
+    }
+  }
+}

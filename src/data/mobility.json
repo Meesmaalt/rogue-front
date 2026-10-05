@@ -2,17 +2,54 @@
   "infantry": {
     "acceleration": 9,
     "braking": 14,
-    "forestSpeed": 0.88
+    "forestSpeed": 0.88,
+    "squadLayout": [
+      [
+        -1.15,
+        -1
+      ],
+      [
+        0,
+        -1.15
+      ],
+      [
+        1.15,
+        -1
+      ],
+      [
+        -1.5,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        1.5,
+        0
+      ],
+      [
+        -0.95,
+        1.15
+      ],
+      [
+        0.95,
+        1.15
+      ]
+    ],
+    "roadSpeed": 1.08
   },
   "tracked": {
     "acceleration": 2.6,
     "braking": 5.5,
-    "forestSpeed": 0.64
+    "forestSpeed": 0.64,
+    "roadSpeed": 1.22
   },
   "wheeled": {
     "acceleration": 3.5,
     "braking": 6.5,
-    "forestSpeed": 0.52
+    "forestSpeed": 0.48,
+    "roadSpeed": 1.28
   },
   "helicopter": {
     "altitude": 30,
@@ -54,6 +91,22 @@
     "firingDistance": 0.8,
     "firingPositionRetry": 1.5,
     "firingTargetMove": 8,
-    "coverPreference": 18
+    "coverPreference": 18,
+    "groupReformDistance": 24,
+    "groupJoinDistance": 40,
+    "columnWidth": 6,
+    "columnRadiusFactor": 3,
+    "columnGap": 2
+  },
+  "transport": {
+    "pickupTimeout": 60,
+    "pickupGap": 2,
+    "approachInset": 3,
+    "landingHeight": 0.5,
+    "exitRadius": 18,
+    "exitSpacing": 2,
+    "exitRetry": 0.5,
+    "landingMargin": 3,
+    "pickupSearch": 30
   }
 }

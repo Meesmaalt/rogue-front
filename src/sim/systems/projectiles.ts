@@ -1,28 +1,25 @@
+import {impactGarrisonBuildings,GARRISON_RULES} from "../garrison";
 import type { World } from "../World";
 import type { Projectile,Entity } from "../types";
 import { heightAt } from "../heightmap";
 import {pointInFeature,featureBlocksMovement} from "../mapFeatures";
-import { damage, hitFace,armorValue,weaponDamageMultiplier } from "./combat";
+import { damage, hitFace,armorValue,weaponDamageMultiplier,penetrationFactor } from "./combat";
 
 function blocked(w:World,p:Projectile,x:number,y:number,z:number):boolean {
   if(y<=heightAt(x,z)+.12)return true;
-  for(const f of w.mapFeatures)if(f.kind!=="water"&&featureBlocksMovement(f)&&pointInFeature(x,z,f)&&y<heightAt(x,z)+(f.height??3))return true;
+  for(const f of w.mapFeatures)if(f.kind!=="water"&&featureBlocksMovement(f)&&pointInFeature(x,z,f)&&y<heightAt(x,z)+(f.kind==="building"&&(w.infrastructureDamage.get(f.id)??0)>=1?GARRISON_RULES.rubbleHeight:f.height??3))return true;
   for(const e of w.entities)if(!e.dead&&e.def.speed===0&&e.id!==p.sourceId&&e!==p.target&&Math.hypot(e.x-x,e.z-z)<e.def.radius&&y<e.y+e.def.height)return true;
   return false;
 }
 function penetrationMultiplier(p:Projectile,e:Entity):number {
   const armor=armorValue(e,hitFace(p.launchX??p.x,p.launchZ??p.z,e));
-  let pen=p.penetration??0;
-  if(p.warhead==="kinetic")pen*=Math.max(.65,1-Math.hypot(p.x-(p.launchX??p.x),p.z-(p.launchZ??p.z))/500);
-  const ratio=pen/Math.max(1,armor);
-  if(e.def.category==="infantry"||e.def.armor==="air")return 1;
-  if(p.warhead==="kinetic")return ratio>=1?Math.min(1.35,.8+ratio*.2):ratio>.85?.12:0;
-  if(p.warhead==="heat")return ratio>=1?Math.min(1.4,.75+ratio*.25):.1*ratio;
-  return Math.max(.12,Math.min(1,.22+ratio*.65));
+  return penetrationFactor(p.warhead??"he",p.penetration??0,armor,e.def.category==="infantry"||e.def.armor==="air",Math.hypot(p.x-(p.launchX??p.x),p.z-(p.launchZ??p.z)));
+
 }
 function impact(w:World,p:Projectile,terrain:boolean):void {
   const opts={weapon:p.weapon,fromX:p.launchX??p.x,fromZ:p.launchZ??p.z,sourceId:p.sourceId,penetration:p.penetration,suppressionPower:p.suppressionPower};
   let result:"penetration"|"ricochet"|"ground"|"airburst"|"miss"=terrain?"ground":"miss";
+  impactGarrisonBuildings(w,p,(u,amount)=>damage(w,u,amount,opts));
   const target=p.target;
   let hit:Entity|null=null;
   if(!terrain&&target&&!target.dead&&Math.hypot(target.x-p.x,target.z-p.z)<=target.def.radius+1&&Math.abs(target.y+target.def.height*.45-p.y)<Math.max(2,target.def.height*.6)&&(p.hitRoll??0)<=(p.hitChance??1)){
@@ -32,6 +29,7 @@ function impact(w:World,p:Projectile,terrain:boolean):void {
     if(target.def.armor==="air")result="airburst";
   }
   const splash=p.warhead==="kinetic"?0:p.splash??0;
+  if(p.warhead==="he")w.terrain.ignite(p.x,p.z,p.y,p.damage,splash);
   if(splash>0){
     w.spatial.queryRadius(p.x,p.z,splash+6,e=>{
       if(e.dead||e===hit||e.team===p.team||e.loadedIntoId!=null)return;

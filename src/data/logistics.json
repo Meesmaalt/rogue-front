@@ -17,5 +17,32 @@
     "repairCapacity": 600,
     "capacityPerLevel": 0.35
   },
-  "refineryProductionPerLevel": 0.3
+  "refineryProductionPerLevel": 0.3,
+  "resourceStockFraction": 0.4,
+  "resourceIncomeFraction": 0.6,
+  "mobileRefuelRadius": 12,
+  "mobileRefuelRate": 18,
+  "convoyReserve": 100,
+  "resourceAllocation": {
+    "balanced": {
+      "ammo": 0.4,
+      "fuel": 0.4,
+      "repair": 0.2
+    },
+    "ammo": {
+      "ammo": 0.65,
+      "fuel": 0.25,
+      "repair": 0.1
+    },
+    "fuel": {
+      "ammo": 0.25,
+      "fuel": 0.65,
+      "repair": 0.1
+    },
+    "repair": {
+      "ammo": 0.25,
+      "fuel": 0.25,
+      "repair": 0.5
+    }
+  }
 }

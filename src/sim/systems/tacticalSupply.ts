@@ -1,3 +1,4 @@
+import logisticsRules from "../../data/logistics.json";
 import {weaponSpec,weaponAmmo} from "./combat";
 import {heightAt} from "../heightmap";
 import type { World } from "../World";
@@ -8,7 +9,7 @@ import { FACTIONS } from "../factions";
 const SUPPLY_RADIUS_HQ = 70;
 const SUPPLY_RADIUS_DEPOT = 55;
 const SUPPLY_RADIUS_FORWARD = 42; // depots far from HQ act as forward
-const SUPPLY_RADIUS_HELI = 22;
+
 
 export function supplyRadiusFor(depot: Entity, w: World): number {
   if (depot.kind === "hq") return SUPPLY_RADIUS_HQ;
@@ -22,17 +23,13 @@ export function supplyRadiusFor(depot: Entity, w: World): number {
 
 export function isTacticallySupplied(w: World, e: Entity): boolean {
   if (e.def.speed === 0) return true;
-  if (e.kind === "transport" && e.supplyDepotId != null) return true;
+  if(e.def.armor==="air"&&((e.motionSpeed??0)>.5||e.y-heightAt(e.x,e.z)>3))return false;
   const nodes = w.entities.filter(n=>!n.dead&&!n.underConstruction&&(n.disabledUntil??0)<=w.time&&n.team===e.team&&["hq","supply"].includes(n.kind));
   for (const n of nodes) {
     const r = supplyRadiusFor(n, w);
     if (Math.hypot(n.x - e.x, n.z - e.z) <= r) {
       if ((n.ammoStock ?? 0) > 0 || (n.fuelStock ?? 0) > 0) return true;
     }
-  }
-  for (const h of w.entities) {
-    if (h.dead || h.team !== e.team || h.kind !== "transport" || h.supplyDepotId == null || (h.cargo ?? 0) <= 0) continue;
-    if (Math.hypot(h.x - e.x, h.z - e.z) <= SUPPLY_RADIUS_HELI) return true;
   }
   return false;
 }
@@ -78,21 +75,29 @@ export function updateTacticalSupply(w: World, dt: number): void {
     const fac = e.team === w.playerTeam ? w.playerFaction : w.enemyFaction;
     const eff = FACTIONS[fac].bonuses.supplyEfficiency ?? 1;
     let depot:Entity|null=null,best=Infinity;
-    for(const n of depots){if(n.team!==e.team)continue;const distance=Math.hypot(n.x-e.x,n.z-e.z);if(distance<=supplyRadiusFor(n,w)&&distance<best){best=distance;depot=n;}}
+    const needsFuel=(e.fuel??0)<(e.maxFuel??0),needsAmmo=(e.ammo??0)<(e.maxAmmo??0)||!!e.secondaryAmmo?.some((_,i)=>i>0&&weaponAmmo(e,i)<weaponSpec(e,i).ammoCapacity);
+    for(const n of depots){if(n.team!==e.team)continue;const distance=Math.hypot(n.x-e.x,n.z-e.z);const available=(!needsFuel&&!needsAmmo)||needsFuel&&(n.fuelStock??0)>0||needsAmmo&&(n.ammoStock??0)>0;const score=distance+(available?0:1000);if(distance<=supplyRadiusFor(n,w)&&score<best){best=score;depot=n;}}
     const inRadius=!!depot && (e.def.armor!=="air" || e.kind==="transport" && e.y-depot.y<3 && (e.motionSpeed??0)<.5);
-    const supplied=!!depot&&((depot.ammoStock??0)>0||(depot.fuelStock??0)>0);
+    const home=w.byId.get(e.airMissionHomeId??-1);
+    const groundAirService=e.def.armor==='air'&&['grounded','rearming'].includes(e.airState??'')&&!!home&&!home.dead&&!home.underConstruction&&(home.disabledUntil??0)<=w.time&&w.hasCommandLink(home)&&w.powerStatus(e.team).ratio>=.25&&Math.hypot(e.x-home.x,e.z-home.z)<35&&e.y-heightAt(e.x,e.z)<3;
+    const supplied=(inRadius||groundAirService)&&!!depot&&((depot.ammoStock??0)>0||(depot.fuelStock??0)>0);
     const commandLinked=e.kind==="hq"||commands[e.team].some(n=>Math.hypot(n.x-e.x,n.z-e.z)<=w.commandNodeRange(n));
     const maxS=e.maxSupply??100;
     if (supplied) e.supply=Math.min(maxS,(e.supply??100)+22*dt);
     else e.supply=Math.max(0,(e.supply??100)-(e.def.supplyUsePerSec??(e.role==="siege"?1.8:e.def.armor==="air"?2.4:0.9))*dt);
 
     if ((e.maxFuel??0)>0) {
-      const moving=(e.motionSpeed??0)>.1 || e.def.armor==="air" && !["grounded","rearming"].includes(e.airState??"") && e.y>heightAt(e.x,e.z)+3 || ["move","amove","patrol","attack"].includes(e.mode)&&(e.def.armor!=="air"||e.y>1);
+      const moving=(e.motionSpeed??0)>.1 || e.def.armor==="air" && !["grounded","rearming"].includes(e.airState??"") && e.y>heightAt(e.x,e.z)+3;
       if (moving && (e.fuel??0)>0) e.fuel=Math.max(0,(e.fuel??0)-(e.def.fuelUsePerSec??1)*dt);
       if (inRadius && depot && (depot.fuelStock??0)>0 && (e.fuel??0)<(e.maxFuel??0)) {
         const need=Math.min((e.maxFuel??0)-(e.fuel??0),(e.def.resupplyRate??1)*18*eff*dt);
         const take=Math.min(need,depot.fuelStock??0); depot.fuelStock=(depot.fuelStock??0)-take; e.fuel=(e.fuel??0)+take;
       }
+    }
+    // A stranded ground vehicle can be rescued by a nearby physical fuel convoy.
+    if(e.def.domain==="land"&&needsFuel&&(!inRadius||!depot||(depot.fuelStock??0)<=0)){
+      const donor=w.entities.find(n=>n!==e&&!n.dead&&n.team===e.team&&n.kind==="logiTruck"&&(n.logisticsPayload?.fuel??0)>0&&Math.hypot(n.x-e.x,n.z-e.z)<=logisticsRules.mobileRefuelRadius);
+      if(donor?.logisticsPayload){const take=Math.max(0,Math.min((e.maxFuel??0)-(e.fuel??0),donor.logisticsPayload.fuel,logisticsRules.mobileRefuelRate*eff*dt));donor.logisticsPayload.fuel-=take;donor.cargo=Math.max(0,donor.cargo-take);e.fuel=(e.fuel??0)+take;}
     }
     if (inRadius && depot && (e.maxAmmo??0)>0 && (e.ammo??0)<(e.maxAmmo??0)) {
       const need=Math.min((e.maxAmmo??0)-(e.ammo??0),(e.def.resupplyRate??1)*4.5*eff*dt);
