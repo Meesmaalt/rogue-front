@@ -1,3 +1,4 @@
+import {effectiveWeaponRange} from "../sim/systems/combat";
 import type { World } from "../sim/World";
 import { heightAt } from "../sim/heightmap";
 import type { Picker } from "../input/Picker";
@@ -26,6 +27,30 @@ export class Overlay {
   draw(world: World, picker: Picker, sel: SelectionController, preview: BuildPreview | null = null): void {
     const c = this.ctx, w = innerWidth, h = innerHeight;
     c.clearRect(0, 0, w, h);
+    const line=(points:readonly {x:number;y?:number;z:number}[],color:string,dashed=false)=>{
+      c.strokeStyle=color;c.lineWidth=1.4;c.setLineDash(dashed?[5,5]:[]);c.beginPath();let started=false;
+      for(const q of points){const p=picker.toScreen(q.x,q.y??heightAt(q.x,q.z)+.3,q.z);if(p.z>1){started=false;continue;}if(!started){c.moveTo(p.x,p.y);started=true;}else c.lineTo(p.x,p.y);}c.stroke();c.setLineDash([]);
+    };
+    const selected=world.entities.filter(u=>!u.dead&&sel.selected.has(u.id)&&u.team===world.playerTeam);
+    for(const u of selected){
+      if(u.def.damage>0&&selected.indexOf(u)<4){
+        const radius=effectiveWeaponRange(u),points=[];
+        for(let i=0;i<=64;i++){const a=i*Math.PI/32;points.push({x:u.x+Math.sin(a)*radius,z:u.z+Math.cos(a)*radius});}
+        line(points,"rgba(108,183,193,.45)");
+        if(u.target&&!u.target.dead&&world.isSpottedByTeam(u.target,u.team)){
+          const clear=["artillery","mortar","mlrs"].includes(u.kind)||world.vision.hasLineOfSight(u,u.target);
+          line([{x:u.x,y:u.y+u.def.height*.6,z:u.z},{x:u.target.x,y:u.target.y+u.target.def.height*.5,z:u.target.z}],clear?"#efb56b":"#ee735d",!clear);
+          if(!clear){const p=picker.toScreen(u.x,u.y+u.def.height+4,u.z);c.fillStyle="#ffad94";c.font="bold 11px sans-serif";c.fillText("Tulejoon blokeeritud",p.x+10,p.y);}
+        }
+      }
+      if(u.dest)line([u,...u.navPath.slice(u.navPathIndex,u.navPathIndex+12),u.dest,...u.moveQueue??[]],u.mode==="amove"?"rgba(242,181,91,.8)":"rgba(143,203,224,.7)",true);
+      if(u.kind==="supply"){
+        const fleet=world.entities.filter(t=>!t.dead&&t.supplyDepotId===u.id&&t.team===world.playerTeam);
+        const sources=u.preferredResourceIndex!=null?[world.resourcePoints[u.preferredResourceIndex]]:fleet.map(t=>t.logisticsSourceIndex==null?null:world.resourcePoints[t.logisticsSourceIndex]);
+        for(const rp of sources)if(rp&&rp.controlledBy===world.playerTeam)line([u,...u.logisticsWaypoints??[],rp],u.logisticsPaused?"#d07961":"rgba(177,215,121,.75)",true);
+        for(const t of fleet){if(t.dest)line([t,...t.kind==="logiTruck"?t.navPath.slice(t.navPathIndex,t.navPathIndex+10):[],t.dest],t.cargo>0?"#b6d985":"rgba(195,203,186,.5)",true);const p=picker.toScreen(t.x,t.y+t.def.height+2,t.z);c.font="bold 11px sans-serif";c.fillStyle="#d5e7b5";if(p.z<=1)c.fillText(t.cargo>0?`Koorem ${Math.floor(t.cargo)}`:"Kogumisele",p.x+8,p.y);}
+      }
+    }
     for (const u of world.entities) {
       if (u.dead || (u.team !== world.playerTeam && !world.isSpottedByTeam(u,world.playerTeam)) || (u.hp >= u.def.hp && !sel.selected.has(u.id) && u.team===world.playerTeam && (u.def.speed===0 || world.time-u.lastCombatTime>6))) continue;
       const p = picker.toScreen(u.x, u.y + u.def.height + 1, u.z);
@@ -36,7 +61,12 @@ export class Overlay {
       c.fillStyle = u.team !== world.playerTeam ? "#e0553f" : "#73bfe3";
       c.fillRect(p.x - bw / 2, p.y, bw * Math.max(0, u.hp / u.def.hp), 4);
       if(sel.selected.has(u.id)||u.team!==world.playerTeam){c.font="600 11px Segoe UI, sans-serif";const name=world.unitDisplayName(u.kind,u.team),tw=c.measureText(name).width;c.fillStyle="rgba(15,25,28,.9)";c.fillRect(p.x-tw/2-5,p.y-19,tw+10,16);c.fillStyle=u.team===world.playerTeam?"#c6e8f4":"#ffb5a3";c.textAlign="center";c.fillText(name,p.x,p.y-7);c.textAlign="left";}
-      if(sel.selected.has(u.id)&&u.dest){const origin=picker.toScreen(u.x,u.y+.2,u.z),end=picker.toScreen(u.dest.x,heightAt(u.dest.x,u.dest.z)+.2,u.dest.z);c.strokeStyle="rgba(143,203,224,.55)";c.setLineDash([4,5]);c.beginPath();c.moveTo(origin.x,origin.y);c.lineTo(end.x,end.y);c.stroke();c.setLineDash([]);c.strokeRect(end.x-4,end.y-4,8,8);}
+      if(sel.selected.has(u.id)||world.time-u.lastCombatTime<5){
+        const suppression=u.suppression??0;
+        if(suppression>25){c.fillStyle="#4a3026";c.fillRect(p.x-bw/2,p.y+6,bw,3);c.fillStyle=suppression>60?"#e87552":"#e8bd72";c.fillRect(p.x-bw/2,p.y+6,bw*Math.min(1,suppression/100),3);}
+        if(u.components&&Math.max(...Object.values(u.components))>35){c.font="bold 10px sans-serif";c.fillStyle="#eaa583";c.fillText(u.components.engine>65||u.components.tracks>65?"Liikuvus kahjustatud":"Kahjustatud",p.x-bw/2,p.y+20);}
+      }
+
 
     }
     if (preview?.point && preview.kind) {

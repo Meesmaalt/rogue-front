@@ -12,6 +12,7 @@ import { createTerrain } from "./render/Terrain";
 import { RtsCamera } from "./render/RtsCamera";
 import { loadArtModels } from "./render/ArtModels";
 import { UnitRenderer } from "./render/UnitRenderer";
+import {ResourceSites} from "./render/ResourceSites";
 import { Fx } from "./render/Fx";
 import { FogOfWar } from "./render/FogOfWar";
 import { Picker } from "./input/Picker";
@@ -57,7 +58,7 @@ deckBuilder.onPlay = (faction, deck) => {
 
 async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDifficulty?: "easy"|"normal"|"hard", faction: FactionId = "usa", spectator = false, spectatorToken = ""): Promise<void> {
   hud.setWarning("Laadin 3D-mudeleid…");
-  try { await loadArtModels(FACTION_LIST); hud.setWarning(""); } catch (error) {
+  try { await loadArtModels(multiplayerRoom?FACTION_LIST:[faction,FACTION_LIST.find(f=>f!==faction)??"russia"]); hud.setWarning(""); } catch (error) {
     console.warn("3D asset loading failed", error);
     hud.setWarning("Osa 3D-mudeleid ei laadinud. Kasutan varumudeleid.");
   }
@@ -76,7 +77,9 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   let applyingNetwork = false;
   const replayRecorder = new ReplayRecorder(mission.seed);
   const audio = new AudioManager();
-  const settingsPanel = new SettingsPanel((settings) => { audio.setSettings(settings); ctx.setQuality(settings.quality); });
+  let visualQuality=loadSettings().quality;
+  let intelAcc=0;
+  const settingsPanel = new SettingsPanel((settings) => { audio.setSettings(settings);visualQuality=settings.quality; ctx.setQuality(settings.quality); });
   let paused = false;
   const originalIssue = world.issue.bind(world);
   world.issue = (command) => {
@@ -112,13 +115,14 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const topCanvas = document.getElementById("overlay") as HTMLCanvasElement;
   const fogCanvas = document.getElementById("fog") as HTMLCanvasElement;
   const ctx = createRenderContext(glCanvas, mission.map.theme === "temperate");
-  ctx.setQuality(loadSettings().quality);
+  ctx.setQuality(visualQuality);
   ctx.scene.add(createTerrain(mission.map.theme, world.mapFeatures, mission.map.bases));
 
   const cam = new RtsCamera(ctx.camera, heightAt, ctx.sun, topCanvas);
   cam.jumpTo(world.bases[world.playerTeam].x,world.bases[world.playerTeam].z);
-  const units = new UnitRenderer(ctx.scene);
+  const units = new UnitRenderer(ctx.scene,ctx.camera);
   const fx = new Fx(ctx.scene);
+  const resourceSites=new ResourceSites(ctx.scene,world);
   const fog = new FogOfWar(fogCanvas);
   const picker = new Picker(ctx.camera, world);
   const selection = new SelectionController(topCanvas, world, picker);
@@ -162,6 +166,12 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   hud.onBuild = (kind) => { if (running && !paused) commands.startBuild(kind); };
   hud.onUpgradeSupply = (ids) => { if (running && !paused) world.issue({ type: "upgrade", ids, upgrade: "supply-depot" }); };
   hud.onUpgradeFOB = (ids) => { if (running && !paused) world.issue({ type: "upgrade", ids, upgrade: "fob" }); };
+  hud.onLogisticsEdit=(ids,action)=>{
+    if(!running||paused)return;
+    if(action==="source"||action==="route"){commands.startLogisticsOrder(ids,action);hud.setWarning(action==="source"?"Parem klõps ressursirajatise laadimisplatsile":"Parem klõps marsruudi vahepunktile");}
+    else if(action==="clear")world.issue({type:"logistics-route",ids,x:0,z:0,clear:true});
+    else for(const id of ids){const d=world.byId.get(id);if(d?.kind==="supply")world.issue({type:"logistics-source",ids:[id],sourceIndex:action==="auto"?null:d.preferredResourceIndex??null,paused:action==="pause"?!d.logisticsPaused:false});}
+  };
   hud.onDepotPriority = (ids, focus) => { if (running && !paused) world.issue({ type: "depot-priority", ids, focus }); };
   hud.onUpgradeProducer = (ids) => { if (running && !paused) world.issue({ type: "upgrade", ids, upgrade: "producer" }); };
   hud.onStance = (ids, mode) => { if (running && !paused) world.issue({ type: "standing", ids, mode }); };
@@ -170,7 +180,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   hud.onFormation = (kind) => {if(running&&!paused)world.issue({type:"formation",kind});};
   hud.onAirMission=(ids,mission)=>{if(running&&!paused){commands.startAirMission(ids,mission);hud.setWarning("Õhuoperatsioon: parem klõps sihtpunktile, Esc tühistab");}};
   hud.onCancelProduce = (producerId) => { if (running && !paused) world.issue({ type: "cancel-produce", producerId }); };
-  const saveKey = SAVE_PREFIX + mission.id + (mission.id==="roheorg"?".layout2":"") + "." + (skirmish ? activeMode : "campaign") + "." + faction;
+  const saveKey = SAVE_PREFIX + mission.id + (mission.id==="roheorg"?".layout4":"") + "." + (skirmish ? activeMode : "campaign") + "." + faction;
   const hasSave = () => localStorage.getItem(saveKey) !== null;
   const saveGame = () => { localStorage.setItem(saveKey, JSON.stringify(saveWorld(world))); localStorage.setItem("rogue-front.replay.v1." + mission.id, JSON.stringify(replayRecorder.file())); };
   const loadGame = () => { const raw = localStorage.getItem(saveKey); if (!raw) return; try { loadWorld(world, JSON.parse(raw));units.reset();selection.selected.clear();replayRecorder.reset(world); running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); } catch (err) { console.error("Salvestuse laadimine ebaõnnestus", err); hud.setWarning("Salvestuse laadimine ebaõnnestus"); } };
@@ -236,18 +246,20 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       selection.prune();
       const events = world.drainEvents();
       units.handleEvents(events);
-      units.sync(world, alpha, selection.selected);
-      units.syncIntelGhosts(world);
+      units.sync(world, alpha, selection.selected,frameDt,visualQuality);
+      ctx.updateShadows(units.shadowDirty);units.shadowDirty=false;
+      intelAcc+=frameDt;if(intelAcc>=.2){units.syncIntelGhosts(world);intelAcc=0;}
       fx.handleEvents(events);
       audio.events(events, world.playerTeam);
       fx.syncProjectiles(world, alpha);
+      resourceSites.sync(world);
       fx.update(frameDt);
       const animateWater = ctx.water.material as THREE.ShaderMaterial;
       if (animateWater.uniforms?.time) animateWater.uniforms.time.value += frameDt;
       ctx.post.render();
       fog.draw(world, picker);
       overlay.draw(world, picker, selection, { point: commands.buildPoint, kind: commands.buildMode, rotation: commands.buildRotation, valid: commands.buildValid });
-      minimap.draw();
+      minimap.draw(frameDt);
       hudAcc += frameDt; frames++; fpsAcc += frameDt;
       if (hudAcc > 0.2) {
         hudAcc = 0;

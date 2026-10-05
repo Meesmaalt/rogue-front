@@ -7,6 +7,20 @@ import { pointInFeature } from "../mapFeatures";
 export type DamageWeapon = keyof typeof raw;
 const MATRIX = raw as Record<string, Record<string, number>>;
 
+/** The same eligibility rules are used by acquisition and the firing gate. */
+export function canEngage(u: Entity, t: Entity): boolean {
+  if(t.dead || t.loadedIntoId != null || t.team === u.team)return false;
+  const c=u.def.targetClass??"all",air=t.def.armor==="air";
+  if(c==="air")return air;
+  if(air)return c==="all"&&u.def.weapon==="missile";
+  if(c==="armor")return t.def.speed>0&&t.def.category!=="infantry"&&t.def.domain!=="sea";
+  if(c==="naval")return t.def.domain==="sea";
+  return true;
+}
+export function effectiveWeaponRange(u:Entity):number {
+  return u.def.range*(u.upgrades.has("range")?1.2:1)*((u.supply??100)>10?1:.9);
+}
+
 /** Which face of target is hit from shooter position. */
 export type ArmorFace = "front" | "side" | "rear";
 
@@ -77,7 +91,7 @@ function targetCoverValue(w: World, t: Entity): number {
   let v = 0;
   for (const f of w.mapFeatures) {
     if (!pointInFeature(t.x, t.z, f, 0.2)) continue;
-    if (f.kind === "cover" && f.appearance!=="field") v = Math.max(v, 0.14);
+    if (f.kind === "cover" && f.appearance!=="field" && f.appearance!=="yard") v = Math.max(v, 0.14);
     else if (f.kind === "wall" || f.kind === "chokepoint") v = Math.max(v, 0.22);
     else if (f.kind === "building") v = Math.max(v, 0.30);
   }
@@ -112,12 +126,12 @@ export function fireProjectile(w: World, u: Entity, t: Entity, x: number, y: num
   const sizeBonus: Record<string, number> = { small: -0.16, medium: 0, large: 0.08, very_large: 0.16 };
   hitChance += sizeBonus[t.def.size ?? "medium"] ?? 0;
   hitChance += (u.def.optics === "exceptional" ? 0.06 : u.def.optics === "very_good" ? 0.04 : u.def.optics === "good" ? 0.02 : 0);
-  if (u.mode === "move" || u.mode === "amove") {
+  if ((u.motionSpeed??0)>.5) {
     const stab = u.def.stabilizer ?? (u.def.turret ? "full" : "none");
     if (stab === "none") hitChance *= 0.45;
     else if (stab === "partial") hitChance *= 0.72;
   }
-  if (t.mode !== "idle" && t.mode !== "hold" && t.def.speed > 0) hitChance *= 0.86;
+  if ((t.motionSpeed??0)>.5 && t.def.speed > 0) hitChance *= 0.86;
   hitChance *= Math.max(0.25, 1 - (u.suppression ?? 0) / 150);
   hitChance *= 0.72 + ((u.morale ?? 100) / 100) * 0.28;
   if (u.components) {
@@ -139,20 +153,25 @@ export function fireProjectile(w: World, u: Entity, t: Entity, x: number, y: num
   let tx = t.x, tz = t.z;
   if (t.def.speed > 0 && u.def.projectileSpeed > 0) {
     const eta = dist / Math.max(1, u.def.projectileSpeed);
-    const spd = t.def.speed * (t.mode === "idle" || t.mode === "hold" ? 0 : 0.55);
+    const spd = t.motionSpeed ?? t.def.speed * (t.mode === "idle" || t.mode === "hold" ? 0 : 0.55);
     tx = t.x + Math.sin(t.heading) * spd * eta;
     tz = t.z + Math.cos(t.heading) * spd * eta;
   }
 
+  const aimY=t.y+t.def.height*.45;
+  const length=Math.hypot(tx-x,aimY-y,tz-z)||1;
+  const launchSpeed=u.def.weapon==="missile"?(u.def.missileLaunchSpeed??u.def.projectileSpeed):u.def.projectileSpeed;
   w.projectiles.push({
-    id: w.nextId++, team: u.team, x, y, z, vx: 0, vy: 0, vz: 0,
+    id: w.nextId++, team: u.team, x, y, z, vx: (tx-x)/length*launchSpeed, vy: (aimY-y)/length*launchSpeed, vz: (tz-z)/length*launchSpeed,
+    launchX:u.x,launchZ:u.z,aimY,age:0,lifetime:Math.max(u.def.projectileLifetime??8,length/Math.max(1,launchSpeed)+3),
+    turnRate:u.def.missileTurnRate??3.2,acceleration:u.def.missileAcceleration??75,maxSpeed:u.def.projectileSpeed,
     tx, tz, target: t, sourceId: u.id,
-    damage: dealt, speed: u.def.projectileSpeed, splash: u.def.splash ?? 0,
+    damage: dealt, speed: launchSpeed, splash: u.def.splash ?? 0,
     weapon: u.def.weapon, face, hitChance, penetration, impactDamage: dealt,
   } as typeof w.projectiles[0] & { weapon?: string; face?: ArmorFace; hitChance?: number; penetration?: number; impactDamage?: number });
 
   if ((u.maxAmmo ?? 0) > 0) u.ammo = Math.max(0, (u.ammo ?? 0) - (u.def.ammoUsePerShot ?? 1));
-  w.events.push({ type: "fire", team: u.team, x, y, z, sourceId: u.id });
+  w.events.push({ type: "fire", team: u.team, x, y, z, sourceId: u.id, weapon:u.def.weapon,caliber:u.def.damage });
 }
 
 export function damage(w: World, t: Entity, amount: number, opts?: {
@@ -227,5 +246,5 @@ export function fireGroundProjectile(w: World, u: Entity, x: number, z: number):
     weapon: u.def.weapon,
   } as typeof w.projectiles[0] & { weapon?: string });
   if ((u.maxAmmo ?? 0) > 0) u.ammo = Math.max(0, (u.ammo ?? 0) - (u.def.ammoUsePerShot ?? 1));
-  w.events.push({ type: "fire", team: u.team, x: u.x, y: u.y + 2.2, z: u.z, sourceId: u.id });
+  w.events.push({ type: "fire", team: u.team, x: u.x, y: u.y + 2.2, z: u.z, sourceId: u.id, weapon:u.def.weapon,caliber:u.def.damage });
 }

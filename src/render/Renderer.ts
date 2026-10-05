@@ -12,6 +12,7 @@ export interface RenderContext {
   post: PostFX;
   water: THREE.Mesh;
   resize(): void;
+  updateShadows(force:boolean):void;
   setQuality(quality: GameSettings["quality"]): void;
 }
 
@@ -21,29 +22,30 @@ export function createRenderContext(canvas: HTMLCanvasElement, temperate = false
   renderer.setPixelRatio(profile.pixelRatio);
   renderer.shadowMap.enabled = profile.shadows;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.autoUpdate=false;
   configureColorManagement(renderer);
 
   const scene = new THREE.Scene();
   // Real War desert haze – warm sand, not muddy grey
-  const haze = new THREE.Color(temperate ? 0xc1d1d7 : 0xd4c49a);
+  const haze = new THREE.Color(temperate ? 0xb7c6cc : 0xd4c49a);
   scene.background = haze;
   scene.fog = new THREE.Fog(haze, 260, 780);
   if (!temperate) scene.add(createSky());
 
   const camera = new THREE.PerspectiveCamera(42, 1, 1, 1400);
   // Brighter ambient so buildings read clearly
-  const hemi = new THREE.HemisphereLight(temperate ? 0xd5e7ed : 0xfff0d0, temperate ? 0x526348 : 0x8a7350, 1.4);
+  const hemi = new THREE.HemisphereLight(temperate ? 0xc5d7df : 0xfff0d0, temperate ? 0x414a37 : 0x8a7350, temperate?.85:1.1);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(temperate ? 0xfff5e4 : 0xffe8c0, temperate ? 2.3 : 3.2);
+  const sun = new THREE.DirectionalLight(temperate ? 0xfff5e4 : 0xffe8c0, temperate ? 2.7 : 3.0);
   sun.castShadow = profile.shadows;
-  sun.shadow.mapSize.set(profile.shadows ? 1024 : 512, profile.shadows ? 1024 : 512);
+  sun.shadow.mapSize.set(profile.shadowSize||512,profile.shadowSize||512);
   const sc = sun.shadow.camera;
   sc.left = -125; sc.right = 125; sc.top = 125; sc.bottom = -125; sc.near = 1; sc.far = 430;
   sun.shadow.bias = -0.0004;
-  sun.shadow.normalBias = 0.32;
+  sun.shadow.normalBias = 0.10;
   scene.add(sun, sun.target);
   // Soft fill from the opposite side so silhouettes stay readable
-  const fill = new THREE.DirectionalLight(0xb8c8e0, 0.55);
+  const fill = new THREE.DirectionalLight(0xb8c8e0, 0.22);
   fill.position.set(-40, 50, -30);
   scene.add(fill);
 
@@ -56,7 +58,10 @@ export function createRenderContext(canvas: HTMLCanvasElement, temperate = false
     renderer.setPixelRatio(profile.pixelRatio);
     renderer.shadowMap.enabled = profile.shadows;
     sun.castShadow = profile.shadows;
-    sun.shadow.mapSize.set(profile.shadows ? 1024 : 512, profile.shadows ? 1024 : 512);
+    if(sun.shadow.mapSize.x!==(profile.shadowSize||512)){sun.shadow.map?.dispose();sun.shadow.map=null;}
+    sun.shadow.mapSize.set(profile.shadowSize||512,profile.shadowSize||512);
+    renderer.shadowMap.needsUpdate=true;
+    resize();
   };
 
   const resize = () => {
@@ -69,5 +74,12 @@ export function createRenderContext(canvas: HTMLCanvasElement, temperate = false
   window.addEventListener("resize", resize);
   resize();
 
-  return { renderer, scene, camera, sun, post, water, resize, setQuality };
+  const lastShadow=new THREE.Vector3(Infinity,Infinity,Infinity);
+  const updateShadows=(force:boolean)=>{
+    if(!profile.shadows)return;
+    const extent=Math.max(90,Math.min(230,Math.ceil(camera.position.distanceTo(sun.target.position)*.58/16)*16));
+    if(sc.right!==extent){sc.left=-extent;sc.right=extent;sc.top=extent;sc.bottom=-extent;sc.updateProjectionMatrix();force=true;}
+    if(force||sun.position.distanceToSquared(lastShadow)>1){lastShadow.copy(sun.position);renderer.shadowMap.needsUpdate=true;}
+  };
+  return { renderer, scene, camera, sun, post, water, resize, setQuality, updateShadows };
 }

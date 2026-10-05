@@ -21,6 +21,7 @@ Põhisammas: **logistika + käsupuu + tänapäeva tehnika**, mitte klassikaline 
 - [x] Jalaväe siluett ja liikumispõhine kõnnianimatsioon; tootmishoonete katuseviimistlus
 - [x] Ründeliikumise A*, pööratud takistused, nurkade läbimine, veokite teekond ja LOS-positsioon
 - [x] Brauseris kontrollitud käsust liikumine, vastase tulekahju ja laskemoona vähenemine; salvestamine
+- [x] Rollipõhised laskeulatused, rakettide lennu/visuaali ühendamine, nähtavad ressursirajatised ja lao tasemest sõltuvad füüsilised kopteriveod
 - [ ] Pika mängu tasakaal ja suurema armee kitsaskohtade viimistlemine mängija tagasiside järgi
 - [x] 640 m Roheorg ja kaugem kaamera; tekstuuritud hooned, kinemaatiline lennukõrgus ja maaüksuste kiirendus/pidurdus
 - [ ] Detailsemad keskkonna- ja jalaväetekstuurid ning realistlikumad tsiviil-/baasikompleksid
@@ -105,3 +106,24 @@ Uue faasinumbri asemel parandati olemasolevat mängutsüklit. Vaata `docs/INTEGR
 - [x] Kahe brauseri/serveri põhikontroll: start, eri fraktsioonid, käsk, reconnect ja desync-paus
 - [ ] Multiplayer’i pikk lahing, tootmine/upgrade/õhuoperatsioonid päris võrgus, WAN-latentsus ja serveri taaskäivitus
 - [ ] Mõõdetud 60 FPS esinduslikul GPU-l, segaarmeega ja pika lahinguga
+
+## Roheoru neli ühendatud parandust — 2026-10-05
+
+Rakendatud koodis; kaks sihitud simulatsioonikontrolli ja tootmisbuild. Visuaalne brauseriülevaatus ning pika lahingu tasakaal jäävad eraldi tööks. Piirangud: `TACTICAL-MAP-LOGISTICS-RELEASE.md`.
+
+- [x] Sujuvam teekonna järgimine, legaalsed grupi sihtkohad ja ühekordne Shift-käsujärjekord
+- [x] Tegelik laskeulatus, nähtava sihtmärgi LOS, suppression/kahjustused ning eristatavad relvaefektid ja sünteesitud helid
+- [x] Roheoru elamud, tööstusõued, kõrvalteed, metsaservad ja ühise kõrgusvälja lauged kõrgendikud
+- [x] Lao allikavalik, marsruudipunktid ja vedude peatamine päris transpordis; nähtavad koormad ja varud
+- [ ] Suure grupi liiklus, kaardi tasakaal ja visuaalne tunnetus mängija tagasiside põhjal
+
+## 3D-kvaliteet ja jõudlus — 2026-10-05
+
+Rakendatud renderduses ning eksporditud mänguvarades. Build ja lühike GLB struktuurikontroll; piirangud `ART-PERFORMANCE-RELEASE.md`.
+
+- [x] Tanki/soomuki pinnad ja fraktsioonivarustus; kamo, karedus, normaalikaart ja aluspinna toon
+- [x] Tegelikud animeeritavad kaugusmudelid kõigile 63 tehnikavariandile
+- [x] Vähem materjalipartiisid, staatilise kaardi ühendamine ja piirkondlik metsainstantsimine
+- [x] Animatsiooniviited, vaateväljast väljas animatsioonide kärpimine ja staatilise varjukaardi taaskasutus
+- [x] Otserenderdus ilma väljalülitatud järelprotsessi puhvriteta; renderduse/UI sageduste piiramine
+- [ ] Brauseri visuaalne hinnang ja mõõdetud GPU/FPS võrdlus sama stseeni/kaameraga

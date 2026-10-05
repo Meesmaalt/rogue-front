@@ -1,25 +1,29 @@
 import type { World } from "../World";
 import { heightAt } from "../heightmap";
-import { damage } from "./combat";
+import { damage, hitFace } from "./combat";
 
 export function updateProjectiles(w: World, dt: number): void {
   const ps = w.projectiles;
   for (let i = ps.length - 1; i >= 0; i--) {
     const p = ps[i];
-    if (p.target && !p.target.dead) { p.tx = p.target.x; p.tz = p.target.z; }
-    const ty = (p.target?.def.armor === "air" ? p.target.y : heightAt(p.tx,p.tz)) + (p.target ? p.target.def.height * 0.45 : 0.25);
+    p.age=(p.age??0)+dt;
+    if(p.age>(p.lifetime??16)){ps.splice(i,1);continue;}
+    const guided=p.weapon==="missile"&&p.target!=null;
+    if (guided && p.target && !p.target.dead) {p.tx=p.target.x;p.tz=p.target.z;p.aimY=p.target.y+p.target.def.height*.45;}
+    const ty = p.aimY ?? heightAt(p.tx,p.tz)+(p.target?p.target.def.height*.45:.25);
+    if(guided)p.speed=Math.min(p.maxSpeed??p.speed,p.speed+(p.acceleration??0)*dt);
     const dx = p.tx - p.x, dy = ty - p.y, dz = p.tz - p.z;
     const d = Math.hypot(dx, dy, dz);
     const step = p.speed * dt;
 
     const ballistic = p.speed < 100 || p.weapon === "cannon" && (p.splash ?? 0) >= 6;
     if (d <= step + 0.35 || d < 0.4) {
-      const hitOpts = { weapon: p.weapon, fromX: p.x, fromZ: p.z, sourceId: p.sourceId };
-      if (p.target && !p.target.dead) {
+      const hitOpts = { weapon: p.weapon, fromX: p.launchX??p.x, fromZ: p.launchZ??p.z, sourceId: p.sourceId };
+      if (p.target && !p.target.dead && (guided || Math.hypot(p.target.x-p.tx,p.target.z-p.tz)<=p.target.def.radius+.7)) {
         const pp = p as typeof p & { hitChance?: number; penetration?: number; impactDamage?: number };
         const chance = pp.hitChance ?? 1;
         if (w.rng() <= chance) {
-          const face = pp.face ?? "front";
+          const face = hitFace(p.launchX??p.x,p.launchZ??p.z,p.target);
           const armor = face === "front" ? (p.target.def.armorFront ?? 8) : face === "rear" ? (p.target.def.armorRear ?? 4) : (p.target.def.armorSide ?? 6);
           const pen = pp.penetration ?? 0;
           const ratio = pen / Math.max(1, armor);
@@ -31,13 +35,14 @@ export function updateProjectiles(w: World, dt: number): void {
       } else {
         // Area-fire shells suppress and damage everything inside the impact ellipse.
         for (const e of w.entities) {
-          if (e.dead || e.team === p.team) continue;
+          if (e.dead || e.loadedIntoId!=null || e.team === p.team || Math.abs(e.y+e.def.height*.45-ty)>Math.max(4,p.splash??0)) continue;
           const d2 = Math.hypot(e.x - p.tx, e.z - p.tz);
           if (d2 <= (p.splash ?? 0) + e.def.radius * 0.5) {
             damage(w, e, p.damage * Math.max(0.2, 1 - d2 / Math.max(1, (p.splash ?? 1) * 1.5)), hitOpts);
           }
         }
       }
+      if(p.weapon!=="bullet")w.events.push({type:"impact",x:p.tx,y:ty,z:p.tz,weapon:p.weapon??"cannon"});
       const shooter = w.byId.get(p.sourceId);
       if (shooter && p.target?.dead) {
         shooter.xp += 1;
@@ -50,7 +55,16 @@ export function updateProjectiles(w: World, dt: number): void {
       let vx = (dx / d) * p.speed;
       let vy = (dy / d) * p.speed;
       let vz = (dz / d) * p.speed;
-      if (ballistic && d > 8) {
+      if(guided){
+        const oldSpeed=Math.hypot(p.vx,p.vy,p.vz);
+        if(oldSpeed>.01){
+          const dot=Math.max(-1,Math.min(1,(p.vx*dx+p.vy*dy+p.vz*dz)/(oldSpeed*d)));
+          const angle=Math.acos(dot),blend=Math.min(1,(p.turnRate??3.2)*dt/Math.max(.001,angle));
+          vx=p.vx/oldSpeed*(1-blend)+dx/d*blend;vy=p.vy/oldSpeed*(1-blend)+dy/d*blend;vz=p.vz/oldSpeed*(1-blend)+dz/d*blend;
+          const len=Math.hypot(vx,vy,vz)||1;vx=vx/len*p.speed;vy=vy/len*p.speed;vz=vz/len*p.speed;
+        }
+      }
+      if (!guided && ballistic && d > 8) {
         const loft = Math.sin(Math.min(1, (Math.hypot(dx, dz) / Math.max(p.speed * 1.2, 1)) * Math.PI)) * Math.min(12, Math.hypot(dx, dz) * 0.08);
         vy += loft * 0.35;
       }
@@ -59,7 +73,7 @@ export function updateProjectiles(w: World, dt: number): void {
       p.y += vy * dt;
       p.z += vz * dt;
       const floor = heightAt(p.x, p.z) + 0.15;
-      if (p.y < floor) p.y = floor;
+      if (p.y < floor) {p.y=floor;if(guided){p.tx=p.x;p.tz=p.z;p.aimY=floor;p.target=null;}}
     }
   }
 }

@@ -1,0 +1,21 @@
+{
+  "air": {
+    "dispatchInterval": 18,
+    "capacity": 120,
+    "capacityPerLevel": 55,
+    "loadTime": 6.5,
+    "loadTimeReduction": 1.1,
+    "unloadTime": 3.2,
+    "unloadTimeReduction": 0.45,
+    "dispatchFuel": 240,
+    "reserveFuel": 45,
+    "maxFleet": 3
+  },
+  "depot": {
+    "ammoCapacity": 1200,
+    "fuelCapacity": 1600,
+    "repairCapacity": 600,
+    "capacityPerLevel": 0.35
+  },
+  "refineryProductionPerLevel": 0.3
+}

@@ -14,7 +14,7 @@ interface DustPart { x:number; y:number; z:number; vx:number; vy:number; vz:numb
 export class Fx {
   private parts: Part[] = [];
   private pings: Ping[] = [];
-  private shells = new Map<number, THREE.Mesh>();
+  private shells = new Map<number, THREE.Group>();
   private dustParts: DustPart[] = [];
   private flashes: Flash[] = [];
   private readonly maxFlashes = 80;
@@ -22,7 +22,15 @@ export class Fx {
   private readonly dustGeo = new THREE.PlaneGeometry(1, 1);
   private readonly dustMat = new THREE.MeshBasicMaterial({ color: 0xb7a77a, transparent: true, opacity: 0.42, depthWrite: false, side: THREE.DoubleSide });
   private readonly dustMesh: THREE.InstancedMesh;
-  private shellGeo = new THREE.SphereGeometry(0.28, 6, 5);
+  private trailTimes=new Map<number,number>();
+  private missileGeo=new THREE.CylinderGeometry(.1,.13,1.35,8).rotateX(Math.PI/2);
+  private noseGeo=new THREE.ConeGeometry(.13,.4,8).rotateX(Math.PI/2);
+  private finGeo=new THREE.BoxGeometry(.65,.045,.32);
+  private tracerGeo=new THREE.BoxGeometry(.045,.045,1.7);
+  private shellGeo=new THREE.CylinderGeometry(.09,.09,.8,6).rotateX(Math.PI/2);
+  private missileMat=new THREE.MeshStandardMaterial({color:0xb9b8a5,roughness:.55,metalness:.25});
+  private exhaustMat=new THREE.MeshBasicMaterial({color:0xffb548});
+  private exhaustGeo=new THREE.ConeGeometry(.12,.65,6).rotateX(-Math.PI/2);
   private shellMat = [new THREE.MeshBasicMaterial({ color: 0x9fe3ff }), new THREE.MeshBasicMaterial({ color: 0xff9a60 })];
   private pGeo = new THREE.SphereGeometry(0.5, 6, 5);
   private pMat: Record<Kind, THREE.Material> = {
@@ -43,8 +51,11 @@ export class Fx {
     for (const e of events) {
       if (e.type === "fire") {
         this.muzzleFlash(e.x, e.y, e.z, e.team);
-        for (let i = 0; i < 4; i++) this.puff(e.x, e.y, e.z, this.r(4), Math.random() * 3, this.r(4), 0.25, 0.6, "fire");
+        const count=e.weapon==="bullet"?1:e.weapon==="missile"?2:5,size=e.weapon==="bullet"?.2:e.weapon==="missile"?.4:.65;
+        for(let i=0;i<count;i++)this.puff(e.x,e.y,e.z,this.r(3),Math.random()*2,this.r(3),.16,size,"fire");
+        if(e.weapon==="cannon")this.puff(e.x,e.y,e.z,0,1,0,.6,.7,"smoke");
       }
+      else if(e.type === "impact"){this.explode(e.x,e.y,e.z,false);}
       else if (e.type === "hit") {
         for (let i = 0; i < 4; i++) this.puff(e.x, e.y, e.z, this.r(5), Math.random() * 4, this.r(5), 0.3, 0.5, "dust");
         this.impactSpark(e.x, e.y, e.z);
@@ -65,11 +76,23 @@ export class Fx {
     for (const p of world.projectiles) {
       seen.add(p.id);
       let m = this.shells.get(p.id);
-      if (!m) { m = new THREE.Mesh(this.shellGeo, this.shellMat[p.team]); this.scene.add(m); this.shells.set(p.id, m); }
+      if (!m) {
+        m=new THREE.Group();
+        if(p.weapon==="missile"){
+          m.add(new THREE.Mesh(this.missileGeo,this.missileMat));
+          const nose=new THREE.Mesh(this.noseGeo,this.missileMat);nose.position.z=.86;m.add(nose);
+          for(let i=0;i<2;i++){const fin=new THREE.Mesh(this.finGeo,this.missileMat);fin.position.z=-.38;fin.rotation.z=i*Math.PI/2;m.add(fin);}
+          const exhaust=new THREE.Mesh(this.exhaustGeo,this.exhaustMat);exhaust.position.z=-.95;m.add(exhaust);
+        }else m.add(new THREE.Mesh(p.weapon==="bullet"?this.tracerGeo:this.shellGeo,this.shellMat[p.team]));
+        this.scene.add(m);this.shells.set(p.id,m);
+      }
       const k = alpha * SIM_STEP;
       m.position.set(p.x + p.vx * k, p.y + p.vy * k, p.z + p.vz * k);
+      if(Math.hypot(p.vx,p.vy,p.vz)>.01)m.lookAt(m.position.x+p.vx,m.position.y+p.vy,m.position.z+p.vz);
+      m.visible=p.team===world.playerTeam||world.vision.isVisible(world.playerTeam,p.x,p.z);
+      if(m.visible&&p.weapon==="missile"&&world.time-(this.trailTimes.get(p.id)??-1)>.065){this.trailTimes.set(p.id,world.time);this.puff(p.x,p.y,p.z,0,.3,0,.7,.28,"smoke");}
     }
-    for (const [id, m] of this.shells) if (!seen.has(id)) { this.scene.remove(m); this.shells.delete(id); }
+    for (const [id, m] of this.shells) if (!seen.has(id)) { this.scene.remove(m); this.shells.delete(id);this.trailTimes.delete(id); }
   }
 
   ping(x: number, z: number, color: number): void {

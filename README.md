@@ -19,9 +19,13 @@ npm ci && npm run dev
 
 ## Integreeritud mängu käivitamine
 
+Uus 3D-pass: [tehnika materjalid, taimestik ja renderduse jõudlus](docs/ART-PERFORMANCE-RELEASE.md). 63 tehnikavariandil on detailne ja kaugusmudel; mäng valib sobiva detaili kaamerakauguse ning graafikaseade järgi.
+
+Viimane uuendus: [Roheoru liikumine, lahingu tagasiside, kaardikujundus ja tarnejuhtimine](docs/TACTICAL-MAP-LOGISTICS-RELEASE.md). Lao paneelis saab valida ressursiallika, lisada marsruudipunkte ning vedusid peatada. Shift lisab ühekordse liikumiskäsu järjekorda.
+
 Ava `http://localhost:5173`, vali fraktsioon, kaart, režiim ja vaba roster või salvestatud deck. Kontot üksikmänguks ei vaja.
 
-Roheorg on praegu viimistluse fookuskaart. Vaikimisi alustad Conquest-režiimis valmis baasi ja väikese lahingugrupiga. F1 valib soomuse; Fookus toob kaamera valikule; Ründeliiku + parem klõps annab lahingukäsu. Saad valida ka HQ ja inseneridega alguse. Roheorg on nüüd 640 × 640 m, kaugema kaamera, detailsemate hoonete ning kiirenduse ja lennukõrgusega liikumisega; [uus muudatusülevaade](docs/ARCHITECTURE-MOTION-RELEASE.md). Ühe kaardi varasemad muudatused ja piirid: [docs/ROHEORG-RELEASE.md](docs/ROHEORG-RELEASE.md).
+Roheorg on praegu viimistluse fookuskaart. Vaikimisi alustad Conquest-režiimis valmis baasi ja väikese lahingugrupiga. F1 valib soomuse; Fookus toob kaamera valikule; Ründeliiku + parem klõps annab lahingukäsu. Saad valida ka HQ ja inseneridega alguse. Roheorg on nüüd 640 × 640 m, kaugema kaamera, detailsemate hoonete ning kiirenduse ja lennukõrgusega liikumisega; [uus muudatusülevaade](docs/ARCHITECTURE-MOTION-RELEASE.md). Relvade ja füüsiliste ressursivedude viimane muudatus: [docs/WEAPONS-LOGISTICS-RELEASE.md](docs/WEAPONS-LOGISTICS-RELEASE.md). Ühe kaardi varasemad muudatused ja piirid: [docs/ROHEORG-RELEASE.md](docs/ROHEORG-RELEASE.md).
 
 Ehitusalgus: F2 valib insenerid. BUILDS → generaator → varustusladu. Saada teine insener ressursipunkti. Ehita maaväe juhtimiskeskus, vali see ning ehita soomustehas. LAND-paneelist tooda tank. Hoia ladu ja ressursitransport töös: tootmine ning eesliini laskemoon, kütus ja remont sõltuvad piiratud varudest.
 

@@ -13,16 +13,16 @@ const VignetteShader = {
 };
 
 export class PostFX {
-  readonly composer: EffectComposer;
+  readonly composer?: EffectComposer;
   private readonly vignette?: ShaderPass;
   private readonly bloom?: UnrealBloomPass;
   private readonly ssao?: SSAOPass;
   private readonly smaa?: SMAAPass;
 
-  constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, width: number, height: number, enablePost: boolean, enableSsao: boolean) {
+  constructor(private readonly renderer: THREE.WebGLRenderer, private readonly scene: THREE.Scene, private readonly camera: THREE.Camera, width: number, height: number, enablePost: boolean, enableSsao: boolean) {
+    if(!enablePost)return;
     this.composer = new EffectComposer(renderer);
     this.composer.addPass(new RenderPass(scene, camera));
-    if (!enablePost) return;
     if (enableSsao) {
       const ssao = new SSAOPass(scene, camera, width, height);
       ssao.kernelRadius = 7;
@@ -40,10 +40,10 @@ export class PostFX {
   }
 
   resize(width: number, height: number): void {
-    this.composer.setSize(width, height);
+    this.composer?.setSize(width, height);
     this.ssao?.setSize(width, height);
     this.smaa?.setSize(width, height);
   }
 
-  render(): void { this.composer.render(); }
+  render(): void { if(this.composer)this.composer.render();else this.renderer.render(this.scene,this.camera); }
 }

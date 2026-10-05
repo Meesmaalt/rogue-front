@@ -5,6 +5,7 @@ import type {FactionId} from "../sim/factions";
 import {mulberry32} from "../sim/rng";
 
 const textures=new Map<string,THREE.CanvasTexture>();
+const materials=new Map<string,THREE.MeshStandardMaterial>();
 function surface(kind:"plaster"|"brick"|"metal"|"roof"|"concrete"):THREE.CanvasTexture {
   const cached=textures.get(kind);if(cached)return cached;
   const canvas=document.createElement("canvas");canvas.width=canvas.height=256;const c=canvas.getContext("2d")!,random=mulberry32(311+kind.length);
@@ -18,7 +19,12 @@ function surface(kind:"plaster"|"brick"|"metal"|"roof"|"concrete"):THREE.CanvasT
   }
   c.putImageData(image,0,0);const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(2,2);texture.anisotropy=8;textures.set(kind,texture);return texture;
 }
-function material(color:number,kind?:Parameters<typeof surface>[0],metalness=.05):THREE.MeshStandardMaterial {return new THREE.MeshStandardMaterial({color,map:kind?surface(kind):null,roughness:metalness>.2?.55:.92,metalness});}
+function material(color:number,kind?:Parameters<typeof surface>[0],metalness=.05):THREE.MeshStandardMaterial {
+  const key=`${color}/${kind}/${metalness}`;let m=materials.get(key);if(m)return m;
+  const map=kind?surface(kind):null;
+  m=new THREE.MeshStandardMaterial({color,map,bumpMap:map,bumpScale:kind==="roof"?.07:kind==="brick"?.04:.015,roughness:metalness>.2?.76:.94,metalness});
+  m.userData.sharedArt=true;materials.set(key,m);return m;
+}
 function box(g:THREE.Group,w:number,h:number,d:number,x:number,y:number,z:number,m:THREE.Material):THREE.Mesh {const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);mesh.position.set(x,y,z);mesh.castShadow=mesh.receiveShadow=true;g.add(mesh);return mesh;}
 function cylinder(g:THREE.Group,r:number,h:number,x:number,y:number,z:number,m:THREE.Material):THREE.Mesh {const mesh=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,12),m);mesh.position.set(x,y,z);mesh.castShadow=true;g.add(mesh);return mesh;}
 function roof(g:THREE.Group,w:number,d:number,y:number,rise:number,m:THREE.Material):void {
@@ -33,6 +39,10 @@ function facade(g:THREE.Group,w:number,d:number,h:number,floors:number,wall:THRE
   for(const side of [-1,1])for(let floor=0;floor<floors;floor++)for(let x=-w/2+1.6;x<w/2-1;x+=2.4){
     const y=1.7+floor*2.5,z=side*(d/2+.055);
     box(g,1.15,1.25,.1,x,y,z,frames);box(g,.95,1.05,.12,x,y,z+side*.015,glass);box(g,.055,1.1,.15,x,y,z+side*.025,frames);box(g,1.25,.08,.3,x,y-.64,z,wall);
+  }
+  for(const side of [-1,1]){
+    box(g,w+.08,.4,.07,0,.42,side*(d/2+.06),wall);
+    for(let z=-d/2+1.6;z<d/2-1;z+=2.8){box(g,.1,1.25,1.1,side*(w/2+.05),1.7,z,frames);box(g,.12,1.05,.92,side*(w/2+.07),1.7,z,glass);}
   }
   box(g,1.35,2.05,.12,0,1.08,d/2+.08,door);box(g,1.8,.12,.9,0,2.3,d/2+.35,frames);box(g,2,.16,1.2,0,.08,d/2+.4,wall);
   for(const x of [-w/2+.12,w/2-.12])box(g,.07,h,.09,x,h/2,d/2+.12,frames);
@@ -77,4 +87,29 @@ function batch(g:THREE.Group):THREE.Group {
   g.traverse(o=>{if(o instanceof THREE.Mesh&&!Array.isArray(o.material)){const transformed=o.geometry.clone().applyMatrix4(o.matrixWorld);const geometry=transformed.index?transformed.toNonIndexed():transformed;if(geometry!==transformed)transformed.dispose();if(!geometry.getAttribute("uv"))geometry.setAttribute("uv",new THREE.Float32BufferAttribute(new Float32Array(geometry.getAttribute("position").count*2),2));const list=batches.get(o.material)??[];list.push(geometry);batches.set(o.material,list);o.geometry.dispose();}});
   g.clear();for(const [material,parts] of batches){const geometry=mergeGeometries(parts);parts.forEach(p=>p.dispose());if(geometry){const mesh=new THREE.Mesh(geometry,material);mesh.castShadow=mesh.receiveShadow=true;g.add(mesh);}}
   return g;
+}
+
+/** Batch static map surfaces per material and 64 m cell. Cell bounds preserve
+ * frustum culling; animated buildings/units never enter this function. */
+export function batchStaticScene(source:THREE.Group,cellSize=64):THREE.Group {
+  source.updateMatrixWorld(true);
+  const buckets=new Map<string,{material:THREE.MeshStandardMaterial;parts:THREE.BufferGeometry[];cast:boolean;receive:boolean}>();
+  source.traverse(o=>{
+    if(!(o instanceof THREE.Mesh)||o instanceof THREE.InstancedMesh||Array.isArray(o.material)||!(o.material instanceof THREE.MeshStandardMaterial))return;
+    o.geometry.computeBoundingBox();
+    const m=o.material,position=o.geometry.boundingBox!.getCenter(new THREE.Vector3()).applyMatrix4(o.matrixWorld);
+    const key=[Math.floor(position.x/cellSize),Math.floor(position.z/cellSize),m.color.getHex(),m.roughness,m.metalness,m.map?.uuid,m.bumpMap?.uuid,m.bumpScale,m.side,m.polygonOffset,m.polygonOffsetFactor,o.castShadow,o.receiveShadow].join('/');
+    const transformed=o.geometry.clone().applyMatrix4(o.matrixWorld),g=transformed.index?transformed.toNonIndexed():transformed;
+    if(g!==transformed)transformed.dispose();
+    if(!g.getAttribute('uv'))g.setAttribute('uv',new THREE.Float32BufferAttribute(new Float32Array(g.getAttribute('position').count*2),2));
+    let b=buckets.get(key);if(!b){b={material:m,parts:[],cast:o.castShadow,receive:o.receiveShadow};buckets.set(key,b);}else if(m!==b.material&&!m.userData.sharedArt)m.dispose();
+    b.parts.push(g);o.geometry.dispose();
+  });
+  source.clear();
+  for(const b of buckets.values()){
+    const geometry=mergeGeometries(b.parts);b.parts.forEach(p=>p.dispose());
+    if(!geometry)continue;geometry.computeBoundingSphere();
+    const mesh=new THREE.Mesh(geometry,b.material);mesh.castShadow=b.cast;mesh.receiveShadow=b.receive;mesh.matrixAutoUpdate=false;source.add(mesh);
+  }
+  return source;
 }

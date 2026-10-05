@@ -14,6 +14,7 @@ export class CommandController {
   buildRotation = 0;
   buildPoint: { x: number; z: number } | null = null;
   fireMissionMode = false;
+  private logisticsOrder:{ids:number[];action:"source"|"route"}|null=null;
   private airOrder: {ids:number[];mission:"cap"|"strike"|"sead"|"ground"}|null=null;
   buildValid = false;
 
@@ -44,6 +45,16 @@ export class CommandController {
         return;
       }
       if (e.button !== 2) return;
+      if(this.logisticsOrder){
+        const p=this.picker.groundAt(e.clientX,e.clientY),order=this.logisticsOrder;
+        if(order.action==="route")this.world.issue({type:"logistics-route",ids:order.ids,x:p.x,z:p.z,append:true});
+        else {
+          const index=this.world.resourcePoints.findIndex(r=>Math.hypot(r.x-p.x,r.z-p.z)<=r.radius+20&&(r.controlledBy===this.world.playerTeam||this.world.vision.isVisible(this.world.playerTeam,r.x,r.z)));
+          if(index<0)return;
+          this.world.issue({type:"logistics-source",ids:order.ids,sourceIndex:index});
+        }
+        this.fx.ping(p.x,p.z,0xa4d57c);this.logisticsOrder=null;return;
+      }
       if (this.airOrder) {const p=this.picker.groundAt(e.clientX,e.clientY);this.world.issue({type:"air-mission",...this.airOrder,x:p.x,z:p.z});this.fx.ping(p.x,p.z,0x55b7ff);this.airOrder=null;return;}
       if (this.fireMissionMode) {
         const p = this.picker.groundAt(e.clientX,e.clientY);
@@ -96,7 +107,7 @@ export class CommandController {
     },true);
     addEventListener("keydown", (e) => {
       if (!this.enabled) return;
-      if(e.key==="Escape"){this.airOrder=null;this.attackMoveMode=false;this.cancelBuild(el);return;}
+      if(e.key==="Escape"){this.logisticsOrder=null;this.airOrder=null;this.attackMoveMode=false;this.cancelBuild(el);return;}
       const k=e.key.toLowerCase(), keys = loadSettings().keys;
       if (k === keys.stop) this.world.issue({ type: "stop", ids: this.ids() });
       if (k === keys.attackMove) { this.attackMoveMode = true; el.style.cursor = "crosshair"; }
@@ -107,6 +118,8 @@ export class CommandController {
       if (this.buildMode && k === "r") { this.buildRotation = (this.buildRotation + Math.PI / 2) % (Math.PI * 2); }
     });
   }
+
+  startLogisticsOrder(ids:number[],action:"source"|"route"):void {this.logisticsOrder={ids:[...ids],action};}
 
   startAirMission(ids:number[],mission:"cap"|"strike"|"sead"|"ground"):void {this.airOrder={ids:[...ids],mission};}
 

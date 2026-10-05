@@ -23,7 +23,7 @@ export function coverValueAt(w: World, x: number, z: number): number {
   let value = 0;
   for (const f of w.mapFeatures) {
     if (!pointInFeature(x, z, f, 0.25)) continue;
-    if (f.kind === "cover" && f.appearance!=="field") value = Math.max(value, (f.height ?? 1.5) >= 2 ? 22 : 16);
+    if (f.kind === "cover" && f.appearance!=="field" && f.appearance!=="yard") value = Math.max(value, (f.height ?? 1.5) >= 2 ? 22 : 16);
     else if (f.kind === "wall" || f.kind === "chokepoint") value = Math.max(value, 28);
     else if (f.kind === "building") value = Math.max(value, 34);
   }

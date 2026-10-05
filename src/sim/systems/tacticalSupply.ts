@@ -1,3 +1,4 @@
+import {heightAt} from "../heightmap";
 import type { World } from "../World";
 import type { Entity } from "../types";
 import { FACTIONS } from "../factions";
@@ -77,7 +78,7 @@ export function updateTacticalSupply(w: World, dt: number): void {
     const eff = FACTIONS[fac].bonuses.supplyEfficiency ?? 1;
     let depot:Entity|null=null,best=Infinity;
     for(const n of depots){if(n.team!==e.team)continue;const distance=Math.hypot(n.x-e.x,n.z-e.z);if(distance<=supplyRadiusFor(n,w)&&distance<best){best=distance;depot=n;}}
-    const inRadius=!!depot && !(e.def.armor==="air" && e.kind!=="transport");
+    const inRadius=!!depot && (e.def.armor!=="air" || e.kind==="transport" && e.y-depot.y<3 && (e.motionSpeed??0)<.5);
     const supplied=!!depot&&((depot.ammoStock??0)>0||(depot.fuelStock??0)>0);
     const commandLinked=e.kind==="hq"||commands[e.team].some(n=>Math.hypot(n.x-e.x,n.z-e.z)<=w.commandNodeRange(n));
     const maxS=e.maxSupply??100;
@@ -85,7 +86,7 @@ export function updateTacticalSupply(w: World, dt: number): void {
     else e.supply=Math.max(0,(e.supply??100)-(e.def.supplyUsePerSec??(e.role==="siege"?1.8:e.def.armor==="air"?2.4:0.9))*dt);
 
     if ((e.maxFuel??0)>0) {
-      const moving=["move","amove","patrol","attack"].includes(e.mode);
+      const moving=(e.motionSpeed??0)>.1 || e.def.armor==="air" && !["grounded","rearming"].includes(e.airState??"") && e.y>heightAt(e.x,e.z)+3 || ["move","amove","patrol","attack"].includes(e.mode)&&(e.def.armor!=="air"||e.y>1);
       if (moving && (e.fuel??0)>0) e.fuel=Math.max(0,(e.fuel??0)-(e.def.fuelUsePerSec??1)*dt);
       if (inRadius && depot && (depot.fuelStock??0)>0 && (e.fuel??0)<(e.maxFuel??0)) {
         const need=Math.min((e.maxFuel??0)-(e.fuel??0),(e.def.resupplyRate??1)*18*eff*dt);

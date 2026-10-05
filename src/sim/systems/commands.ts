@@ -5,14 +5,14 @@ import type { Command, Entity, Point } from "../types";
 import { UNITS } from "../units";
 import { MAX_QUEUE } from "../constants";
 import { findPath } from "../nav/Pathfinder";
-import { FlowField } from "../nav/FlowField";
+import mobility from "../../data/mobility.json";
 import { BUILDINGS, isBuildable } from "../buildings";
 
 function mobile(w: World, ids: number[], team?: Entity["team"]): Entity[] {
   const out: Entity[] = [];
   for (const id of ids) {
     const e = w.byId.get(id);
-    if (e && !e.dead && e.def.speed > 0 && (team === undefined || e.team === team)) out.push(e);
+    if (e && !e.dead && e.def.speed > 0 && e.loadedIntoId==null && (team === undefined || e.team === team)) out.push(e);
   }
   return out;
 }
@@ -20,9 +20,9 @@ function mobile(w: World, ids: number[], team?: Entity["team"]): Entity[] {
 /** Formation layouts: box (default), line, wedge, column. */
 export type FormationKind = "box" | "line" | "wedge" | "column";
 
-function formation(n: number, x: number, z: number, kind: FormationKind = "box"): Point[] {
+function formation(n: number, x: number, z: number, kind: FormationKind = "box", spacing=6): Point[] {
   if (n <= 1) return [{ x, z }];
-  const sp = n <= 4 ? 5.5 : n <= 9 ? 6.2 : 7;
+  const sp = spacing;
   const out: Point[] = [];
   if (kind === "line") {
     for (let i = 0; i < n; i++) out.push({ x: x + (i - (n - 1) / 2) * sp, z });
@@ -63,29 +63,37 @@ function apply(w: World, c: Command): void {
       const us = mobile(w,c.ids,c.team);
       const center=us.reduce((p,u)=>({x:p.x+u.x/Math.max(1,us.length),z:p.z+u.z/Math.max(1,us.length)}),{x:0,z:0});
       const angle=Math.atan2(c.x-center.x,c.z-center.z),cos=Math.cos(angle),sin=Math.sin(angle);
-      const pts=formation(us.length,c.x,c.z,w.teamFormations[c.team??w.playerTeam]).map(p=>({x:c.x+(p.x-c.x)*cos+(p.z-c.z)*sin,z:c.z-(p.x-c.x)*sin+(p.z-c.z)*cos}));
+      const pts=formation(us.length,c.x,c.z,w.teamFormations[c.team??w.playerTeam],Math.max(4,...us.map(u=>u.def.radius*2+1.2))).map(p=>({x:c.x+(p.x-c.x)*cos+(p.z-c.z)*sin,z:c.z-(p.x-c.x)*sin+(p.z-c.z)*cos}));
       const lateral=(p:Point)=>p.x*cos-p.z*sin;
       us.sort((a,b)=>lateral(a)-lateral(b)||a.id-b.id);pts.sort((a,b)=>lateral(a)-lateral(b));
-      const field = new FlowField(w.nav, { x: c.x, z: c.z });
-      const append = !!(c as { append?: boolean }).append;
+      const assigned: Array<Point & {radius:number}>=[];
+      const append = !!c.append;
       us.forEach((u, i) => {
-        if (append && (u.mode === "move" || u.mode === "amove" || u.mode === "patrol") && u.dest) {
-          // Shift-click: queue waypoint
-          if (!u.patrolPoints.length && u.dest) u.patrolPoints = [{ x: u.dest.x, z: u.dest.z }];
-          u.patrolPoints.push({ x: pts[i].x, z: pts[i].z });
-          u.mode = "patrol";
-          u.patrolIndex = 0;
-          if (!u.dest) u.dest = pts[i];
+        let point=pts[i];
+        if(u.def.domain!=="air"&&u.def.domain!=="sea"){
+          const acceptable=(p:Point)=>w.nav.isWalkableWorld(p.x,p.z,u.def.radius)&&assigned.every(q=>Math.hypot(q.x-p.x,q.z-p.z)>=q.radius+u.def.radius+.5);
+          if(!acceptable(point)){
+            let found=false;
+            for(let radius=2;radius<=mobility.navigation.destinationSearch&&!found;radius+=2)for(let j=0;j<16;j++){
+              const a=j*Math.PI/8,p={x:point.x+Math.sin(a)*radius,z:point.z+Math.cos(a)*radius};
+              if(acceptable(p)){point=p;found=true;break;}
+            }
+            if(!found)return;
+          }
+          assigned.push({...point,radius:u.def.radius});
+        }
+        if (append && u.dest && ["move","amove","patrol"].includes(u.mode)) {
+          u.moveQueue??=[];u.moveQueue.push({...point});u.queuedMoveType=c.type;
         } else {
           u.mode = c.type === "move" ? "move" : "amove";
-          u.dest = pts[i];
+          u.dest = point;u.moveQueue=[];u.queuedMoveType=c.type;
           u.patrolPoints = [];
           u.patrolIndex = 0;
           u.holdPosition = false;
-          u.navPath = findPath(w.nav, u, pts[i], u.def.radius);
-          u.roadPathGoal = {...pts[i]};
+          u.navPath = u.def.domain==="air"||u.def.domain==="sea"?[]:findPath(w.nav,u,point,u.def.radius);
+          u.roadPathGoal = {...point};
           u.navPathIndex = 0;
-          u.flowField = field;
+          u.flowField = null;
           u.stuckTime = 0; u.stuckX = u.x; u.stuckZ = u.z;
           if (c.type === "move") u.target = null;
         }
@@ -95,13 +103,13 @@ function apply(w: World, c: Command): void {
     case "attack": {
       const t = w.byId.get(c.targetId);
       if (!t || t.dead) break;
-      for (const u of mobile(w, c.ids, c.team)) if (u.team !== t.team) { u.mode = "attack"; u.holdPosition=false; u.target = t; u.dest = {x:t.x,z:t.z}; u.navPath = []; u.navPathIndex = 0; u.flowField = null; }
+      for (const u of mobile(w, c.ids, c.team)) if (u.team !== t.team) { u.moveQueue=[];u.mode = "attack"; u.holdPosition=false; u.target = t; u.dest = {x:t.x,z:t.z}; u.navPath = []; u.navPathIndex = 0; u.flowField = null; }
       break;
     }
     case "stop":
       for (const u of mobile(w, c.ids, c.team)) {
         for (const b of w.entities) if (!b.dead && b.builderIds.includes(u.id)) b.builderIds = b.builderIds.filter(id => id !== u.id);
-        u.fireMission=null;u.artilleryDisplace=null;u.mode = "idle"; u.dest = null; u.target = null; u.navPath = []; u.navPathIndex = 0; u.flowField = null; u.holdPosition = false; u.patrolPoints = []; }
+        u.moveQueue=[];u.fireMission=null;u.artilleryDisplace=null;u.mode = "idle"; u.dest = null; u.target = null; u.navPath = []; u.navPathIndex = 0; u.flowField = null; u.holdPosition = false; u.patrolPoints = []; }
       break;
     case "rally": {
       for (const b of w.entities) {
@@ -122,7 +130,7 @@ function apply(w: World, c: Command): void {
       break;
     }
     case "hold":
-      for (const u of mobile(w, c.ids, c.team)) { u.mode = "hold"; u.dest = null; u.target = null; u.holdPosition = true; u.navPath = []; u.flowField = null; }
+      for (const u of mobile(w, c.ids, c.team)) { u.moveQueue=[];u.mode = "hold"; u.dest = null; u.target = null; u.holdPosition = true; u.navPath = []; u.flowField = null; }
       break;
     case "patrol": {
       const us = mobile(w, c.ids, c.team);
@@ -266,6 +274,14 @@ function apply(w: World, c: Command): void {
       for (const d of depots) d.logisticsPriority = c.focus;
       if (depots.length) w.setDepotPriority(team, c.focus);
       break;
+    }
+    case "logistics-source": {
+      const team=c.team??w.playerTeam;
+      for(const id of c.ids){const depot=w.byId.get(id);if(!depot||depot.dead||depot.team!==team||depot.kind!=="supply")continue;
+        if(c.sourceIndex!=null&&(c.sourceIndex<0||c.sourceIndex>=w.resourcePoints.length))continue;
+        depot.preferredResourceIndex=c.sourceIndex;depot.logisticsPaused=c.paused??false;
+        for(const t of w.entities)if(!t.dead&&t.supplyDepotId===depot.id){t.logisticsLoadProgress=0;t.routeLeg=undefined;if(t.cargo<=0&&(t.logisticsSourceIndex!=null||t.kind==="transport")){if(c.sourceIndex!=null){t.logisticsSourceIndex=c.sourceIndex;t.logisticsTarget={x:w.resourcePoints[c.sourceIndex].x,z:w.resourcePoints[c.sourceIndex].z};}}}
+      }break;
     }
     case "logistics-route": {
       const team = c.team ?? w.playerTeam;

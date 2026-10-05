@@ -1,5 +1,5 @@
 """Original painted camouflage swatches, deterministic export, no external assets."""
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 from pathlib import Path
 import random
 out=Path(__file__).resolve().parents[2]/'public/models/art'
@@ -20,5 +20,20 @@ for faction, colors in {
  for y in range(512):
   for x in range(512):
    n=rng.randrange(-7,8);px[x,y]=tuple(max(0,min(255,c+n))for c in px[x,y])
+ # Fine painted wear rather than shiny uniform plastic. All maps are seamless.
+ height=Image.new('L',(512,512));hp=height.load();rough=Image.new('RGB',(512,512));rp=rough.load()
+ for y in range(512):
+  for x in range(512):
+   hp[x,y]=128+rng.randrange(-12,13)
+   v=205+rng.randrange(-14,15);rp[x,y]=(v,v,v)
+ height=height.filter(ImageFilter.GaussianBlur(.6));hp=height.load()
+ normal=Image.new('RGB',(512,512));np=normal.load()
+ for y in range(512):
+  for x in range(512):
+   dx=(hp[(x+1)%512,y]-hp[(x-1)%512,y])*.8
+   dy=(hp[x,(y+1)%512]-hp[x,(y-1)%512])*.8
+   np[x,y]=(max(0,min(255,round(128-dx))),max(0,min(255,round(128-dy))),252)
  im.save(out/faction/'camouflage.png',optimize=True)
-print('Painted 3 seamless faction camouflage textures.')
+ rough.save(out/faction/'roughness.png',optimize=True)
+ normal.save(out/faction/'normal.png',optimize=True)
+print('Painted 3 faction camouflage / roughness / normal sets.')

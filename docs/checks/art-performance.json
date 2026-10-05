@@ -1,0 +1,26 @@
+{
+  "baseline": {
+    "models": 63,
+    "meanTriangles": 2613,
+    "maxTriangles": 5824,
+    "meanMaterialBatches": 13,
+    "maxMaterialBatches": 20
+  },
+  "detail": {
+    "models": 63,
+    "meanTriangles": 2935,
+    "maxTriangles": 6256,
+    "meanMaterialBatches": 6.24,
+    "maxMaterialBatches": 8
+  },
+  "tactical": {
+    "models": 63,
+    "meanTriangles": 1741,
+    "maxTriangles": 2824,
+    "meanMaterialBatches": 3.9,
+    "maxMaterialBatches": 6
+  },
+  "simulationSourcesUnchanged": true,
+  "scope": "GLB geometry and per-model material batches; not whole-scene draw calls or measured FPS",
+  "browserVisualReview": false
+}

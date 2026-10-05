@@ -3,6 +3,7 @@ import type { World } from "../sim/World";
 import { heightAt } from "../sim/heightmap";
 import { wrapAngle } from "../sim/math";
 import {createModel as createVisualModel} from "./models";
+import {batchStaticScene} from "./Architecture";
 import { createArtModel, disposeUnitMesh } from "./ArtModels";
 
 // One soft contact texture and quad shared by all vehicles (two triangles).
@@ -14,14 +15,15 @@ contactContext.fillStyle = contactGradient; contactContext.fillRect(0,0,64,64);
 const contactGeometry = new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2); contactGeometry.userData.sharedArt = true;
 const contactMaterial = new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(contactCanvas),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1}); contactMaterial.userData.sharedArt = true;
 
-interface View { group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group; lastBuildingLevel?: number; lastAirState?: string }
+interface View { near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group; lastBuildingLevel?: number; lastAirState?: string }
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const lerpAngle = (a: number, b: number, t: number) => a + wrapAngle(b - a) * t;
-const frameDtSafe = () => 1 / 60;
+
 
 /** Phase 73: architectural upgrade silhouettes. Each level adds a real module,
  * not just a marker, so a developed base is visibly larger/more capable. */
 function addBuildingLevelArchitecture(kit: THREE.Group, kind: string, level: number): void {
+  if(level<2)return;
   const concrete = new THREE.MeshStandardMaterial({ color: 0x5b615d, roughness: 0.88, metalness: 0.08 });
   const steel = new THREE.MeshStandardMaterial({ color: 0x3d4545, roughness: 0.68, metalness: 0.28 });
   const accent = new THREE.MeshStandardMaterial({ color: 0xb98b38, roughness: 0.62, metalness: 0.2 });
@@ -95,13 +97,20 @@ export class UnitRenderer {
   private views = new Map<number, View>();
   private rotorParts = new Map<number, THREE.Object3D[]>();
   private recoilById = new Map<number, number>();
+  private frustum=new THREE.Frustum();
+  private projection=new THREE.Matrix4();
+  private bounds=new THREE.Sphere();
+  private inverse=new THREE.Quaternion();
+  private seen=new Set<number>();
+  shadowDirty=true;
+  private lastConstructionShadow=0;
 
   reset():void {
     for(const v of this.views.values()){
       this.scene.remove(v.group);v.group.traverse(o=>{const m=o as THREE.Mesh;if(!m.isMesh)return;disposeUnitMesh(m,this.ringMat);});
     }
     for(const m of this.intelGhosts.values()){this.scene.remove(m);m.geometry.dispose();(m.material as THREE.Material).dispose();}
-    this.views.clear();this.intelGhosts.clear();this.rotorParts.clear();this.recoilById.clear();
+    this.views.clear();this.intelGhosts.clear();this.rotorParts.clear();this.recoilById.clear();this.shadowDirty=true;
   }
   handleEvents(events: import("../sim/types").SimEvent[]): void {
     for (const e of events) {
@@ -110,23 +119,34 @@ export class UnitRenderer {
   }
   private ringMat = new THREE.MeshBasicMaterial({ color: 0xf2a33a, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false });
 
-  constructor(private readonly scene: THREE.Scene) {}
+  constructor(private readonly scene: THREE.Scene,private readonly camera:THREE.PerspectiveCamera) {}
 
-  sync(world: World, alpha: number, selected: ReadonlySet<number>): void {
-    const seen = new Set<number>();
+  sync(world: World, alpha: number, selected: ReadonlySet<number>,frameDt:number,quality:"low"|"medium"|"high"): void {
+    const seen=this.seen;seen.clear();
+    this.camera.updateMatrixWorld();
+    this.frustum.setFromProjectionMatrix(this.projection.multiplyMatrices(this.camera.projectionMatrix,this.camera.matrixWorldInverse));
+    const now=performance.now()*.001;
+    const lodDistance=quality==="high"?205:quality==="medium"?160:100;
     for (const e of world.entities) {
       if (e.dead || e.loadedIntoId !== null) continue;
       seen.add(e.id);
+      const spotted=e.team===world.playerTeam||world.isSpottedByTeam(e,world.playerTeam);
       let v = this.views.get(e.id);
+      if(!spotted){if(v)v.group.visible=false;continue;}
+      this.bounds.center.set(e.x,e.y+e.def.height*.5,e.z);this.bounds.radius=Math.max(10,e.def.radius*2,e.def.height);
+      const onScreen=this.frustum.intersectsSphere(this.bounds);
+      if(!v&&!onScreen&&e.def.speed>0)continue;
       if (!v) {
         const faction = e.team === world.playerTeam ? world.playerFaction : world.enemyFaction;
         const visual = createArtModel(e.kind, e.team, faction) ?? createVisualModel(e.kind, e.team, faction);
         // Authored GLBs retain the silhouette at tactical camera distance.
         const lod = new THREE.LOD();
-        lod.addLevel(visual.group, 5000);
+        lod.autoUpdate=false;lod.addLevel(visual.group,0);
+        const far=createArtModel(e.kind,e.team,faction,true)?.group;
+        if(far)lod.addLevel(far,lodDistance,.15);
         const m = { group: lod, turret: visual.turret };
         const rotors: THREE.Object3D[] = [];
-        visual.group.traverse(o => { if (o.name.startsWith("RotorMain") || o.name === "RotorCounter" || o.name === "TailRotor") rotors.push(o); });
+        lod.traverse(o => { if (o.name.startsWith("RotorMain") || o.name === "RotorCounter" || o.name === "TailRotor") rotors.push(o); });
         if (rotors.length) this.rotorParts.set(e.id, rotors);
         if (e.def.speed > 0 && !(e.squadMaxMembers ?? 0)) {
           const shadow = new THREE.Mesh(contactGeometry,contactMaterial); shadow.name = "ContactShadow";
@@ -144,44 +164,35 @@ export class UnitRenderer {
         // Enamik üksusi ei vaja dünaamilist shadow-map kirjutamist.
         // Hooneid võib varjutada, liikuvad üksused kasutavad odavamat valgustust.
         const staticBuilding = ["hq", "barracks", "factory", "helipad", "airbase", "refinery", "supply", "radar", "bunker", "aa", "generator", "shipyard", "landCommand", "airCommand", "seaCommand", "combatEngineer", "landStrategy", "airStrategy", "seaStrategy"].includes(e.kind);
-        visual.group.traverse((o) => {
+        lod.traverse((o) => {
           const mesh = o as THREE.Mesh;
           if (!mesh.isMesh) return;
           mesh.castShadow = staticBuilding;
           mesh.receiveShadow = true;
         });
         this.scene.add(m.group);
-        v = { group: m.group, turret: m.turret, ring, tactical, kind: e.kind, phase: (e.id * 0.731) % 6.28, recoil: 0 };
+        const guns:THREE.Object3D[]=[],gears:THREE.Object3D[]=[],turrets:THREE.Group[]=[],legs:THREE.Object3D[]=[],members:THREE.Object3D[]=[];
+        lod.traverse(o=>{if(o.name==="Gun"){o.userData.restZ=o.position.z;guns.push(o);}if(o.name==="LandingGear")gears.push(o);if(o.name==="Turret")turrets.push(o as THREE.Group);if(o.name==="LeftLeg"||o.name==="RightLeg")legs.push(o);if(o.name.startsWith("SquadMember")){o.userData.squadPosition=o.position.clone();members.push(o);}});
+        if(staticBuilding)this.shadowDirty=true;
+        v = { near:visual.group,far,shadow:lod.getObjectByName("ContactShadow"),guns,gears,turrets,legs,members,status:new Map(),staticBuilding,group: m.group, turret: m.turret, ring, tactical, kind: e.kind, phase: (e.id * 0.731) % 6.28, recoil: 0 };
         this.views.set(e.id, v);
       }
-      const visible = e.team === world.playerTeam || world.isSpottedByTeam(e, world.playerTeam);
-      v.group.visible = visible;
-      if (!visible) continue;
-      const x = lerp(e.px, e.x, alpha), z = lerp(e.pz, e.z, alpha), h = lerpAngle(e.pHeading, e.heading, alpha);
-      const ground = heightAt(x,z);
-      const flying = e.def.armor === "air" && e.airState !== "grounded" && e.airState !== "rearming" && e.airState !== "taxi";
-      v.group.position.set(x, flying ? e.y : ground, z);
-      const shadow = v.group.getObjectByName("ContactShadow");
-      if(shadow) shadow.position.y = ground-v.group.position.y+.045;
-      if ((e.squadMaxMembers ?? 0) > 0) {
-        const alive = Math.max(1, e.squadMembers ?? e.squadMaxMembers!);
-        let idx = 0;
-        v.group.traverse((o) => {
-          if (!o.name.startsWith("SquadMember")) return;
-          const memberIndex = Number(o.name.slice("SquadMember".length));
-          o.visible = memberIndex < alive;
-          // Suppressed squads bunch up; healthy squads keep their tactical spacing.
-          if (o.parent === v.group) {
-            const spread = 1 - Math.min(0.45, (e.suppression ?? 0) / 220);
-            if(!o.userData.squadPosition)o.userData.squadPosition=o.position.clone();
-            const origin=o.userData.squadPosition as THREE.Vector3;
-            o.position.x=origin.x*spread;o.position.z=origin.z*spread;
-          }
-          idx++;
-        });
+      v.group.visible=onScreen||v.staticBuilding;
+      if(!onScreen&&!v.staticBuilding)continue;
+      const x=lerp(e.px,e.x,alpha),z=lerp(e.pz,e.z,alpha),h=lerpAngle(e.pHeading,e.heading,alpha);
+      const distance=this.camera.position.distanceTo(this.bounds.center);
+      if(v.far){const limit=lodDistance*(v.far.visible?.85:1.1);const detailed=(quality!=="low"&&selected.size<=12&&selected.has(e.id))||distance<limit;v.near.visible=detailed;v.far.visible=!detailed;}
+      const ground=heightAt(x,z);
+      const flying=e.def.armor==="air"&&e.airState!=="grounded"&&e.airState!=="rearming"&&e.airState!=="taxi";
+      v.group.position.set(x,flying?e.y:ground,z);
+      const shadow=v.shadow;
+      if(shadow)shadow.position.y=ground-v.group.position.y+.045;
+      if(v.members.length){const alive=Math.max(1,e.squadMembers??e.squadMaxMembers!),spread=1-Math.min(.45,(e.suppression??0)/220);
+        for(const o of v.members){o.visible=Number(o.name.slice("SquadMember".length))<alive;const origin=o.userData.squadPosition as THREE.Vector3;o.position.x=origin.x*spread;o.position.z=origin.z*spread;}
       }
       const buildingLevel = e.buildingLevel ?? (e.upgrades.has("producer-3") ? 3 : e.upgrades.has("producer-2") ? 2 : 1);
-      if (v.lastBuildingLevel !== buildingLevel) {
+      if (v.staticBuilding && v.lastBuildingLevel !== buildingLevel) {
+        this.shadowDirty=true;
         if (v.upgradeKit) {
           v.upgradeKit.parent?.remove(v.upgradeKit);
           v.upgradeKit.traverse((o) => {
@@ -193,6 +204,7 @@ export class UnitRenderer {
         }
         const kit = new THREE.Group(); kit.name = "BuildingLevelDetails";
         addBuildingLevelArchitecture(kit, e.kind, buildingLevel);
+        kit.traverse(o=>{if(o instanceof THREE.Mesh)o.castShadow=o.receiveShadow=true;});batchStaticScene(kit);
         v.group.add(kit); v.upgradeKit = kit; v.lastBuildingLevel = buildingLevel;
       }
       if (e.upgrading) {
@@ -205,9 +217,10 @@ export class UnitRenderer {
       } else {
         v.group.scale.set(1, 1, 1);
       }
-      const animT = performance.now() * 0.001 + v.phase;
+      const animT = now + v.phase;
+      if(v.staticBuilding&&(e.underConstruction||e.upgrading)&&now-this.lastConstructionShadow>.2){this.shadowDirty=true;this.lastConstructionShadow=now;}
       const recoil = this.recoilById.get(e.id) ?? 0;
-      v.recoil = Math.max(0, recoil - frameDtSafe());
+      v.recoil = Math.max(0, recoil - frameDt);
       if (v.recoil <= 0) this.recoilById.delete(e.id); else this.recoilById.set(e.id, v.recoil);
 
       // Liikumine, rootor, vedrustus ja õhuoperatsioonid. Kõik on odav transform-animatsioon.
@@ -216,13 +229,13 @@ export class UnitRenderer {
         v.group.position.y += airborne ? Math.sin(animT * 7) * 0.08 : Math.sin(animT * 2) * 0.015;
         for (const rotor of this.rotorParts.get(e.id) ?? []) {
           const speed = airborne ? 1.0 : 0.15;
-          if (rotor.name === "TailRotor") rotor.rotation.x += speed * 1.5;
-          else rotor.rotation.y += rotor.name === "RotorCounter" ? -speed : speed;
+          if (rotor.name === "TailRotor") rotor.rotation.x += speed * frameDt * 90;
+          else rotor.rotation.y += (rotor.name === "RotorCounter" ? -speed : speed)*frameDt*60;
         }
       }
       if (e.def.category === "infantry" || e.kind === "reconInf" || e.kind === "sniper") {
         const moving = Math.hypot(e.x-e.px,e.z-e.pz)>.003;
-        v.group.traverse(o=>{if(o.name==="LeftLeg"||o.name==="RightLeg")o.rotation.x=moving?Math.sin(animT*10+(o.name==="RightLeg"?Math.PI:0))*.45:0;});
+        for(const o of v.legs)o.rotation.x=moving?Math.sin(animT*10+(o.name==="RightLeg"?Math.PI:0))*.45:0;
         const step = moving ? Math.abs(Math.sin(animT * 10)) * 0.045 : Math.sin(animT * 2) * 0.012;
         v.group.position.y += step;
         v.group.rotation.z = moving ? Math.sin(animT * 10) * 0.025 : 0;
@@ -243,39 +256,25 @@ export class UnitRenderer {
           v.group.rotation.x = 0;
         }
       }
-      const gun = v.turret?.getObjectByName("Gun");
-      if (gun) {
-        if (gun.userData.restZ === undefined) gun.userData.restZ = gun.position.z;
-        gun.position.z = Number(gun.userData.restZ) - Math.sin(v.recoil * Math.PI) * 0.24;
-      }
-      const gear = v.group.getObjectByName("LandingGear");
-      if (gear) gear.visible = e.y-ground<12;
+      for(const gun of v.guns)gun.position.z=Number(gun.userData.restZ)-Math.sin(v.recoil*Math.PI)*.24;
+      for(const gear of v.gears)gear.visible=e.y-ground<12;
 
       // Construction progress bar – always strip when finished (search all children)
-      const barName = "ConstructBar";
       if (e.underConstruction) {
         const k = Math.max(0.05, Math.min(1, e.constructionProgress / Math.max(0.01, e.constructionTime)));
-        let bar = v.group.getObjectByName(barName) as THREE.Mesh | undefined;
+        let bar = v.constructBar;
         if (!bar) {
           const geo = new THREE.BoxGeometry(1, 0.18, 0.18);
           const mat = new THREE.MeshBasicMaterial({ color: 0xf2c14b });
           bar = new THREE.Mesh(geo, mat);
-          bar.name = barName;
+          bar.name = "ConstructBar";v.constructBar=bar;
           v.group.add(bar);
         }
         bar.visible = true;
         bar.scale.set(Math.max(0.15, k) * (e.def.radius * 1.6), 1, 1);
         bar.position.set(0, e.def.height + 1.2, 0);
       } else {
-        // Remove any leftover bars (construction complete)
-        const leftovers: THREE.Object3D[] = [];
-        v.group.traverse((o) => { if (o.name === barName) leftovers.push(o); });
-        for (const o of leftovers) {
-          o.parent?.remove(o);
-          const mesh = o as THREE.Mesh;
-          mesh.geometry?.dispose();
-          (mesh.material as THREE.Material | undefined)?.dispose();
-        }
+        if(v.constructBar){const bar=v.constructBar;bar.parent?.remove(bar);bar.geometry.dispose();(bar.material as THREE.Material).dispose();v.constructBar=undefined;}
         if (e.productionQueue.length > 0) {
           const pulse = 1 + Math.sin(animT * 6) * 0.012;
           v.group.scale.x *= pulse; v.group.scale.z *= pulse;
@@ -291,14 +290,14 @@ export class UnitRenderer {
         ];
         let slot = 0;
         for (const ic of icons) {
-          let mesh = v.group.getObjectByName(ic.name) as THREE.Mesh | undefined;
+          let mesh = v.status.get(ic.name);
           if (ic.on) {
             if (!mesh) {
               mesh = new THREE.Mesh(
                 new THREE.SphereGeometry(0.28, 6, 6),
                 new THREE.MeshBasicMaterial({ color: ic.color, depthTest: false }),
               );
-              mesh.name = ic.name;
+              mesh.name = ic.name;v.status.set(ic.name,mesh);
               mesh.renderOrder = 10;
               v.group.add(mesh);
             }
@@ -326,9 +325,9 @@ export class UnitRenderer {
         v.group.rotation.set(Math.max(-.3,Math.min(.3,pitch)),h,Math.max(-.3,Math.min(.3,roll)),"YXZ");
       } else v.group.rotation.y = h;
       if(shadow&&e.def.armor==="air"){
-        const inverse=v.group.quaternion.clone().invert();shadow.position.set(0,ground-v.group.position.y+.045,0).applyQuaternion(inverse);shadow.quaternion.copy(inverse);
+        const inverse=this.inverse.copy(v.group.quaternion).invert();shadow.position.set(0,ground-v.group.position.y+.045,0).applyQuaternion(inverse);shadow.quaternion.copy(inverse);
       }
-      if (v.turret) v.turret.rotation.y = lerpAngle(e.pTurretYaw, e.turretYaw, alpha);
+      for(const turret of v.turrets)turret.rotation.y=lerpAngle(e.pTurretYaw,e.turretYaw,alpha);
       v.ring.visible = selected.has(e.id);
       if (v.tactical) v.tactical.visible = selected.has(e.id);
     }
@@ -340,6 +339,7 @@ export class UnitRenderer {
         if (!m.isMesh) return;
         disposeUnitMesh(m, this.ringMat);
       });
+      if(v.staticBuilding)this.shadowDirty=true;
       this.views.delete(id);
       this.rotorParts.delete(id);
       this.recoilById.delete(id);
@@ -373,7 +373,7 @@ export class UnitRenderer {
       }
       const fade = Math.max(0.15, 1 - age / 60);
       (m.material as THREE.MeshBasicMaterial).opacity = 0.2 + fade * 0.35;
-      const y = live && !live.dead ? live.y : 0;
+      const y = heightAt(c.x,c.z);
       m.position.set(c.x, y + 0.5, c.z);
       m.visible = true;
       m.scale.setScalar(c.kind === "tank" || c.kind === "ifv" ? 1.4 : c.kind === "inf" ? 0.7 : 1);

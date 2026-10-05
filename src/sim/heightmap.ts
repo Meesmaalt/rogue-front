@@ -1,3 +1,4 @@
+import terrain from "../data/terrain.json";
 /** Kaardi kõrgusväli. Puhas matemaatika, EI impordi three.js-i. */
 export const MAP_SIZE = 640;
 export interface BaseDef { x: number; z: number; r: number }
@@ -70,7 +71,11 @@ function valueNoise(x:number,z:number,scale:number): number {
   return a*(1-sz)+b*sz;
 }
 function rawH(x: number, z: number): number {
-  if (terrainProfile === "farmland") return 1.8 + valueNoise(x,z,100)*2.6 + valueNoise(x+13,z-17,45)*0.7;
+  if (terrainProfile === "farmland") {
+    let h=1.8+valueNoise(x,z,100)*2.6+valueNoise(x+13,z-17,45)*.7;
+    for(const f of terrain.farmland.landforms){const d=((x-f.x)/f.width)**2+((z-f.z)/f.depth)**2;h+=f.height*Math.exp(-d*2);}
+    return h;
+  }
   const broad=(valueNoise(x,z,90)-0.5)*22;
   const medium=(valueNoise(x+17,z-11,38)-0.5)*9;
   const fine=(valueNoise(x-9,z+23,15)-0.5)*3;

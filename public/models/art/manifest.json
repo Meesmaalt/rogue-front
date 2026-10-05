@@ -1,447 +1,1014 @@
 {
-  "version": 1,
+  "version": 2,
   "author": "Rogue Front original art",
   "models": [
     {
       "faction": "usa",
       "kind": "tank",
+      "lod": "detail",
       "path": "usa/tank.glb",
-      "triangles": 5600,
-      "drawCalls": 20
+      "triangles": 6044,
+      "drawCalls": 8
+    },
+    {
+      "faction": "usa",
+      "kind": "tank",
+      "lod": "tactical",
+      "path": "usa/tank-lod.glb",
+      "triangles": 2600,
+      "drawCalls": 5
     },
     {
       "faction": "usa",
       "kind": "lightTank",
+      "lod": "detail",
       "path": "usa/lightTank.glb",
-      "triangles": 5608,
-      "drawCalls": 20
+      "triangles": 6052,
+      "drawCalls": 8
+    },
+    {
+      "faction": "usa",
+      "kind": "lightTank",
+      "lod": "tactical",
+      "path": "usa/lightTank-lod.glb",
+      "triangles": 2608,
+      "drawCalls": 5
     },
     {
       "faction": "usa",
       "kind": "ifv",
+      "lod": "detail",
       "path": "usa/ifv.glb",
-      "triangles": 5076,
-      "drawCalls": 16
+      "triangles": 5520,
+      "drawCalls": 7
+    },
+    {
+      "faction": "usa",
+      "kind": "ifv",
+      "lod": "tactical",
+      "path": "usa/ifv-lod.glb",
+      "triangles": 2076,
+      "drawCalls": 4
     },
     {
       "faction": "usa",
       "kind": "apc",
+      "lod": "detail",
       "path": "usa/apc.glb",
-      "triangles": 1968,
-      "drawCalls": 16
+      "triangles": 2412,
+      "drawCalls": 7
+    },
+    {
+      "faction": "usa",
+      "kind": "apc",
+      "lod": "tactical",
+      "path": "usa/apc-lod.glb",
+      "triangles": 2064,
+      "drawCalls": 4
     },
     {
       "faction": "usa",
       "kind": "reconVehicle",
+      "lod": "detail",
       "path": "usa/reconVehicle.glb",
-      "triangles": 1824,
-      "drawCalls": 14
+      "triangles": 2268,
+      "drawCalls": 6
+    },
+    {
+      "faction": "usa",
+      "kind": "reconVehicle",
+      "lod": "tactical",
+      "path": "usa/reconVehicle-lod.glb",
+      "triangles": 1920,
+      "drawCalls": 3
     },
     {
       "faction": "usa",
       "kind": "tankDestroyer",
+      "lod": "detail",
       "path": "usa/tankDestroyer.glb",
-      "triangles": 1924,
-      "drawCalls": 12
+      "triangles": 2368,
+      "drawCalls": 5
+    },
+    {
+      "faction": "usa",
+      "kind": "tankDestroyer",
+      "lod": "tactical",
+      "path": "usa/tankDestroyer-lod.glb",
+      "triangles": 2020,
+      "drawCalls": 3
     },
     {
       "faction": "usa",
       "kind": "artillery",
+      "lod": "detail",
       "path": "usa/artillery.glb",
       "triangles": 5088,
-      "drawCalls": 18
+      "drawCalls": 7
+    },
+    {
+      "faction": "usa",
+      "kind": "artillery",
+      "lod": "tactical",
+      "path": "usa/artillery-lod.glb",
+      "triangles": 1992,
+      "drawCalls": 4
     },
     {
       "faction": "usa",
       "kind": "mlrs",
+      "lod": "detail",
       "path": "usa/mlrs.glb",
       "triangles": 5392,
-      "drawCalls": 11
+      "drawCalls": 5
+    },
+    {
+      "faction": "usa",
+      "kind": "mlrs",
+      "lod": "tactical",
+      "path": "usa/mlrs-lod.glb",
+      "triangles": 2296,
+      "drawCalls": 3
     },
     {
       "faction": "usa",
       "kind": "spaa",
+      "lod": "detail",
       "path": "usa/spaa.glb",
-      "triangles": 2470,
-      "drawCalls": 20
-    },
-    {
-      "faction": "usa",
-      "kind": "fighter",
-      "path": "usa/fighter.glb",
-      "triangles": 1484,
-      "drawCalls": 9
-    },
-    {
-      "faction": "usa",
-      "kind": "interceptor",
-      "path": "usa/interceptor.glb",
-      "triangles": 1948,
-      "drawCalls": 9
-    },
-    {
-      "faction": "usa",
-      "kind": "multirole",
-      "path": "usa/multirole.glb",
-      "triangles": 1484,
-      "drawCalls": 9
-    },
-    {
-      "faction": "usa",
-      "kind": "attackAircraft",
-      "path": "usa/attackAircraft.glb",
-      "triangles": 1484,
-      "drawCalls": 9
-    },
-    {
-      "faction": "usa",
-      "kind": "ecm",
-      "path": "usa/ecm.glb",
-      "triangles": 1948,
-      "drawCalls": 9
-    },
-    {
-      "faction": "usa",
-      "kind": "bomber",
-      "path": "usa/bomber.glb",
-      "triangles": 1484,
-      "drawCalls": 9
-    },
-    {
-      "faction": "usa",
-      "kind": "heli",
-      "path": "usa/heli.glb",
-      "triangles": 1796,
-      "drawCalls": 14
-    },
-    {
-      "faction": "usa",
-      "kind": "gunship",
-      "path": "usa/gunship.glb",
-      "triangles": 1796,
-      "drawCalls": 14
-    },
-    {
-      "faction": "usa",
-      "kind": "casHeli",
-      "path": "usa/casHeli.glb",
-      "triangles": 1796,
-      "drawCalls": 14
-    },
-    {
-      "faction": "usa",
-      "kind": "transport",
-      "path": "usa/transport.glb",
-      "triangles": 1268,
-      "drawCalls": 12
-    },
-    {
-      "faction": "usa",
-      "kind": "cargoPlane",
-      "path": "usa/cargoPlane.glb",
-      "triangles": 1436,
+      "triangles": 2806,
       "drawCalls": 8
     },
     {
       "faction": "usa",
+      "kind": "spaa",
+      "lod": "tactical",
+      "path": "usa/spaa-lod.glb",
+      "triangles": 2566,
+      "drawCalls": 5
+    },
+    {
+      "faction": "usa",
+      "kind": "fighter",
+      "lod": "detail",
+      "path": "usa/fighter.glb",
+      "triangles": 1724,
+      "drawCalls": 5
+    },
+    {
+      "faction": "usa",
+      "kind": "fighter",
+      "lod": "tactical",
+      "path": "usa/fighter-lod.glb",
+      "triangles": 1264,
+      "drawCalls": 3
+    },
+    {
+      "faction": "usa",
+      "kind": "interceptor",
+      "lod": "detail",
+      "path": "usa/interceptor.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "faction": "usa",
+      "kind": "interceptor",
+      "lod": "tactical",
+      "path": "usa/interceptor-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "faction": "usa",
+      "kind": "multirole",
+      "lod": "detail",
+      "path": "usa/multirole.glb",
+      "triangles": 1724,
+      "drawCalls": 5
+    },
+    {
+      "faction": "usa",
+      "kind": "multirole",
+      "lod": "tactical",
+      "path": "usa/multirole-lod.glb",
+      "triangles": 1264,
+      "drawCalls": 3
+    },
+    {
+      "faction": "usa",
+      "kind": "attackAircraft",
+      "lod": "detail",
+      "path": "usa/attackAircraft.glb",
+      "triangles": 1724,
+      "drawCalls": 5
+    },
+    {
+      "faction": "usa",
+      "kind": "attackAircraft",
+      "lod": "tactical",
+      "path": "usa/attackAircraft-lod.glb",
+      "triangles": 1264,
+      "drawCalls": 3
+    },
+    {
+      "faction": "usa",
+      "kind": "ecm",
+      "lod": "detail",
+      "path": "usa/ecm.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "faction": "usa",
+      "kind": "ecm",
+      "lod": "tactical",
+      "path": "usa/ecm-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "faction": "usa",
+      "kind": "bomber",
+      "lod": "detail",
+      "path": "usa/bomber.glb",
+      "triangles": 1724,
+      "drawCalls": 5
+    },
+    {
+      "faction": "usa",
+      "kind": "bomber",
+      "lod": "tactical",
+      "path": "usa/bomber-lod.glb",
+      "triangles": 1264,
+      "drawCalls": 3
+    },
+    {
+      "faction": "usa",
+      "kind": "heli",
+      "lod": "detail",
+      "path": "usa/heli.glb",
+      "triangles": 2276,
+      "drawCalls": 8
+    },
+    {
+      "faction": "usa",
+      "kind": "heli",
+      "lod": "tactical",
+      "path": "usa/heli-lod.glb",
+      "triangles": 1380,
+      "drawCalls": 6
+    },
+    {
+      "faction": "usa",
+      "kind": "gunship",
+      "lod": "detail",
+      "path": "usa/gunship.glb",
+      "triangles": 2276,
+      "drawCalls": 8
+    },
+    {
+      "faction": "usa",
+      "kind": "gunship",
+      "lod": "tactical",
+      "path": "usa/gunship-lod.glb",
+      "triangles": 1380,
+      "drawCalls": 6
+    },
+    {
+      "faction": "usa",
+      "kind": "casHeli",
+      "lod": "detail",
+      "path": "usa/casHeli.glb",
+      "triangles": 2276,
+      "drawCalls": 8
+    },
+    {
+      "faction": "usa",
+      "kind": "casHeli",
+      "lod": "tactical",
+      "path": "usa/casHeli-lod.glb",
+      "triangles": 1380,
+      "drawCalls": 6
+    },
+    {
+      "faction": "usa",
+      "kind": "transport",
+      "lod": "detail",
+      "path": "usa/transport.glb",
+      "triangles": 1628,
+      "drawCalls": 7
+    },
+    {
+      "faction": "usa",
+      "kind": "transport",
+      "lod": "tactical",
+      "path": "usa/transport-lod.glb",
+      "triangles": 956,
+      "drawCalls": 5
+    },
+    {
+      "faction": "usa",
+      "kind": "cargoPlane",
+      "lod": "detail",
+      "path": "usa/cargoPlane.glb",
+      "triangles": 1676,
+      "drawCalls": 5
+    },
+    {
+      "faction": "usa",
+      "kind": "cargoPlane",
+      "lod": "tactical",
+      "path": "usa/cargoPlane-lod.glb",
+      "triangles": 1216,
+      "drawCalls": 3
+    },
+    {
+      "faction": "usa",
       "kind": "logiTruck",
+      "lod": "detail",
       "path": "usa/logiTruck.glb",
       "triangles": 1348,
-      "drawCalls": 10
+      "drawCalls": 4
+    },
+    {
+      "faction": "usa",
+      "kind": "logiTruck",
+      "lod": "tactical",
+      "path": "usa/logiTruck-lod.glb",
+      "triangles": 1348,
+      "drawCalls": 2
     },
     {
       "faction": "russia",
       "kind": "tank",
+      "lod": "detail",
       "path": "russia/tank.glb",
-      "triangles": 5792,
-      "drawCalls": 20
+      "triangles": 6224,
+      "drawCalls": 8
+    },
+    {
+      "faction": "russia",
+      "kind": "tank",
+      "lod": "tactical",
+      "path": "russia/tank-lod.glb",
+      "triangles": 2792,
+      "drawCalls": 5
     },
     {
       "faction": "russia",
       "kind": "lightTank",
+      "lod": "detail",
       "path": "russia/lightTank.glb",
-      "triangles": 5800,
-      "drawCalls": 20
+      "triangles": 6232,
+      "drawCalls": 8
+    },
+    {
+      "faction": "russia",
+      "kind": "lightTank",
+      "lod": "tactical",
+      "path": "russia/lightTank-lod.glb",
+      "triangles": 2800,
+      "drawCalls": 5
     },
     {
       "faction": "russia",
       "kind": "ifv",
+      "lod": "detail",
       "path": "russia/ifv.glb",
-      "triangles": 5064,
-      "drawCalls": 16
+      "triangles": 5496,
+      "drawCalls": 7
+    },
+    {
+      "faction": "russia",
+      "kind": "ifv",
+      "lod": "tactical",
+      "path": "russia/ifv-lod.glb",
+      "triangles": 2064,
+      "drawCalls": 4
     },
     {
       "faction": "russia",
       "kind": "apc",
+      "lod": "detail",
       "path": "russia/apc.glb",
-      "triangles": 1968,
-      "drawCalls": 16
+      "triangles": 2400,
+      "drawCalls": 7
+    },
+    {
+      "faction": "russia",
+      "kind": "apc",
+      "lod": "tactical",
+      "path": "russia/apc-lod.glb",
+      "triangles": 2064,
+      "drawCalls": 4
     },
     {
       "faction": "russia",
       "kind": "reconVehicle",
+      "lod": "detail",
       "path": "russia/reconVehicle.glb",
-      "triangles": 1184,
-      "drawCalls": 14
+      "triangles": 1592,
+      "drawCalls": 6
+    },
+    {
+      "faction": "russia",
+      "kind": "reconVehicle",
+      "lod": "tactical",
+      "path": "russia/reconVehicle-lod.glb",
+      "triangles": 1280,
+      "drawCalls": 3
     },
     {
       "faction": "russia",
       "kind": "tankDestroyer",
+      "lod": "detail",
       "path": "russia/tankDestroyer.glb",
-      "triangles": 5020,
-      "drawCalls": 12
+      "triangles": 5452,
+      "drawCalls": 5
+    },
+    {
+      "faction": "russia",
+      "kind": "tankDestroyer",
+      "lod": "tactical",
+      "path": "russia/tankDestroyer-lod.glb",
+      "triangles": 2020,
+      "drawCalls": 3
     },
     {
       "faction": "russia",
       "kind": "artillery",
+      "lod": "detail",
       "path": "russia/artillery.glb",
       "triangles": 5184,
-      "drawCalls": 18
+      "drawCalls": 7
+    },
+    {
+      "faction": "russia",
+      "kind": "artillery",
+      "lod": "tactical",
+      "path": "russia/artillery-lod.glb",
+      "triangles": 2088,
+      "drawCalls": 4
     },
     {
       "faction": "russia",
       "kind": "mlrs",
+      "lod": "detail",
       "path": "russia/mlrs.glb",
       "triangles": 2196,
-      "drawCalls": 12
+      "drawCalls": 5
+    },
+    {
+      "faction": "russia",
+      "kind": "mlrs",
+      "lod": "tactical",
+      "path": "russia/mlrs-lod.glb",
+      "triangles": 2196,
+      "drawCalls": 3
     },
     {
       "faction": "russia",
       "kind": "spaa",
+      "lod": "detail",
       "path": "russia/spaa.glb",
       "triangles": 2134,
-      "drawCalls": 20
-    },
-    {
-      "faction": "russia",
-      "kind": "fighter",
-      "path": "russia/fighter.glb",
-      "triangles": 1948,
-      "drawCalls": 9
-    },
-    {
-      "faction": "russia",
-      "kind": "interceptor",
-      "path": "russia/interceptor.glb",
-      "triangles": 1948,
-      "drawCalls": 9
-    },
-    {
-      "faction": "russia",
-      "kind": "multirole",
-      "path": "russia/multirole.glb",
-      "triangles": 1948,
-      "drawCalls": 9
-    },
-    {
-      "faction": "russia",
-      "kind": "attackAircraft",
-      "path": "russia/attackAircraft.glb",
-      "triangles": 1948,
-      "drawCalls": 9
-    },
-    {
-      "faction": "russia",
-      "kind": "ecm",
-      "path": "russia/ecm.glb",
-      "triangles": 1948,
-      "drawCalls": 9
-    },
-    {
-      "faction": "russia",
-      "kind": "bomber",
-      "path": "russia/bomber.glb",
-      "triangles": 1948,
-      "drawCalls": 9
-    },
-    {
-      "faction": "russia",
-      "kind": "heli",
-      "path": "russia/heli.glb",
-      "triangles": 1796,
-      "drawCalls": 14
-    },
-    {
-      "faction": "russia",
-      "kind": "gunship",
-      "path": "russia/gunship.glb",
-      "triangles": 1796,
-      "drawCalls": 14
-    },
-    {
-      "faction": "russia",
-      "kind": "casHeli",
-      "path": "russia/casHeli.glb",
-      "triangles": 1796,
-      "drawCalls": 14
-    },
-    {
-      "faction": "russia",
-      "kind": "transport",
-      "path": "russia/transport.glb",
-      "triangles": 1148,
-      "drawCalls": 11
-    },
-    {
-      "faction": "russia",
-      "kind": "cargoPlane",
-      "path": "russia/cargoPlane.glb",
-      "triangles": 1900,
       "drawCalls": 8
     },
     {
       "faction": "russia",
+      "kind": "spaa",
+      "lod": "tactical",
+      "path": "russia/spaa-lod.glb",
+      "triangles": 2134,
+      "drawCalls": 5
+    },
+    {
+      "faction": "russia",
+      "kind": "fighter",
+      "lod": "detail",
+      "path": "russia/fighter.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "faction": "russia",
+      "kind": "fighter",
+      "lod": "tactical",
+      "path": "russia/fighter-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "faction": "russia",
+      "kind": "interceptor",
+      "lod": "detail",
+      "path": "russia/interceptor.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "faction": "russia",
+      "kind": "interceptor",
+      "lod": "tactical",
+      "path": "russia/interceptor-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "faction": "russia",
+      "kind": "multirole",
+      "lod": "detail",
+      "path": "russia/multirole.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "faction": "russia",
+      "kind": "multirole",
+      "lod": "tactical",
+      "path": "russia/multirole-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "faction": "russia",
+      "kind": "attackAircraft",
+      "lod": "detail",
+      "path": "russia/attackAircraft.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "faction": "russia",
+      "kind": "attackAircraft",
+      "lod": "tactical",
+      "path": "russia/attackAircraft-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "faction": "russia",
+      "kind": "ecm",
+      "lod": "detail",
+      "path": "russia/ecm.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "faction": "russia",
+      "kind": "ecm",
+      "lod": "tactical",
+      "path": "russia/ecm-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "faction": "russia",
+      "kind": "bomber",
+      "lod": "detail",
+      "path": "russia/bomber.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "faction": "russia",
+      "kind": "bomber",
+      "lod": "tactical",
+      "path": "russia/bomber-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "faction": "russia",
+      "kind": "heli",
+      "lod": "detail",
+      "path": "russia/heli.glb",
+      "triangles": 2276,
+      "drawCalls": 8
+    },
+    {
+      "faction": "russia",
+      "kind": "heli",
+      "lod": "tactical",
+      "path": "russia/heli-lod.glb",
+      "triangles": 1380,
+      "drawCalls": 6
+    },
+    {
+      "faction": "russia",
+      "kind": "gunship",
+      "lod": "detail",
+      "path": "russia/gunship.glb",
+      "triangles": 2276,
+      "drawCalls": 8
+    },
+    {
+      "faction": "russia",
+      "kind": "gunship",
+      "lod": "tactical",
+      "path": "russia/gunship-lod.glb",
+      "triangles": 1380,
+      "drawCalls": 6
+    },
+    {
+      "faction": "russia",
+      "kind": "casHeli",
+      "lod": "detail",
+      "path": "russia/casHeli.glb",
+      "triangles": 2276,
+      "drawCalls": 8
+    },
+    {
+      "faction": "russia",
+      "kind": "casHeli",
+      "lod": "tactical",
+      "path": "russia/casHeli-lod.glb",
+      "triangles": 1380,
+      "drawCalls": 6
+    },
+    {
+      "faction": "russia",
+      "kind": "transport",
+      "lod": "detail",
+      "path": "russia/transport.glb",
+      "triangles": 1508,
+      "drawCalls": 7
+    },
+    {
+      "faction": "russia",
+      "kind": "transport",
+      "lod": "tactical",
+      "path": "russia/transport-lod.glb",
+      "triangles": 836,
+      "drawCalls": 5
+    },
+    {
+      "faction": "russia",
+      "kind": "cargoPlane",
+      "lod": "detail",
+      "path": "russia/cargoPlane.glb",
+      "triangles": 2260,
+      "drawCalls": 5
+    },
+    {
+      "faction": "russia",
+      "kind": "cargoPlane",
+      "lod": "tactical",
+      "path": "russia/cargoPlane-lod.glb",
+      "triangles": 1576,
+      "drawCalls": 3
+    },
+    {
+      "faction": "russia",
       "kind": "logiTruck",
+      "lod": "detail",
       "path": "russia/logiTruck.glb",
       "triangles": 1348,
-      "drawCalls": 10
+      "drawCalls": 4
+    },
+    {
+      "faction": "russia",
+      "kind": "logiTruck",
+      "lod": "tactical",
+      "path": "russia/logiTruck-lod.glb",
+      "triangles": 1348,
+      "drawCalls": 2
     },
     {
       "faction": "china",
       "kind": "tank",
+      "lod": "detail",
       "path": "china/tank.glb",
-      "triangles": 5816,
-      "drawCalls": 20
-    },
-    {
-      "faction": "china",
-      "kind": "lightTank",
-      "path": "china/lightTank.glb",
-      "triangles": 5824,
-      "drawCalls": 20
-    },
-    {
-      "faction": "china",
-      "kind": "ifv",
-      "path": "china/ifv.glb",
-      "triangles": 5064,
-      "drawCalls": 16
-    },
-    {
-      "faction": "china",
-      "kind": "apc",
-      "path": "china/apc.glb",
-      "triangles": 1968,
-      "drawCalls": 16
-    },
-    {
-      "faction": "china",
-      "kind": "reconVehicle",
-      "path": "china/reconVehicle.glb",
-      "triangles": 1824,
-      "drawCalls": 14
-    },
-    {
-      "faction": "china",
-      "kind": "tankDestroyer",
-      "path": "china/tankDestroyer.glb",
-      "triangles": 1924,
-      "drawCalls": 12
-    },
-    {
-      "faction": "china",
-      "kind": "artillery",
-      "path": "china/artillery.glb",
-      "triangles": 5184,
-      "drawCalls": 18
-    },
-    {
-      "faction": "china",
-      "kind": "mlrs",
-      "path": "china/mlrs.glb",
-      "triangles": 2196,
-      "drawCalls": 12
-    },
-    {
-      "faction": "china",
-      "kind": "spaa",
-      "path": "china/spaa.glb",
-      "triangles": 5566,
-      "drawCalls": 20
-    },
-    {
-      "faction": "china",
-      "kind": "fighter",
-      "path": "china/fighter.glb",
-      "triangles": 1500,
-      "drawCalls": 9
-    },
-    {
-      "faction": "china",
-      "kind": "interceptor",
-      "path": "china/interceptor.glb",
-      "triangles": 1948,
-      "drawCalls": 9
-    },
-    {
-      "faction": "china",
-      "kind": "multirole",
-      "path": "china/multirole.glb",
-      "triangles": 1500,
-      "drawCalls": 9
-    },
-    {
-      "faction": "china",
-      "kind": "attackAircraft",
-      "path": "china/attackAircraft.glb",
-      "triangles": 1500,
-      "drawCalls": 9
-    },
-    {
-      "faction": "china",
-      "kind": "ecm",
-      "path": "china/ecm.glb",
-      "triangles": 1948,
-      "drawCalls": 9
-    },
-    {
-      "faction": "china",
-      "kind": "bomber",
-      "path": "china/bomber.glb",
-      "triangles": 1500,
-      "drawCalls": 9
-    },
-    {
-      "faction": "china",
-      "kind": "heli",
-      "path": "china/heli.glb",
-      "triangles": 1796,
-      "drawCalls": 14
-    },
-    {
-      "faction": "china",
-      "kind": "gunship",
-      "path": "china/gunship.glb",
-      "triangles": 1796,
-      "drawCalls": 14
-    },
-    {
-      "faction": "china",
-      "kind": "casHeli",
-      "path": "china/casHeli.glb",
-      "triangles": 1796,
-      "drawCalls": 14
-    },
-    {
-      "faction": "china",
-      "kind": "transport",
-      "path": "china/transport.glb",
-      "triangles": 1148,
-      "drawCalls": 11
-    },
-    {
-      "faction": "china",
-      "kind": "cargoPlane",
-      "path": "china/cargoPlane.glb",
-      "triangles": 1452,
+      "triangles": 6248,
       "drawCalls": 8
     },
     {
       "faction": "china",
+      "kind": "tank",
+      "lod": "tactical",
+      "path": "china/tank-lod.glb",
+      "triangles": 2816,
+      "drawCalls": 5
+    },
+    {
+      "faction": "china",
+      "kind": "lightTank",
+      "lod": "detail",
+      "path": "china/lightTank.glb",
+      "triangles": 6256,
+      "drawCalls": 8
+    },
+    {
+      "faction": "china",
+      "kind": "lightTank",
+      "lod": "tactical",
+      "path": "china/lightTank-lod.glb",
+      "triangles": 2824,
+      "drawCalls": 5
+    },
+    {
+      "faction": "china",
+      "kind": "ifv",
+      "lod": "detail",
+      "path": "china/ifv.glb",
+      "triangles": 5496,
+      "drawCalls": 7
+    },
+    {
+      "faction": "china",
+      "kind": "ifv",
+      "lod": "tactical",
+      "path": "china/ifv-lod.glb",
+      "triangles": 2064,
+      "drawCalls": 4
+    },
+    {
+      "faction": "china",
+      "kind": "apc",
+      "lod": "detail",
+      "path": "china/apc.glb",
+      "triangles": 2400,
+      "drawCalls": 7
+    },
+    {
+      "faction": "china",
+      "kind": "apc",
+      "lod": "tactical",
+      "path": "china/apc-lod.glb",
+      "triangles": 2064,
+      "drawCalls": 4
+    },
+    {
+      "faction": "china",
+      "kind": "reconVehicle",
+      "lod": "detail",
+      "path": "china/reconVehicle.glb",
+      "triangles": 2256,
+      "drawCalls": 6
+    },
+    {
+      "faction": "china",
+      "kind": "reconVehicle",
+      "lod": "tactical",
+      "path": "china/reconVehicle-lod.glb",
+      "triangles": 1920,
+      "drawCalls": 3
+    },
+    {
+      "faction": "china",
+      "kind": "tankDestroyer",
+      "lod": "detail",
+      "path": "china/tankDestroyer.glb",
+      "triangles": 2356,
+      "drawCalls": 5
+    },
+    {
+      "faction": "china",
+      "kind": "tankDestroyer",
+      "lod": "tactical",
+      "path": "china/tankDestroyer-lod.glb",
+      "triangles": 2020,
+      "drawCalls": 3
+    },
+    {
+      "faction": "china",
+      "kind": "artillery",
+      "lod": "detail",
+      "path": "china/artillery.glb",
+      "triangles": 5184,
+      "drawCalls": 7
+    },
+    {
+      "faction": "china",
+      "kind": "artillery",
+      "lod": "tactical",
+      "path": "china/artillery-lod.glb",
+      "triangles": 2088,
+      "drawCalls": 4
+    },
+    {
+      "faction": "china",
+      "kind": "mlrs",
+      "lod": "detail",
+      "path": "china/mlrs.glb",
+      "triangles": 2196,
+      "drawCalls": 5
+    },
+    {
+      "faction": "china",
+      "kind": "mlrs",
+      "lod": "tactical",
+      "path": "china/mlrs-lod.glb",
+      "triangles": 2196,
+      "drawCalls": 3
+    },
+    {
+      "faction": "china",
+      "kind": "spaa",
+      "lod": "detail",
+      "path": "china/spaa.glb",
+      "triangles": 5902,
+      "drawCalls": 8
+    },
+    {
+      "faction": "china",
+      "kind": "spaa",
+      "lod": "tactical",
+      "path": "china/spaa-lod.glb",
+      "triangles": 2566,
+      "drawCalls": 5
+    },
+    {
+      "faction": "china",
+      "kind": "fighter",
+      "lod": "detail",
+      "path": "china/fighter.glb",
+      "triangles": 1740,
+      "drawCalls": 5
+    },
+    {
+      "faction": "china",
+      "kind": "fighter",
+      "lod": "tactical",
+      "path": "china/fighter-lod.glb",
+      "triangles": 1280,
+      "drawCalls": 3
+    },
+    {
+      "faction": "china",
+      "kind": "interceptor",
+      "lod": "detail",
+      "path": "china/interceptor.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "faction": "china",
+      "kind": "interceptor",
+      "lod": "tactical",
+      "path": "china/interceptor-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "faction": "china",
+      "kind": "multirole",
+      "lod": "detail",
+      "path": "china/multirole.glb",
+      "triangles": 1740,
+      "drawCalls": 5
+    },
+    {
+      "faction": "china",
+      "kind": "multirole",
+      "lod": "tactical",
+      "path": "china/multirole-lod.glb",
+      "triangles": 1280,
+      "drawCalls": 3
+    },
+    {
+      "faction": "china",
+      "kind": "attackAircraft",
+      "lod": "detail",
+      "path": "china/attackAircraft.glb",
+      "triangles": 1740,
+      "drawCalls": 5
+    },
+    {
+      "faction": "china",
+      "kind": "attackAircraft",
+      "lod": "tactical",
+      "path": "china/attackAircraft-lod.glb",
+      "triangles": 1280,
+      "drawCalls": 3
+    },
+    {
+      "faction": "china",
+      "kind": "ecm",
+      "lod": "detail",
+      "path": "china/ecm.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "faction": "china",
+      "kind": "ecm",
+      "lod": "tactical",
+      "path": "china/ecm-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "faction": "china",
+      "kind": "bomber",
+      "lod": "detail",
+      "path": "china/bomber.glb",
+      "triangles": 1740,
+      "drawCalls": 5
+    },
+    {
+      "faction": "china",
+      "kind": "bomber",
+      "lod": "tactical",
+      "path": "china/bomber-lod.glb",
+      "triangles": 1280,
+      "drawCalls": 3
+    },
+    {
+      "faction": "china",
+      "kind": "heli",
+      "lod": "detail",
+      "path": "china/heli.glb",
+      "triangles": 2276,
+      "drawCalls": 8
+    },
+    {
+      "faction": "china",
+      "kind": "heli",
+      "lod": "tactical",
+      "path": "china/heli-lod.glb",
+      "triangles": 1380,
+      "drawCalls": 6
+    },
+    {
+      "faction": "china",
+      "kind": "gunship",
+      "lod": "detail",
+      "path": "china/gunship.glb",
+      "triangles": 2276,
+      "drawCalls": 8
+    },
+    {
+      "faction": "china",
+      "kind": "gunship",
+      "lod": "tactical",
+      "path": "china/gunship-lod.glb",
+      "triangles": 1380,
+      "drawCalls": 6
+    },
+    {
+      "faction": "china",
+      "kind": "casHeli",
+      "lod": "detail",
+      "path": "china/casHeli.glb",
+      "triangles": 2276,
+      "drawCalls": 8
+    },
+    {
+      "faction": "china",
+      "kind": "casHeli",
+      "lod": "tactical",
+      "path": "china/casHeli-lod.glb",
+      "triangles": 1380,
+      "drawCalls": 6
+    },
+    {
+      "faction": "china",
+      "kind": "transport",
+      "lod": "detail",
+      "path": "china/transport.glb",
+      "triangles": 1508,
+      "drawCalls": 7
+    },
+    {
+      "faction": "china",
+      "kind": "transport",
+      "lod": "tactical",
+      "path": "china/transport-lod.glb",
+      "triangles": 836,
+      "drawCalls": 5
+    },
+    {
+      "faction": "china",
+      "kind": "cargoPlane",
+      "lod": "detail",
+      "path": "china/cargoPlane.glb",
+      "triangles": 1692,
+      "drawCalls": 5
+    },
+    {
+      "faction": "china",
+      "kind": "cargoPlane",
+      "lod": "tactical",
+      "path": "china/cargoPlane-lod.glb",
+      "triangles": 1232,
+      "drawCalls": 3
+    },
+    {
+      "faction": "china",
       "kind": "logiTruck",
+      "lod": "detail",
       "path": "china/logiTruck.glb",
       "triangles": 1348,
-      "drawCalls": 10
+      "drawCalls": 4
+    },
+    {
+      "faction": "china",
+      "kind": "logiTruck",
+      "lod": "tactical",
+      "path": "china/logiTruck-lod.glb",
+      "triangles": 1348,
+      "drawCalls": 2
     }
   ]
 }

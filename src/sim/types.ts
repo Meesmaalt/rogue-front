@@ -47,6 +47,8 @@ export interface UnitDef {
   /** Optional hard target domain restriction. */
   targetClass?: "ground" | "air" | "armor" | "naval" | "all";
   /** Phase 58 logistics model: per-platform ammunition/fuel and consumption. */
+  minimumRange?: number;
+  missileTurnRate?: number; missileAcceleration?: number; missileLaunchSpeed?: number; projectileLifetime?: number;
   ammoCapacity?: number;
   fuelCapacity?: number;
   ammoUsePerShot?: number;
@@ -81,6 +83,8 @@ export interface Entity {
   hp: number; cooldown: number; mode: Mode; dest: Point | null; target: Entity | null;
   aggro: number; dead: boolean;
   navPath: Point[]; navPathIndex: number; flowField: FlowField | null; stuckTime: number; stuckX: number; stuckZ: number;
+  moveQueue?: Point[]; queuedMoveType?: "move" | "amove";
+  preferredResourceIndex?: number | null; logisticsPaused?: boolean; routeWaypointIndex?: number; routeLeg?: string;
   xp: number; veteran: number;
   /** Game-time until which each team has this unit spotted (Wargame contact). */
   spottedUntil: [number, number];
@@ -97,6 +101,7 @@ export interface Entity {
   /** Phase 69: visual/technology building level (1-3). */
   buildingLevel?: number;
   logisticsLoadProgress?: number;
+  nextLogisticsDispatch?: number;
   /** Phase 62: road logistics / convoy metadata. */
   logisticsRoute?: "road" | "air" | "strategic";
   logisticsCargoCapacity?: number;
@@ -141,18 +146,21 @@ export interface Projectile {
   hitChance?: number;
   penetration?: number;
   impactDamage?: number;
+  age?: number; lifetime?: number; turnRate?: number; acceleration?: number; maxSpeed?: number;
+  aimY?: number; launchX?: number; launchZ?: number;
 }
 
 export type Command = ({
-  type: "move"; ids: number[]; x: number; z: number
-} | { type: "amove"; ids: number[]; x: number; z: number } | { type: "attack"; ids: number[]; targetId: number } |
+  type: "move"; ids: number[]; x: number; z: number; append?: boolean
+} | { type: "amove"; ids: number[]; x: number; z: number; append?: boolean } | { type: "attack"; ids: number[]; targetId: number } |
   { type: "formation"; kind: "box" | "line" | "wedge" | "column" } | { type: "stop"; ids: number[] } | { type: "repair"; ids: number[]; targetId: number } | { type: "rally"; ids: number[]; x: number; z: number } | { type: "patrol"; ids: number[]; x: number; z: number } | { type: "hold"; ids: number[] } |
   { type: "build"; ids: number[]; kind: "hq" | "bunker" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase" | "supply" | "radar" | "generator" | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer" | "landStrategy" | "airStrategy" | "seaStrategy"; x: number; z: number; rotation?: number } |
   { type: "upgrade"; ids: number[]; upgrade: "armor" | "weapon" | "range" | "supply-depot" | "producer" | "fob" } |
-  { type: "research"; tech: "air" | "advanced-armor" } | { type: "produce"; kind: UnitKind; producerId?: number } | { type: "cancel-produce"; producerId: number } | { type: "load"; ids: number[]; targetId: number } | { type: "unload"; ids: number[]; x: number; z: number } | { type: "fire-mission"; ids: number[]; x: number; z: number } | { type: "standing"; ids: number[]; mode: "hold" | "patrol" | "attack" | "holdfire"; x?: number; z?: number } | { type: "predeploy"; ids: number[]; mode: "move" | "attack" | "hold"; x?: number; z?: number } | { type: "priority"; ids: number[]; focus: "supply" | "generator" | "aa" } | { type: "depot-priority"; ids: number[]; focus: "ammo" | "fuel" | "repair" | "balanced" } | { type: "logistics-route"; ids: number[]; x: number; z: number; append?: boolean; clear?: boolean } | { type: "air-mission"; ids: number[]; mission: "cap" | "strike" | "sead" | "ground"; x?: number; z?: number }) & { team?: Team };
+  { type: "research"; tech: "air" | "advanced-armor" } | { type: "produce"; kind: UnitKind; producerId?: number } | { type: "cancel-produce"; producerId: number } | { type: "load"; ids: number[]; targetId: number } | { type: "unload"; ids: number[]; x: number; z: number } | { type: "fire-mission"; ids: number[]; x: number; z: number } | { type: "standing"; ids: number[]; mode: "hold" | "patrol" | "attack" | "holdfire"; x?: number; z?: number } | { type: "predeploy"; ids: number[]; mode: "move" | "attack" | "hold"; x?: number; z?: number } | { type: "priority"; ids: number[]; focus: "supply" | "generator" | "aa" } | { type: "depot-priority"; ids: number[]; focus: "ammo" | "fuel" | "repair" | "balanced" } | { type: "logistics-source"; ids:number[]; sourceIndex:number|null; paused?:boolean } | { type: "logistics-route"; ids: number[]; x: number; z: number; append?: boolean; clear?: boolean } | { type: "air-mission"; ids: number[]; mission: "cap" | "strike" | "sead" | "ground"; x?: number; z?: number }) & { team?: Team };
 
 export type SimEvent =
-  | { type: "fire"; team: Team; x: number; y: number; z: number; sourceId?: number }
+  | { type: "impact"; x: number; y: number; z: number; weapon: string }
+  | { type: "fire"; team: Team; x: number; y: number; z: number; sourceId?: number; weapon?: string; caliber?: number }
   | { type: "hit"; x: number; y: number; z: number }
   | { type: "build-complete"; team: Team; x: number; y: number; z: number; kind: UnitKind }
   | { type: "repair-complete"; team: Team; x: number; y: number; z: number; kind: UnitKind }

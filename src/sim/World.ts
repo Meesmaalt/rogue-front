@@ -1,3 +1,4 @@
+import logisticsConfig from "../data/logistics.json";
 import type { Command, Entity, GameStatus, Projectile, SimEvent, Team, UnitKind, MapResourceDef, IntelContact } from "./types";
 import { UNITS } from "./units";
 import { getBases, heightAt, MAP_SIZE, ensureHeightCache, type BaseDef } from "./heightmap";
@@ -184,7 +185,7 @@ export class World {
       shipyard: ["Põhilaevad", "Frigates/landing craft", "Destroyer/submarine"],
       supply: ["Baassupply", "Suurem ladu ja FOB-võime", "Suur logistikasõlm"],
       radar: ["Lühike avastus", "Parem radar", "Pika maa sensorivõrk"],
-      refinery: ["Põhikütus", "Suurem kütusevool", "Strateegiline kütusekompleks"],
+      refinery: ["Ressursitootmine +30%", "Ressursitootmine +60%", "Ressursitootmine +90%"],
       bunker: ["Lihtne kaitse", "Tugevdatud positsioon", "Raske kindlustus"],
       aa: ["Lühimaa AA", "Keskmise maa AA", "Täiustatud õhutõrje"],
       generator: ["Põhienergia", "Suurendatud võimsus", "Suur elektrisõlm"],
@@ -265,15 +266,14 @@ export class World {
     this.bases = bases.length ? bases.map((b) => ({ ...b })) : getBases();
     // Build height cache once bases are known (huge win for LOS / movement)
     ensureHeightCache();
-    this.mapFeatures = [...features.map((f) => ({ ...f })), ...(baseDefenses ? generateBaseFeatures(this.bases) : [])];
+    this.resourcePoints = resources.length ? resources.map(r=>({...r})) : [
+      { x: -70, z: 70, amount: 1000, radius: 12 }, { x: 70, z: -70, amount: 1000, radius: 12 },
+    ];
+    this.mapFeatures = [...features.map(f=>({...f})),...(baseDefenses?generateBaseFeatures(this.bases):[]),
+      ...this.resourcePoints.map((rp,i):MapFeatureDef=>({id:`resource-facility-${i}`,kind:"building",x:rp.x+18,z:rp.z,width:13,depth:12,height:6,appearance:rp.facility==="oilfield"?"resource-oil":"resource-industrial",label:"Ressursirajatis"}))];
     this.rng = () => this.rngState.next();
     this.nav = new NavGrid([], this.mapFeatures);
-    this.vision = new Vision();
-    this.vision.setFeatures(this.mapFeatures);
-    this.resourcePoints = resources.length ? resources.map((r) => ({ ...r })) : [
-      { x: -70, z: 70, amount: 1000, radius: 12 },
-      { x: 70, z: -70, amount: 1000, radius: 12 },
-    ];
+    this.vision = new Vision();this.vision.setFeatures(this.mapFeatures);
     this.operationalMap = new OperationalMap(this);
     this.operationalCommander = new OperationalCommander(this.operationalMap, this);
     this.fobManager = new FOBManager(this);
@@ -317,7 +317,7 @@ export class World {
     if (def.speed > 0 && !squad) e.components = { engine: 0, tracks: 0, turret: 0, weapon: 0, crew: 0, ammo: 0 };
     ensureLogisticsPools(e);
     if (kind === "hq") { e.ammoStock=120; e.fuelStock=200; e.repairStock=80; }
-    if (kind === "supply") { const level = e.supplyLevel ?? 0; e.logisticsMaxStorage = 900 + level * 450; e.logisticsStorage = 0; e.ammoStock = 420 + level * 180; e.fuelStock = 650 + level * 250; e.repairStock = 180 + level * 90; e.logisticsPriority = "balanced"; }
+    if (kind === "supply") { const level = e.supplyLevel ?? 0; e.logisticsMaxStorage = (logisticsConfig.depot.ammoCapacity+logisticsConfig.depot.fuelCapacity+logisticsConfig.depot.repairCapacity)*(1+level*logisticsConfig.depot.capacityPerLevel); e.logisticsStorage = 1250+level*520; e.ammoStock = 420 + level * 180; e.fuelStock = 650 + level * 250; e.repairStock = 180 + level * 90; e.logisticsPriority = "balanced"; }
     this.entities.push(e);
     this.byId.set(e.id, e);
     if (kind === "hq") this.hq[team] = e;
@@ -331,22 +331,26 @@ export class World {
     let scores: [number, number] = [0, 0];
     for (const rp of this.resourcePoints) {
       const nearby = ([0, 1] as const).map(team => this.entities.filter(e => !e.dead && e.team === team && e.def.speed > 0 && e.def.armor !== "air" && e.def.domain !== "sea" && !["logiTruck","cargoPlane","transport"].includes(e.kind) && e.loadedIntoId === null && Math.hypot(e.x-rp.x,e.z-rp.z) <= rp.radius + 10));
-      const a = nearby[0].length, b = nearby[1].length;
+      const a = nearby[0].length, b = nearby[1].length,previousOwner=rp.controlledBy;
       if (a > 0 && b === 0) { rp.controlProgress = Math.min(1, (rp.controlProgress ?? 0.5) + dt * 0.22 * Math.min(2, a)); if (rp.controlProgress >= 1) rp.controlledBy = 0; }
       else if (b > 0 && a === 0) { rp.controlProgress = Math.max(0, (rp.controlProgress ?? 0.5) - dt * 0.22 * Math.min(2, b)); if (rp.controlProgress <= 0) rp.controlledBy = 1; }
       else if (a > 0 && b > 0) rp.controlProgress = Math.max(0, Math.min(1, rp.controlProgress ?? (rp.controlledBy === 0 ? 1 : 0)));
+      if(previousOwner!==rp.controlledBy){rp.active=false;rp.startupProgress=0;rp.productionRate=0;}
       if (rp.controlledBy !== undefined && rp.controlledBy !== null) { scores[rp.controlledBy] += 1; }
       // A captured industrial point has to be restarted before it produces anything.
       if (rp.controlledBy != null && !(rp.disabledUntil && rp.disabledUntil > this.time)) {
         const owner = rp.controlledBy;
         const startupCrew = nearby[owner].some(e => e.kind === "engineer");
         if (!rp.active && startupCrew) { rp.startupProgress = (rp.startupProgress ?? 0) + dt; if ((rp.startupProgress ?? 0) >= RESOURCE_FACILITY_STARTUP) rp.active = true; }
-        if (rp.active && (rp.amount ?? 0) < (rp.maxStock ?? RESOURCE_FACILITY_MAX_STOCK)) {
+        if (a>0&&b>0)rp.productionRate=0;
+        if (rp.active && !(a>0&&b>0) && (rp.amount ?? 0) < (rp.maxStock ?? RESOURCE_FACILITY_MAX_STOCK)) {
           const kind = rp.facility ?? "mine";
           const base = RESOURCE_FACILITY_PRODUCTION[kind];
-          rp.productionRate = base * Math.max(1, rp.level ?? 1);
+          const refineryLevel=this.entities.filter(e=>!e.dead&&!e.underConstruction&&e.kind==="refinery"&&e.team===owner&&(e.disabledUntil??0)<=this.time&&Math.hypot(e.x-rp.x,e.z-rp.z)<=rp.radius+e.def.radius+5&&this.productionOperational(e).operational)
+            .reduce((level,e)=>Math.max(level,this.producerLevel(e)),0);
+          rp.productionRate = base * Math.max(1, rp.level ?? 1)*(1+refineryLevel*logisticsConfig.refineryProductionPerLevel);
           rp.amount = Math.min(rp.maxStock ?? RESOURCE_FACILITY_MAX_STOCK, rp.amount + rp.productionRate * dt);
-        }
+        } else rp.productionRate=0;
       }
       if (rp.controlledBy == null || (rp.disabledUntil ?? 0) > this.time) { rp.active = false; rp.startupProgress = 0; rp.productionRate = 0; }
       if (a > 0 && b > 0) { this.teamMorale[0] = Math.max(0, this.teamMorale[0] - 0.02 * dt); this.teamMorale[1] = Math.max(0, this.teamMorale[1] - 0.02 * dt); }
@@ -501,8 +505,10 @@ export class World {
   clearLogisticsRoute(depot: Entity): void { depot.logisticsWaypoints = []; depot.logisticsRouteMode = "direct"; }
 
   addLogisticsWaypoint(depot: Entity, point: {x:number;z:number}, append = true): void {
+    if(!Number.isFinite(point.x)||!Number.isFinite(point.z)||Math.abs(point.x)>MAP_SIZE/2-10||Math.abs(point.z)>MAP_SIZE/2-10)return;
     if (!depot.logisticsWaypoints) depot.logisticsWaypoints = [];
     if (!append) depot.logisticsWaypoints = [];
+    if(depot.logisticsWaypoints.length>=24)return;
     depot.logisticsWaypoints.push({x:point.x,z:point.z});
     depot.logisticsRouteMode = "manual";
   }
@@ -586,22 +592,27 @@ export class World {
     return { capacity, aircraft, ready };
   }
 
+  /** One 1–3 building level drives both depot upgrades and the physical fleet. */
+  supplyDepotLevel(depot:Entity):number {return Math.min(2,Math.max(depot.supplyLevel??0,this.producerLevel(depot)-1));}
+
   supplyDepotStatus(team: Team): { depots: number; active: number; level: number; rate: number } {
     const depots = this.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === "supply");
     const active = this.entities.filter(e => !e.dead && e.team === team && e.kind === "transport" && e.supplyDepotId != null).length;
-    const level = depots.reduce((m, d) => Math.max(m, d.supplyLevel ?? 0), 0);
+    const level = depots.reduce((m, d) => Math.max(m, this.supplyDepotLevel(d)), 0);
     const fobs = depots.filter(d => this.isFOB(d)).length; return { depots: depots.length, active, level, rate: 1 + level * 0.35 + fobs * 0.2 };
   }
 
   upgradeSupplyDepot(team: Team, depotId: number): boolean {
     const depot = this.byId.get(depotId);
     if (!depot || depot.dead || depot.underConstruction || depot.team !== team || depot.kind !== "supply") return false;
-    const level = depot.supplyLevel ?? 0;
-    if (level >= 3) return false;
+    const level = this.supplyDepotLevel(depot);
+    if (level >= 2) return false;
     const cost = 180 + level * 120;
     if (this.teamResources[team] < cost || this.teamCredits[team] < cost) return false;
     this.teamResources[team] -= cost; this.teamCredits[team] -= cost;
     depot.supplyLevel = level + 1;
+    depot.buildingLevel=Math.max(this.producerLevel(depot),level+2);
+    depot.logisticsMaxStorage=(logisticsConfig.depot.ammoCapacity+logisticsConfig.depot.fuelCapacity+logisticsConfig.depot.repairCapacity)*(1+(level+1)*logisticsConfig.depot.capacityPerLevel);
     if (team === this.playerTeam) { this.resources = this.teamResources[team]; this.credits = this.teamCredits[team]; }
     return true;
   }
@@ -610,10 +621,10 @@ export class World {
     const team=depot.team;
     this.teamResources[team]+=amount*.6; this.teamCredits[team]+=amount*.6;
     const priority=depot.logisticsPriority??"balanced";
-    const budget=amount*.4;
-    depot.ammoStock=Math.min(2600,(depot.ammoStock??0)+budget*(priority==="ammo"?.65:priority==="fuel"?.25:priority==="repair"?.25:.4));
-    depot.fuelStock=Math.min(3600,(depot.fuelStock??0)+budget*(priority==="fuel"?.65:priority==="ammo"?.25:priority==="repair"?.25:.4));
-    depot.repairStock=Math.min(1400,(depot.repairStock??0)+budget*(priority==="repair"?.5:priority==="balanced"?.2:.1));
+    const budget=amount*.4,capacity=1+this.supplyDepotLevel(depot)*logisticsConfig.depot.capacityPerLevel;
+    depot.ammoStock=Math.min(logisticsConfig.depot.ammoCapacity*capacity,(depot.ammoStock??0)+budget*(priority==="ammo"?.65:priority==="fuel"?.25:priority==="repair"?.25:.4));
+    depot.fuelStock=Math.min(logisticsConfig.depot.fuelCapacity*capacity,(depot.fuelStock??0)+budget*(priority==="fuel"?.65:priority==="ammo"?.25:priority==="repair"?.25:.4));
+    depot.repairStock=Math.min(logisticsConfig.depot.repairCapacity*capacity,(depot.repairStock??0)+budget*(priority==="repair"?.5:priority==="balanced"?.2:.1));
     depot.logisticsStorage=(depot.ammoStock??0)+(depot.fuelStock??0)+(depot.repairStock??0);
     if(team===this.playerTeam){this.credits=this.teamCredits[team];this.resources=this.teamResources[team];}
   }
@@ -676,7 +687,7 @@ export class World {
 
   roadLogisticsStatus(team: Team): { trucks: number; cargo: number; delivered: number; lost: number; disconnected: number; ammo: number; fuel: number; repair: number } {
     const trucks = this.entities.filter(e => !e.dead && e.team === team && e.kind === "logiTruck");
-    const cargo = Math.floor(trucks.reduce((n,e)=>n+(e.cargo??0),0) + this.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="supply").reduce((n,e)=>n+(e.logisticsStorage??0),0));
+    const cargo = Math.floor(trucks.reduce((n,e)=>n+(e.cargo??0),0) + this.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="transport"&&e.supplyDepotId!=null).reduce((n,e)=>n+(e.cargo??0),0));
     const disconnected = this.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="supply"&&e !== this.primarySupplyDepot(team) && (e.logisticsStorage??0)>0 && !this.connectedSupplyNodes(team).some(n=>n.id===e.id)).length;
     const stocks = this.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="supply");
     return { trucks: trucks.length, cargo, delivered: Math.floor(this.roadCargoDelivered[team]), lost: Math.floor(this.roadCargoLost[team]), disconnected, ammo: Math.floor(stocks.reduce((n,e)=>n+(e.ammoStock??0),0)), fuel: Math.floor(stocks.reduce((n,e)=>n+(e.fuelStock??0),0)), repair: Math.floor(stocks.reduce((n,e)=>n+(e.repairStock??0),0)) };
@@ -689,7 +700,7 @@ export class World {
   }
   private updateRoadConvoys(_dt: number): void {
     for (const team of [0,1] as const) {
-      const depots = this.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === "supply");
+      const depots = this.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === "supply" && this.productionOperational(e).operational);
       if (!depots.length) continue;
       const main = this.primarySupplyDepot(team);
       if (!main) continue;
@@ -699,22 +710,22 @@ export class World {
         const rp = this.resourcePoints[i];
         if (rp.controlledBy !== team || !rp.active || (rp.disabledUntil ?? 0) > this.time || (rp.amount ?? 0) <= 0) continue;
         const depot = this.nearestResourceDepot(team, rp.x, rp.z);
-        if (!depot) continue;
+        if (!depot || depot.logisticsPaused || depot.preferredResourceIndex!=null&&depot.preferredResourceIndex!==i) continue;
         const activeTrucks = this.entities.filter(t => !t.dead && t.team === team && t.kind === "logiTruck" && t.supplyDepotId === depot.id && t.logisticsSourceIndex === i);
-        const max = ROAD_TRUCK_MAX_PER_DEPOT + (depot.supplyLevel ?? 0);
+        const max = ROAD_TRUCK_MAX_PER_DEPOT + this.supplyDepotLevel(depot);
         if (activeTrucks.length >= max) continue;
-        if (this.time - this.roadTruckLastSpawn[team] < ROAD_TRUCK_INTERVAL / Math.max(1, 1 + (depot.supplyLevel ?? 0)*0.35)) continue;
+        if (this.time - this.roadTruckLastSpawn[team] < ROAD_TRUCK_INTERVAL / Math.max(1, 1 + this.supplyDepotLevel(depot)*0.35)) continue;
         this.roadTruckLastSpawn[team]=this.time;
         const exit=this.convoyExit(depot,rp);if(!exit)continue;
         const t = this.spawn("logiTruck", team, exit.x, exit.z);
         t.supplyDepotId = depot.id; t.logisticsSourceIndex = i; t.logisticsHome = {x: depot.x, z: depot.z}; t.logisticsTarget = {x: rp.x, z: rp.z};
-        t.logisticsPhase = "idle"; t.logisticsRoute = "road"; t.logisticsCargoCapacity = ROAD_TRUCK_CARGO + (depot.supplyLevel ?? 0)*45 + (this.isFOB(depot) ? 60 : 0); t.logisticsLoadProgress = 0; t.mode = "move"; t.dest = t.logisticsTarget; t.patrolPoints = (depot.logisticsWaypoints ?? []).map(p => ({...p})); t.patrolIndex = 0;
+        t.logisticsPhase = "idle"; t.logisticsRoute = "road"; t.logisticsCargoCapacity = ROAD_TRUCK_CARGO + this.supplyDepotLevel(depot)*45 + (this.isFOB(depot) ? 60 : 0); t.logisticsLoadProgress = 0; t.mode = "move"; t.dest = t.logisticsTarget; t.patrolPoints = (depot.logisticsWaypoints ?? []).map(p => ({...p})); t.patrolIndex = 0;
         this.roadTruckLastSpawn[team] = this.time;
       }
 
       // Supply the forward network with physical trucks. No teleporting depot refill.
       for (const depot of depots) {
-        if(depot===main || !this.connectedSupplyNodes(team).some(n=>n.id===depot.id)) continue;
+        if(depot.logisticsPaused || depot===main || !this.connectedSupplyNodes(team).some(n=>n.id===depot.id)) continue;
         if(this.entities.some(t=>!t.dead&&t.team===team&&t.kind==="logiTruck"&&t.supplyDepotId===depot.id&&t.logisticsSourceIndex==null)) continue;
         if(this.time-this.roadTruckLastSpawn[team]<ROAD_TRUCK_INTERVAL)continue;
         this.roadTruckLastSpawn[team]=this.time;
@@ -728,28 +739,22 @@ export class World {
   }
 
   private updateSupplyAirbridge(): void {
-    for (const team of [0,1] as const) {
-      const depots = this.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === "supply");
-      if (!depots.length) continue;
-      const transports = this.entities.filter(e => !e.dead && e.team === team && e.kind === "transport" && e.supplyDepotId != null);
-      for (const depot of depots) {
-        const maxConcurrent = 1 + (depot.supplyLevel ?? 0);
-        const assigned = transports.filter(t => t.supplyDepotId === depot.id).length;
-        if (assigned >= maxConcurrent) continue;
-        const rp = this.resourcePoints
-          .filter(r => r.amount > 0 && r.active && r.controlledBy === team)
-          .sort((a,b) => Math.hypot(a.x-depot.x,a.z-depot.z) - Math.hypot(b.x-depot.x,b.z-depot.z))[0];
-        if (!rp) continue;
-        const edgeX = team === 0 ? -MAP_SIZE/2+30 : MAP_SIZE/2-30;
-        const edgeZ = team === 0 ? depot.z + 35 : depot.z - 35;
-        const h = this.spawn("transport", team, edgeX, edgeZ);
-        h.supplyDepotId = depot.id;
-        h.logisticsHome = { x: depot.x, z: depot.z };
-        h.logisticsTarget = { x: rp.x, z: rp.z };
-        h.logisticsPhase = "idle";
-        h.logisticsLoadProgress = 0;
-        h.mode = "patrol";
-        h.dest = h.logisticsTarget;
+    for(const team of [0,1] as const){
+      const depots=this.entities.filter(e=>!e.dead&&!e.underConstruction&&e.team===team&&e.kind==="supply");
+      for(const depot of depots){
+        if(depot.logisticsPaused||!this.productionOperational(depot).operational||this.time<(depot.nextLogisticsDispatch??0))continue;
+        const fleet=this.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="transport"&&e.supplyDepotId===depot.id);
+        const max=Math.min(logisticsConfig.air.maxFleet,1+this.supplyDepotLevel(depot));
+        if(fleet.length>=max)continue;
+        const rp=this.resourcePoints.filter((r,i)=>(depot.preferredResourceIndex==null||i===depot.preferredResourceIndex)&&r.active&&r.controlledBy===team&&(r.disabledUntil??0)<=this.time&&r.amount>=1)
+          .sort((a,b)=>Math.hypot(a.x-depot.x,a.z-depot.z)-Math.hypot(b.x-depot.x,b.z-depot.z))[0];
+        if(!rp||(depot.fuelStock??0)<logisticsConfig.air.reserveFuel)continue;
+        const apron={x:depot.x-depot.def.radius-5,z:depot.z};
+        const h=this.spawn("transport",team,apron.x,apron.z);
+        const fuel=Math.min(logisticsConfig.air.dispatchFuel,depot.fuelStock??0);depot.fuelStock=(depot.fuelStock??0)-fuel;h.fuel=fuel;
+        h.supplyDepotId=depot.id;h.logisticsHome=apron;h.logisticsTarget={x:rp.x,z:rp.z};h.logisticsSourceIndex=this.resourcePoints.indexOf(rp);
+        h.logisticsPhase="idle";h.logisticsLoadProgress=0;h.mode="patrol";h.dest=h.logisticsTarget;
+        depot.nextLogisticsDispatch=this.time+logisticsConfig.air.dispatchInterval/Math.max(1,1+this.supplyDepotLevel(depot)*.2);
       }
     }
   }

@@ -48,6 +48,7 @@ export class Minimap {
   private base: HTMLCanvasElement;
   private dragging = false;
   private frame = 0;
+  private elapsed=.1;
   /** Throttle full fog fill (expensive nested loop). */
   private fogCache: HTMLCanvasElement | null = null;
   private fogFrame = -10;
@@ -66,7 +67,8 @@ export class Minimap {
     addEventListener("mouseup", () => (this.dragging = false));
   }
 
-  draw(): void {
+  draw(frameDt:number): void {
+    this.elapsed+=frameDt;if(this.elapsed<.1)return;this.elapsed=0;
     const c = this.ctx;
     this.frame++;
     c.drawImage(this.base, 0, 0);

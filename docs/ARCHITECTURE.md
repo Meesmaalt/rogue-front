@@ -53,7 +53,7 @@ Frondijoon on olukorrainfo. Operatiivne/taktikaline AI käsutab üksnes vastast 
 
 `ArtModels.ts` laadib enne lahingut päris GLB-varad ja fraktsioonitekstuurid. `UnitRenderer` kasutab neid olemasoleva entiteedi kind/faction/team järgi. Geomeetria ja põhjamaterjalid on jagatud; üksuse eemaldamine/salvestuse laadimine neid ei vabasta. Meeskonnamärgistus on eraldi instantsimaterjal. `Turret`, `Gun`, `RotorMain*`, `RotorCounter`, `TailRotor` ja `LandingGear` sõlmed säilitavad animatsioonipivotid. `models.ts` jääb jalaväe/hoonete/mereväe ning laadimistõrke varuteeks. Arsenal kasutab sama laadijat ja samu varasid.
 
-Mudelid eksporditakse originaalsest polügoonmodellimise allikast `scripts/art/build-models.mjs`. Staatilised osad liidetakse materjali kaupa, animatsioonisõlmed säilitatakse. Maksimaalselt 5824 kolmnurka / 20 materjaligruppi platvormi kohta. Uus art ei muuda simulatsiooninumbreid, aega ega RNG-d.
+Mudelid eksporditakse originaalsest polügoonmodellimise allikast `scripts/art/build-models.mjs`. Staatilised osad liidetakse materjali kaupa, animatsioonisõlmed säilitatakse. Manifest v2 sisaldab 63 detailset mudelit (kuni 6256 kolmnurka / 8 materjalipartiid) ja 63 kaugusmudelit (kuni 2824 / 6). Uus art ei muuda simulatsiooninumbreid, aega ega RNG-d.
 
 ## Multiplayer’i algseis ja taastamine
 
@@ -68,4 +68,27 @@ Roheorg (`src/data/maps/green-valley.json`) kasutab farmland-kõrgusprofiili. Pr
 
 `Architecture.ts` loob tekstuuritud tsiviil- ja baasigeomeetria ning liidab staatilised osad materjali järgi. `Terrain` kasutab seda kaardi hoonetel; `models.ts` tootmis-/juhtimishoonetel. Renderdus ei muuda simulatsiooni RNG-d.
 
-`mobility.json` annab olemasolevale üksusesüsteemile kiirendus-, pidurdus- ja lennuprofiilid. `motionSpeed`, `flightBank`, `flightPitch`, `flightOrbitCenter` ja `airLandingPhase` on entiteedi salvestatav olek; WorldHash sisaldab neid ja kõrgust. `UnitRenderer` kasutab simulatsiooni tegelikku lennukõrgust ning maastiku kerekaldeid. MAP_SIZE on 640; kaamera ja piirid kasutavad sama konstanti. Roheoru vana salvestuspaigutuse asemel kasutatakse `.layout2` võtit.
+`mobility.json` annab olemasolevale üksusesüsteemile kiirendus-, pidurdus- ja lennuprofiilid. `motionSpeed`, `flightBank`, `flightPitch`, `flightOrbitCenter` ja `airLandingPhase` on entiteedi salvestatav olek; WorldHash sisaldab neid ja kõrgust. `UnitRenderer` kasutab simulatsiooni tegelikku lennukõrgust ning maastiku kerekaldeid. MAP_SIZE on 640; kaamera ja piirid kasutavad sama konstanti. Praegune Roheoru automaatsalvestuse võti kasutab `.layout4` paigutust; vanad salvestused jäävad alles.
+
+
+## Relvad ja rajatiste veod
+
+`UnitDef` relvaprofiilid on `units.json`-is; `canEngage` ja `effectiveWeaponRange` ühendavad sihtmärgivaliku, laskegate'i ning HUD-i. `Projectile` salvestab kiiruse, juhitavuse, vanuse, lennupiiri, sihtkõrguse ja laskekoha. `projectiles.ts` eristab juhitavat raketti ja ennetatud mittesuunatavat lasku; `Fx` kasutab samade mürskude jaoks eraldi geomeetriat.
+
+`World` lisab ressursirajatiste hoonejäljed mapFeatures-i enne NavGrid/Vision-i loomist. `Terrain` joonistab tööstusmudeli, `ResourceSites` laadimisplatsi ja oleku. `logistics.json` määrab lähetus-, koorma-, kütuse- ja ladustamisprofiilid. `supplyDepotLevel` ühendab üldise hoonetaseme ja logistika uuendused. `updateSupplyAirbridge` lähetab lao kütusest; `updateTransport` korjab kohaliku piiratud varu ja annab koorma `receiveSupply` kaudu üle. Raha ei lisandu rajatise tootmistickis.
+
+## Taktikalised käsud ja kaardipass
+
+`commands.ts` jaotab grupi eesmärgid üksuse raadiuse ja navigeeritavuse järgi. `units.ts` järgib olemasolevat A* teed vaba koridori ettevaatega ning deterministliku kohaliku kokkupõrkevältimisega. Liikumiskäsk ei eralda enam kasutamata FlowField'i. `moveQueue` on ühekordne järjekord, eraldi patrullist, ja kuulub salvestusse/hash'i.
+
+HUD-i tarnejuhtimine väljastab `logistics-source` ja `logistics-route` käsud CommandControlleri kaudu. Lao `preferredResourceIndex`/`logisticsPaused` ja transpordi `routeLeg`/`routeWaypointIndex` juhivad päris veoki- ja kopterisüsteemi ning kuuluvad hash'i. Overlay näitab nähtavate sihtmärkide tegelikku LOS-i, relvaulatust, teid ja koormaid. Audio/Fx tarbivad relvatüübiga fire-sündmust ega muuda simulatsiooni.
+
+Roheoru hooned, õued, teed ja metsad pärinevad kaardiandmetest. `terrain.json` farmland-kõrgendikud rakenduvad `heightmap.ts` kaudu ühiselt simulatsioonile ja renderdusele.
+
+## 3D-kvaliteet ja renderduskoormus
+
+`ArtModels` jagab fraktsioonikamo, karedus-/normaalikaarte ja meeskonnamaterjale ning laadib mõlemad GLB detailid. `UnitRenderer` vahetab neid kaamerakauguse/kvaliteedi järgi hüstereesiga. Vaateväljakontroll piirab liikuvate üksuste animatsioone; animatsioonisõlmede viited kogutakse loomisel. Rootorite ja recoil'i renderdus kasutab kaadri dt-d, simulatsioon endiselt fikseeritud sammu.
+
+`Architecture.batchStaticScene` ühendab staatilise kaardi geomeetria materjali ja piirkonna kaupa. Seda kasutatakse ka hoonetaseme komplektil enne üksuse juurde lisamist; animeeritud üksused ei lähe sellesse partiisse. Arhitektuurimaterjalid on jagatud ja `sharedArt` kaitseb neid üksuse eemaldamisel vabastamise eest. Terrain kasutab lehestiku alpha-testiga instantsipartiisid piirkondade kaupa.
+
+`PostFX` eraldab composer'i ainult siis, kui järelprotsess on sisse lülitatud. Vaikimisi renderdatakse otse kanvasse. `RenderContext.updateShadows` kasutab UnitRenderer'i muutusmärki ja kvantitud kaameraankrut staatilise varjukaardi uuendamiseks. Minikaart 10 Hz ja intel-märgid 5 Hz on renderduse sagedused, mitte simulatsiooni omad.

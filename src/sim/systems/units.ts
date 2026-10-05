@@ -1,9 +1,10 @@
 import type { World } from "../World";
 import type { Entity, Point } from "../types";
+import logisticsConfig from "../../data/logistics.json";
 import mobility from "../../data/mobility.json";
 import { heightAt, MAP_SIZE } from "../heightmap";
 import { dist2d, turnToward, wrapAngle } from "../math";
-import { fireProjectile } from "./combat";
+import { fireProjectile, canEngage, effectiveWeaponRange } from "./combat";
 import { isSpottedBy } from "./sensors";
 import { moraleSpeedMul, moraleAccuracyMul, moraleState } from "./morale";
 import { outOfFuel, outOfAmmo } from "./tacticalSupply";
@@ -36,16 +37,12 @@ export function nearestEnemy(w: World, u: Entity, range: number): Entity | null 
     const d = Math.sqrt(distSq) - e.def.radius;
     if (d > range) return;
     if (!hasSpotter(w, u, e)) return;
-    if (u.def.weapon !== "missile" && e.def.armor === "air") return;
-    const targetClass = u.def.targetClass ?? "all";
-    if (targetClass === "ground" && e.def.armor === "air") return;
-    if (targetClass === "air" && e.def.armor !== "air") return;
-    if (targetClass === "armor" && (e.def.armor === "air" || e.def.speed === 0)) return;
-    if (targetClass === "naval" && e.def.domain !== "sea") return;
+    if (!canEngage(u,e)) return;
     if ((u.kind === "bunker" || u.kind === "aa" || u.kind === "spaa") && !inFiringArc(u, e)) return;
     let priority = d;
     if (u.def.weapon === "missile" && e.def.armor === "air") priority -= 22;
     if (u.kind === "artillery" && e.def.speed === 0) priority -= 16;
+    if (["heli","gunship","atgm","tankDestroyer"].includes(u.kind)&&e.def.category==="armor")priority-=30;
     // Threats come before infrastructure unless the player explicitly prioritises it.
     if (e.def.damage > 0 && e.def.speed > 0) priority -= 18;
     if (e.def.speed === 0 && e.def.damage === 0) priority += 12;
@@ -56,9 +53,29 @@ export function nearestEnemy(w: World, u: Entity, range: number): Entity | null 
   return best;
 }
 
+function clearGroundSegment(w:World,u:Entity,p:Point):boolean {
+  const distance=dist2d(u,p),steps=Math.max(1,Math.ceil(distance));
+  for(let i=1;i<=steps;i++)if(!w.nav.isWalkableWorld(u.x+(p.x-u.x)*i/steps,u.z+(p.z-u.z)*i/steps,u.def.radius))return false;
+  return true;
+}
+function bodyClear(w:World,u:Entity,p:Point):boolean {
+  let clear=true;
+  w.spatial.queryRadius(p.x,p.z,u.def.radius+8,o=>{
+    if(o===u||o.dead||o.loadedIntoId!=null||o.def.speed===0||o.def.domain!=="land")return;
+    const old=dist2d(u,o),next=dist2d(p,o),min=(u.def.radius+o.def.radius)*.9+mobility.navigation.bodyClearance;
+    if(next<min&&next<old-.001)clear=false;
+  });return clear;
+}
+function smoothWaypoint(w:World,u:Entity):void {
+  for(let i=u.navPathIndex+1;i<u.navPath.length;i++){
+    if(dist2d(u,u.navPath[i])>mobility.navigation.lookAhead||!clearGroundSegment(w,u,u.navPath[i]))break;
+    u.navPathIndex=i;
+  }
+}
+
 function moveRoadTruckTo(w: World, u: Entity, goal: Point, dt: number, arrival=3.2): boolean {
   const finalGoal=goal;
-  if(Math.hypot(finalGoal.x-u.x,finalGoal.z-u.z)<=arrival)return true;
+  if(Math.hypot(finalGoal.x-u.x,finalGoal.z-u.z)<=arrival){u.motionSpeed=0;return true;}
   if(!u.roadTripGoal||Math.hypot(u.roadTripGoal.x-finalGoal.x,u.roadTripGoal.z-finalGoal.z)>5){u.roadTripGoal={...finalGoal};u.patrolIndex=0;u.navPath=[];}
   const depot=u.supplyDepotId!=null?w.byId.get(u.supplyDepotId):null;
   const route=depot?.logisticsWaypoints??[];
@@ -73,7 +90,8 @@ function moveRoadTruckTo(w: World, u: Entity, goal: Point, dt: number, arrival=3
     if(!u.navPath.length)return false;
   }
   let p=goal;
-  while(u.navPathIndex<u.navPath.length && Math.hypot(u.x-u.navPath[u.navPathIndex].x,u.z-u.navPath[u.navPathIndex].z)<.18)u.navPathIndex++;
+  while(u.navPathIndex<u.navPath.length && Math.hypot(u.x-u.navPath[u.navPathIndex].x,u.z-u.navPath[u.navPathIndex].z)<mobility.navigation.arrival)u.navPathIndex++;
+  smoothWaypoint(w,u);
   if(u.navPathIndex<u.navPath.length)p=u.navPath[u.navPathIndex];
   const dx=p.x-u.x,dz=p.z-u.z,len=Math.hypot(dx,dz)||1;
   const want=Math.atan2(dx,dz);u.heading=turnToward(u.heading,want,u.def.turnRate*dt);
@@ -82,14 +100,18 @@ function moveRoadTruckTo(w: World, u: Entity, goal: Point, dt: number, arrival=3
   if (roadFeature?.kind === "bridge" && (w.infrastructureDamage.get(roadFeature.id) ?? 0) >= 1) { u.mode="idle"; u.dest=null; return false; }
   const componentSpeed = u.components ? Math.max(0.30, 1 - (u.components.engine ?? 0) / 180 - (u.components.tracks ?? 0) / 260) : 1;
   const speed=u.def.speed*componentSpeed*(road?1.28:1)*((u.supply??100)>10?1:0.75)*(outOfFuel(u)?0:1);
-  const step=Math.min(len,speed*dt*Math.max(0,Math.cos(wrapAngle(want-u.heading))));const nx=u.x+dx/len*step,nz=u.z+dz/len*step;
-  if(w.nav.isWalkableWorld(nx,nz,u.def.radius)||!w.nav.isWalkableWorld(u.x,u.z,u.def.radius)){u.x=nx;u.z=nz;}else {u.navPath=[];u.roadPathRetryAt=w.time+.5;}u.y=heightAt(u.x,u.z);u.stuckX=u.x;u.stuckZ=u.z;
+  const desiredSpeed=Math.min(speed*Math.max(0,Math.cos(wrapAngle(want-u.heading))),Math.sqrt(Math.max(0,dist-arrival)*mobility.wheeled.braking*2));
+  u.motionSpeed=(u.motionSpeed??0)+Math.max(-mobility.wheeled.braking*dt,Math.min(mobility.wheeled.acceleration*dt,desiredSpeed-(u.motionSpeed??0)));
+  const step=Math.min(len,(u.motionSpeed??0)*dt);const nx=u.x+dx/len*step,nz=u.z+dz/len*step;
+  if((w.nav.isWalkableWorld(nx,nz,u.def.radius)||!w.nav.isWalkableWorld(u.x,u.z,u.def.radius))&&bodyClear(w,u,{x:nx,z:nz})){u.x=nx;u.z=nz;}else {u.navPath=[];u.roadPathRetryAt=w.time+.5;}u.y=heightAt(u.x,u.z);u.stuckX=u.x;u.stuckZ=u.z;
   return false;
 }
 
 function updateRoadTruck(w: World, u: Entity, dt: number): void {
   const depot = u.supplyDepotId != null ? w.byId.get(u.supplyDepotId) : null;
   if (!depot || depot.dead) { u.mode="idle"; u.dest=null; return; }
+  if(depot.logisticsPaused&&u.cargo<=0){u.mode="move";u.dest=u.logisticsHome??depot;moveRoadTruckTo(w,u,u.dest,dt,16);return;}
+  if(u.cargo<=0&&u.logisticsSourceIndex!=null&&depot.preferredResourceIndex!=null)u.logisticsSourceIndex=depot.preferredResourceIndex;
   const cap = u.logisticsCargoCapacity ?? 150;
   const source = u.logisticsSourceIndex != null ? w.resourcePoints[u.logisticsSourceIndex] : null;
   const home = u.logisticsHome ?? {x: depot.x,z: depot.z};
@@ -97,7 +119,7 @@ function updateRoadTruck(w: World, u: Entity, dt: number): void {
   // Collection truck: resource site -> local depot -> trunk depot/national pool.
   if (source) {
     if (u.logisticsPhase === "idle" || u.logisticsPhase === "unloading") {
-      if(source.controlledBy!==u.team||!source.active||(source.disabledUntil??0)>w.time){u.mode="idle";return;}
+      if(source.controlledBy!==u.team||!source.active||(source.disabledUntil??0)>w.time){u.dest={...home};u.mode="move";moveRoadTruckTo(w,u,home,dt,16);return;}
       u.dest = {x:source.x,z:source.z}; u.mode="move";
       if (!moveRoadTruckTo(w,u,u.dest,dt,source.radius+4)) return;
       if (Math.hypot(u.x-source.x,u.z-source.z) <= source.radius+4) {
@@ -170,17 +192,17 @@ function moveSeaTo(u: Entity, target: Point, dt: number): boolean {
 }
 
 /** Kinematic flight is simulated: inertia, bank, climb and approach are saved state. */
-function moveAirTo(u: Entity, target: Point, dt: number, w: World): boolean {
+function moveAirTo(u: Entity, target: Point, dt: number, w: World, cruise=false): boolean {
   const helicopter=u.def.category==="heli",profile=helicopter?mobility.helicopter:mobility.aircraft;
   const ground=heightAt(u.x,u.z),distance=Math.hypot(target.x-u.x,target.z-u.z);
   const cargoLanding=u.kind==="cargoPlane"&&u.cargo>0;
-  const landing=u.airState==="returning"||cargoLanding||["transport-load","transport-unload"].includes(u.mode)||u.kind==="transport"&&u.supplyDepotId!=null;
+  const landing=!cruise&&(u.airState==="returning"||cargoLanding||["transport-load","transport-unload"].includes(u.mode)||u.kind==="transport"&&u.supplyDepotId!=null);
   const final=landing&&(helicopter||u.airLandingPhase==="final"||cargoLanding&&distance<80);
-  const desiredAltitude=ground+(final?Math.min(profile.altitude,Math.max(0,(distance-8)*.24)):u.airState==="returning"?20:profile.altitude+(u.airMission==="cap"&&!helicopter?15:0));
+  const desiredAltitude=ground+(final?Math.min(profile.altitude,Math.max(0,(distance-8)*(helicopter?.85:.24))):u.airState==="returning"?20:profile.altitude+(u.airMission==="cap"&&!helicopter?15:0));
   const oldY=u.y;
   u.y+=Math.max(-profile.descentRate*dt,Math.min(profile.climbRate*dt,desiredAltitude-u.y));
   if(distance<(helicopter?2.5:8)&&landing&&u.y-ground<3){u.motionSpeed=0;if(landing)u.y=ground;u.flightBank=(u.flightBank??0)*Math.max(0,1-dt*4);return true;}
-  if(!helicopter&&!landing&&distance<18){u.flightOrbitCenter={...target};u.dest=null;u.mode="idle";}
+  if(!helicopter&&!landing&&distance<18&&u.mode!=="patrol"){const next=u.moveQueue?.shift();u.dest=next??null;u.mode=next?(u.queuedMoveType??"move"):"idle";u.flightOrbitCenter=next?undefined:{...target};}
   const desiredHeading=Math.atan2(target.x-u.x,target.z-u.z),oldHeading=u.heading;
   const speed=u.motionSpeed??0;
   const turnRate=helicopter?u.def.turnRate:final?Math.max(1.2,u.def.turnRate):Math.min(u.def.turnRate,.65+12/Math.max(15,speed));
@@ -273,45 +295,61 @@ function updateTransport(w: World, u: Entity, dt: number): void {
     u.cargoUnitIds = []; u.unloadPoint = null; u.mode = "idle"; u.dest = null;
     return;
   }
-  if (!u.logisticsTarget || !u.logisticsHome) {if(u.dest&&!outOfFuel(u))moveAirTo(u,u.dest,dt,w);return;}
-  const target = u.logisticsPhase === "loading" ? u.logisticsHome : u.logisticsTarget;
-  u.dest = target; u.mode = "patrol";
-  if (!moveAirTo(u, target, dt, w)) return;
-  const depot = u.supplyDepotId != null ? w.byId.get(u.supplyDepotId) : null;
-  const level = depot?.supplyLevel ?? 0;
-  // Real War style: each successful logistics run delivers a meaningful supply drop
-  const capacity = 120 + level * 55;
-  const loadTime = Math.max(2.2, 6.5 - level * 1.1);
-  const unloadTime = Math.max(1.2, 3.2 - level * 0.45);
-  if (u.logisticsPhase === "idle" || u.logisticsPhase === "unloading") {
-    const rp = w.resourcePoints
-      .map((r, i) => ({ r, i }))
-      .find(({r}) => Math.hypot(r.x - u.x, r.z - u.z) <= r.radius + 4 && r.amount > 0 && r.active && r.controlledBy === u.team);
-    if (rp) {
-      u.logisticsSourceIndex = rp.i;
-      u.logisticsLoadProgress = (u.logisticsLoadProgress ?? 0) + dt;
-      if (u.logisticsLoadProgress >= loadTime) {
-        const loaded = Math.min(capacity, Math.floor(rp.r.amount));
-        rp.r.amount = Math.max(0, rp.r.amount - loaded);
-        u.cargo = loaded; u.logisticsPhase = "loading"; u.logisticsLoadProgress = 0;
-      }
-    }
-  } else if (u.logisticsPhase === "loading") {
-    if (depot && Math.hypot(depot.x-u.x,depot.z-u.z) < 18) {
-      u.logisticsLoadProgress = (u.logisticsLoadProgress ?? 0) + dt;
-      if (u.logisticsLoadProgress >= unloadTime) {
-        const amount = u.cargo;
-        w.receiveSupply(depot,amount);
-        w.events.push({ type: "supply-delivered", team: u.team, x: u.x, z: u.z, amount });
-        u.cargo = 0; u.logisticsPhase = "unloading"; u.logisticsLoadProgress = 0;
-        const next = w.resourcePoints
-          .filter(r => r.amount > 0 && r.active && r.controlledBy === u.team)
-          .sort((a,b) => Math.hypot(a.x-depot.x,a.z-depot.z) - Math.hypot(b.x-depot.x,b.z-depot.z))[0];
-        if (next) { u.logisticsTarget = { x: next.x, z: next.z }; u.logisticsSourceIndex = w.resourcePoints.indexOf(next); }
-        else { u.logisticsTarget = null; u.logisticsSourceIndex = null; }
-      }
+  if(u.supplyDepotId==null){if(u.dest&&!outOfFuel(u))moveAirTo(u,u.dest,dt,w);return;}
+  const depot=w.byId.get(u.supplyDepotId);
+  if(!depot||depot.dead){
+    const replacement=w.primarySupplyDepot(u.team);
+    if(!replacement){u.mode="idle";u.dest=null;return;}
+    u.supplyDepotId=replacement.id;u.logisticsHome={x:replacement.x-replacement.def.radius-5,z:replacement.z};return;
+  }
+  const home=u.logisticsHome??{x:depot.x-depot.def.radius-5,z:depot.z};u.logisticsHome=home;
+  if(outOfFuel(u)){u.hp=0;u.dead=true;w.lossValue[u.team]+=u.def.cost;w.roadCargoLost[u.team]+=u.cargo;u.cargo=0;w.events.push({type:"death",x:u.x,y:u.y,z:u.z,big:false,kind:u.kind});return;}
+  const valid=(i:number)=>{const rp=w.resourcePoints[i];return (depot.preferredResourceIndex==null||depot.preferredResourceIndex===i)&&!!rp&&rp.controlledBy===u.team&&rp.active&&(rp.disabledUntil??0)<=w.time;};
+  if(u.cargo<=0){
+    const current=u.logisticsSourceIndex;
+    if(current==null||!valid(current)||(w.resourcePoints[current].amount??0)<1){
+      const next=w.resourcePoints.map((r,i)=>({r,i})).filter(({r,i})=>valid(i)&&r.amount>=1)
+        .sort((a,b)=>Math.hypot(a.r.x-u.x,a.r.z-u.z)-Math.hypot(b.r.x-u.x,b.r.z-u.z))[0];
+      u.logisticsSourceIndex=next?.i??null;u.logisticsTarget=next?{x:next.r.x,z:next.r.z}:null;u.logisticsLoadProgress=0;
     }
   }
+  const groundedAtHome=dist2d(u,home)<3&&u.y-heightAt(u.x,u.z)<3;
+  const routeDistance=u.logisticsTarget?[home,...depot.logisticsWaypoints??[],u.logisticsTarget].reduce((sum,p,i,points)=>sum+(i?dist2d(points[i-1],p):0),0):0;
+  const tripFuel=u.logisticsTarget?Math.min(u.maxFuel??1200,logisticsConfig.air.reserveFuel+routeDistance*2/Math.max(1,u.def.speed)*(u.def.fuelUsePerSec??3.2)+55):logisticsConfig.air.reserveFuel;
+  const returnHome=u.cargo>0||depot.logisticsPaused||!u.logisticsTarget||(u.fuel??0)<logisticsConfig.air.reserveFuel||groundedAtHome&&(u.fuel??0)<tripFuel||!w.productionOperational(depot).operational;
+  const target=returnHome?home:u.logisticsTarget!;
+  u.dest=target;u.mode="patrol";
+  const route=depot.logisticsWaypoints??[],leg=`${returnHome?"home":"source"}:${u.logisticsSourceIndex}`;
+  if(u.routeLeg!==leg){u.routeLeg=leg;u.routeWaypointIndex=0;}
+  while((u.routeWaypointIndex??0)<route.length){
+    const index=u.routeWaypointIndex??0,point=route[returnHome?route.length-1-index:index];
+    if(dist2d(u,point)<6){u.routeWaypointIndex=index+1;continue;}
+    u.dest=point;moveAirTo(u,point,dt,w,true);return;
+  }
+  if(!moveAirTo(u,target,dt,w))return;
+  u.motionSpeed=0;
+  const level=w.supplyDepotLevel(depot),config=logisticsConfig.air;
+  if(returnHome){
+    if(u.cargo>0){
+      u.logisticsLoadProgress=(u.logisticsLoadProgress??0)+dt;
+      if(u.logisticsLoadProgress<Math.max(1.2,config.unloadTime-level*config.unloadTimeReduction))return;
+      w.receiveSupply(depot,u.cargo);w.roadCargoDelivered[u.team]+=u.cargo;w.events.push({type:"supply-delivered",team:u.team,x:u.x,z:u.z,amount:u.cargo});
+      u.cargo=0;u.logisticsPhase="idle";u.logisticsLoadProgress=0;
+    }
+    // Refuel from real warehouse stock on the ground before the next sortie.
+    const take=Math.min((u.maxFuel??0)-(u.fuel??0),depot.fuelStock??0,24*dt);
+    depot.fuelStock=(depot.fuelStock??0)-take;u.fuel=(u.fuel??0)+take;
+    if((u.fuel??0)<config.reserveFuel*2){u.dest=null;u.mode="idle";return;}
+    return;
+  }
+  const index=u.logisticsSourceIndex;if(index==null||!valid(index))return;
+  const source=w.resourcePoints[index];
+  u.logisticsLoadProgress=(u.logisticsLoadProgress??0)+dt;
+  if(u.logisticsLoadProgress>=Math.max(2.2,config.loadTime-level*config.loadTimeReduction)){
+    const loaded=Math.min(config.capacity+level*config.capacityPerLevel,Math.floor(source.amount));
+    source.amount-=loaded;u.cargo=loaded;u.logisticsPhase="loading";u.logisticsLoadProgress=0;
+  }
+
 }
 
 export function updateUnits(w: World, dt: number): void {
@@ -357,7 +395,7 @@ function stepUnit(w: World, u: Entity, dt: number): void {
       if(!u.navPath.length || !u.roadPathGoal || Math.hypot(u.roadPathGoal.x-target.x,u.roadPathGoal.z-target.z)>5 || u.stuckTime>1){
         u.navPath=findPath(w.nav,u,target,u.def.radius);u.navPathIndex=0;u.roadPathGoal={x:target.x,z:target.z};u.stuckTime=0;
       }
-      while(u.navPathIndex<u.navPath.length && Math.hypot(u.x-u.navPath[u.navPathIndex].x,u.z-u.navPath[u.navPathIndex].z)<.18)u.navPathIndex++;
+      while(u.navPathIndex<u.navPath.length && Math.hypot(u.x-u.navPath[u.navPathIndex].x,u.z-u.navPath[u.navPathIndex].z)<mobility.navigation.arrival)u.navPathIndex++;
       const p = u.navPath[u.navPathIndex] ?? target;
       const before=Math.hypot(u.x-target.x,u.z-target.z);
       const dx = p.x - u.x, dz = p.z - u.z, len = Math.hypot(dx,dz) || 1;
@@ -370,7 +408,7 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     return;
   }
   const supplyFactor = u.def.speed === 0 || (u.supply ?? 100) > 20 ? 1 : 0.65;
-  const effectiveRange = d.range * (u.upgrades.has("range") ? 1.2 : 1) * ((u.supply ?? 100) > 10 ? 1 : 0.9);
+  const effectiveRange = effectiveWeaponRange(u);u.firingRange=effectiveRange;
   u.cooldown = Math.max(0, u.cooldown - dt);
 
   if (u.fireMission && !u.artilleryDisplace && ["artillery","mortar","mlrs"].includes(u.kind)) {u.target=null;return;}
@@ -443,11 +481,11 @@ function stepUnit(w: World, u: Entity, dt: number): void {
   }
   const t = u.target;
   // Explicit attack orders keep the target even through fog; auto-acquire still needs vision
-  if (t && !isSpottedBy(t,u.team,w.time)) {
+  if (t && (!isSpottedBy(t,u.team,w.time) || !canEngage(u,t))) {
     if (u.mode === "attack") u.mode="amove";
     u.target=null;
   }
-  if (u.mode === "patrol" && u.dest && Math.hypot(u.x-u.dest.x,u.z-u.dest.z) < 3) {
+  if (u.mode === "patrol" && u.patrolPoints.length && u.dest && Math.hypot(u.x-u.dest.x,u.z-u.dest.z) < (d.category==="air"?18:3)) {
     u.patrolIndex = (u.patrolIndex + 1) % u.patrolPoints.length; u.dest = u.patrolPoints[u.patrolIndex]; u.navPath = []; u.navPathIndex = 0;
   }
   const target = u.target;
@@ -474,6 +512,16 @@ function stepUnit(w: World, u: Entity, dt: number): void {
       }
     }
   } else if (["move","amove","patrol"].includes(u.mode)) goal = u.dest;
+  if(target && d.armor!=="air" && d.speed>0 && dist2d(u,target)<(d.minimumRange??0) && !u.holdPosition && u.mode!=="hold" && u.mode!=="move"){
+    const a=Math.atan2(u.x-target.x,u.z-target.z),distance=Math.max((d.minimumRange??0)*1.6,effectiveRange*.4);
+    const retreat={x:target.x+Math.sin(a)*distance,z:target.z+Math.cos(a)*distance};
+    if(w.nav.isWalkableWorld(retreat.x,retreat.z,d.radius))goal=retreat;
+  }
+  if(target && d.category==="heli" && u.mode!=="move" && !u.holdPosition && u.mode!=="hold"){
+    const distance=dist2d(u,target),standoff=effectiveRange*.78;
+    if(distance<standoff*.68){const a=Math.atan2(u.x-target.x,u.z-target.z);goal={x:target.x+Math.sin(a)*standoff,z:target.z+Math.cos(a)*standoff};}
+    else if(!inRange){const a=Math.atan2(u.x-target.x,u.z-target.z);goal={x:target.x+Math.sin(a)*standoff,z:target.z+Math.cos(a)*standoff};}
+  }
   if(goal && d.armor!=="air" && d.domain!=="sea" && (!u.roadPathGoal || Math.hypot(u.roadPathGoal.x-goal.x,u.roadPathGoal.z-goal.z)>5 || !u.navPath.length && w.time>=(u.roadPathRetryAt??0))) {
     u.navPath=findPath(w.nav,u,goal,d.radius);u.navPathIndex=0;u.roadPathGoal={x:goal.x,z:goal.z};u.roadPathRetryAt=w.time+1.5;
   }
@@ -510,13 +558,16 @@ function stepUnit(w: World, u: Entity, dt: number): void {
     let dx = 0, dz = 0, moving = false;
     if (goal) {
       const gx = goal.x - u.x, gz = goal.z - u.z, gd = Math.hypot(gx, gz);
-      if (goal === u.dest && gd < 2.5 && u.mode!=="patrol") { u.mode = "idle"; u.dest = null; u.navPath = []; u.navPathIndex = 0; u.flowField = null; }
+      if (goal === u.dest && gd < mobility.navigation.arrival && u.mode!=="patrol") {
+        const next=u.moveQueue?.shift();u.mode=next?(u.queuedMoveType??"move"):"idle";u.dest=next??null;u.navPath=[];u.navPathIndex=0;u.flowField=null;
+      }
       else { dx = gx / gd; dz = gz / gd; moving = true; }
     }
     if (moving && !isAir && u.def.domain!=="sea") {
       let navDx = dx, navDz = dz;
       if (u.navPath.length) {
-        while (u.navPathIndex < u.navPath.length && Math.hypot(u.x - u.navPath[u.navPathIndex].x, u.z - u.navPath[u.navPathIndex].z) < .18) u.navPathIndex++;
+        while (u.navPathIndex < u.navPath.length && Math.hypot(u.x - u.navPath[u.navPathIndex].x, u.z - u.navPath[u.navPathIndex].z) < mobility.navigation.arrival) u.navPathIndex++;
+        smoothWaypoint(w,u);
         if (u.navPathIndex < u.navPath.length) { const p = u.navPath[u.navPathIndex], m = Math.hypot(p.x-u.x,p.z-u.z)||1; navDx=(p.x-u.x)/m; navDz=(p.z-u.z)/m; }
       } else if (u.flowField && isAir) {
         const f = u.flowField.directionAt(u, u.def.radius);
@@ -529,7 +580,7 @@ function stepUnit(w: World, u: Entity, dt: number): void {
       const diff = Math.abs(wrapAngle(want - u.heading));
       const slope = (heightAt(u.x + ex * 2, u.z + ez * 2) - u.y) / 2;
       const road = w.mapFeatures.some(f => (f.kind === "road" || f.kind === "bridge") && pointInFeature(u.x,u.z,f,1.5));
-      const cover = w.mapFeatures.some(f => f.kind === "cover" && f.appearance!=="field" && pointInFeature(u.x,u.z,f,1.5));
+      const cover = w.mapFeatures.some(f => f.kind === "cover" && f.appearance!=="field" && f.appearance!=="yard" && pointInFeature(u.x,u.z,f,1.5));
       const terrainMod = road ? 1.22 : cover ? d.category==="infantry" ? mobility.infantry.forestSpeed : mobility.tracked.forestSpeed : 1;
       const supplyMove = (u.supply ?? 100) > 10 ? 1 : 0.78;
       const roleMove = u.role === "siege" ? 0.92 : 1;
@@ -541,13 +592,21 @@ function stepUnit(w: World, u: Entity, dt: number): void {
       const desiredSpeed=Math.min(sp,Math.sqrt(Math.max(0,goal?dist2d(u,goal)-1:0)*2*profile.braking));
       const currentSpeed=u.motionSpeed??0;u.motionSpeed=currentSpeed+Math.max(-profile.braking*dt,Math.min(profile.acceleration*dt,desiredSpeed-currentSpeed));
       const travel=Math.min(distanceToWaypoint,u.motionSpeed*dt);
-      const nx=u.x+ex*travel,nz=u.z+ez*travel;
-      if(isAir || u.navPath.length && w.nav.isWalkableWorld(nx,nz,d.radius)) {u.x=nx;u.z=nz;}
-      else if(!isAir){const px=u.x+navDx*travel,pz=u.z+navDz*travel;if(u.navPath.length&&w.nav.isWalkableWorld(px,pz,d.radius)){u.x=px;u.z=pz;}else u.stuckTime+=dt;}
+      const moveX=d.category==="infantry"?ex:Math.sin(u.heading),moveZ=d.category==="infantry"?ez:Math.cos(u.heading);
+      const nx=u.x+moveX*travel,nz=u.z+moveZ*travel;
+      if(isAir || u.navPath.length && w.nav.isWalkableWorld(nx,nz,d.radius) && bodyClear(w,u,{x:nx,z:nz})) {u.x=nx;u.z=nz;}
+      else if(!isAir){const px=u.x+navDx*travel,pz=u.z+navDz*travel;if(u.navPath.length&&w.nav.isWalkableWorld(px,pz,d.radius)&&bodyClear(w,u,{x:px,z:pz})){u.x=px;u.z=pz;}else {
+        let avoided=false;
+        for(const side of [u.id%2?1:-1,u.id%2?-1:1]){
+          const ax=u.x+(navDx*.25-navDz*side*mobility.navigation.sidestep)*travel,az=u.z+(navDz*.25+navDx*side*mobility.navigation.sidestep)*travel;
+          if(w.nav.isWalkableWorld(ax,az,d.radius)&&bodyClear(w,u,{x:ax,z:az})){u.x=ax;u.z=az;avoided=true;break;}
+        }
+        if(!avoided){u.motionSpeed=Math.max(0,(u.motionSpeed??0)-profile.braking*dt);u.stuckTime+=dt;}
+      }}
     }
     if(!goal&&!isAir){
       u.motionSpeed=Math.max(0,(u.motionSpeed??0)-mobility.tracked.braking*dt);
-      if((u.motionSpeed??0)>.25){const nx=u.x+Math.sin(u.heading)*u.motionSpeed!*dt,nz=u.z+Math.cos(u.heading)*u.motionSpeed!*dt;if(w.nav.isWalkableWorld(nx,nz,d.radius)){u.x=nx;u.z=nz;}else u.motionSpeed=0;}
+      if((u.motionSpeed??0)>.25){const nx=u.x+Math.sin(u.heading)*u.motionSpeed!*dt,nz=u.z+Math.cos(u.heading)*u.motionSpeed!*dt;if(w.nav.isWalkableWorld(nx,nz,d.radius)&&bodyClear(w,u,{x:nx,z:nz})){u.x=nx;u.z=nz;}else u.motionSpeed=0;}
     }
     const limit=MAP_SIZE/2-10;u.x=Math.max(-limit,Math.min(limit,u.x));u.z=Math.max(-limit,Math.min(limit,u.z));
     if(!isAir)u.y=heightAt(u.x,u.z);
@@ -586,13 +645,11 @@ function stepUnit(w: World, u: Entity, dt: number): void {
 
   const stationaryOk = !mustStopToFire || !isMovingFast;
   const moveOk = canFireOnMove || !isMovingFast || (inRange && !mustStopToFire);
-  const rangeOk = !!target && dist2d(u, target) - target.def.radius <= effectiveRange;
+  const rangeOk = !!target && dist2d(u, target) - target.def.radius <= effectiveRange && dist2d(u,target)>=(d.minimumRange??0);
 
   // Must have LOS; for auto-fire also require Wargame "spotted" (attack orders keep target)
   const spotted = target ? isSpottedBy(target, u.team, w.time) : false;
-  const targetClass=d.targetClass??"all";
-  const validClass=target && (targetClass==="all" || targetClass==="air"&&target.def.armor==="air" || targetClass==="ground"&&target.def.armor!=="air" || targetClass==="armor"&&target.def.armor!=="air"&&target.def.speed>0 || targetClass==="naval"&&target.def.domain==="sea");
-  const canShootTarget = target && spotted && validClass;
+  const canShootTarget = target && spotted && canEngage(u,target);
   if (target && canShootTarget && rangeOk && aligned && stationaryOk && moveOk && !disabled && u.cooldown === 0 && d.damage
       && moraleState(u) !== "routing"
       && !outOfAmmo(u)
@@ -631,8 +688,9 @@ export function combatStatus(w:World,u:Entity):string {
   if(outOfAmmo(u))return "Laskemoon otsas — vaja varustust";
   if(moraleState(u)==="routing")return "Taandub";
   if(!u.target)return u.dest?"Liigub · otsib sihtmärki":"Valmis · sihtmärk puudub";
-  if(dist2d(u,u.target)-u.target.def.radius>u.def.range)return "Läheneb sihtmärgile";
+  if(dist2d(u,u.target)-u.target.def.radius>effectiveWeaponRange(u))return "Läheneb sihtmärgile";
   if(!["artillery","mortar","mlrs"].includes(u.kind)&&!w.vision.hasLineOfSight(u,u.target))return "Tulejoon blokeeritud · otsib positsiooni";
+  if(dist2d(u,u.target)<(u.def.minimumRange??0))return "Sihtmärk liiga lähedal";
   if(u.cooldown>0)return "Laadimine";
   return "Sihib / avab tule";
 }

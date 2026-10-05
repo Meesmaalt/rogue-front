@@ -1,3 +1,4 @@
+import {effectiveWeaponRange} from "../sim/systems/combat";
 import "./hud.css";
 import "./tactical.css";
 import {icon,unitPicture} from "./icons";
@@ -61,6 +62,7 @@ export class Hud {
   onBuild: (kind: "barracks"|"factory"|"helipad"|"airbase"|"refinery"|"supply"|"radar"|"bunker"|"aa"|"generator"|"shipyard"|"landCommand"|"airCommand"|"seaCommand"|"combatEngineer"|"landStrategy"|"airStrategy"|"seaStrategy") => void = () => {};
   onUpgradeSupply: (ids: number[]) => void = () => {};
   onUpgradeFOB: (ids: number[]) => void = () => {};
+  onLogisticsEdit:(ids:number[],action:"source"|"route"|"clear"|"auto"|"pause")=>void=()=>{};
   onDepotPriority: (ids: number[], focus: "ammo" | "fuel" | "repair" | "balanced") => void = () => {};
   onUpgradeProducer: (ids: number[]) => void = () => {};
   onStance: (ids: number[], mode: "attack" | "hold" | "patrol" | "holdfire") => void = () => {};
@@ -93,7 +95,7 @@ export class Hud {
             <span class="pwr-bar" title="Energia"><i data-r="pwrFill"></i></span>
           </div>
           <div class="res-row logistics-row"><span class="res-label">LOGISTIKA</span><b data-r="logistics">—</b></div><details class="economy-details"><summary title="Majanduse ja varustuse andmed">ⓘ</summary><div><small data-r="commandNet">Juhtimisvõrk —</small>
-          <small>Krediit <span data-r="cr">0</span> · Moraal <span data-r="morale">100</span> · <span data-r="airstatus">Õhk 0/0</span></small><small data-r="economy">Majandus —</small>
+          <small>Krediit <span data-r="cr">0</span> · Moraal <span data-r="morale">100</span> · <span data-r="airstatus">Õhk 0/0</span></small><small data-r="economy">Majandus —</small><small>Vii insener ressursirajatise juurde: hõivamine → käivitus → automaatsed veod. Uuenda ladu, et suurendada kopteriparki ja koormat.</small>
           </div></details><span data-r="clock">0:00</span>
         </div>
       </header>
@@ -167,7 +169,7 @@ export class Hud {
                 <button data-upgrade-supply hidden>Uuenda varustusladu</button>
                 <button data-upgrade-fob hidden>Ehita FOB</button>
                 <div class="depot-control-bar" data-r="depotControlBar" hidden>
-                  <span class="pre-label">FOB prioriteet:</span>
+                  <span class="pre-label">Tarnejuhtimine:</span><button data-logistics-edit="source">Vali rajatis</button><button data-logistics-edit="route">Lisa vahepunkt</button><button data-logistics-edit="clear">Otsetee</button><button data-logistics-edit="auto">Automaatne</button><button data-logistics-edit="pause">Peata / jätka</button><small>Vali rajatis või vahepunkt nupuga, seejärel parem klõps kaardil. L = otsetee.</small><span class="pre-label">FOB prioriteet:</span>
                   <button data-depot-priority="balanced">Tasakaal</button><button data-depot-priority="ammo">Ammo</button><button data-depot-priority="fuel">Kütus</button><button data-depot-priority="repair">Remont</button>
                 </div>
                 <button data-cancel-produce hidden title="Tühista viimane (75% tagasi)">Tühista viimane</button>
@@ -194,6 +196,7 @@ export class Hud {
     root.querySelector<HTMLButtonElement>("button[data-upgrade-producer]")?.addEventListener("click",()=>this.onUpgradeProducer([...this.selectedIds]));
     root.querySelector<HTMLButtonElement>("button[data-upgrade-supply]")?.addEventListener("click",()=>this.onUpgradeSupply([...this.selectedIds]));
     root.querySelector<HTMLButtonElement>("button[data-upgrade-fob]")?.addEventListener("click",()=>this.onUpgradeFOB([...this.selectedIds]));
+    root.querySelectorAll<HTMLButtonElement>("button[data-logistics-edit]").forEach(b=>b.addEventListener("click",()=>this.onLogisticsEdit([...this.selectedIds],b.dataset.logisticsEdit as "source"|"route"|"clear"|"auto"|"pause")));
     root.querySelectorAll<HTMLButtonElement>("button[data-depot-priority]").forEach((b)=>b.addEventListener("click",()=>{ if(this.selectedIds.length) this.onDepotPriority([...this.selectedIds], b.dataset.depotPriority as "ammo"|"fuel"|"repair"|"balanced"); }));
     root.querySelector<HTMLButtonElement>("button[data-cancel-produce]")?.addEventListener("click", () => {
       if (this.selectedProducerId != null) this.onCancelProduce(this.selectedProducerId);
@@ -273,7 +276,7 @@ export class Hud {
     if (this.el.morale) this.el.morale.textContent = String(Math.round(world.teamMorale[world.playerTeam]));
     if (this.el.control) this.el.control.textContent = String(Math.round(world.areaControl[world.playerTeam]));
     if (this.el.airstatus) { const a=world.airbaseStatus(world.playerTeam), s=world.supplyDepotStatus(world.playerTeam), al=world.airliftStatus(world.playerTeam); this.el.airstatus.textContent = `Õhk ${a.aircraft}/${a.capacity} · Helid ${s.active}/${s.depots} · Varu ${al.pool} · ${al.enabled ? `Cargo ${al.inFlight ? "lennul" : "ootel"}` : "lennujaam lvl1"}`; }
-    if (this.el.economy) { const e = world.resourceEconomyStatus(world.playerTeam), r = world.roadLogisticsStatus(world.playerTeam); this.el.economy.textContent = `Punktid ${e.controlled} · Töös ${e.active} · laovaru ${e.stock} · +${e.rate.toFixed(1)}/s · Veokid ${r.trucks} · Teel ${r.cargo}${r.disconnected ? ` · Katkestatud ${r.disconnected}` : ""}`; }
+    if (this.el.economy) { const e = world.resourceEconomyStatus(world.playerTeam), r = world.roadLogisticsStatus(world.playerTeam); this.el.economy.textContent = `Punktid ${e.controlled} · Töös ${e.active} · laovaru ${e.stock} · tootmine +${e.rate.toFixed(1)}/s (rajatises) · Veokid ${r.trucks} · Teel ${r.cargo}${r.disconnected ? ` · Katkestatud ${r.disconnected}` : ""}`; }
     if (this.el.commandNet) { const cn=world.commandNetworkStatus(world.playerTeam); this.el.commandNet.textContent = `Juhtimisvõrk ${cn.nodes} · FOB ${cn.fobs} · ühendatud ${cn.linked} · katvus ${Math.round(cn.coverage*100)}%`; }
     const ps = world.powerStatus(world.playerTeam);
     if (this.el.power) {
@@ -384,7 +387,7 @@ export class Hud {
     if (producerUpgrade) { producerUpgrade.hidden=!selectedUpgrade; producerUpgrade.textContent=selectedUpgrade?.upgrading ? `Uuendamine… ${Math.ceil((selectedUpgrade.upgradeTime??10)-(selectedUpgrade.upgradeProgress??0))}s` : (selectedUpgrade && world.producerLevel(selectedUpgrade)>=3 ? `${selectedUpgrade.kind === "airbase" ? "Lennujaam" : "Tootja"} MAX · Tase 3` : `${selectedUpgrade?.kind === "airbase" ? "Uuenda lennubaasi" : "Uuenda hoonet"} → tase ${(selectedUpgrade ? world.producerLevel(selectedUpgrade)+1 : 2)} (${selectedUpgrade ? world.producerUpgradeCost(world.producerLevel(selectedUpgrade)) : 260})`); producerUpgrade.disabled=!running||!selectedUpgrade||!!selectedUpgrade.upgrading||!world.canUpgradeProducer(selectedUpgrade)||world.resources<(selectedUpgrade ? world.producerUpgradeCost(world.producerLevel(selectedUpgrade)) : 9999)||world.credits<(selectedUpgrade ? world.producerUpgradeCost(world.producerLevel(selectedUpgrade)) : 9999); }
     const supplyDepot = [...selection].map(id=>world.byId.get(id)).find(e=>e && !e.dead && e.team===world.playerTeam && e.kind==="supply");
     const supplyButton = rootButton(this, "button[data-upgrade-supply]");
-    if (supplyButton) { const st=world.supplyDepotStatus(world.playerTeam); supplyButton.hidden=!supplyDepot; supplyButton.textContent=st.level>=3 ? "Varustusladu MAX" : `Uuenda varustusladu (${180 + st.level*120}) · tase ${st.level+1}/3`; supplyButton.disabled=!running||!supplyDepot||st.level>=3||world.resources<(180+st.level*120)||world.credits<(180+st.level*120); }
+    if (supplyButton) { const st=world.supplyDepotStatus(world.playerTeam); supplyButton.hidden=!supplyDepot; supplyButton.textContent=st.level>=2 ? "Varustusladu MAX" : `Uuenda varustusladu (${180 + st.level*120}) · tase ${st.level+1}/3`; supplyButton.disabled=!running||!supplyDepot||st.level>=2||world.resources<(180+st.level*120)||world.credits<(180+st.level*120); }
     const fobButton = rootButton(this, "button[data-upgrade-fob]");
     if (fobButton) { const lvl=supplyDepot?.fobLevel ?? 0; const cost=300+lvl*220; fobButton.hidden=!supplyDepot; fobButton.textContent=lvl>=2 ? "FOB MAX · juhtimisvõrk" : `Ehita FOB (${cost}) · tase ${lvl+1}/2`; fobButton.disabled=!running||!supplyDepot||lvl>=2||world.resources<cost||world.credits<cost; }
     const depotControl = this.el.depotControlBar as HTMLElement | undefined; if (depotControl) depotControl.hidden=!supplyDepot;
@@ -397,8 +400,8 @@ export class Hud {
       const u = sel[0]!;
       this.el.selT.textContent = world.unitDisplayName(u.kind, u.team);
       const meter=(label:string,value:number,max:number)=>`<div class="unit-meter"><span>${label}</span><b>${Math.ceil(value)}/${Math.ceil(max)}</b><i><em style="width:${Math.min(100,Math.max(0,value/Math.max(1,max)*100))}%"></em></i></div>`;
-      const status=u.def.damage?combatStatus(world,u):u.underConstruction?"Ehitamisel":u.def.building?"Hoone · tase "+world.producerLevel(u):u.mode==="move"?"Liigub":"Ootab käsku";
-      this.setSelectedMarkup(`<div class="selected-summary"><div class="selected-picture">${unitPicture(u.kind,(u.team===world.playerTeam?world.playerFaction:world.enemyFaction))}</div><div class="meters">${meter("Elud",u.hp,u.def.hp)}${(u.maxAmmo??0)>0?meter("Moon",u.ammo??0,u.maxAmmo!):""}${(u.maxFuel??0)>0?meter("Kütus",u.fuel??0,u.maxFuel!):""}${u.def.speed>0?meter("Moraal",u.morale??100,100):""}</div></div><span class="unit-status">${status}</span><small class="role-summary">${u.def.roleLabel??BUILD_LABELS[u.kind]??u.kind}${u.def.damage?` · Ulatus ${u.def.range} · Läbivus ${u.def.penetration??0}`:""}${u.kind==="supply"?` · Moon ${Math.floor(u.ammoStock??0)} · Kütus ${Math.floor(u.fuelStock??0)} · Remont ${Math.floor(u.repairStock??0)}`:""}</small><details class="unit-details"><summary>Taktikalised andmed</summary>Kate ${coverValueAt(world,u.x,u.z)} · Soomus ${u.def.armorFront??0}/${u.def.armorSide??0}/${u.def.armorRear??0} · Surve ${Math.round(u.suppression??0)} · Optika ${u.def.optics??"—"} · ${world.isInSupply(u)?"Varustusalas":"Väljaspool varustusala"}${u.components?` · Kahjustused ${Math.round(Math.max(...Object.values(u.components)))}%`:""}</details>`);
+      const status=u.kind==="transport"&&u.supplyDepotId!=null?(world.byId.get(u.supplyDepotId)?.logisticsPaused&&u.cargo<=0?"Logistika peatatud · naaseb / ootab laos":u.cargo>0?`Varustusvedu · koorem ${Math.floor(u.cargo)} → ladu`:u.logisticsTarget?"Varustusvedu · ressursirajatise juurde":"Ootab töötavat ressursirajatist"):u.def.damage?combatStatus(world,u):u.underConstruction?"Ehitamisel":u.def.building?"Hoone · tase "+world.producerLevel(u):u.mode==="move"?"Liigub":"Ootab käsku";
+      this.setSelectedMarkup(`<div class="selected-summary"><div class="selected-picture">${unitPicture(u.kind,(u.team===world.playerTeam?world.playerFaction:world.enemyFaction))}</div><div class="meters">${meter("Elud",u.hp,u.def.hp)}${(u.maxAmmo??0)>0?meter("Moon",u.ammo??0,u.maxAmmo!):""}${(u.maxFuel??0)>0?meter("Kütus",u.fuel??0,u.maxFuel!):""}${u.def.speed>0?meter("Moraal",u.morale??100,100):""}</div></div><span class="unit-status">${status}</span><small class="role-summary">${u.def.roleLabel??BUILD_LABELS[u.kind]??u.kind}${u.def.damage?` · Ulatus ${Math.round(effectiveWeaponRange(u))} m${u.def.minimumRange?` (min ${u.def.minimumRange})`:""} · Läbivus ${u.def.penetration??0}`:""}${u.kind==="supply"?` · Moon ${Math.floor(u.ammoStock??0)} · Kütus ${Math.floor(u.fuelStock??0)} · Remont ${Math.floor(u.repairStock??0)} · ${u.logisticsPaused?"VEOD PEATATUD":u.preferredResourceIndex!=null?"Rajatis "+(u.preferredResourceIndex+1):"Automaatne kogumine"} · Vahepunkte ${u.logisticsWaypoints?.length??0}`:""}</small><details class="unit-details"><summary>Taktikalised andmed</summary>Kate ${coverValueAt(world,u.x,u.z)} · Soomus ${u.def.armorFront??0}/${u.def.armorSide??0}/${u.def.armorRear??0} · Surve ${Math.round(u.suppression??0)} · Optika ${u.def.optics??"—"} · ${world.isInSupply(u)?"Varustusalas":"Väljaspool varustusala"}${u.components?` · Kahjustused ${Math.round(Math.max(...Object.values(u.components)))}%`:""}</details>`);
 
     } else {
       const c: Record<string, number> = {};

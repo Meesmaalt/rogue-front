@@ -14,7 +14,7 @@ export interface MapFeatureDef {
   blocksMovement?: boolean;
   /** Optional tactical metadata used by UI/rendering. */
   label?: string;
-  appearance?: "forest" | "field" | "farmhouse" | "hedge";
+  appearance?: "forest" | "field" | "farmhouse" | "hedge" | "resource-industrial" | "resource-oil" | "yard";
   color?: number;
 }
 

@@ -52,8 +52,10 @@ export class RtsCamera {
     this.camera.position.set(this.x + s * cp * this.dist, this.groundY + sp2 * this.dist, this.z + c * cp * this.dist);
     this.camera.lookAt(this.x, this.groundY, this.z);
 
-    this.sun.position.set(this.x + 70, this.groundY + 95, this.z + 45);
-    this.sun.target.position.set(this.x, this.groundY, this.z);
+    // Quantized shadow anchor keeps the cached static shadow stable while panning.
+    const sx=Math.round(this.x/4)*4,sz=Math.round(this.z/4)*4,sy=this.heightAt(sx,sz);
+    this.sun.position.set(sx + 70, sy + 95, sz + 45);
+    this.sun.target.position.set(sx, sy, sz);
     this.sun.target.updateMatrixWorld();
   }
 }

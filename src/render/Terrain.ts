@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import {createCivilianBuilding} from "./Architecture";
+import {createCivilianBuilding,createBuildingModel,batchStaticScene} from "./Architecture";
 import { getBases, MAP_SIZE, heightAt } from "../sim/heightmap";
 import { mulberry32 } from "../sim/rng";
 import { pointInFeature, type MapFeatureDef } from "../sim/mapFeatures";
@@ -48,13 +48,14 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
   }
   geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
 
-  const grain = makeGrainTexture();
+  const grain = makeGrainTexture(theme);
 
   const terrain = new THREE.Mesh(
     geo,
     new THREE.MeshStandardMaterial({
       vertexColors: true,
       map: grain,
+      bumpMap:grain,bumpScale:.10,
       roughness: 0.92,
       metalness: 0,
     }),
@@ -65,27 +66,21 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
   if (theme !== "temperate") group.add(createRocks(rnd, bases, features));
   else group.add(createForest(features));
   group.add(createDecals(rnd));
-  group.add(createMapFeatures(features));
+  group.add(batchStaticScene(createMapFeatures(features)));
   return group;
 }
 
-function makeGrainTexture(): THREE.CanvasTexture {
-  const cv = document.createElement("canvas");
-  cv.width = cv.height = 256;
-  const g = cv.getContext("2d")!;
-  const im = g.createImageData(256, 256);
-  for (let i = 0; i < 256 * 256; i++) {
-    const v = 205 + Math.random() * 50;
-    im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = v;
-    im.data[i * 4 + 3] = 255;
+function makeGrainTexture(theme:string):THREE.CanvasTexture {
+  const cv=document.createElement("canvas");cv.width=cv.height=512;
+  const g=cv.getContext("2d")!,im=g.createImageData(512,512),rnd=mulberry32(6021);
+  for(let z=0;z<512;z++)for(let x=0;x<512;x++){
+    const macro=Math.sin(x*Math.PI*2/512)*Math.cos(z*Math.PI*4/512);
+    const fine=rnd(),blade=theme==="temperate"&&fine>.84;
+    const v=216+macro*13+fine*25-(blade?28:0),i=(z*512+x)*4;
+    im.data[i]=v;im.data[i+1]=v+(blade?5:0);im.data[i+2]=v-(blade?6:0);im.data[i+3]=255;
   }
-  g.putImageData(im, 0, 0);
-  const t = new THREE.CanvasTexture(cv);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.repeat.set(90, 90);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
-  return t;
+  g.putImageData(im,0,0);
+  const t=new THREE.CanvasTexture(cv);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(80,80);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return t;
 }
 
 function createRocks(rnd: () => number, bases: readonly (Point & { r: number })[], features: readonly MapFeatureDef[] = []): THREE.InstancedMesh {
@@ -138,6 +133,7 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
   group.name = "map-features";
   for (const f of features) {
     const y = heightAt(f.x, f.z);
+    if(f.appearance==="yard"){group.add(drapedStrip(f,f.width,f.color??0x858578,.07));continue;}
     if (f.appearance === "forest") continue;
     if (f.appearance === "field") {
       const field=drapedStrip(f,f.width,f.color??0x879357,.025);
@@ -161,6 +157,10 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
         mesh.position.set(f.x,y+.28,f.z);mesh.rotation.y=f.rotation??0;mesh.receiveShadow=true;group.add(mesh);addBridgeRails(group,f,y);
       }
       continue;
+    }
+    if(f.appearance==="resource-industrial"||f.appearance==="resource-oil"){
+      const model=createBuildingModel(f.appearance==="resource-oil"?"refinery":"factory",0,"russia")!;
+      model.group.position.set(f.x,y,f.z);group.add(model.group);continue;
     }
     if (f.kind === "building" || f.kind === "wall" || f.kind === "chokepoint") {
       const h = f.height ?? (f.kind === "wall" ? 3.2 : f.kind === "chokepoint" ? 2.8 : 8);
@@ -263,16 +263,58 @@ function addBridgeRails(group: THREE.Group, f: MapFeatureDef, y: number): void {
 function drapedStrip(f:MapFeatureDef,width:number,color:number,lift:number):THREE.Mesh {
   const geo=new THREE.PlaneGeometry(width,f.depth,2,Math.max(1,Math.ceil(f.depth/3)));geo.rotateX(-Math.PI/2);const p=geo.attributes.position,c=Math.cos(f.rotation??0),s=Math.sin(f.rotation??0);
   for(let i=0;i<p.count;i++){const lx=p.getX(i),lz=p.getZ(i),x=f.x+lx*c+lz*s,z=f.z-lx*s+lz*c;p.setXYZ(i,x,heightAt(x,z)+lift,z);}geo.computeVertexNormals();
-  const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color,roughness:.96,polygonOffset:true,polygonOffsetFactor:-1}));mesh.receiveShadow=true;return mesh;
+  const paved=f.kind==="road"||f.appearance==="yard";
+  if(paved){const uv=geo.attributes.uv;for(let i=0;i<p.count;i++)uv.setXY(i,p.getX(i)*.18,p.getZ(i)*.18);}
+  const map=paved?asphaltTexture():null;
+  const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color,map,bumpMap:map,bumpScale:.025,roughness:.96,polygonOffset:true,polygonOffsetFactor:-1}));mesh.receiveShadow=true;return mesh;
 }
+/** Crossed cutout crowns have irregular leaf silhouettes, depth writing and no
+ * transparent sorting. Separate cell batches keep distant forests culled. */
 function createForest(features:readonly MapFeatureDef[]):THREE.Group {
-  const rnd=mulberry32(104),points:{x:number;z:number;s:number}[]=[];
-  for(const f of features.filter(f=>f.appearance==="forest"))for(let i=0;i<Math.ceil(f.width*f.depth/30);i++)points.push({x:f.x+(rnd()-.5)*f.width,z:f.z+(rnd()-.5)*f.depth,s:.8+rnd()*.55});
-  const group=new THREE.Group(),trunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(.16,.25,3,5),new THREE.MeshStandardMaterial({color:0x645942,roughness:1}),points.length);
-  const crowns=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(2.4,1),new THREE.MeshStandardMaterial({color:0xffffff,roughness:1}),points.length*2),d=new THREE.Object3D();
-  points.forEach((p,i)=>{const y=heightAt(p.x,p.z);d.position.set(p.x,y+1.5*p.s,p.z);d.scale.set(p.s,p.s,p.s);d.updateMatrix();trunks.setMatrixAt(i,d.matrix);
-    for(let j=0;j<2;j++){d.position.set(p.x+j*.55,y+(3.8+j*1.6)*p.s,p.z);d.scale.set(p.s*(1-j*.25),p.s,p.s*(1-j*.25));d.updateMatrix();crowns.setMatrixAt(i*2+j,d.matrix);crowns.setColorAt(i*2+j,new THREE.Color().setHSL(.27+rnd()*.035,.26+rnd()*.15,.19+rnd()*.08));}});
-  trunks.castShadow=true;crowns.castShadow=true;crowns.receiveShadow=true;group.add(trunks,crowns);return group;
+  const rnd=mulberry32(104),cells=new Map<string,{x:number;z:number;s:number;angle:number}[]>();
+  const forbidden=features.filter(f=>["building","road","bridge","water","wall"].includes(f.kind)||f.appearance==="yard");
+  for(const f of features.filter(f=>f.appearance==="forest")){
+    const c=Math.cos(f.rotation??0),s=Math.sin(f.rotation??0);
+    for(let i=0;i<Math.ceil(f.width*f.depth/38);i++){
+      const lx=(rnd()-.5)*f.width,lz=(rnd()-.5)*f.depth,x=f.x+lx*c+lz*s,z=f.z-lx*s+lz*c;
+      if(forbidden.some(block=>pointInFeature(x,z,block,2)))continue;
+      const key=`${Math.floor(x/64)}/${Math.floor(z/64)}`,list=cells.get(key)??[];
+      list.push({x,z,s:.85+rnd()*.65,angle:rnd()*Math.PI});cells.set(key,list);
+    }
+  }
+  const group=new THREE.Group(),trunkGeometry=new THREE.CylinderGeometry(.13,.3,5,6),crownGeometry=new THREE.PlaneGeometry(7,8);
+  const trunkMaterial=new THREE.MeshStandardMaterial({color:0x625a49,roughness:1});
+  const crownMaterial=new THREE.MeshStandardMaterial({color:0xffffff,map:foliageTexture(),alphaTest:.48,side:THREE.DoubleSide,roughness:1,metalness:0});
+  const d=new THREE.Object3D(),tint=new THREE.Color();
+  for(const points of cells.values()){
+    const trunks=new THREE.InstancedMesh(trunkGeometry,trunkMaterial,points.length),crowns=new THREE.InstancedMesh(crownGeometry,crownMaterial,points.length*3);
+    points.forEach((p,i)=>{
+      const y=heightAt(p.x,p.z);d.rotation.set(0,p.angle,0);d.position.set(p.x,y+2.5*p.s,p.z);d.scale.set(p.s,p.s,p.s);d.updateMatrix();trunks.setMatrixAt(i,d.matrix);
+      tint.setHSL(.26+rnd()*.035,.25+rnd()*.12,.30+rnd()*.08);
+      for(let j=0;j<3;j++){
+        d.position.set(p.x,y+5.5*p.s,p.z);d.rotation.set(j===2?-Math.PI/2:0,p.angle+j*Math.PI/2,0);d.scale.set(p.s,p.s,p.s);d.updateMatrix();crowns.setMatrixAt(i*3+j,d.matrix);crowns.setColorAt(i*3+j,tint);
+      }
+    });
+    trunks.computeBoundingSphere();crowns.computeBoundingSphere();trunks.castShadow=true;crowns.castShadow=true;crowns.receiveShadow=true;trunks.matrixAutoUpdate=crowns.matrixAutoUpdate=false;group.add(trunks,crowns);
+  }
+  return group;
+}
+let cachedFoliage:THREE.CanvasTexture|undefined;
+function foliageTexture():THREE.CanvasTexture {
+  if(cachedFoliage)return cachedFoliage;
+  const cv=document.createElement("canvas");cv.width=cv.height=256;
+  const c=cv.getContext("2d")!,rnd=mulberry32(8931);
+  // Original painted clusters: ragged edge and gaps expose the branch structure.
+  c.strokeStyle="#776a47";c.lineWidth=6;c.beginPath();c.moveTo(128,248);c.lineTo(128,75);c.stroke();
+  for(let i=0;i<120;i++){
+    const a=rnd()*Math.PI*2,r=Math.sqrt(rnd()),x=128+Math.cos(a)*r*98,y=117+Math.sin(a)*r*101;
+    const shade=165+Math.floor(rnd()*70);
+    c.fillStyle=`rgb(${shade-8},${shade},${shade-20})`;
+    c.beginPath();c.ellipse(x,y,9+rnd()*17,8+rnd()*15,rnd()*Math.PI,0,Math.PI*2);c.fill();
+  }
+  // Fine leaves break smooth circular clusters at their edges.
+  for(let i=0;i<650;i++){const x=rnd()*256,y=rnd()*230;if(c.getImageData(Math.floor(x),Math.floor(y),1,1).data[3]){c.fillStyle=rnd()>.5?"#e0e1c1":"#85927c";c.fillRect(x,y,2+rnd()*3,2+rnd()*3);}}
+  const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;cachedFoliage=t;return t;
 }
 
 let cachedFieldTexture:THREE.CanvasTexture|undefined;
@@ -284,3 +326,14 @@ function fieldTexture():THREE.CanvasTexture {
   c.putImageData(data,0,0);const t=new THREE.CanvasTexture(canvas);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(3,3);t.anisotropy=8;cachedFieldTexture=t;return t;
 }
 
+
+let cachedAsphalt:THREE.CanvasTexture|undefined;
+function asphaltTexture():THREE.CanvasTexture {
+  if(cachedAsphalt)return cachedAsphalt;
+  const cv=document.createElement("canvas");cv.width=cv.height=256;const c=cv.getContext("2d")!,rnd=mulberry32(144);
+  const data=c.createImageData(256,256);
+  for(let i=0;i<256*256;i++){const v=210+rnd()*40;data.data[i*4]=data.data[i*4+1]=data.data[i*4+2]=v;data.data[i*4+3]=255;}
+  c.putImageData(data,0,0);c.strokeStyle="rgba(75,75,71,.3)";c.lineWidth=1;
+  for(let i=0;i<7;i++){c.beginPath();let x=rnd()*256,y=rnd()*256;c.moveTo(x,y);for(let j=0;j<4;j++){x+=rnd()*24-12;y+=rnd()*24-12;c.lineTo(x,y);}c.stroke();}
+  const t=new THREE.CanvasTexture(cv);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;cachedAsphalt=t;return t;
+}

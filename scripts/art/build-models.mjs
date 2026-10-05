@@ -14,19 +14,21 @@ globalThis.FileReader = class {
 const out = new URL('../../public/models/art/', import.meta.url);
 const palettes = {usa:[0xb3a17a,0x665f4b],russia:[0x78845a,0x384436],china:[0x778574,0x45554e]};
 let mats;
+let detail = true;
 function mesh(parent,geo,material,x=0,y=0,z=0,rx=0,ry=0,rz=0) {
+  if(!detail && (geo.parameters?.radius < .08 || (geo.parameters?.width < .11 && geo.parameters?.height < .11))) { geo.dispose(); return new T.Object3D(); }
   const m=new T.Mesh(geo,mats[material]);m.position.set(x,y,z);m.rotation.set(rx,ry,rz);parent.add(m);return m;
 }
 function box(p,w,h,d,m,x=0,y=0,z=0,rx=0,ry=0,rz=0){return mesh(p,new T.BoxGeometry(w,h,d),m,x,y,z,rx,ry,rz);}
 function cyl(p,r,h,m,x=0,y=0,z=0,rx=0,ry=0,rz=0,n=12){return mesh(p,new T.CylinderGeometry(r,r,h,n),m,x,y,z,rx,ry,rz);}
-function sphere(p,r,m,x,y,z,sx=1,sy=1,sz=1){const q=mesh(p,new T.SphereGeometry(r,12,8),m,x,y,z);q.scale.set(sx,sy,sz);return q;}
+function sphere(p,r,m,x,y,z,sx=1,sy=1,sz=1){const q=mesh(p,new T.SphereGeometry(r,detail?16:8,detail?10:5),m,x,y,z);q.scale.set(sx,sy,sz);return q;}
 // Eight sided cross-sections: beveled, sloped upper armour, not box primitives.
 function loft(p,rings,m) {
   const vertices=[],indices=[];
   for(const [z,w,b,t,k=.72] of rings){ const points=[[-w*.42,b],[-w*.5,b+.12],[-w*.5,t-.18],[-w*k*.5,t],[w*k*.5,t],[w*.5,t-.18],[w*.5,b+.12],[w*.42,b]];for(const [x,y]of points)vertices.push(x,y,z); }
   for(let r=0;r<rings.length-1;r++)for(let i=0;i<8;i++){const a=r*8+i,b=r*8+(i+1)%8,c=b+8,d=a+8;indices.push(a,b,d,b,c,d);}
   for(let i=1;i<7;i++){indices.push(0,i+1,i);const end=(rings.length-1)*8;indices.push(end,end+i,end+i+1);}
-  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(vertices,3));for(let i=0;i<indices.length;i+=3)[indices[i+1],indices[i+2]]=[indices[i+2],indices[i+1]];g.setIndex(indices);g.computeVertexNormals();return mesh(p,g,m);
+  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(vertices,3));for(let i=0;i<indices.length;i+=3)[indices[i+1],indices[i+2]]=[indices[i+2],indices[i+1]];g.setIndex(indices);const flat=g.toNonIndexed();g.dispose();flat.computeVertexNormals();return mesh(p,flat,m);
 }
 function group(p,name,x=0,y=0,z=0){const g=new T.Group();g.name=name;g.position.set(x,y,z);p.add(g);return g;}
 function optic(p,x,y,z,w=.22){box(p,w,.18,.2,'glass',x,y,z);box(p,w+.08,.07,.27,'dark',x,y-.1,z);}
@@ -39,9 +41,9 @@ function tracks(p,width,length,r=.43){
     // Continuous rounded track belt, with individual running wheels and shoes.
     const shape=new T.Shape();const l=length/2-r;shape.moveTo(-l,r*.04);shape.lineTo(l,r*.04);shape.absarc(l,r,r*.96,-Math.PI/2,Math.PI/2,false);shape.lineTo(-l,r*1.96);shape.absarc(-l,r,r*.96,Math.PI/2,Math.PI*1.5,false);
     const hole=new T.Path();hole.moveTo(-l,r*.29);hole.absarc(-l,r,r*.71,-Math.PI/2,Math.PI/2,true);hole.lineTo(l,r*1.71);hole.absarc(l,r,r*.71,Math.PI/2,-Math.PI/2,true);hole.lineTo(-l,r*.29);shape.holes.push(hole);
-    const geo=new T.ExtrudeGeometry(shape,{depth:.39,bevelEnabled:false,curveSegments:8});mesh(p,geo,'rubber',s*width/2-.2,0,0,0,Math.PI/2);
-    const count=7;for(let i=0;i<count;i++){const z=-l+i*l*2/(count-1);cyl(p,r*.74,.46,'trim',s*width/2,r,z,0,0,Math.PI/2);cyl(p,r*.28,.49,'steel',s*width/2,r,z,0,0,Math.PI/2);for(let b=0;b<5;b++){const a=b*Math.PI*2/5;cyl(p,.026,.51,'dark',s*width/2,r+Math.sin(a)*r*.48,z+Math.cos(a)*r*.48,0,0,Math.PI/2,5);}}
-    for(let i=0;i<22;i++){const z=-l+i*l*2/21;box(p,.49,.065,.12,'steel',s*width/2,r*.05,z);box(p,.49,.065,.12,'steel',s*width/2,r*1.95,z);}
+    const geo=new T.ExtrudeGeometry(shape,{depth:.39,bevelEnabled:false,curveSegments:detail?8:4});mesh(p,geo,'rubber',s*width/2-.2,0,0,0,Math.PI/2);
+    const count=detail?7:5;for(let i=0;i<count;i++){const z=-l+i*l*2/(count-1);cyl(p,r*.74,.46,'trim',s*width/2,r,z,0,0,Math.PI/2);cyl(p,r*.28,.49,'steel',s*width/2,r,z,0,0,Math.PI/2);for(let b=0;b<(detail?5:0);b++){const a=b*Math.PI*2/5;cyl(p,.026,.51,'dark',s*width/2,r+Math.sin(a)*r*.48,z+Math.cos(a)*r*.48,0,0,Math.PI/2,5);}}
+    for(let i=0;i<(detail?22:0);i++){const z=-l+i*l*2/21;box(p,.49,.065,.12,'steel',s*width/2,r*.05,z);box(p,.49,.065,.12,'steel',s*width/2,r*1.95,z);}
   }
 }
 function fittings(p,w,l,y){
@@ -56,7 +58,8 @@ function tank(f,kind){const root=new T.Group();const light=kind==='lightTank';co
   else if(f==='china'){loft(turret,[[-1.4,2.5,0,.65],[-.5,2.75,0,.85],[.7,2.8,.08,.65],[1.3,1.15,.12,.4]],'armor');for(const s of[-1,1])for(let i=0;i<5;i++)box(turret,.48,.22,.48,'trim',s*(.4+i*.2),.51,1-i*.16,-.24,s*.35);}
   else loft(turret,[[-1.55,2.6,0,.76],[-.4,2.85,0,.91],[.8,2.45,0,.62],[1.28,1.3,.16,.48]],'armor');
   box(turret,2.4,.14,.9,'dark',0,.48,-1.25);for(const s of [-1,1]){box(turret,.07,.55,.85,'steel',s*1.23,.54,-1.25);for(let i=0;i<4;i++)cyl(turret,.06,.22,'dark',s*1.05,.42,.1+i*.16,.9,0,s*.45,6);}
-  hatch(turret,-.52,.85,-.35);hatch(turret,.58,.83,-.5,.24);cyl(turret,.2,.25,'dark',.64,1,-.48);optic(turret,.64,1.1,-.3);optic(turret,-.25,.67,.75,.28);gun(turret,light?2.65:3.6,light?.07:.1,.35,1.04);gun(turret,.72,.025,1,-.18,-.62);return root;}
+  hatch(turret,-.52,.85,-.35);hatch(turret,.58,.83,-.5,.24);cyl(turret,.2,.25,'dark',.64,1,-.48);optic(turret,.64,1.1,-.3);optic(turret,-.25,.67,.75,.28);gun(turret,light?2.65:3.6,light?.07:.1,.35,1.04);gun(turret,.72,.025,1,-.18,-.62);
+  armoredDetail(root,turret,w,l,f);if(light)turret.scale.set(.82,.85,.82);return root;}
 function armored(f,kind){const p=new T.Group();const recon=kind==='reconVehicle',td=kind==='tankDestroyer',ifv=kind==='ifv';const wheeled=!ifv&&(f!=='russia'||kind!=='tankDestroyer');const small=f==='russia'&&recon;const w=small?2.25:2.8,l=small?4.15:5.2;
   if(wheeled)tires(p,w,l,small?2:4,.46);else tracks(p,w,l,.38);
   const h=f==='russia'?1.6:1.95;loft(p,[[-l/2,w*.8,.62,h-.1],[-l*.25,w,.53,h],[l*.2,w,.54,h],[l/2,w*.72,.82,h-.48]],'armor');fittings(p,w,l,h);hatch(p,-.65,h+.06,.75,.26);
@@ -64,7 +67,7 @@ function armored(f,kind){const p=new T.Group();const recon=kind==='reconVehicle'
   const t=group(p,'Turret',0,h,-.05);if(recon){cyl(t,.05,1.25,'steel',0,.65,0);box(t,.55,.35,.4,'trim',0,1.35,0);optic(t,0,1.35,.23,.4);antenna(p,.9,h,-1.2,1.7);}
   else if(td){box(t,1.4,.36,1.1,'dark',0,.3,0);for(const s of[-1,1])for(const y of[.16,.43])cyl(t,.13,1.25,'trim',s*.4,y,.2,Math.PI/2);}
   else{loft(t,[[-.65,1.05,0,.55],[.3,1.15,0,.5],[.65,.7,.1,.3]],'armor');gun(t,ifv?1.65:.95,ifv?.055:.035,.3,.45);hatch(t,-.2,.57,-.15,.2);if(ifv&&f==='usa')box(t,.4,.48,.95,'trim',-.82,.3,0);}
-  return p;}
+  armoredDetail(p,t,w,l,f);return p;}
 function truck(f,kind){const p=new T.Group(),l=kind==='mlrs'?6.7:6.1,w=2.45;tires(p,w,l,kind==='mlrs'?4:3,.48);box(p,w*.76,.32,l,'dark',0,.73,0);
   loft(p,[[l*.07,w,.7,2.4],[l*.3,w,.7,2.4],[l*.46,w*.9,.85,1.85]],'armor');box(p,1.9,.64,.045,'glass',0,1.94,l*.385,-.36);for(const s of[-1,1])box(p,.035,.54,.8,'glass',s*w*.48,1.9,l*.23);fittings(p,w,l,1.1);
   if(kind==='logiTruck'){box(p,w*.92,1.15,l*.55,'stowage',0,1.6,-l*.21);for(const z of[-2,-1,0])box(p,w*.95,.055,.055,'dark',0,2.19,z);box(p,w*.95,.75,.12,'trim',0,1.26,-l*.49);}
@@ -99,14 +102,57 @@ function helicopter(f,kind){const p=new T.Group(),transport=kind==='transport',c
   const gear=group(p,'LandingGear');for(const s of[-1,1]){cyl(gear,.04,.85,'steel',s*w*.65,.57,-.8,0,0,s*.2);cyl(gear,.18,.16,'rubber',s*w*.73,.2,-.8,0,0,Math.PI/2);}cyl(gear,.15,.18,'rubber',0,.22,l*.27,0,0,Math.PI/2);
   if(!transport){sphere(p,.26,'glass',0,1,l*.51);gun(p,.75,.04,.66,l*.4);}
   return p;}
-function materialSet(f){const [base,trim]=palettes[f];mats={armor:new T.MeshStandardMaterial({color:base,roughness:.83,metalness:.17}),trim:new T.MeshStandardMaterial({color:trim,roughness:.72,metalness:.22}),steel:new T.MeshStandardMaterial({color:0x59605d,roughness:.59,metalness:.65}),dark:new T.MeshStandardMaterial({color:0x202725,roughness:.78,metalness:.18}),rubber:new T.MeshStandardMaterial({color:0x1e211e,roughness:.95}),glass:new T.MeshStandardMaterial({color:0x274c58,roughness:.19,metalness:.54}),lamp:new T.MeshStandardMaterial({color:0xe1cb99,emissive:0x6e603b,emissiveIntensity:.18}),red:new T.MeshStandardMaterial({color:0x923e30}),stowage:new T.MeshStandardMaterial({color:trim,roughness:.96}),marking:new T.MeshStandardMaterial({color:0x76c9ef,roughness:.7})};for(const [name,mat]of Object.entries(mats))mat.name=name;}
-function batch(node){for(const child of[...node.children])if(child.isGroup){batch(child);if(child.name==='Blade'){child.updateMatrix();for(const part of[...child.children]){part.applyMatrix4(child.matrix);node.add(part);}node.remove(child);}}const buckets=new Map();for(const child of[...node.children]){if(!child.isMesh)continue;child.updateMatrix();let g=child.geometry.index?child.geometry.toNonIndexed():child.geometry.clone();g.applyMatrix4(child.matrix);g.normalizeNormals();const pos=g.getAttribute('position'),normal=g.getAttribute('normal'),uv=[];for(let i=0;i<pos.count;i++){const nx=Math.abs(normal.getX(i)),ny=Math.abs(normal.getY(i)),nz=Math.abs(normal.getZ(i));uv.push((ny>nx&&ny>nz?pos.getX(i):nz>nx?pos.getX(i):pos.getZ(i))*.19,(ny>nx&&ny>nz?pos.getZ(i):pos.getY(i))*.19);}g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));if(!buckets.has(child.material))buckets.set(child.material,[]);buckets.get(child.material).push(g);node.remove(child);child.geometry.dispose();}
-  for(const [material,geometries]of buckets){const joined=mergeGeometries(geometries);const g=mergeVertices(joined,1e-5);joined.dispose();g.computeBoundingSphere();const m=new T.Mesh(g,material);m.name=material.name;node.add(m);for(const geo of geometries)geo.dispose();}}
+/** Hull seams, protected optics, exhausts and faction equipment share existing batches. */
+function armoredDetail(p,t,w,l,f){
+  for(const side of [-1,1]){
+    box(p,.18,.18,l*.88,'trim',side*w*.47,1.08,0);
+    box(p,.12,.48,.28,'dark',side*w*.34,.85,-l*.48);
+    cyl(p,.13,.14,'steel',side*w*.34,.85,-l*.49,Math.PI/2,0,0,detail?12:6);
+    if(detail){
+      // Towing cable and bolted access panel, drawn as real surface detail.
+      cyl(p,.032,l*.55,'steel',side*w*.4,1.48,-l*.12,Math.PI/2);
+      for(let z=-l*.25;z<l*.25;z+=.7)box(p,.19,.085,.4,'dark',side*w*.5,1.17,z);
+      box(t,.055,.26,.5,'dark',side*.7,.66,.45);
+    }
+  }
+  if(detail&&f==='usa'){
+    for(const x of [-1,-.5,0,.5,1])box(t,.045,.38,.045,'steel',x,.4,-1.62);
+    box(t,2.1,.05,.04,'steel',0,.6,-1.62);
+    box(t,.75,.3,.45,'stowage',.56,.7,-1.1);
+  }
+  if(detail&&f!=='usa')for(const side of [-1,1])for(let i=0;i<3;i++)box(t,.3,.16,.38,'trim',side*(.35+i*.25),.71,.26-i*.25);
+}
+function materialSet(f){const [base,trim]=palettes[f];mats={armor:new T.MeshStandardMaterial({color:base,roughness:.86,metalness:.08,vertexColors:true}),trim:new T.MeshStandardMaterial({color:trim,roughness:.78,metalness:.16}),steel:new T.MeshStandardMaterial({color:0x59605d,roughness:.64,metalness:.55}),dark:new T.MeshStandardMaterial({color:0x202725,roughness:.9,metalness:.06}),rubber:new T.MeshStandardMaterial({color:0x242721,roughness:1}),glass:new T.MeshStandardMaterial({color:0x27414a,roughness:.26,metalness:.38}),lamp:new T.MeshStandardMaterial({color:0xc3b996}),red:new T.MeshStandardMaterial({color:0x743c32}),stowage:new T.MeshStandardMaterial({color:trim,roughness:.98}),marking:new T.MeshStandardMaterial({color:0x76c9ef,roughness:.8}),equipment:new T.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.87,metalness:.12})};for(const [name,mat]of Object.entries(mats))mat.name=name;}
+function batch(node){
+  for(const child of [...node.children])if(child.isGroup){batch(child);if(child.name==='Blade'){child.updateMatrix();for(const part of [...child.children]){part.applyMatrix4(child.matrix);node.add(part);}node.remove(child);}}
+  const buckets=new Map();
+  for(const child of [...node.children]){
+    if(!child.isMesh)continue;child.updateMatrix();
+    const g=child.geometry.index?child.geometry.toNonIndexed():child.geometry.clone();g.applyMatrix4(child.matrix);g.normalizeNormals();
+    const pos=g.getAttribute('position'),normal=g.getAttribute('normal'),uv=[],colors=[];
+    // Far models retain silhouette/pivots but use one vertex-colored material per node.
+    const armor=child.material===mats.armor,marking=child.material===mats.marking;
+    const material=marking?mats.marking:!detail?mats.equipment:armor?mats.armor:child.material===mats.glass?mats.glass:mats.equipment;
+    for(let i=0;i<pos.count;i++){
+      const x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i),nx=Math.abs(normal.getX(i)),ny=Math.abs(normal.getY(i)),nz=Math.abs(normal.getZ(i));
+      uv.push((ny>nx&&ny>nz?x:nz>nx?x:z)*.19,(ny>nx&&ny>nz?z:y)*.19);
+      const color=material===mats.equipment?child.material.color.clone():new T.Color(1,1,1);
+      // Baked underbody darkening and dust breakup, zero runtime AO pass.
+      const ao=.76+.24*Math.max(0,normal.getY(i));
+      const dust=armor?Math.max(0,.14-y*.055):0;
+      color.multiplyScalar(ao).lerp(new T.Color(.34,.3,.22),dust);
+      colors.push(color.r,color.g,color.b);
+    }
+    g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.setAttribute('color',new T.Float32BufferAttribute(colors,3));
+    if(!buckets.has(material))buckets.set(material,[]);buckets.get(material).push(g);node.remove(child);child.geometry.dispose();
+  }
+  for(const [material,geometries]of buckets){const joined=mergeGeometries(geometries);const g=mergeVertices(joined,1e-5);joined.dispose();g.computeBoundingSphere();const m=new T.Mesh(g,material);m.name=material.name;node.add(m);for(const geo of geometries)geo.dispose();}
+}
 const kinds=['tank','lightTank','ifv','apc','reconVehicle','tankDestroyer','artillery','mlrs','spaa','fighter','interceptor','multirole','attackAircraft','ecm','bomber','heli','gunship','casHeli','transport','cargoPlane','logiTruck'];
-const manifest={version:1,author:'Rogue Front original art',models:[]};
-for(const f of Object.keys(palettes)){await mkdir(new URL(f+'/',out),{recursive:true});for(const kind of kinds){materialSet(f);let p;
+const manifest={version:2,author:'Rogue Front original art',models:[]};
+for(const f of Object.keys(palettes)){await mkdir(new URL(f+'/',out),{recursive:true});for(const kind of kinds)for(const lod of ['detail','tactical']){detail=lod==='detail';materialSet(f);let p;
   if(kind==='tank'||kind==='lightTank')p=tank(f,kind);else if(['ifv','apc','reconVehicle','tankDestroyer'].includes(kind))p=armored(f,kind);else if(kind==='artillery'||kind==='mlrs')p=artillery(f,kind);else if(kind==='spaa')p=spaa(f);else if(kind==='logiTruck')p=truck(f,kind);else if(['heli','gunship','casHeli','transport'].includes(kind))p=helicopter(f,kind);else p=jet(f,kind);
   p.name=`${f}_${kind}`;p.userData={faction:f,kind,author:manifest.author};box(p,.07,.22,.5,'marking',kind==='tank'?1.82:1.28,1.25,.4);batch(p);p.updateMatrixWorld(true);let triangles=0,drawCalls=0;p.traverse(o=>{if(o.isMesh){triangles+=(o.geometry.index?.count??o.geometry.getAttribute('position').count)/3;drawCalls++;}});
-  const binary=await new GLTFExporter().parseAsync(p,{binary:true,onlyVisible:false});const path=`${f}/${kind}.glb`;await writeFile(new URL(path,out),Buffer.from(binary));manifest.models.push({faction:f,kind,path,triangles,drawCalls});
+  const binary=await new GLTFExporter().parseAsync(p,{binary:true,onlyVisible:false});const path=`${f}/${kind}${detail?'':'-lod'}.glb`;await writeFile(new URL(path,out),Buffer.from(binary));manifest.models.push({faction:f,kind,lod,path,triangles,drawCalls});
 }}
 await writeFile(new URL('manifest.json',out),JSON.stringify(manifest,null,2));console.log(`Exported ${manifest.models.length} GLBs; max ${Math.max(...manifest.models.map(m=>m.triangles))} triangles, ${Math.max(...manifest.models.map(m=>m.drawCalls))} material batches.`);
