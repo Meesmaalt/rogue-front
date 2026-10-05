@@ -8,7 +8,7 @@ Rogue Front peab mängima taktikalise RTS-ina: luure, relva kaugus, täpsus, maa
 
 Jätkame olemasoleva brauseri/Three.js/TypeScript/Vite arhitektuuriga. Praegune puudujääk on süsteemide kvaliteet ja ühendamine, mitte tõendatud vajadus mootor välja vahetada. Üksuste ja fraktsioonide nimekirja, majandusressursside liike ning kaartide generaatorit alpha ajal ei laiendata. Põhjendatud uued ühendused on teeliikumise käsk, hoonetesse paigutamine ja olemasolevate transpordivahendite korrektne kasutamine. Need annavad juba olemasolevatele üksustele tegeliku taktikalise rolli.
 
-Kõigepealt üks hea 960 × 960 m maakaart: Roheorg. Merevägi vajab hiljem päriselt veega kaarti; praeguses Roheorus pole veealasid. Beta jaoks lõpetame ühe rannikumissiooni, eelistatult olemasoleva Murdlaine andmete põhjal. Kaardi suurendamine üksi ei ole kvaliteediparandus ning alpha jooksul uut mõõtkava ei kehtesta.
+Kõigepealt üks hea 1088 × 1088 m maakaart: Roheorg. Merevägi vajab hiljem päriselt veega kaarti; praeguses Roheorus pole veealasid. Beta jaoks lõpetame ühe rannikumissiooni, eelistatult olemasoleva Murdlaine andmete põhjal. Kaardi suurendamine üksi ei ole kvaliteediparandus ; kasutaja suunisel on layout 10 mõõdukalt suurem ning üksuste tempo/mõõtkava rahulikum.
 
 ## Kontrollitud lähteolukord
 
@@ -17,7 +17,7 @@ Kõigepealt üks hea 960 × 960 m maakaart: Roheorg. Merevägi vajab hiljem pär
 | Valdkond | Praegune alus | Puudujääk / järgmine otsus |
 |---|---|---|
 | Põhitsükkel | Setup, fraktsioon/deck, baas, tootmine, skirmish ja kampaaniakontrollerid on ühendatud. | Kõik nähtavad valikud ei ole võrdselt viimistletud. Alpha toetatud valikud tuleb selgelt määrata ja terviklikult läbida. |
-| Roheorg | 960 m, 128 kaardiobjekti, neist 45 hoonet; teed, asulad, mets ja põleng. | Viimane suure kaardi/kunsti/ringide brauseriülevaatus ning pika matši tasakaal on tegemata. |
+| Roheorg | 1088 m, 192 kaardiobjekti, neist 85 hoonet; teed, asulad, mets ja põleng. | Viimane suure kaardi/kunsti/ringide brauseriülevaatus ning pika matši tasakaal on tegemata. |
 | Maaüksuste liikumine | A*, pööramine, kiirendus/pidurdamine, kohalik vältimine ja formatsioonid. | Grupi ristmikud, kitsaskohad, peatumine ja ümberrivistumine vajavad viimistlust. A* arvestab sammupikkust, mitte teede/metsa läbimise aega. |
 | Teed | Tavalise maaliikumise teeboost on ×1,22, logistilise veoki eraldi liikumises ×1,28. | Kiirema marsruudi eelistamine ja eraldi teeliikumise käsk puuduvad; kordajad pole klassipõhised. Teekonna silumine võib hiljem valitud teelt lõigata. |
 | Jalavägi | Kolme fraktsiooni rollid, eri relvapesad, piiratud AT/MANPAD-moon, rühma kaotused ja mudelid. | Majadesse sisenemine puudub. Jalavägi seisab väljas; majade lähedal saadav kate ei ole garnison. |
@@ -192,7 +192,7 @@ Praktiline sõltuvusjärjekord: A1 → A2 → A3 → A4 → A5 → A6/alpha → 
 - `src/sim/systems/combat.ts`, `projectiles.ts`, `artillery.ts`, `sensors.ts`, `Vision.ts`: range/AP/accuracy, LOS, trajektoor ja intel.
 - `src/sim/systems/production.ts`, `tacticalSupply.ts`, `airDoctrine.ts`, `construction.ts`: piiratud tootmine/varustus/remont ja baasitsükkel.
 - `src/sim/ai/WaveAI.ts`, `TacticalAI.ts`: operatiivne sihtvalik ja nähtavusfiltrid.
-- `src/data/maps/green-valley.json`: 960 m maakaart, 45 kaardihoonet, puuduvad veeobjektid.
+- `src/data/maps/green-valley.json`: 1088 m maakaart, 85 kaardihoonet, puuduvad veeobjektid.
 - `src/sim/gameModes.ts`, `campaign.ts`, `Mission.ts`, `src/data/missions`: olemasolevad reeglid ja missioonialused.
 - `src/sim/SaveState.ts`, `Replay.ts`, `src/net`, `server/server.js`: jätkamine ja determinismi tarbijad.
 - `src/render/UnitRenderer.ts`, `RangeOverlay.ts`, `Architecture.ts`, `Terrain.ts`, `Fx.ts`, `src/ui/Hud.ts`: mängijale nähtav teostus ja piiratud renderduskoormus.

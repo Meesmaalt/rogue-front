@@ -3,9 +3,9 @@ import {MAP_SIZE} from "../sim/heightmap";
 
 /** RTS-kaamera: WASD/nooled/serv liigutavad, Q/E pöörab, rull suumib. */
 export class RtsCamera {
-  // Real War-like isometric: shallower pitch, closer default zoom
+  // Tactical overview: unit identity comes from class markers at distance.
   x = -105; z = 105; yaw = -Math.PI / 4;
-  dist = 180; targetDist = 180; pitch = 0.83;
+  dist = 220; targetDist = 220; pitch = 0.83;
   groundY = 0;
   private keys = new Set<string>();
   private mouse = { x: -1, y: -1 };

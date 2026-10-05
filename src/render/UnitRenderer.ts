@@ -139,11 +139,12 @@ export class UnitRenderer {
       if (!v) {
         const faction = e.team === world.playerTeam ? world.playerFaction : world.enemyFaction;
         const visual = createArtModel(e.kind, e.team, faction) ?? createVisualModel(e.kind, e.team, faction);
+        visual.group.scale.multiplyScalar(e.def.modelScale??1);
         // Authored GLBs retain the silhouette at tactical camera distance.
         const lod = new THREE.LOD();
         lod.autoUpdate=false;lod.addLevel(visual.group,0);
         const far=createArtModel(e.kind,e.team,faction,true)?.group??(e.squadMaxMembers?createVisualModel(e.kind,e.team,faction,true).group:undefined);
-        if(far)lod.addLevel(far,lodDistance,.15);
+        if(far){far.scale.multiplyScalar(e.def.modelScale??1);lod.addLevel(far,lodDistance,.15);}
         const m = { group: lod, turret: visual.turret };
         const rotors: THREE.Object3D[] = [];
         lod.traverse(o => { if (o.name.startsWith("RotorMain") || o.name === "RotorCounter" || o.name === "TailRotor") rotors.push(o); });
@@ -271,7 +272,7 @@ export class UnitRenderer {
       // Status icons (player units only): out of supply / routing / low ammo
       if (e.team === world.playerTeam && e.def.speed > 0) {
         const icons: { name: string; color: number; on: boolean }[] = [
-          { name: "StOutSupply", color: 0xe05030, on: !world.isInSupply(e) && (((e.maxAmmo??0)>0 && (e.ammo??0)<(e.maxAmmo??1)*.35) || ((e.maxFuel??0)>0 && (e.fuel??0)<(e.maxFuel??1)*.35) || (e.supply??100)<20) },
+          { name: "StOutSupply", color: 0xe05030, on: (((e.maxAmmo??0)>0 && (e.ammo??0)<(e.maxAmmo??1)*.35) || ((e.maxFuel??0)>0 && (e.fuel??0)<(e.maxFuel??1)*.35) || (e.supply??100)<20) && !world.isInSupply(e) },
           { name: "StRouting", color: 0xffcc33, on: (e.morale ?? 100) < 22 || (e.suppression ?? 0) > 80 },
           { name: "StNoAmmo", color: 0xaaaaaa, on: (e.maxAmmo ?? 0) > 0 && (e.ammo ?? 0) <= 0 },
         ];

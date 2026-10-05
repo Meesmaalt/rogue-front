@@ -26,7 +26,7 @@ const heuristic = (x: number, z: number, tx: number, tz: number): number => Math
 
 export interface PathCost { cell(x:number,z:number):number; edge?(ax:number,az:number,bx:number,bz:number):number; minimum:number }
 export function findPath(grid: NavGrid, from: Point, to: Point, radius = 0, cost?:PathCost,avoid:readonly (Point&{radius:number})[]=[]): Point[] {
-  const blocked=(x:number,z:number)=>{if(grid.isBlocked(x,z,radius))return true;if(!avoid.length)return false;const p=grid.cellToWorld(x,z);return avoid.some(o=>Math.hypot(p.x-o.x,p.z-o.z)<o.radius+radius+.3);};
+  const blocked=(x:number,z:number)=>{if(grid.isBlocked(x,z,radius))return true;if(!avoid.length)return false;const p=grid.cellToWorld(x,z);return avoid.some(o=>{const distance=Math.hypot(p.x-o.x,p.z-o.z);return distance<o.radius+radius+.3&&distance<Math.hypot(from.x-o.x,from.z-o.z)-.01;});};
   const s = grid.nearestWalkable(from, radius), g = grid.nearestWalkable(to, radius);
   if (!s || !g) return [];
   const sc = grid.worldToCell(s.x, s.z), gc = grid.worldToCell(g.x, g.z);

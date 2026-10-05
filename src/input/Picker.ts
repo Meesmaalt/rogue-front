@@ -5,8 +5,12 @@ import {isGarrisonBuilding} from "../sim/garrison";
 import {pointInFeature,type MapFeatureDef} from "../sim/mapFeatures";
 import { heightAt } from "../sim/heightmap";
 
+export interface UnitMarkerRect {id:number;x:number;y:number;width:number;height:number}
+
 /** Ekraani ↔ maailma teisendused: üksuse valik hiirega ja maapinna leidmine. */
 export class Picker {
+  private markers:readonly UnitMarkerRect[]=[];
+  setUnitMarkers(markers:readonly UnitMarkerRect[]):void {this.markers=markers;}
   private ray = new THREE.Raycaster();
   private tmp = new THREE.Vector3();
 
@@ -23,6 +27,12 @@ export class Picker {
   }
 
   pickEntity(mx: number, my: number, team: Team): Entity | null {
+    for(let i=this.markers.length-1;i>=0;i--){
+      const r=this.markers[i];
+      if(mx<r.x||mx>r.x+r.width||my<r.y||my>r.y+r.height)continue;
+      const e=this.world.entities.find(e=>e.id===r.id);
+      if(e&&!e.dead&&e.loadedIntoId==null&&e.team===team&&(team===this.world.playerTeam||this.world.isSpottedByTeam(e,this.world.playerTeam)))return e;
+    }
     let best: Entity | null = null, bs = 0;
     for (const e of this.world.entities) {
       if (e.dead || e.loadedIntoId!=null || e.team !== team) continue;

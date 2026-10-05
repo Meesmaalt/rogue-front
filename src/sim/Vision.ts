@@ -25,10 +25,26 @@ export class Vision {
   structureDamage:ReadonlyMap<string,number>=new Map();
   private buildings: Entity[] = [];
   private tickCounter = 0;
+  // Derived broad phase; exact rotated footprint tests still decide occlusion.
+  private readonly blockerBins = new Map<string, MapFeatureDef[]>();
+  private readonly emptyBin: readonly MapFeatureDef[] = [];
+  private blockersAt(x:number,z:number):readonly MapFeatureDef[] {
+    return this.blockerBins.get(`${Math.floor(x/32)},${Math.floor(z/32)}`) ?? this.emptyBin;
+  }
 
   setFeatures(features: readonly MapFeatureDef[]): void {
     this.forests=features.filter(f=>f.appearance==="forest");
     this.blockingFeatures = features.filter((f) => featureBlocksMovement(f) && f.kind!=="water");
+    this.blockerBins.clear();
+    for(const f of this.blockingFeatures){
+      const c=Math.abs(Math.cos(f.rotation??0)),s=Math.abs(Math.sin(f.rotation??0));
+      const hx=c*(f.width/2+.25)+s*(f.depth/2+.25),hz=s*(f.width/2+.25)+c*(f.depth/2+.25);
+      for(let iz=Math.floor((f.z-hz)/32);iz<=Math.floor((f.z+hz)/32);iz++)
+        for(let ix=Math.floor((f.x-hx)/32);ix<=Math.floor((f.x+hx)/32);ix++){
+          const key=`${ix},${iz}`,bin=this.blockerBins.get(key);
+          if(bin)bin.push(f);else this.blockerBins.set(key,[f]);
+        }
+    }
   }
   snapshot(): { states: [number[],number[]]; tickCounter: number } {
     return {states:[Array.from(this.states[0]),Array.from(this.states[1])],tickCounter:this.tickCounter};
@@ -95,11 +111,11 @@ export class Vision {
 
     const ay = a.y + Math.max(1.2, a.def.height * 0.7);
     const by = b.y + Math.max(1.2, b.def.height * 0.65);
-    // ~6 m steps – enough for gameplay, half the cost of fine sampling
+    // Preserve the 2 m sampling used by combat.
     const steps = Math.max(2, Math.ceil(d / 2));
     const inv = 1 / steps;
     const checkFeatures = d > 4 && this.blockingFeatures.length > 0;
-    const nFeat = this.blockingFeatures.length;
+
 
     for (let i = 1; i < steps; i++) {
       const t = i * inv;
@@ -107,8 +123,7 @@ export class Vision {
       const z = a.z + dz * t;
       if (heightAt(x, z) + 0.8 > ay + (by - ay) * t) return false;
       if (checkFeatures) {
-        for (let fi = 0; fi < nFeat; fi++) {
-          const feature=this.blockingFeatures[fi];
+        for (const feature of this.blockersAt(x,z)) {
           if (pointInFeature(x, z, feature, 0.15) && heightAt(x,z)+(feature.kind==="building"&&(this.structureDamage.get(feature.id)??0)>=1?GARRISON_RULES.rubbleHeight:feature.height??3)>ay+(by-ay)*t) return false;
         }
       }
@@ -116,13 +131,16 @@ export class Vision {
 
     // Buildings only for long-range shots
     if (d > 4 && this.buildings.length) {
-      const nB = this.buildings.length;
+      const candidates=this.buildings.filter(e=>e!==a&&e!==b&&!e.dead&&
+        e.x+e.def.radius+.5>=Math.min(a.x,b.x)&&e.x-e.def.radius-.5<=Math.max(a.x,b.x)&&
+        e.z+e.def.radius+.5>=Math.min(a.z,b.z)&&e.z-e.def.radius-.5<=Math.max(a.z,b.z));
+      const nB = candidates.length;
       for (let i = 1; i < steps; i++) {
         const t = i * inv;
         const x = a.x + dx * t;
         const z = a.z + dz * t;
         for (let bi = 0; bi < nB; bi++) {
-          const e = this.buildings[bi];
+          const e = candidates[bi];
           if (e === a || e === b || e.dead) continue;
           const bx = e.x - x, bz = e.z - z;
           const r = e.def.radius + 0.5;
@@ -230,7 +248,7 @@ export class Vision {
             blocked = true;
             break;
           }
-          if (this.blockingFeatures.some(f => pointInFeature(sx, sz, f, 0.25))) {
+          if (this.blockersAt(sx,sz).some(f => pointInFeature(sx, sz, f, 0.25))) {
             blocked = true;
             break;
           }

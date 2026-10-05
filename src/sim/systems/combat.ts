@@ -46,7 +46,8 @@ export function movingFireFactor(def:UnitDef,spec:WeaponSpec):number {
 export function weaponMuzzle(u:Entity,spec:WeaponSpec,index:number):{x:number;y:number;z:number} {
   const a=u.heading+(u.def.turret?u.turretYaw:0),wing=u.def.armor==="air"&&spec.weapon==="missile"?(Math.floor(weaponAmmo(u,index))%2?1:-1)*(spec.muzzleSide??1.4):spec.muzzleSide??0;
   const crew=u.squadMaxMembers&&!u.garrisonId?mobility.infantry.squadLayout[Math.min(index,Math.max(0,(u.squadMembers??1)-1))]:[0,0];
-  return {x:u.x+Math.sin(a)*(spec.muzzle+crew[1])+Math.cos(a)*(wing+crew[0]),y:u.y+spec.muzzleHeight,z:u.z+Math.cos(a)*(spec.muzzle+crew[1])-Math.sin(a)*(wing+crew[0])};
+  const scale=u.def.modelScale??1;
+  return {x:u.x+(Math.sin(a)*(spec.muzzle+crew[1])+Math.cos(a)*(wing+crew[0]))*scale,y:u.y+spec.muzzleHeight*scale,z:u.z+(Math.cos(a)*(spec.muzzle+crew[1])-Math.sin(a)*(wing+crew[0]))*scale};
 }
 export function weaponCanTarget(spec:WeaponSpec,t:Pick<Entity,"def">):boolean {
   const air=t.def.armor==="air";

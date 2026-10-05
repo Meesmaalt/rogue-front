@@ -74,7 +74,7 @@ function apply(w: World, c: Command): void {
       const us = mobile(w,c.ids,c.team);
       const center=us.reduce((p,u)=>({x:p.x+u.x/Math.max(1,us.length),z:p.z+u.z/Math.max(1,us.length)}),{x:0,z:0});
       const angle=Math.atan2(c.x-center.x,c.z-center.z),cos=Math.cos(angle),sin=Math.sin(angle);
-      const pts=formation(us.length,c.x,c.z,w.teamFormations[c.team??w.playerTeam],Math.max(4,...us.map(u=>u.def.radius*2+1.2))).map(p=>({x:c.x+(p.x-c.x)*cos+(p.z-c.z)*sin,z:c.z-(p.x-c.x)*sin+(p.z-c.z)*cos}));
+      const pts=formation(us.length,c.x,c.z,w.teamFormations[c.team??w.playerTeam],Math.max(6.5,...us.map(u=>u.def.radius*2+2))).map(p=>({x:c.x+(p.x-c.x)*cos+(p.z-c.z)*sin,z:c.z-(p.x-c.x)*sin+(p.z-c.z)*cos}));
       const lateral=(p:Point)=>p.x*cos-p.z*sin;
       us.sort((a,b)=>lateral(a)-lateral(b)||a.id-b.id);pts.sort((a,b)=>lateral(a)-lateral(b));
       const assigned: Array<Point & {radius:number}>=[];

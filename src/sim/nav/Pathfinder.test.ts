@@ -19,7 +19,7 @@ it('fast move preserves the longer road and arrives before a direct forest cross
  b.issue({type:'fast-move',ids:[fast.id],x:85,z:0});b.issue({type:'amove',ids:[fast.id],x:100,z:0,append:true});b.issue({type:'move',ids:[fast.id],x:115,z:0,append:true});applyCommands(b);expect(fast.moveQueueStyles).toEqual(['amove','move']);
 });
 it('twelve mixed ground units pass the actual Roheorg base gate and reform at their assigned destinations',()=>{
- setMapSize(960);setTerrainProfile('farmland');setBases(green.map.bases);
+ setMapSize(green.map.size);setTerrainProfile('farmland');setBases(green.map.bases);
  const w=new World(77,false,[],green.map.features as MapFeatureDef[],green.map.bases,true);w.networkMode=true;
  const base=green.map.bases[0];
  const us=Array.from({length:12},(_,i)=>w.spawn(i%3===0?'tank':i%3===1?'apc':'inf',0,base.x-16+(i%3)*12,base.z-16+Math.floor(i/3)*10));

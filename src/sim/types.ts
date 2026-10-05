@@ -35,6 +35,8 @@ export interface WeaponSpec {
   muzzle:number;muzzleHeight:number;
 }
 export interface UnitDef {
+  /** Authored model scale; footprint/height in data already use world dimensions. */
+  modelScale?:number;
   transportCapacity?: number;
   weapons?:WeaponSpec[];
   name: string; hp: number; speed: number; turnRate: number; range: number; damage: number; cooldown: number;

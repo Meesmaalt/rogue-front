@@ -693,9 +693,12 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     }
     const limit=MAP_SIZE/2-10;u.x=Math.max(-limit,Math.min(limit,u.x));u.z=Math.max(-limit,Math.min(limit,u.z));
     if(!isAir&&!u.garrisonId)u.y=heightAt(u.x,u.z);
-    const moved = Math.hypot(u.x - u.stuckX, u.z - u.stuckZ);
-    if (moving && moved < 0.15 * dt) u.stuckTime += dt;
-    else if (moved > 0.5) { u.stuckTime = 0; u.stuckX = u.x; u.stuckZ = u.z; }
+    // Sideways avoidance can oscillate without approaching a waypoint. Count
+    // actual route progress, not any displacement, before clearing the jam timer.
+    const progressGoal=u.navPath[u.navPathIndex]??goal;
+    const progress=progressGoal?Math.hypot(u.stuckX-progressGoal.x,u.stuckZ-progressGoal.z)-dist2d(u,progressGoal):0;
+    if(moving&&progress<.5)u.stuckTime+=dt;
+    else {u.stuckTime=0;u.stuckX=u.x;u.stuckZ=u.z;}
     if (u.stuckTime > 1.2 && goal && !isAir) {
       const parked=w.entities.filter(e=>e!==u&&!e.dead&&e.loadedIntoId==null&&e.def.speed>0&&e.def.domain==="land"&&(!e.dest||e.mode==="hold")).map(e=>({x:e.x,z:e.z,radius:e.def.radius}));
       u.navPath = findPath(w.nav, u, goal, u.def.radius,u.fastMove&&u.mode==="move"?travelPathCost(w,u):undefined,parked); u.navPathIndex = 0;

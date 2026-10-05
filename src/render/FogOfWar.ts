@@ -2,7 +2,7 @@ import type { World } from "../sim/World";
 import type { Picker } from "../input/Picker";
 
 /**
- * Screen fog: rebuild offscreen only when vision grid generation changes,
+ * Screen fog: rebuild offscreen at 10 Hz, including while the camera moves in pause,
  * then blit each frame — eliminates clearRect strobing.
  */
 export class FogOfWar {
@@ -10,10 +10,15 @@ export class FogOfWar {
   private off: HTMLCanvasElement;
   private offCtx: CanvasRenderingContext2D;
   private lastVisionTick = -1;
+  private readonly stamp=document.createElement("canvas");
   private mode: "wargame" | "reduced" | "off" = "wargame";
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext("2d")!;
+    this.stamp.width=this.stamp.height=128;
+    const brush=this.stamp.getContext("2d")!,g=brush.createRadialGradient(64,64,25.6,64,64,64);
+    g.addColorStop(0,"rgba(0,0,0,1)");g.addColorStop(.65,"rgba(0,0,0,.75)");g.addColorStop(1,"rgba(0,0,0,0)");
+    brush.fillStyle=g;brush.fillRect(0,0,128,128);
     canvas.style.pointerEvents = "none";
     this.off = document.createElement("canvas");
     this.offCtx = this.off.getContext("2d")!;
@@ -36,9 +41,8 @@ export class FogOfWar {
     if (this.mode === "off") { this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); return; }
     if (this.canvas.width !== innerWidth || this.canvas.height !== innerHeight) this.resize();
 
-    // Vision updates on a throttle inside Vision.update — use tickCounter proxy via explored cells
     // Rebuild fog mask at most ~10 Hz or when size changes
-    const stamp = Math.floor(world.time * 10);
+    const stamp = Math.floor(performance.now() / 100);
     if (stamp !== this.lastVisionTick) {
       this.lastVisionTick = stamp;
       this.rebuild(world, picker);
@@ -61,7 +65,7 @@ export class FogOfWar {
     c.save();
     c.globalCompositeOperation = "destination-out";
     for (const u of world.entities) {
-      if (u.dead || u.team !== world.playerTeam) continue;
+      if (u.dead || u.loadedIntoId!=null || u.underConstruction || u.team !== world.playerTeam) continue;
       const p = picker.toScreen(u.x, u.y + 0.5, u.z);
       if (p.z > 1) continue;
       const optics = u.def.opticsRange ?? 40;
@@ -71,14 +75,8 @@ export class FogOfWar {
         u.kind === "bunker" ? 34 :
         Math.max(22, Math.min(44, optics * 0.55));
       const radius = Math.max(14, base * picker.pxPerUnit(u.x, u.y, u.z) * (this.mode === "reduced" ? 1.25 : 1));
-      const g = c.createRadialGradient(p.x, p.y, radius * 0.4, p.x, p.y, radius);
-      g.addColorStop(0, "rgba(0,0,0,1)");
-      g.addColorStop(0.65, "rgba(0,0,0,0.75)");
-      g.addColorStop(1, "rgba(0,0,0,0)");
-      c.fillStyle = g;
-      c.beginPath();
-      c.arc(p.x, p.y, radius, 0, Math.PI * 2);
-      c.fill();
+      if(p.x+radius<0||p.x-radius>w||p.y+radius<0||p.y-radius>h)continue;
+      c.drawImage(this.stamp,p.x-radius,p.y-radius,radius*2,radius*2);
     }
     c.restore();
   }

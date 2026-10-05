@@ -198,7 +198,12 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       if(f.appearance === "farmhouse") {
-        const house=batchStaticScene(createCivilianBuilding(f.width,f.depth,h,Number(f.id.split("-").at(-1))||0));house.userData.structureId=f.id;house.userData.structureHeight=h;house.position.set(f.x,y,f.z);house.rotation.y=f.rotation??0;group.add(house);mesh.geometry.dispose();(mesh.material as THREE.Material).dispose();
+        const variant=Number(f.id.split("-").at(-1))||0,house=new THREE.LOD();
+        house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant),0);
+        house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,true),235, .15);
+        house.userData.structureId=f.id;house.userData.structureHeight=h;
+        house.position.set(f.x,y,f.z);house.rotation.y=f.rotation??0;group.add(house);
+        mesh.geometry.dispose();(mesh.material as THREE.Material).dispose();
       } else group.add(mesh);
       continue;
     }
@@ -388,10 +393,13 @@ function asphaltTexture():THREE.CanvasTexture {
 export function syncGarrisonTerrain(group:THREE.Group,world:World):boolean {
   let houses=group.userData.garrisonHouses as THREE.Object3D[]|undefined;
   if(!houses){houses=[];group.traverse(o=>{if(o.userData.structureId)houses!.push(o);});group.userData.garrisonHouses=houses;}
+  const ownGarrisons=new Set<string>();
+  for(const u of world.entities)if(!u.dead&&u.team===world.playerTeam&&u.garrisonId)ownGarrisons.add(u.garrisonId);
+  const features=new Map(world.mapFeatures.map(f=>[f.id,f]));
   const rewind=world.time<(group.userData.garrisonTime as number??0);group.userData.garrisonTime=world.time;let changed=false;
   for(const house of houses){
-    const id=house.userData.structureId as string,f=world.mapFeatures.find(f=>f.id===id);if(!f||!isGarrisonBuilding(f))continue;
-    const known=world.vision.isVisible(world.playerTeam,f.x,f.z)||world.entities.some(u=>!u.dead&&u.team===world.playerTeam&&u.garrisonId===id);
+    const id=house.userData.structureId as string,f=features.get(id);if(!f||!isGarrisonBuilding(f))continue;
+    const known=world.vision.isVisible(world.playerTeam,f.x,f.z)||ownGarrisons.has(id);
     const damage=known?world.infrastructureDamage.get(id)??0:rewind?0:house.userData.structureDamage as number??0;
     const stage=damage>=1?2:damage>.35?1:0;if(stage===house.userData.structureStage&&!rewind)continue;
     house.userData.structureStage=stage;house.userData.structureDamage=damage;

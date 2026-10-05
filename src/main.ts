@@ -81,7 +81,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const replayRecorder = new ReplayRecorder(mission.seed);
   const audio = new AudioManager();
   let visualQuality=loadSettings().quality;
-  let intelAcc=0;
+  let intelAcc=0, terrainAcc=.2;
   const settingsPanel = new SettingsPanel((settings) => { audio.setSettings(settings);visualQuality=settings.quality; ctx.setQuality(settings.quality); });
   let paused = false;
   const originalIssue = world.issue.bind(world);
@@ -190,7 +190,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   hud.onAirReturn=ids=>{if(running&&!paused)world.issue({type:"air-return",ids});};
   hud.onAirMission=(ids,mission)=>{if(running&&!paused){commands.startAirMission(ids,mission);hud.setWarning("Õhuoperatsioon: parem klõps sihtpunktile, Esc tühistab");}};
   hud.onCancelProduce = (producerId) => { if (running && !paused) world.issue({ type: "cancel-produce", producerId }); };
-  const saveKey = SAVE_PREFIX + mission.id + (mission.id==="roheorg"?".layout9":"") + "." + (skirmish ? activeMode : "campaign") + "." + faction;
+  const saveKey = SAVE_PREFIX + mission.id + (mission.id==="roheorg"?".layout10":"") + "." + (skirmish ? activeMode : "campaign") + "." + faction;
   const hasSave = () => localStorage.getItem(saveKey) !== null;
   const saveGame = () => { localStorage.setItem(saveKey, JSON.stringify(saveWorld(world))); localStorage.setItem("rogue-front.replay.v1." + mission.id, JSON.stringify(replayRecorder.file())); };
   const loadGame = () => { const raw = localStorage.getItem(saveKey); if (!raw) return; try { loadWorld(world, JSON.parse(raw));units.reset();ranges.reset();fx.reset();selection.selected.clear();replayRecorder.reset(world); running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); } catch (err) { console.error("Salvestuse laadimine ebaõnnestus", err); hud.setWarning("Salvestuse laadimine ebaõnnestus"); } };
@@ -263,9 +263,14 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       fx.handleEvents(events,world);
       audio.events(events, world.playerTeam);
       fx.syncProjectiles(world, alpha);
-      const forestChanged=syncForestTerrain(terrainView,world),housesChanged=syncGarrisonTerrain(terrainView,world);if(forestChanged||housesChanged)ctx.updateShadows(true);
+      terrainAcc+=frameDt;
+      if(terrainAcc>=.2){
+        terrainAcc%=.2;
+        const forestChanged=syncForestTerrain(terrainView,world),housesChanged=syncGarrisonTerrain(terrainView,world);
+        if(forestChanged||housesChanged)ctx.updateShadows(true);
+        resourceSites.sync(world);
+      }
       fx.syncForestFires(world,frameDt);
-      resourceSites.sync(world);
       fx.update(frameDt);
       const animateWater = ctx.water.material as THREE.ShaderMaterial;
       if (animateWater.uniforms?.time) animateWater.uniforms.time.value += frameDt;

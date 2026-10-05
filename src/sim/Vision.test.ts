@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Vision } from "./Vision";
 import type { Entity } from "./types";
 import { heightAt } from "./heightmap";
+import {featureBlocksMovement,type MapFeatureDef} from "./mapFeatures";
 import { UNITS } from "./units";
 
 function unit(id: number, team: 0 | 1, x: number, z: number, kind: "tank" | "hq" = "tank"): Entity {
@@ -33,6 +34,23 @@ describe("Vision", () => {
     v.update([u]);v.update([u]);
     expect(v.isVisible(0, 0, 0)).toBe(false);
     expect(v.isExplored(0, 0, 0)).toBe(true);
+  });
+
+  it("spatial candidates preserve rotated obstacle LOS and complete fog state",()=>{
+    const features:MapFeatureDef[]=Array.from({length:120},(_,i)=>({id:`wall-${i}`,kind:"wall",x:(i%12)*32-180,z:Math.floor(i/12)*32-150,width:18,depth:3,height:8,rotation:i*.37}));
+    const indexed=new Vision(),reference=new Vision();indexed.setFeatures(features);reference.setFeatures(features);
+    const blockers=features.filter(f=>featureBlocksMovement(f)&&f.kind!=="water");
+    // Reference broad phase examines all features, as the old implementation did.
+    Object.defineProperty(reference,"blockersAt",{value:()=>blockers});
+    const observers=[unit(1,0,-34,-32),unit(2,1,32,35),unit(3,0,64,-64)];
+    indexed.update(observers);reference.update(observers);
+    expect(indexed.snapshot()).toEqual(reference.snapshot());
+    for(let i=0;i<30;i++){
+      const a=unit(10,0,i*5-70,-52),b=unit(11,1,64,60-i*3);
+      expect(indexed.hasLineOfSight(a,b)).toBe(reference.hasLineOfSight(a,b));
+    }
+    const bins=indexed as unknown as {blockersAt(x:number,z:number):readonly MapFeatureDef[]};
+    expect(bins.blockersAt(0,0).length).toBeLessThan(blockers.length/10);
   });
 
   it("hq exposes a defined command observation radius", () => {

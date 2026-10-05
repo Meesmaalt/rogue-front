@@ -30,10 +30,10 @@ it("terrain: real HE impact starts fire, smoke blocks sight, casualties and char
  for(let i=0;i<50;i++){w.terrain.tick(w,1);copy.terrain.tick(copy,1);}expect(worldHash(copy)).toBe(worldHash(w));
  expect(w.terrain.burntAt(8,-200)).toBe(true);expect(coverValueAt(w,8,-200)).toBeLessThan(10);
 });
-it("terrain: 960m Roheorg connects both bases with full-sized navigation and vision",()=>{
+it("terrain: 1088m Roheorg connects both bases with full-sized navigation and vision",()=>{
  setMapSize(FOCUS_MAP.map.size);setBases(FOCUS_MAP.map.bases);setTerrainProfile("farmland");setProceduralSeed(FOCUS_MAP.seed);
  const m=FOCUS_MAP.map,w=new World(FOCUS_MAP.seed,false,m.resources,m.features,m.bases,false);
- expect(w.mapSize).toBe(960);expect(w.nav.width).toBe(480);expect(w.vision.width).toBe(240);
+ expect(w.mapSize).toBe(1088);expect(w.nav.width).toBe(544);expect(w.vision.width).toBe(272);
  const path=findPath(w.nav,{x:m.bases[0].x+20,z:m.bases[0].z},{x:m.bases[1].x-20,z:m.bases[1].z},1.5);expect(path.length).toBeGreaterThan(1);
  expect(m.features!.filter(f=>f.kind==="building").length).toBeGreaterThan(40);expect(heightAt(450,450)).toBeGreaterThanOrEqual(0);
 });
