@@ -1,0 +1,425 @@
+{
+  "scope": "30 faction/role squads, detailed and static-distance models; geometry checks only, no GPU/FPS or browser shader validation",
+  "variants": [
+    {
+      "faction": "usa",
+      "kind": "inf",
+      "detailed": {
+        "meshes": 24,
+        "triangles": 7072,
+        "members": 8
+      },
+      "tactical": {
+        "meshes": 8,
+        "triangles": 7072,
+        "members": 8
+      }
+    },
+    {
+      "faction": "usa",
+      "kind": "atInf",
+      "detailed": {
+        "meshes": 12,
+        "triangles": 3584,
+        "members": 4
+      },
+      "tactical": {
+        "meshes": 4,
+        "triangles": 3584,
+        "members": 4
+      }
+    },
+    {
+      "faction": "usa",
+      "kind": "mgInf",
+      "detailed": {
+        "meshes": 15,
+        "triangles": 4396,
+        "members": 5
+      },
+      "tactical": {
+        "meshes": 5,
+        "triangles": 4396,
+        "members": 5
+      }
+    },
+    {
+      "faction": "usa",
+      "kind": "reconInf",
+      "detailed": {
+        "meshes": 18,
+        "triangles": 5304,
+        "members": 6
+      },
+      "tactical": {
+        "meshes": 6,
+        "triangles": 5304,
+        "members": 6
+      }
+    },
+    {
+      "faction": "usa",
+      "kind": "sniper",
+      "detailed": {
+        "meshes": 6,
+        "triangles": 1828,
+        "members": 2
+      },
+      "tactical": {
+        "meshes": 2,
+        "triangles": 1828,
+        "members": 2
+      }
+    },
+    {
+      "faction": "usa",
+      "kind": "manpad",
+      "detailed": {
+        "meshes": 9,
+        "triangles": 2700,
+        "members": 3
+      },
+      "tactical": {
+        "meshes": 3,
+        "triangles": 2700,
+        "members": 3
+      }
+    },
+    {
+      "faction": "usa",
+      "kind": "atgm",
+      "detailed": {
+        "meshes": 10,
+        "triangles": 2736,
+        "members": 3
+      },
+      "tactical": {
+        "meshes": 3,
+        "triangles": 2736,
+        "members": 3
+      }
+    },
+    {
+      "faction": "usa",
+      "kind": "engineer",
+      "detailed": {
+        "meshes": 12,
+        "triangles": 3104,
+        "members": 4
+      },
+      "tactical": {
+        "meshes": 4,
+        "triangles": 3104,
+        "members": 4
+      }
+    },
+    {
+      "faction": "usa",
+      "kind": "special",
+      "detailed": {
+        "meshes": 12,
+        "triangles": 3560,
+        "members": 4
+      },
+      "tactical": {
+        "meshes": 4,
+        "triangles": 3560,
+        "members": 4
+      }
+    },
+    {
+      "faction": "usa",
+      "kind": "mortar",
+      "detailed": {
+        "meshes": 13,
+        "triangles": 3620,
+        "members": 4
+      },
+      "tactical": {
+        "meshes": 4,
+        "triangles": 3620,
+        "members": 4
+      }
+    },
+    {
+      "faction": "russia",
+      "kind": "inf",
+      "detailed": {
+        "meshes": 24,
+        "triangles": 6736,
+        "members": 8
+      },
+      "tactical": {
+        "meshes": 8,
+        "triangles": 6736,
+        "members": 8
+      }
+    },
+    {
+      "faction": "russia",
+      "kind": "atInf",
+      "detailed": {
+        "meshes": 12,
+        "triangles": 3404,
+        "members": 4
+      },
+      "tactical": {
+        "meshes": 4,
+        "triangles": 3404,
+        "members": 4
+      }
+    },
+    {
+      "faction": "russia",
+      "kind": "mgInf",
+      "detailed": {
+        "meshes": 15,
+        "triangles": 4156,
+        "members": 5
+      },
+      "tactical": {
+        "meshes": 5,
+        "triangles": 4156,
+        "members": 5
+      }
+    },
+    {
+      "faction": "russia",
+      "kind": "reconInf",
+      "detailed": {
+        "meshes": 18,
+        "triangles": 4944,
+        "members": 6
+      },
+      "tactical": {
+        "meshes": 6,
+        "triangles": 4944,
+        "members": 6
+      }
+    },
+    {
+      "faction": "russia",
+      "kind": "sniper",
+      "detailed": {
+        "meshes": 6,
+        "triangles": 1768,
+        "members": 2
+      },
+      "tactical": {
+        "meshes": 2,
+        "triangles": 1768,
+        "members": 2
+      }
+    },
+    {
+      "faction": "russia",
+      "kind": "manpad",
+      "detailed": {
+        "meshes": 9,
+        "triangles": 2580,
+        "members": 3
+      },
+      "tactical": {
+        "meshes": 3,
+        "triangles": 2580,
+        "members": 3
+      }
+    },
+    {
+      "faction": "russia",
+      "kind": "atgm",
+      "detailed": {
+        "meshes": 10,
+        "triangles": 2616,
+        "members": 3
+      },
+      "tactical": {
+        "meshes": 3,
+        "triangles": 2616,
+        "members": 3
+      }
+    },
+    {
+      "faction": "russia",
+      "kind": "engineer",
+      "detailed": {
+        "meshes": 12,
+        "triangles": 3104,
+        "members": 4
+      },
+      "tactical": {
+        "meshes": 4,
+        "triangles": 3104,
+        "members": 4
+      }
+    },
+    {
+      "faction": "russia",
+      "kind": "special",
+      "detailed": {
+        "meshes": 12,
+        "triangles": 3404,
+        "members": 4
+      },
+      "tactical": {
+        "meshes": 4,
+        "triangles": 3404,
+        "members": 4
+      }
+    },
+    {
+      "faction": "russia",
+      "kind": "mortar",
+      "detailed": {
+        "meshes": 13,
+        "triangles": 3440,
+        "members": 4
+      },
+      "tactical": {
+        "meshes": 4,
+        "triangles": 3440,
+        "members": 4
+      }
+    },
+    {
+      "faction": "china",
+      "kind": "inf",
+      "detailed": {
+        "meshes": 24,
+        "triangles": 6712,
+        "members": 8
+      },
+      "tactical": {
+        "meshes": 8,
+        "triangles": 6712,
+        "members": 8
+      }
+    },
+    {
+      "faction": "china",
+      "kind": "atInf",
+      "detailed": {
+        "meshes": 12,
+        "triangles": 3380,
+        "members": 4
+      },
+      "tactical": {
+        "meshes": 4,
+        "triangles": 3380,
+        "members": 4
+      }
+    },
+    {
+      "faction": "china",
+      "kind": "mgInf",
+      "detailed": {
+        "meshes": 15,
+        "triangles": 4156,
+        "members": 5
+      },
+      "tactical": {
+        "meshes": 5,
+        "triangles": 4156,
+        "members": 5
+      }
+    },
+    {
+      "faction": "china",
+      "kind": "reconInf",
+      "detailed": {
+        "meshes": 18,
+        "triangles": 4944,
+        "members": 6
+      },
+      "tactical": {
+        "meshes": 6,
+        "triangles": 4944,
+        "members": 6
+      }
+    },
+    {
+      "faction": "china",
+      "kind": "sniper",
+      "detailed": {
+        "meshes": 6,
+        "triangles": 1768,
+        "members": 2
+      },
+      "tactical": {
+        "meshes": 2,
+        "triangles": 1768,
+        "members": 2
+      }
+    },
+    {
+      "faction": "china",
+      "kind": "manpad",
+      "detailed": {
+        "meshes": 9,
+        "triangles": 2580,
+        "members": 3
+      },
+      "tactical": {
+        "meshes": 3,
+        "triangles": 2580,
+        "members": 3
+      }
+    },
+    {
+      "faction": "china",
+      "kind": "atgm",
+      "detailed": {
+        "meshes": 10,
+        "triangles": 2556,
+        "members": 3
+      },
+      "tactical": {
+        "meshes": 3,
+        "triangles": 2556,
+        "members": 3
+      }
+    },
+    {
+      "faction": "china",
+      "kind": "engineer",
+      "detailed": {
+        "meshes": 12,
+        "triangles": 3104,
+        "members": 4
+      },
+      "tactical": {
+        "meshes": 4,
+        "triangles": 3104,
+        "members": 4
+      }
+    },
+    {
+      "faction": "china",
+      "kind": "special",
+      "detailed": {
+        "meshes": 12,
+        "triangles": 3380,
+        "members": 4
+      },
+      "tactical": {
+        "meshes": 4,
+        "triangles": 3380,
+        "members": 4
+      }
+    },
+    {
+      "faction": "china",
+      "kind": "mortar",
+      "detailed": {
+        "meshes": 13,
+        "triangles": 3380,
+        "members": 4
+      },
+      "tactical": {
+        "meshes": 4,
+        "triangles": 3380,
+        "members": 4
+      }
+    }
+  ]
+}

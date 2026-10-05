@@ -1,0 +1,638 @@
+{
+  "scope": "GLB structure, weapon rack and rotor pivots; no browser rendering or FPS",
+  "count": 126,
+  "maxTriangles": 6256,
+  "maxBatches": 10,
+  "models": [
+    {
+      "path": "usa/tank.glb",
+      "triangles": 6044,
+      "drawCalls": 8
+    },
+    {
+      "path": "usa/tank-lod.glb",
+      "triangles": 2600,
+      "drawCalls": 5
+    },
+    {
+      "path": "usa/lightTank.glb",
+      "triangles": 6052,
+      "drawCalls": 8
+    },
+    {
+      "path": "usa/lightTank-lod.glb",
+      "triangles": 2608,
+      "drawCalls": 5
+    },
+    {
+      "path": "usa/ifv.glb",
+      "triangles": 5712,
+      "drawCalls": 8
+    },
+    {
+      "path": "usa/ifv-lod.glb",
+      "triangles": 2268,
+      "drawCalls": 5
+    },
+    {
+      "path": "usa/apc.glb",
+      "triangles": 2412,
+      "drawCalls": 7
+    },
+    {
+      "path": "usa/apc-lod.glb",
+      "triangles": 2064,
+      "drawCalls": 4
+    },
+    {
+      "path": "usa/reconVehicle.glb",
+      "triangles": 2424,
+      "drawCalls": 8
+    },
+    {
+      "path": "usa/reconVehicle-lod.glb",
+      "triangles": 2076,
+      "drawCalls": 4
+    },
+    {
+      "path": "usa/tankDestroyer.glb",
+      "triangles": 2368,
+      "drawCalls": 5
+    },
+    {
+      "path": "usa/tankDestroyer-lod.glb",
+      "triangles": 2020,
+      "drawCalls": 3
+    },
+    {
+      "path": "usa/artillery.glb",
+      "triangles": 5088,
+      "drawCalls": 7
+    },
+    {
+      "path": "usa/artillery-lod.glb",
+      "triangles": 1992,
+      "drawCalls": 4
+    },
+    {
+      "path": "usa/mlrs.glb",
+      "triangles": 5392,
+      "drawCalls": 5
+    },
+    {
+      "path": "usa/mlrs-lod.glb",
+      "triangles": 2296,
+      "drawCalls": 3
+    },
+    {
+      "path": "usa/spaa.glb",
+      "triangles": 2998,
+      "drawCalls": 10
+    },
+    {
+      "path": "usa/spaa-lod.glb",
+      "triangles": 2758,
+      "drawCalls": 7
+    },
+    {
+      "path": "usa/fighter.glb",
+      "triangles": 1724,
+      "drawCalls": 5
+    },
+    {
+      "path": "usa/fighter-lod.glb",
+      "triangles": 1264,
+      "drawCalls": 3
+    },
+    {
+      "path": "usa/interceptor.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "path": "usa/interceptor-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "path": "usa/multirole.glb",
+      "triangles": 1724,
+      "drawCalls": 5
+    },
+    {
+      "path": "usa/multirole-lod.glb",
+      "triangles": 1264,
+      "drawCalls": 3
+    },
+    {
+      "path": "usa/attackAircraft.glb",
+      "triangles": 1724,
+      "drawCalls": 5
+    },
+    {
+      "path": "usa/attackAircraft-lod.glb",
+      "triangles": 1264,
+      "drawCalls": 3
+    },
+    {
+      "path": "usa/ecm.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "path": "usa/ecm-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "path": "usa/bomber.glb",
+      "triangles": 1724,
+      "drawCalls": 5
+    },
+    {
+      "path": "usa/bomber-lod.glb",
+      "triangles": 1264,
+      "drawCalls": 3
+    },
+    {
+      "path": "usa/heli.glb",
+      "triangles": 5396,
+      "drawCalls": 10
+    },
+    {
+      "path": "usa/heli-lod.glb",
+      "triangles": 1860,
+      "drawCalls": 8
+    },
+    {
+      "path": "usa/gunship.glb",
+      "triangles": 5396,
+      "drawCalls": 10
+    },
+    {
+      "path": "usa/gunship-lod.glb",
+      "triangles": 1860,
+      "drawCalls": 8
+    },
+    {
+      "path": "usa/casHeli.glb",
+      "triangles": 2492,
+      "drawCalls": 10
+    },
+    {
+      "path": "usa/casHeli-lod.glb",
+      "triangles": 1260,
+      "drawCalls": 8
+    },
+    {
+      "path": "usa/transport.glb",
+      "triangles": 1628,
+      "drawCalls": 7
+    },
+    {
+      "path": "usa/transport-lod.glb",
+      "triangles": 956,
+      "drawCalls": 5
+    },
+    {
+      "path": "usa/cargoPlane.glb",
+      "triangles": 1676,
+      "drawCalls": 5
+    },
+    {
+      "path": "usa/cargoPlane-lod.glb",
+      "triangles": 1216,
+      "drawCalls": 3
+    },
+    {
+      "path": "usa/logiTruck.glb",
+      "triangles": 1348,
+      "drawCalls": 4
+    },
+    {
+      "path": "usa/logiTruck-lod.glb",
+      "triangles": 1348,
+      "drawCalls": 2
+    },
+    {
+      "path": "russia/tank.glb",
+      "triangles": 6224,
+      "drawCalls": 8
+    },
+    {
+      "path": "russia/tank-lod.glb",
+      "triangles": 2792,
+      "drawCalls": 5
+    },
+    {
+      "path": "russia/lightTank.glb",
+      "triangles": 6232,
+      "drawCalls": 8
+    },
+    {
+      "path": "russia/lightTank-lod.glb",
+      "triangles": 2800,
+      "drawCalls": 5
+    },
+    {
+      "path": "russia/ifv.glb",
+      "triangles": 5640,
+      "drawCalls": 8
+    },
+    {
+      "path": "russia/ifv-lod.glb",
+      "triangles": 2208,
+      "drawCalls": 5
+    },
+    {
+      "path": "russia/apc.glb",
+      "triangles": 2400,
+      "drawCalls": 7
+    },
+    {
+      "path": "russia/apc-lod.glb",
+      "triangles": 2064,
+      "drawCalls": 4
+    },
+    {
+      "path": "russia/reconVehicle.glb",
+      "triangles": 1748,
+      "drawCalls": 8
+    },
+    {
+      "path": "russia/reconVehicle-lod.glb",
+      "triangles": 1436,
+      "drawCalls": 4
+    },
+    {
+      "path": "russia/tankDestroyer.glb",
+      "triangles": 5452,
+      "drawCalls": 5
+    },
+    {
+      "path": "russia/tankDestroyer-lod.glb",
+      "triangles": 2020,
+      "drawCalls": 3
+    },
+    {
+      "path": "russia/artillery.glb",
+      "triangles": 5184,
+      "drawCalls": 7
+    },
+    {
+      "path": "russia/artillery-lod.glb",
+      "triangles": 2088,
+      "drawCalls": 4
+    },
+    {
+      "path": "russia/mlrs.glb",
+      "triangles": 2196,
+      "drawCalls": 5
+    },
+    {
+      "path": "russia/mlrs-lod.glb",
+      "triangles": 2196,
+      "drawCalls": 3
+    },
+    {
+      "path": "russia/spaa.glb",
+      "triangles": 2614,
+      "drawCalls": 10
+    },
+    {
+      "path": "russia/spaa-lod.glb",
+      "triangles": 2614,
+      "drawCalls": 7
+    },
+    {
+      "path": "russia/fighter.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "path": "russia/fighter-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "path": "russia/interceptor.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "path": "russia/interceptor-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "path": "russia/multirole.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "path": "russia/multirole-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "path": "russia/attackAircraft.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "path": "russia/attackAircraft-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "path": "russia/ecm.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "path": "russia/ecm-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "path": "russia/bomber.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "path": "russia/bomber-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "path": "russia/heli.glb",
+      "triangles": 5396,
+      "drawCalls": 10
+    },
+    {
+      "path": "russia/heli-lod.glb",
+      "triangles": 1860,
+      "drawCalls": 8
+    },
+    {
+      "path": "russia/gunship.glb",
+      "triangles": 5396,
+      "drawCalls": 10
+    },
+    {
+      "path": "russia/gunship-lod.glb",
+      "triangles": 1860,
+      "drawCalls": 8
+    },
+    {
+      "path": "russia/casHeli.glb",
+      "triangles": 2492,
+      "drawCalls": 10
+    },
+    {
+      "path": "russia/casHeli-lod.glb",
+      "triangles": 1260,
+      "drawCalls": 8
+    },
+    {
+      "path": "russia/transport.glb",
+      "triangles": 1508,
+      "drawCalls": 7
+    },
+    {
+      "path": "russia/transport-lod.glb",
+      "triangles": 836,
+      "drawCalls": 5
+    },
+    {
+      "path": "russia/cargoPlane.glb",
+      "triangles": 2260,
+      "drawCalls": 5
+    },
+    {
+      "path": "russia/cargoPlane-lod.glb",
+      "triangles": 1576,
+      "drawCalls": 3
+    },
+    {
+      "path": "russia/logiTruck.glb",
+      "triangles": 1348,
+      "drawCalls": 4
+    },
+    {
+      "path": "russia/logiTruck-lod.glb",
+      "triangles": 1348,
+      "drawCalls": 2
+    },
+    {
+      "path": "china/tank.glb",
+      "triangles": 6248,
+      "drawCalls": 8
+    },
+    {
+      "path": "china/tank-lod.glb",
+      "triangles": 2816,
+      "drawCalls": 5
+    },
+    {
+      "path": "china/lightTank.glb",
+      "triangles": 6256,
+      "drawCalls": 8
+    },
+    {
+      "path": "china/lightTank-lod.glb",
+      "triangles": 2824,
+      "drawCalls": 5
+    },
+    {
+      "path": "china/ifv.glb",
+      "triangles": 5700,
+      "drawCalls": 8
+    },
+    {
+      "path": "china/ifv-lod.glb",
+      "triangles": 2268,
+      "drawCalls": 5
+    },
+    {
+      "path": "china/apc.glb",
+      "triangles": 2400,
+      "drawCalls": 7
+    },
+    {
+      "path": "china/apc-lod.glb",
+      "triangles": 2064,
+      "drawCalls": 4
+    },
+    {
+      "path": "china/reconVehicle.glb",
+      "triangles": 2412,
+      "drawCalls": 8
+    },
+    {
+      "path": "china/reconVehicle-lod.glb",
+      "triangles": 2076,
+      "drawCalls": 4
+    },
+    {
+      "path": "china/tankDestroyer.glb",
+      "triangles": 2356,
+      "drawCalls": 5
+    },
+    {
+      "path": "china/tankDestroyer-lod.glb",
+      "triangles": 2020,
+      "drawCalls": 3
+    },
+    {
+      "path": "china/artillery.glb",
+      "triangles": 5184,
+      "drawCalls": 7
+    },
+    {
+      "path": "china/artillery-lod.glb",
+      "triangles": 2088,
+      "drawCalls": 4
+    },
+    {
+      "path": "china/mlrs.glb",
+      "triangles": 2196,
+      "drawCalls": 5
+    },
+    {
+      "path": "china/mlrs-lod.glb",
+      "triangles": 2196,
+      "drawCalls": 3
+    },
+    {
+      "path": "china/spaa.glb",
+      "triangles": 6094,
+      "drawCalls": 10
+    },
+    {
+      "path": "china/spaa-lod.glb",
+      "triangles": 2758,
+      "drawCalls": 7
+    },
+    {
+      "path": "china/fighter.glb",
+      "triangles": 1740,
+      "drawCalls": 5
+    },
+    {
+      "path": "china/fighter-lod.glb",
+      "triangles": 1280,
+      "drawCalls": 3
+    },
+    {
+      "path": "china/interceptor.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "path": "china/interceptor-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "path": "china/multirole.glb",
+      "triangles": 1740,
+      "drawCalls": 5
+    },
+    {
+      "path": "china/multirole-lod.glb",
+      "triangles": 1280,
+      "drawCalls": 3
+    },
+    {
+      "path": "china/attackAircraft.glb",
+      "triangles": 1740,
+      "drawCalls": 5
+    },
+    {
+      "path": "china/attackAircraft-lod.glb",
+      "triangles": 1280,
+      "drawCalls": 3
+    },
+    {
+      "path": "china/ecm.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "path": "china/ecm-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 3
+    },
+    {
+      "path": "china/bomber.glb",
+      "triangles": 1740,
+      "drawCalls": 5
+    },
+    {
+      "path": "china/bomber-lod.glb",
+      "triangles": 1280,
+      "drawCalls": 3
+    },
+    {
+      "path": "china/heli.glb",
+      "triangles": 5396,
+      "drawCalls": 10
+    },
+    {
+      "path": "china/heli-lod.glb",
+      "triangles": 1860,
+      "drawCalls": 8
+    },
+    {
+      "path": "china/gunship.glb",
+      "triangles": 5396,
+      "drawCalls": 10
+    },
+    {
+      "path": "china/gunship-lod.glb",
+      "triangles": 1860,
+      "drawCalls": 8
+    },
+    {
+      "path": "china/casHeli.glb",
+      "triangles": 2492,
+      "drawCalls": 10
+    },
+    {
+      "path": "china/casHeli-lod.glb",
+      "triangles": 1260,
+      "drawCalls": 8
+    },
+    {
+      "path": "china/transport.glb",
+      "triangles": 1508,
+      "drawCalls": 7
+    },
+    {
+      "path": "china/transport-lod.glb",
+      "triangles": 836,
+      "drawCalls": 5
+    },
+    {
+      "path": "china/cargoPlane.glb",
+      "triangles": 1692,
+      "drawCalls": 5
+    },
+    {
+      "path": "china/cargoPlane-lod.glb",
+      "triangles": 1232,
+      "drawCalls": 3
+    },
+    {
+      "path": "china/logiTruck.glb",
+      "triangles": 1348,
+      "drawCalls": 4
+    },
+    {
+      "path": "china/logiTruck-lod.glb",
+      "triangles": 1348,
+      "drawCalls": 2
+    }
+  ]
+}
