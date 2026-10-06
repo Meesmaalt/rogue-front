@@ -35,3 +35,16 @@ it('a strike aircraft leaves its attack run after firing rather than continuousl
  for(let i=0;i<450;i++){w.tick(SIM_STEP);if(u.flightAttackExit){exited=true;expect(u.flightAttackExitUntil).toBeGreaterThan(w.time);const exit={...u.flightAttackExit};for(let j=0;j<10;j++)w.tick(SIM_STEP);expect(u.flightAttackExit).toEqual(exit);break;}}
  expect(exited).toBe(true);
 });
+
+it('helicopter stop carries momentum and converges to a stable hover destination',()=>{
+ const w=world(),pad=w.spawn('helipad',0,-65,-160),u=w.spawn('heli',0,-50,-100);
+ u.airMissionHomeId=pad.id;u.airState='airborne';u.y=heightAt(u.x,u.z)+30;u.heading=Math.PI/2;u.motionSpeed=12;u.standingOrder='holdfire';
+ w.issue({type:'stop',ids:[u.id]});const start=u.x;w.tick(SIM_STEP);
+ expect(u.x).toBeGreaterThan(start);expect(u.motionSpeed).toBeGreaterThan(11);expect(u.motionSpeed).toBeLessThan(12);
+ for(let i=0;i<150;i++)w.tick(SIM_STEP);
+ expect(u.motionSpeed).toBe(0);expect(u.x-start).toBeGreaterThan(10);expect(u.x-start).toBeLessThan(25);
+ const goal={x:140,z:-100};w.issue({type:'move',ids:[u.id],...goal});
+ let maximum=0;
+ for(let i=0;i<900;i++){w.tick(SIM_STEP);maximum=Math.max(maximum,u.motionSpeed??0);if(!u.dest&&i>100)break;}
+ expect(maximum).toBeGreaterThan(14);expect(u.dest).toBeNull();expect(Math.hypot(u.x-goal.x,u.z-goal.z)).toBeLessThan(2);
+});

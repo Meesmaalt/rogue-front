@@ -9,3 +9,11 @@ Rannaküla sai ühendatud tänava, sadamad teenindusõued ja kuus garnisonitavat
 Sama uue kaardigeomeetria puhul vähenes taimkatte indeksi feature–cell kirjete arv Roheorus 1301 → 746 ja Murdlaine kaardil 4566 → 992. See on indeksi suuruse võrdlus, mitte FPS mõõtmine.
 
 Kontroll: production build (sisaldab TypeScripti kontrolli) ning viis sihitud kontrolli: pööratud/polsterdatud indeksi täpsus, ranniku sadamad/meretee/hooned/ressursid, rannikumissiooni võit, mereväe save/load ning Roheoru hoonete/teede/sildade paigutus. Brauseri visuaalne ülevaatus, GPU FPS ja pikk läbimängimine on endiselt ootel; A6 ja B1 jäävad avatuks. Ranniku uus salvestusvõti on `.coast3`, et vana kaardigeomeetriaga mängu ei laaditaks uude paigutusse.
+
+## Kopterite liikumine ja metsa kaugvaade
+
+Kopteri stop-käsk vähendab kiirust koos tegeliku asukoha muutumisega. Pidurdamist arvutatakse järelejäänud vahemaa ja pidurdusvõime järgi; vana 2 m surnud ala ei jäta kopterit enne sihtpunkti kinni. Saabumine ja maandumine lõpetatakse madalal kiirusel. Pöördes vähendatakse soovitud kiirust, kere kalle reageerib kiirendusele/pidurdusele. Nelja olemasoleva kopteriklassi kiirus suurenes 20%; kiirendus 4.8, pidurdus 4.2. Uusi üksuse olekuvälju ei lisandu.
+
+Metsarühmad vahetavad 260 m kaamerakaugusel (15% hüsterees) tüved ja kolme lehepinnaga krooni ühe horisontaalse kroonipinna vastu. Kaugvaate lehekolmnurki on kolmandik, tüvede ja nende dünaamiliste varjude renderdamine kaob. Samad puupositsioonid, nähtav metsaala, varjumine ning tulekahju olek säilivad. Lähivaade kasutab varasemat mudelit. See vähendab kaugvaate geomeetria- ja alpha-test koormust; tegelikku FPS kasvu pole brauseris mõõdetud.
+
+Kontrollid: build/typecheck, stop-käsu inerts ja sihtpunkti saabumine, EVAC koos pardal oleva jalaväega/save-load, vertikaalne õhkutõus ja baasinõue. Kolm sihitud kontrolli läbisid.

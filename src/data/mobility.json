@@ -53,8 +53,8 @@
   },
   "helicopter": {
     "altitude": 30,
-    "acceleration": 4.35,
-    "braking": 6.09,
+    "acceleration": 4.8,
+    "braking": 4.2,
     "climbRate": 6.0,
     "descentRate": 5.5,
     "maxBank": 0.38,
@@ -62,7 +62,9 @@
     "padOffset": 6,
     "parkingSpacing": 7,
     "baseCapacity": 2,
-    "capacityPerLevel": 1
+    "capacityPerLevel": 1,
+    "hoverArrivalSpeed": 0.9,
+    "hoverRadius": 0.3
   },
   "aircraft": {
     "altitude": 80,
