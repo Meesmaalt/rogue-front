@@ -1,4 +1,4 @@
-import {knownContacts,availableCombat,fieldCombat,needsRecovery,AI_RULES} from "./knowledge";
+import {knownContacts,availableCombat,fieldCombat,needsRecovery,componentDamage,AI_RULES} from "./knowledge";
 import {researchStatus,unitUpgradeStatus} from "../unitStats";
 import {MAP_SIZE} from "../heightmap";
 import type { World } from "../World";
@@ -84,7 +84,7 @@ export class WaveAI {
 
     if (this.airTimer <= 0) {
       this.airTimer = this.difficulty === "hard" ? 7 : 11;
-      this.taskAir(w);
+      this.taskAir(w);this.taskNavy(w);
     }
 
     if (this.defendTimer <= 0) {
@@ -223,7 +223,7 @@ export class WaveAI {
   private scout(w: World): void {
     if(w.entities.some(e=>e.team===1&&!e.dead&&e.loadedIntoId==null&&(e.aiIntent==="recon"||["reconInf","reconVehicle","sniper"].includes(e.kind))))return;
     const scouts = w.entities.filter(e =>
-      !e.dead && e.team === 1 && e.def.speed > 0 &&
+      !e.dead && e.team === 1 && e.def.domain!=="sea" && e.def.speed > 0 &&
       ["reconInf", "reconVehicle", "sniper", "inf"].includes(e.kind) &&
       e.loadedIntoId === null && availableCombat(e)
     );
@@ -282,7 +282,7 @@ export class WaveAI {
     // Guard depots that are forward / under-supplied
     for (const depot of w.entities.filter(e => !e.dead && e.team === 1 && e.kind === "supply")) {
       const near = w.entities.filter(e =>
-        !e.dead && e.team === 1 && e.def.speed > 0 && Math.hypot(e.x - depot.x, e.z - depot.z) < 30
+        !e.dead && e.team === 1 && e.def.domain!=="sea" && e.def.speed > 0 && Math.hypot(e.x - depot.x, e.z - depot.z) < 30
       ).length;
       if (near >= 2) continue;
       const guard = w.entities.find(e =>
@@ -332,6 +332,18 @@ export class WaveAI {
     w.issue({ type: "upgrade", ids: [candidates[0].id], upgrade: "producer", team: 1 });
   }
 
+  private taskNavy(w:World):void {
+    const ports=w.entities.filter(e=>!e.dead&&!e.underConstruction&&e.team===1&&e.kind==="shipyard"),ships=w.entities.filter(e=>!e.dead&&e.team===1&&e.def.domain==="sea"&&e.kind!=="landingcraft");
+    const port=ports[0];if(!port)return;
+    if(ships.length<4&&port.productionQueue.length<2&&w.teamResources[1]>=w.unitDefinition("missileBoat",1).cost&&w.productionOperational(port,"missileBoat").operational)w.issue({type:"produce",kind:"missileBoat",producerId:port.id,team:1});
+    for(const ship of ships){
+      const recovering=componentDamage(ship)>AI_RULES.retreatComponentDamage||ship.hp<ship.def.hp*.5||(ship.fuel??0)<(ship.maxFuel??1)*.2||(ship.def.weapons??[]).every((spec,i)=>(i===0?(ship.ammo??0):(ship.secondaryAmmo?.[i]??0))<spec.ammoUsePerShot);
+      if(recovering){const p=w.waterNav.nearestWater(port,ship.def.radius,64);if(p)w.issue({type:"move",ids:[ship.id],x:p.x,z:p.z,team:1});continue;}
+      const target=w.entities.find(e=>!e.dead&&e.team===0&&e.def.domain==="sea"&&w.isSpottedByTeam(e,1));
+      if(target){w.issue({type:"attack",ids:[ship.id],targetId:target.id,team:1});continue;}
+      if(ship.mode==="idle"){const p=w.waterNav.nearestWater({x:ship.x,z:0},ship.def.radius,120);if(p)w.issue({type:"amove",ids:[ship.id],x:p.x,z:p.z,team:1});}
+    }
+  }
   private produceArmy(w: World): void {
     if (!this.has(w, 1, "barracks") && !this.has(w, 1, "factory")) return;
 
@@ -382,7 +394,7 @@ export class WaveAI {
     }
 
     // Standing doctrine: interdict logistics
-    for (const u of w.entities.filter(e => !e.dead && e.team === 1 && e.def.speed > 0 && e.kind !== "engineer")) {
+    for (const u of w.entities.filter(e => !e.dead && e.team === 1 && e.def.domain!=="sea" && e.def.speed > 0 && e.kind !== "engineer")) {
       if (!u.priorityFocus) {
         u.priorityFocus = this.personality === "economic" ? "supply" : (this.rngPick(w) < 0.5 ? "supply" : "generator");
       }
@@ -397,7 +409,7 @@ export class WaveAI {
     );
     if (!threat) return;
     const defenders = w.entities.filter(e =>
-      !e.dead && e.team === 1 && e.def.speed > 0 &&
+      !e.dead && e.team === 1 && e.def.domain!=="sea" && e.def.speed > 0 &&
       ["tank", "lightTank", "tankDestroyer", "ifv", "inf", "atInf", "atgm", "gunship", "casHeli", "spaa"].includes(e.kind) &&
       e.loadedIntoId === null && availableCombat(e)
     );
@@ -424,7 +436,7 @@ export class WaveAI {
 
   private launchAttack(w: World): void {
     const army = w.entities.filter(e =>
-      !e.dead && e.team === 1 && e.def.speed > 0 &&
+      !e.dead && e.team === 1 && e.def.domain!=="sea" && e.def.speed > 0 &&
       !["engineer", "transport"].includes(e.kind) && e.loadedIntoId === null && availableCombat(e) && !needsRecovery(e)
     );
     const minArmy = this.phase === "decisive" ? 8 : this.phase === "pressure" ? 6 : 5;

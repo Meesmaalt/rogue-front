@@ -17,5 +17,6 @@ export function ammunitionFraction(u:Entity):number {
  const fractions=(u.def.weapons??[weaponSpec(u)]).map((s,i)=>s.damage>0?(s.ammoCapacity>0?Math.min(1,weaponAmmo(u,i)/s.ammoCapacity):1):0);
  return Math.max(0,...fractions);
 }
-export function needsRecovery(u:Entity):boolean {return (u.supply??100)<rules.lowSupply||ammunitionFraction(u)<rules.lowAmmoFraction||(u.maxFuel??0)>0&&(u.fuel??0)<(u.maxFuel??0)*rules.lowAmmoFraction||u.hp<maxHitPoints(u)*rules.retreatHealth||(u.morale??100)<rules.retreatMorale;}
-export function recoveryComplete(u:Entity):boolean {return (u.supply??100)>=rules.recoveredSupply&&ammunitionFraction(u)>=.5&&(!(u.maxFuel??0)||(u.fuel??0)>=(u.maxFuel??0)*.5)&&u.hp>=maxHitPoints(u)*rules.readyHealth&&(u.morale??100)>rules.retreatMorale;}
+export function componentDamage(u:Entity):number {return Math.max(0,...Object.values(u.components??{}));}
+export function needsRecovery(u:Entity):boolean {return (u.supply??100)<rules.lowSupply||ammunitionFraction(u)<rules.lowAmmoFraction||(u.maxFuel??0)>0&&(u.fuel??0)<(u.maxFuel??0)*rules.lowAmmoFraction||u.hp<maxHitPoints(u)*rules.retreatHealth||componentDamage(u)>rules.retreatComponentDamage||(u.morale??100)<rules.retreatMorale;}
+export function recoveryComplete(u:Entity):boolean {return (u.supply??100)>=rules.recoveredSupply&&ammunitionFraction(u)>=.5&&(!(u.maxFuel??0)||(u.fuel??0)>=(u.maxFuel??0)*.5)&&u.hp>=maxHitPoints(u)*rules.readyHealth&&componentDamage(u)<=rules.readyComponentDamage&&(u.morale??100)>rules.retreatMorale;}

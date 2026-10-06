@@ -16,7 +16,7 @@ export class RtsCamera {
     private readonly sun: THREE.DirectionalLight,
     el: HTMLElement,
   ) {
-    window.addEventListener("keydown", (e) => this.keys.add(e.key.toLowerCase()));
+    window.addEventListener("keydown", (e) => {if(!(e.target instanceof Element&&e.target.closest("input,textarea,select,[contenteditable=true]")))this.keys.add(e.key.toLowerCase());});
     window.addEventListener("keyup", (e) => this.keys.delete(e.key.toLowerCase()));
     window.addEventListener("blur", () => this.keys.clear());
     window.addEventListener("mousemove", (e) => { this.mouse.x = e.clientX; this.mouse.y = e.clientY; });

@@ -65,7 +65,7 @@ export function updateConstruction(w: World, dt: number): void {
         const available = depot && dist2d(depot,building)<80 ? depot.repairStock??0 : 0;
         const wanted = active.length * spec.repairPerSec * w.repairMultiplier(building.team) * dt;
         const repair = Math.min(wanted, available);
-        if (depot) depot.repairStock = Math.max(0, available - repair);
+        if (depot&&repair>0) depot.repairStock = Math.max(0, available - repair);
         building.hp = Math.min(maxHitPoints(building), building.hp + repair);
         for (const b of active) { b.mode = "repair"; b.dest = { x: building.x, z: building.z }; b.target = building; }
         if (building.hp >= maxHitPoints(building) - 0.01) {

@@ -34,7 +34,7 @@ function logisticsCard(w:World,u:Entity):string {
 function weaponCards(world:World,u:Pick<Entity,"def"|"team"|"activeWeapon"|"ammo"|"secondaryAmmo"|"cooldown"|"weaponCooldowns">,live?:Entity):string {
   const team=u.team===0?1:0,tank=world.unitDefinition("tank",team),inf=world.unitDefinition("inf",team),ifv=world.unitDefinition("ifv",team),heli=world.unitDefinition("heli",team);
   const value=(n:number)=>n<.05?"0":n<1?n.toFixed(1):n.toFixed(0);
-  return (u.def.weapons??[]).map((s,i)=>`<div class="weapon-card" style="--weapon-color:${WEAPON_RANGE_COLORS[i%WEAPON_RANGE_COLORS.length]}"><div><b>${i===(u.activeWeapon??0)?"▸ ":""}${s.name}</b><strong>${Math.floor(weaponAmmo(u,i))}/${s.ammoCapacity} moon</strong></div><span>${s.targets==="air"?"Õhutõrje":s.targets==="armor"?"Tankitõrje":s.flight==="ballistic"?"Kaudtuli":s.weapon==="bullet"?"Jalaväetuli":"Tuletoetus"} · ${s.minimumRange?`${s.minimumRange}–`:""}${Math.round(live?weaponRange(live,s):s.range)} m · AP baas ${s.penetration} · ${Math.round(s.accuracy*100)}% baas paigal / ${movingFireFactor(u.def,s)===0?"peatub":Math.round(s.accuracy*movingFireFactor(u.def,s)*100)+"% liikudes"} · Laadimise baas ${s.cooldown.toFixed(1)} s</span><div class="damage-strip" title="Ühe õnnestunud tabamuse baaskahjustus terve meeskonnaga ja ilma relvauuendusteta, lähikaugus ja avatud maastik. Tank E/K/T = esi/külg/taga. Sihtmärgid on vastasfraktsiooni põhiüksused; tegelik tabamus sõltub kaugusest, kattest, meeskonnast ja seisundist."><span>Jalavägi <b>${value(weaponImpactEstimate(s,inf))}</b></span><span>IFV <b>${value(weaponImpactEstimate(s,ifv))}</b></span><span>Tank E/K/T <b>${["front","side","rear"].map(f=>value(weaponImpactEstimate(s,tank,f as "front"|"side"|"rear"))).join("/")}</b></span><span>Kopter <b>${value(weaponImpactEstimate(s,heli))}</b></span></div><small>${s.guidance==="none"?s.flight==="ballistic"?"Ballistiline kaudtuli":"Juhitamatu":{command:"Juhtimine vajab laskuri kontakti",infrared:"Infrapuna · iseseisev juhtimine",radar:"Radarjuhtimine"}[s.guidance]} · ${weaponCooldown(u,i)>0?"Laadib "+weaponCooldown(u,i).toFixed(1)+" s":"Valmis"}</small><small>Kulu ${s.ammoUsePerShot} moon/lasu · Surve ${s.suppressionPower} · ${s.speed} m/s mürsk · ${s.warhead.toUpperCase()}</small>${live?liveWeaponReadout(world,live,i):""}</div>`).join("");
+  return (u.def.weapons??[]).map((s,i)=>`<div class="weapon-card" style="--weapon-color:${WEAPON_RANGE_COLORS[i%WEAPON_RANGE_COLORS.length]}"><div><b>${i===(u.activeWeapon??0)?"▸ ":""}${s.name}</b><strong>${Math.floor(weaponAmmo(u,i))}/${s.ammoCapacity} moon</strong></div><span>${s.targets==="naval"?"Laevatõrje":s.targets==="air"?"Õhutõrje":s.targets==="armor"?"Tankitõrje":s.flight==="ballistic"?"Kaudtuli":s.weapon==="bullet"?"Jalaväetuli":"Tuletoetus"} · ${s.minimumRange?`${s.minimumRange}–`:""}${Math.round(live?weaponRange(live,s):s.range)} m · AP baas ${s.penetration} · ${Math.round(s.accuracy*100)}% baas paigal / ${movingFireFactor(u.def,s)===0?"peatub":Math.round(s.accuracy*movingFireFactor(u.def,s)*100)+"% liikudes"} · Laadimise baas ${s.cooldown.toFixed(1)} s</span><div class="damage-strip" title="Ühe õnnestunud tabamuse baaskahjustus terve meeskonnaga ja ilma relvauuendusteta, lähikaugus ja avatud maastik. Tank E/K/T = esi/külg/taga. Sihtmärgid on vastasfraktsiooni põhiüksused; tegelik tabamus sõltub kaugusest, kattest, meeskonnast ja seisundist."><span>Jalavägi <b>${value(weaponImpactEstimate(s,inf))}</b></span><span>IFV <b>${value(weaponImpactEstimate(s,ifv))}</b></span><span>Tank E/K/T <b>${["front","side","rear"].map(f=>value(weaponImpactEstimate(s,tank,f as "front"|"side"|"rear"))).join("/")}</b></span><span>Kopter <b>${value(weaponImpactEstimate(s,heli))}</b></span></div><small>${s.guidance==="none"?s.flight==="ballistic"?"Ballistiline kaudtuli":"Juhitamatu":{command:"Juhtimine vajab laskuri kontakti",infrared:"Infrapuna · iseseisev juhtimine",radar:"Radarjuhtimine"}[s.guidance]} · ${weaponCooldown(u,i)>0?"Laadib "+weaponCooldown(u,i).toFixed(1)+" s":"Valmis"}</small><small>Kulu ${s.ammoUsePerShot} moon/lasu · Surve ${s.suppressionPower} · ${s.speed} m/s mürsk · ${s.warhead.toUpperCase()}</small>${live?liveWeaponReadout(world,live,i):""}</div>`).join("");
 }
 
 /** Only current spotted targets enter the readout; old intel never reveals live coordinates. */
@@ -57,7 +57,7 @@ function liveWeaponReadout(world:World,u:Entity,index:number):string {
   else if(distance-target.def.radius>range)block="Väljaspool ulatust";
   else if((u.motionSpeed??0)>.5&&spec.fireOnMove===false)block="Peab tulistamiseks peatuma";
   else if(weaponCooldown(u,index)>0)block=`Laadib ${weaponCooldown(u,index).toFixed(1)} s`;
-  else if(!["artillery","mortar","mlrs"].includes(u.kind)&&!world.vision.hasLineOfSight(u,target))block="Tulejoon blokeeritud";
+  else if(spec.visual!=="cruise"&&!["artillery","mortar","mlrs"].includes(u.kind)&&!world.vision.hasLineOfSight(u,target))block="Tulejoon blokeeritud";
   const steps:AccuracyStep[]=[],chance=shotAccuracy(world,u,target,spec,distance,steps);
   const faceName={front:"esi",side:"külg",rear:"taga"}[face];
   return reach+`<div class="shot-preview"><b>${world.unitDisplayName(target.kind,target.team)} · ${distance.toFixed(1)} m</b><strong>${compatible?Math.round(chance*100)+"% tabamisvõimalus":"—"}</strong><small>${block||"Ulatuses · lasu luba sõltub ka sihtimisest, moraalist ja üksuse korraldusest"}</small>${compatible?`<small>AP ${apAt(distance)} vs ${faceName}soomus ${armorValue(target,face)} · Hinnanguline lennuaeg ${(distance/Math.max(1,spec.speed)).toFixed(1)} s</small><details class="accuracy-details" data-detail-key="accuracy-${index}"><summary>Tabamisvõimaluse arvutus</summary><small>Ühe käivitatud lasu tõenäosus; ei taga läbistamist ega lasu luba. Mürsu teekond ja sihtmärgi seisund võivad pärast lasku muutuda.</small><table><tbody>${steps.map(step=>`<tr><td>${step.label}</td><td>${(step.chance*100).toFixed(1)}%</td></tr>`).join("")}</tbody></table><small>Iga rida näitab tõenäosust pärast vastavat tegurit.</small></details>`:""}</div>`+reference;
@@ -77,7 +77,7 @@ function unitDevelopmentCards(world:World,u:Entity,running:boolean):string {
 
 const fmt = (s: number) => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
 const unitIcon = (kind:UnitKind):string => unitPicture(kind,"usa");
-const rootButton = (_hud: Hud, selector: string) => document.querySelector<HTMLButtonElement>(selector);
+const rootButton = (hud: Hud, selector: string) => hud.findButton(selector);
 const producerFor = (k: UnitKind): string => {
   if (["inf","engineer","special","atInf","mgInf","reconInf","sniper","mortar","manpad","atgm"].includes(k)) return "barracks";
   if (["tank","apc","ifv","artillery","mlrs","reconVehicle","lightTank","tankDestroyer","spaa"].includes(k)) return "factory";
@@ -126,6 +126,11 @@ export class Hud {
   onProduce: (kind: UnitKind, producerId?: number) => void = () => {};
   onPause: () => void = () => {};
   onSettings: () => void = () => {};
+  onGuideFocus:(ids:number[])=>void=()=>{};
+  onGuideTarget:(point:{x:number;z:number})=>void=()=>{};
+  private guidePoint:{x:number;z:number}|null=null;
+  private notice="";
+  private noticeUntil=0;
   onSave: () => void = () => {};
   onLoad: () => void = () => {};
   onBuild: (kind: "barracks"|"factory"|"helipad"|"airbase"|"refinery"|"supply"|"radar"|"bunker"|"aa"|"generator"|"shipyard"|"landCommand"|"airCommand"|"seaCommand"|"combatEngineer"|"landStrategy"|"airStrategy"|"seaStrategy") => void = () => {};
@@ -140,6 +145,7 @@ export class Hud {
   onPriority: (ids: number[], focus: "supply" | "generator" | "aa") => void = () => {};
   onPreDeploy: (ids: number[], mode: "move" | "attack" | "hold") => void = () => {};
   onFormation: (kind: "box" | "line" | "wedge" | "column") => void = () => {};
+  onNavalReturn:(ids:number[])=>void=()=>{};
   onAirReturn:(ids:number[])=>void=()=>{};
   onAirMission: (ids: number[], mission: "cap" | "strike" | "sead" | "ground") => void = () => {};
   onCancelProduce: (producerId: number) => void = () => {};
@@ -155,8 +161,14 @@ export class Hud {
   private selectedProducerId: number | null = null;
   private activeTab: "land" | "air" | "sea" | "builds" = "land";
 
-  constructor(root: HTMLElement) {
+  private nodeCache=new Map<string,HTMLElement[]>();
+  private nodes<T extends HTMLElement=HTMLElement>(selector:string):T[] {
+    let nodes=this.nodeCache.get(selector);if(!nodes){nodes=[...this.root.querySelectorAll<HTMLElement>(selector)];this.nodeCache.set(selector,nodes);}return nodes as T[];
+  }
+  findButton(selector:string):HTMLButtonElement|null {return this.nodes<HTMLButtonElement>(selector)[0]??null;}
+  constructor(private readonly root: HTMLElement) {
     root.innerHTML = `
+      <aside class="tutorial-guide" data-r="tutorialGuide" hidden><small data-r="tutorialProgress"></small><b data-r="tutorialTitle"></b><p data-r="tutorialText"></p><button data-guide-focus>Vali sobiv üksus</button><button data-guide-target hidden>Näita sihtpunkti</button></aside>
       <header class="top">
         <div class="panel brand">Rogue Front<small>Taktikaline RTS · <span data-r="fps">-- fps</span> · <span data-r="net">üksikmäng</span></small></div>
         <div class="panel obj"><b data-r="missionName">Missioon</b><div data-r="objectiveList">Vali missioon.</div><div class="mission-msg" data-r="missionMsg"></div><div class="warning" data-r="warning"></div></div>
@@ -172,14 +184,14 @@ export class Hud {
         </div>
       </header>
       <footer class="bottom">
-        <canvas class="mini" width="176" height="176"></canvas>
+        <div class="map-panel"><h4 class="section-heading">${icon("reconInf")} TAKTIKALINE KAART</h4><canvas class="mini" width="176" height="176" aria-label="Taktikaline kaart: vasak klõps liigutab kaamerat, parem annab käsu"></canvas><small>Vasak: kaamera · parem: käsk</small></div>
         <div class="panel sel">
-          <h3 data-r="selT"></h3><p data-r="selP"></p>
+          <h4 class="section-heading">${icon("focus")} VALIK JA KÄSUD</h4><h3 data-r="selT"></h3><p data-r="selP"></p>
           <div class="stance-bar" data-r="stanceBar">
-            <button data-stance="attack" title="Aggressiivne – ründab vaenlasi nägemisraadiuses">Ründa</button>
-            <button data-stance="hold" title="Hoia positsiooni – ei liigu, tulistab lähedalt">Hoia</button>
-            <button data-stance="holdfire" title="Ära tulista – hoia tuld (Wargame ROE)">Ära tulista</button>
-            <button data-stance="patrol" title="Patrull – liigub ja ründab teel">Patrull</button>
+            <button data-stance="attack" title="Aggressiivne – ründab vaenlasi nägemisraadiuses">${icon("attack")}<span>Ründa</span></button>
+            <button data-stance="hold" title="Hoia positsiooni – ei liigu, tulistab lähedalt">${icon("hold")}<span>Hoia</span></button>
+            <button data-stance="holdfire" title="Ära tulista – hoia tuld (Wargame ROE)">${icon("holdfire")}<span>Ära tulista</span></button>
+            <button data-stance="patrol" title="Patrull – liigub ja ründab teel">${icon("patrol")}<span>Patrull</span></button>
           </div>
           <details class="advanced-orders"><summary>Formatsioon ja prioriteet</summary><div class="priority-bar" data-r="priorityBar">
             <button data-priority="supply" title="Prioriteet: vaenlase varustuslaod">Ladud</button>
@@ -188,27 +200,28 @@ export class Hud {
           </div>
           <div class="formation-bar" data-r="formationBar">
             <span class="pre-label">Vorm:</span>
-            <button data-formation="box" title="Kast">Kast</button>
-            <button data-formation="line" title="Joon">Joon</button>
-            <button data-formation="wedge" title="Kiil">Kiil</button>
-            <button data-formation="column" title="Kolonn">Kolonn</button>
+            <button data-formation="box" title="Kast">${icon("box")}<span>Kast</span></button>
+            <button data-formation="line" title="Joon">${icon("line")}<span>Joon</span></button>
+            <button data-formation="wedge" title="Kiil">${icon("wedge")}<span>Kiil</span></button>
+            <button data-formation="column" title="Kolonn">${icon("column")}<span>Kolonn</span></button>
           </div>
           </details><div class="air-mission-bar" data-r="airMissionBar" hidden>
             <span class="pre-label">Õhk:</span>
-            <button data-air-mission="cap" title="CAP – õhuülekaal / patrull">✈ Õhukaitse</button>
-            <button data-air-mission="strike" title="Strike – infrastruktuur">⚑ Baasirünnak</button>
-            <button data-air-mission="sead" title="SEAD – õhutõrje mahavõtt">⊕ Õhutõrje</button>
-            <button data-air-mission="ground" title="Close support – maaüksused">⌖ Maatoetus</button>
-          <button data-air-return title="Naase oma lennubaasi või kopteriplatsile varustamiseks">↩ Baasi</button></div>
+            <button data-air-mission="cap" title="CAP – õhuülekaal / patrull">${icon("air")} Õhukaitse</button>
+            <button data-air-mission="strike" title="Strike – infrastruktuur">${icon("attack")} Baasirünnak</button>
+            <button data-air-mission="sead" title="SEAD – õhutõrje mahavõtt">${icon("radar")} Õhutõrje</button>
+            <button data-air-mission="ground" title="Close support – maaüksused">${icon("tank")} Maatoetus</button>
+          <button data-air-return title="EVAC (E): katkesta ülesanne, naase baasi ning maandu tankimiseks, relvastamiseks ja remondiks. Pardal olev jalavägi jääb kopterisse.">${icon("return")} EVAC · Baasi</button></div>
+          <div class="naval-bar" data-r="navalBar" hidden><button data-naval-return title="Naase sadama juurde: tegelik ammo, kütus ja remondivaru tuleb ühendatud laost">${icon("naval")} Sadamasse</button><small>Sadam vajab energiat, juhtimist ja ühendatud varustusladu.</small></div>
           <div class="predeploy-bar" data-r="predeployBar" hidden>
-            <span class="pre-label">Pre-deploy:</span>
+            <span class="pre-label">Valmiva üksuse käsk:</span>
             <button data-predeploy="move" title="Valmis üksused liiguvad sihtmärgile (Shift+paremklõps kaardil)">Liigu</button>
             <button data-predeploy="attack" title="Valmis üksused ründavad teed mööda">Ründa teed</button>
             <button data-predeploy="hold" title="Valmis üksused hoiavad tootja juures">Hoia</button>
           </div>
-          <div class="order-bar">${(["move","fast","attack","unload","stop","focus"] as const).map(k=>`<button data-order="${k}" title="${k==="attack"?"Ründeliikumine: parem klõps sihtpunktile (A)":k==="move"?"Liigu: parem klõps sihtpunktile":k==="fast"?"Kiirliigu mööda teid (G)":k==="unload"?"Välju: U + paremklõps":k==="stop"?"Peata (X)":"Kaamera valikule"}">${icon(k==="fast"?"move":k==="unload"?"move":k)}<span>${k==="attack"?"Ründeliiku":k==="move"?"Liigu":k==="fast"?"Kiirliigu":k==="unload"?"Välju":k==="stop"?"Peata":"Fookus"}</span></button>`).join("")}</div><div class="help">Vasak hiir: vali · Parem: liigu/ründa · A+parem: ründeliikumine · G+parem: kiirliigu · U+parem: välju · H: hoia · P: patrull · WASD: kaamera · Rull: suum · X: peata · F+parem: suurtükituli · L: kustuta logistika marsruut · Ctrl+1–9: grupp</div>
+          <div class="order-bar" aria-label="Liikumise ja tegevuse käsud">${(["move","fast","attack","unload","stop","focus"] as const).map(k=>`<button data-order="${k}" title="${k==="attack"?"Ründeliikumine: vali punkt kaardil (A)":k==="move"?"Liigu: parem klõps sihtpunktile":k==="fast"?"Kiirliigu mööda teid (G)":k==="unload"?"Välju: U + paremklõps":k==="stop"?"Peata (X)":"Kaamera valikule"}">${icon(k)}<kbd>${({move:"",fast:"G",attack:"A",unload:"U",stop:"X",focus:""})[k]}</kbd><span>${k==="attack"?"Ründeliiku":k==="move"?"Liigu":k==="fast"?"Kiirliigu":k==="unload"?"Välju":k==="stop"?"Peata":"Fookus"}</span></button>`).join("")}</div><div class="help">Vasak hiir: vali · Parem: liigu/ründa · A+parem: ründeliikumine · G+parem: kiirliigu · U+parem: välju · H: hoia · P: patrull · WASD: kaamera · Rull: suum · X: peata · F+parem: suurtükituli · L: kustuta logistika marsruut · Ctrl+1–9: grupp</div>
         </div>
-        <div class="panel build tactical">
+        <div class="panel build tactical"><h4 class="section-heading" data-r="catalogTitle">${icon("building")} TOOTMINE JA EHITUS</h4>
           <div class="tab-bar">
             <button class="tab active" data-tab="land">${icon("tank")} Maa</button>
             <button class="tab" data-tab="air">${icon("air")} Õhk</button>
@@ -237,19 +250,19 @@ export class Hud {
               <div class="build-sub">
                 <div class="tree-label" data-r="treeLabel">EHITUSPUU: HQ</div>
                 <div class="tree-hint" data-r="treeHint">Vali HQ või juhtimiskeskus — avab haru.</div>
-                <button data-upgrade-producer hidden>Uuenda tootjat</button>
-                <button data-upgrade-supply hidden>Uuenda varustusladu</button>
-                <button data-upgrade-fob hidden>Ehita FOB</button>
+
                 <div class="depot-control-bar" data-r="depotControlBar" hidden>
-                  <span class="pre-label">Tarnejuhtimine:</span><button data-logistics-edit="source">Vali rajatis</button><button data-logistics-edit="route">Lisa vahepunkt</button><button data-logistics-edit="clear">Otsetee</button><button data-logistics-edit="auto">Automaatne</button><button data-logistics-edit="pause">Peata / jätka</button><small>Vali rajatis või vahepunkt nupuga, seejärel parem klõps kaardil. L = otsetee.</small><span class="pre-label">FOB prioriteet:</span>
-                  <button data-depot-priority="balanced">Tasakaal</button><button data-depot-priority="ammo">Ammo</button><button data-depot-priority="fuel">Kütus</button><button data-depot-priority="repair">Remont</button>
+                  <span class="pre-label">Tarnejuhtimine:</span><button data-logistics-edit="source">Vali rajatis</button><button data-logistics-edit="route">Lisa vahepunkt</button><button data-logistics-edit="clear">Otsetee</button><button data-logistics-edit="auto">Automaatne</button><button data-logistics-edit="pause">Peata / jätka</button><small>Vali rajatis või vahepunkt nupuga, seejärel klõps kaardil. L = otsetee.</small><span class="pre-label">FOB prioriteet:</span>
+                  <button data-depot-priority="balanced">Tasakaal</button><button data-depot-priority="ammo">Moon</button><button data-depot-priority="fuel">Kütus</button><button data-depot-priority="repair">Remont</button>
                 </div>
-                <button data-cancel-produce hidden title="Tühista viimane (75% tagasi)">Tühista viimane</button>
                 <div class="build-buttons" data-r="buildButtons"></div>
               </div>
             </div>
           </div>
-          <div class="qbar"><i data-r="qbar"></i></div>
+          <div class="facility-actions" data-r="facilityActions" hidden aria-label="Valitud hoone arendamine">                <button data-upgrade-producer hidden>Uuenda tootjat</button>
+                <button data-upgrade-supply hidden>Uuenda varustusladu</button>
+                <button data-upgrade-fob hidden>Ehita FOB</button>
+          </div><div class="queue-heading"><span>TOOTMISJÄRJEKORD</span><button data-cancel-produce hidden title="Tühista viimane tellimus; 75% kulust tagasi">${icon("stop")} Tühista viimane</button></div><div class="qbar"><i data-r="qbar"></i></div>
           <div class="qtxt" data-r="qtxt"></div>
         </div>
       </footer>
@@ -281,6 +294,8 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
       if (this.selectedProducerId != null) this.onCancelProduce(this.selectedProducerId);
     });
     root.querySelector('[data-action="pause"]')?.addEventListener("click", () => this.onPause());
+    root.querySelector<HTMLButtonElement>("[data-guide-target]")!.onclick=()=>{if(this.guidePoint)this.onGuideTarget(this.guidePoint);};
+    root.querySelector<HTMLButtonElement>("[data-guide-focus]")!.onclick=()=>this.onGuideFocus(this.guideIds);
     root.querySelector('[data-action="save"]')?.addEventListener("click", () => this.onSave());
     root.querySelector('[data-action="load"]')?.addEventListener("click", () => this.onLoad());
     root.querySelector('[data-action="settings"]')?.addEventListener("click", () => this.onSettings());
@@ -309,6 +324,7 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
         root.querySelectorAll("button[data-formation]").forEach((x) => x.classList.toggle("active", (x as HTMLButtonElement).dataset.formation === kind));
       });
     });
+    root.querySelector<HTMLButtonElement>("button[data-naval-return]")?.addEventListener("click",()=>this.onNavalReturn(this.selectedIds));
     root.querySelector<HTMLButtonElement>("button[data-air-return]")?.addEventListener("click",()=>this.onAirReturn(this.selectedIds));
     root.querySelectorAll<HTMLButtonElement>("button[data-air-mission]").forEach((b) => {
       b.addEventListener("click", () => {
@@ -337,10 +353,13 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     this.el.selP.scrollTop=scroll;
   }
 
-  getBuildButtons(): HTMLButtonElement[] { return [...document.querySelectorAll<HTMLButtonElement>("button[data-build]")]; }
+  getBuildButtons(): HTMLButtonElement[] { return [...this.root.querySelectorAll<HTMLButtonElement>("button[data-build]")]; }
 
   setFps(n: number): void { this.el.fps.textContent = n + " fps"; }
-  setWarning(text: string): void { this.el.warning.textContent = text; }
+  private guideIds:number[]=[];
+  setWarning(text: string): void {this.notice=text;this.noticeUntil=Date.now()+5000;this.el.warning.textContent=text;}
+  setSaveAvailability(hasSave:boolean,enabled:boolean):void {this.findButton('[data-action="save"]')!.disabled=!enabled;this.findButton('[data-action="load"]')!.disabled=!hasSave;}
+  hideScreen():void {this.el.screen.hidden=true;}
   setNetworkStatus(text: string): void { this.el.net.textContent = text; }
   setPaused(paused: boolean): void { if (this.pauseButton) this.pauseButton.textContent = paused ? "Jätka" : "Paus"; }
 
@@ -348,16 +367,24 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     const changed=this.selectedIds.join(",") !== [...selection].join(",");
     this.selectedIds = [...selection];
     const signature=this.selectedIds.join(",");if(signature!==this.selectionSignature){this.inspectedKind=null;this.inspectedBuildingId=null;this.rangeSlot=null;}this.selectionSignature=signature;
-    if(changed && this.selectedIds.length){const first=world.byId.get(this.selectedIds[0]);if(first){const tab=["factory","barracks"].includes(first.kind)?"land":["helipad","airbase"].includes(first.kind)?"air":first.kind==="shipyard"?"sea":first.kind==="engineer"||first.def.building?"builds":first.def.armor==="air"?"air":first.def.domain==="sea"?"sea":"land";document.querySelector<HTMLButtonElement>(`button[data-tab="${tab}"]`)?.click();}}
-    this.el.stanceBar.hidden=!this.selectedIds.some(id=>(world.byId.get(id)?.def.damage??0)>0);
-    document.querySelectorAll<HTMLButtonElement>("[data-order]").forEach(b=>b.disabled=!running||!selection.size||(b.dataset.order==="unload"&&!this.selectedIds.some(id=>{const u=world.byId.get(id);return !!u&&u.team===world.playerTeam&&(u.garrisonId||u.garrisonOrderId||(transportCapacity(u)>0||u.kind==="landingcraft")&&u.cargoUnitIds.length>0);})));
+    if(changed && this.selectedIds.length){const first=world.byId.get(this.selectedIds[0]);if(first){const tab=["factory","barracks"].includes(first.kind)?"land":["helipad","airbase"].includes(first.kind)?"air":first.kind==="shipyard"?"sea":first.kind==="engineer"||first.def.building?"builds":first.def.armor==="air"?"air":first.def.domain==="sea"?"sea":"land";this.findButton(`button[data-tab="${tab}"]`)?.click();}}
+    const hasMobile=this.selectedIds.some(id=>{const u=world.byId.get(id);return !!u&&!u.dead&&u.team===world.playerTeam&&u.def.speed>0;});
+    this.root.querySelector<HTMLElement>(".advanced-orders")!.hidden=!hasMobile;
+    this.el.navalBar.hidden=!this.selectedIds.some(id=>world.byId.get(id)?.def.domain==="sea");
+    this.findButton("[data-naval-return]")!.disabled=!running||this.el.navalBar.hidden;
+    this.el.stanceBar.hidden=!hasMobile;
+    const mobile=this.selectedIds.map(id=>world.byId.get(id)).filter((u):u is Entity=>!!u&&!u.dead&&u.team===world.playerTeam&&u.def.speed>0);
+    this.nodes<HTMLButtonElement>("[data-stance]").forEach(b=>{b.disabled=!running||!hasMobile;const active=mobile.length>0&&mobile.every(u=>u.standingOrder===b.dataset.stance);b.classList.toggle("active",active);b.setAttribute("aria-pressed",String(active));});
+    this.nodes<HTMLButtonElement>("[data-formation]").forEach(b=>{b.disabled=!running||!hasMobile;const active=b.dataset.formation===world.teamFormations[world.playerTeam];b.classList.toggle("active",active);b.setAttribute("aria-pressed",String(active));});
+
+    this.nodes<HTMLButtonElement>("[data-order]").forEach(b=>b.disabled=!running||!(b.dataset.order==="focus"?selection.size:hasMobile)||(b.dataset.order==="unload"&&!this.selectedIds.some(id=>{const u=world.byId.get(id);return !!u&&u.team===world.playerTeam&&(u.garrisonId||u.garrisonOrderId||(transportCapacity(u)>0||u.kind==="landingcraft")&&u.cargoUnitIds.length>0);})));
 
     if (this.el.airMissionBar) {
       const airSel=airUnitsForOrder(world,this.selectedIds,world.playerTeam);
       const facility=this.selectedIds.some(id=>["airbase","helipad"].includes(world.byId.get(id)?.kind??""));
       this.el.airMissionBar.hidden=!airSel.length&&!facility;
-      document.querySelectorAll<HTMLButtonElement>("[data-air-mission]").forEach(b=>{b.disabled=!running||!airSel.some(u=>supportsAirMission(u,b.dataset.airMission as "cap"|"strike"|"sead"|"ground"));});
-      const back=document.querySelector<HTMLButtonElement>("[data-air-return]");if(back)back.disabled=!running||!airSel.length;
+      this.nodes<HTMLButtonElement>("[data-air-mission]").forEach(b=>{b.disabled=!running||!airSel.some(u=>supportsAirMission(u,b.dataset.airMission as "cap"|"strike"|"sead"|"ground"));});
+      const back=this.findButton("[data-air-return]");if(back){back.disabled=!running||!airSel.some(u=>!["grounded","rearming","returning","landing"].includes(u.airState??""));back.classList.toggle("active",airSel.some(u=>u.airState==="returning"||u.airState==="landing"));}
 
     }
 
@@ -392,48 +419,43 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     if (ps.use > ps.supply) warn = `⚠ ENERGIA PUUDU — tootmine aeglustub`;
     else if (route.total > 0 && route.connected < route.total) warn = `⚠ LOGISTIKA KATKI — ${route.total - route.connected} ladu ühendamata`;
     else if (mobileCount > 100) warn = `⚠ ÜKSUSTE SURVE (${mobileCount}) — jõudlus võib langeda`;
-    this.el.warning.textContent = warn;
+    this.el.warning.textContent = this.notice&&Date.now()<this.noticeUntil?this.notice:warn;
     if(world.matchController){
       const mode=world.matchController,score=mode.scores;
       this.el.missionName.textContent=mode.mode.toUpperCase();
       this.el.objectiveList.textContent=`Sina ${Math.floor(score[world.playerTeam])} · Vastane ${Math.floor(score[world.playerTeam===0?1:0])}`+(mode.rules.timeLimit?` · Aega ${fmt(Math.max(0,mode.rules.timeLimit-world.time))}`:"");
     }
     if (objectives.length) {
-      this.el.objectiveList.innerHTML = objectives.map((o) => `<div class="objective ${o.complete ? "done" : ""}"><span>${o.complete ? "✓" : "○"} ${o.title}</span>${o.complete ? "" : `<i style="width:${Math.round(o.progress * 100)}%"></i>`}</div>`).join("");
+      if(world.missionController?.mission.id==="tutorial-logistics")this.el.objectiveList.textContent=`Õpetus ${world.missionController.completedObjectives}/${objectives.length} · juhis vasakul`;
+      else this.el.objectiveList.innerHTML = objectives.map((o) => `<div class="objective ${o.complete ? "done" : ""}"><span>${o.complete ? "✓" : "○"} ${o.title}</span>${o.complete ? "" : `<i style="width:${Math.round(o.progress * 100)}%"></i>`}</div>`).join("");
     }
     this.el.missionMsg.textContent = world.matchController ? "" : missionMessage;
+    const tutorial=world.missionController?.mission.id==="tutorial-logistics",step=world.missionController?.activeObjective;
+    this.el.tutorialGuide.hidden=!tutorial||!step||world.status!=="running";
+    if(tutorial&&step){
+      this.el.tutorialProgress.textContent=`ÕPETUS · ${world.missionController!.completedObjectives+1}/${world.missionController!.mission.objectives.length}`;
+      this.el.tutorialTitle.textContent=step.title;this.el.tutorialText.textContent=step.description;
+      const preferred=["build","capture","deliver"].includes(step.kind)?"engineer":step.kind==="upgrade"?step.target?.kind:step.kind==="produce"?(step.unitKind==="tank"||step.unitKind==="apc"?"factory":"barracks"):step.kind==="reach"?step.unitKind:step.kind==="garrison"||step.kind==="transport"?"inf":"tank";
+      const passengers=world.entities.filter(e=>!e.dead&&e.team===world.playerTeam&&e.kind==="inf"),carrier=step.kind==="garrison"?world.byId.get(passengers.find(e=>e.loadedIntoId!=null)?.loadedIntoId??-1):undefined;
+      const candidate=carrier??world.entities.find(e=>!e.dead&&!e.underConstruction&&e.team===world.playerTeam&&e.kind===preferred&&e.loadedIntoId==null);this.guideIds=candidate?[candidate.id]:[];
+      this.findButton("[data-guide-focus]")!.disabled=!candidate;this.findButton("[data-guide-focus]")!.textContent=carrier?"Vali transport väljumiseks":"Vali sobiv üksus";
+      this.guidePoint=step.point??null;
+      if(step.kind==="garrison"){const house=world.mapFeatures.filter(isGarrisonBuilding).sort((a,b)=>Math.hypot(a.x-(candidate?.x??0),a.z-(candidate?.z??0))-Math.hypot(b.x-(candidate?.x??0),b.z-(candidate?.z??0)))[0];if(house)this.guidePoint={x:house.x,z:house.z};}
+      if(step.kind==="deliver"){const home=world.resourcePoints.filter(r=>r.controlledBy!==1).sort((a,b)=>Math.hypot(a.x-(candidate?.x??0),a.z-(candidate?.z??0))-Math.hypot(b.x-(candidate?.x??0),b.z-(candidate?.z??0)))[0];if(home)this.guidePoint={x:home.x,z:home.z};}
+      this.findButton("[data-guide-target]")!.hidden=!this.guidePoint;
+    }
     const hq = world.hq[world.playerTeam];
     const selectedProducer = [...selection].map(id=>world.byId.get(id)).find(e=>e && !e.dead && e.team===world.playerTeam && ["barracks","factory","helipad","airbase","shipyard"].includes(e.kind));
     this.selectedProducerId = selectedProducer?.id ?? null;
     const q = selectedProducer?.productionQueue ?? [];
-    const has = (k: "barracks"|"factory"|"helipad"|"airbase"|"shipyard") => world.entities.some(e=>!e.dead&&!e.underConstruction&&e.team===world.playerTeam&&e.kind===k);
-    const findProducer = (kind: string) => {
-      if (selectedProducer && selectedProducer.kind === kind) return selectedProducer;
-      return world.entities
-        .filter(e => !e.dead && !e.underConstruction && e.team === world.playerTeam && e.kind === kind)
-        .sort((a, b) => a.productionQueue.length - b.productionQueue.length)[0] ?? null;
-    };
-    // Unit buttons always visible inside their tab; wire to best available producer
-    // Faction-specific unit names on buttons + selection panel
-    document.querySelectorAll<HTMLElement>("[data-unit-label]").forEach((el) => {
-      const k = el.dataset.unitLabel as UnitKind;
-      if (k && UNITS[k]) el.textContent = world.unitDisplayName(k);
-    });
-    this.buttons.forEach((b) => {
-      const k = b.dataset.kind as UnitKind;
-      if (k && UNITS[k]) {
-        const nm = world.unitDisplayName(k);
-        const picture=b.querySelector<HTMLElement>(".unit-icon");
-        if(picture && picture.dataset.faction!==world.playerFaction){picture.innerHTML=unitPicture(k,world.playerFaction);picture.dataset.faction=world.playerFaction;}
-        const def=world.unitDefinition(k);const costEl=b.querySelector(".unit-cost");if(costEl)costEl.textContent=String(def.cost);
-        b.title = `Tooda ${nm} (${def.cost}) · Baastootmistöö ${def.buildTime} s · ${def.ability??def.roleLabel??""} · ${(def.weapons??[]).map(w=>w.name+" / "+w.range+" m").join(" · ")} · Parem klõps: koosseisukaart`;
-      }
-      b.style.display = "";
-      const pKind = b.dataset.producer!;
-      const prod = findProducer(pKind);
-      if (prod) b.dataset.producerId = String(prod.id);
-      else delete b.dataset.producerId;
-    });
+    // One pass per HUD refresh instead of filter+sort for every roster card.
+    const producers=new Map<string,Entity>();
+    for(const u of world.entities){
+      if(u.dead||u.underConstruction||u.team!==world.playerTeam||!["barracks","factory","helipad","airbase","shipyard"].includes(u.kind))continue;
+      const best=producers.get(u.kind);if(!best||u.productionQueue.length<best.productionQueue.length)producers.set(u.kind,u);
+    }
+    if(selectedProducer&&!selectedProducer.underConstruction)producers.set(selectedProducer.kind,selectedProducer);
+    const findProducer=(kind:string)=>producers.get(kind)??null;
     const cancelBtn = rootButton(this, "button[data-cancel-produce]");
     if (cancelBtn) {
       cancelBtn.hidden = !selectedProducer || q.length === 0;
@@ -441,20 +463,20 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     }
     const engineerSelected = [...selection].some(id=>{const e=world.byId.get(id);return !!e&&!e.dead&&e.team===world.playerTeam&&e.kind==="engineer";}) || world.entities.some(e=>!e.dead&&e.team===world.playerTeam&&e.kind==="engineer");
     for (const b of this.buttons) {
-      const kind = b.dataset.kind as UnitKind;
-      if (!kind || !UNITS[kind]) continue;
-      const cost = world.unitDefinition(kind).cost;
-      const pKind = b.dataset.producer as "barracks"|"factory"|"helipad"|"airbase"|"shipyard";
-      const prod = findProducer(pKind);
-      const queueFull = (prod?.productionQueue.length ?? 0) >= MAX_QUEUE;
-      b.disabled = !running || !hq || hq.dead || !prod || queueFull
-        || world.resources < cost || world.credits < cost
-        || !has(pKind)
-        || !world.canProduceAtLevel(prod!, kind) || !world.productionOperational(prod!,kind).operational;
-      const lock=b.querySelector<HTMLElement>("[data-lock]");
-      if(lock)lock.textContent=!prod?"Vajab tootjat":queueFull?"Järjekord täis":world.resources<cost||world.credits<cost?"Varustus puudub":!world.canProduceAtLevel(prod,kind)?"Vajab taset "+world.unitRequiredBuildingLevel(kind):!world.productionOperational(prod,kind).operational?"Tarne / energia":"";
-      const req = world.unitRequiredBuildingLevel(kind);
-      b.title = !prod ? `Loo ${pKind} esimesena` : !world.productionOperational(prod,kind).operational ? world.productionOperational(prod,kind).reason : world.producerLevel(prod) < req ? `Vajab ${pKind} taset ${req}` : `Tooda ${world.unitDisplayName(kind)} (${cost}) · ${(world.unitDefinition(kind).weapons??[]).map(w=>w.name+" / "+w.range+" m").join(" · ")} · Parem klõps: koosseisukaart`;
+      const kind=b.dataset.kind as UnitKind;if(!kind||!UNITS[kind])continue;
+      const def=world.unitDefinition(kind),cost=def.cost,prod=findProducer(b.dataset.producer!);
+      if(prod)b.dataset.producerId=String(prod.id);else delete b.dataset.producerId;
+      const picture=b.querySelector<HTMLElement>(".unit-icon");
+      if(picture&&picture.dataset.faction!==world.playerFaction){picture.innerHTML=unitPicture(kind,world.playerFaction)+`<span class="class-badge" title="${def.roleLabel??kind}">${icon(kind)}</span>`;picture.dataset.faction=world.playerFaction;}
+      const label=b.querySelector<HTMLElement>("[data-unit-label]");if(label&&label.textContent!==world.unitDisplayName(kind))label.textContent=world.unitDisplayName(kind);
+      const price=b.querySelector<HTMLElement>(".unit-cost");if(price&&price.textContent!==String(cost))price.textContent=String(cost);
+      const queueFull=(prod?.productionQueue.length??0)>=MAX_QUEUE;
+      const levelOK=!!prod&&world.canProduceAtLevel(prod,kind);
+      const operation=prod?world.productionOperational(prod,kind):null;
+      const reason=!prod?"Vajab tootjat":queueFull?"Järjekord täis":world.resources<cost||world.credits<cost?"Varustus puudub":!levelOK?"Vajab taset "+world.unitRequiredBuildingLevel(kind):!operation?.operational?operation?.reason||"Tarne / energia":"";
+      b.disabled=!running||!hq||hq.dead||!!reason;
+      const lock=b.querySelector<HTMLElement>("[data-lock]");if(lock&&lock.textContent!==reason)lock.textContent=reason;
+      b.title=reason||`Tooda ${world.unitDisplayName(kind)} (${cost}) · ${def.roleLabel??""} · ${(def.weapons??[]).map(w=>w.name+" / "+w.range+" m").join(" · ")} · Parem klõps: koosseisukaart`;
     }
     this.refreshBuildPanel(world, selection, running, engineerSelected);
     (this.el.qbar as HTMLElement).style.width = q.length ? Math.min(100, ((selectedProducer?.productionProgress??0) / world.unitDefinition(q[0],selectedProducer?.team??world.playerTeam).buildTime) * 100) + "%" : "0";
@@ -468,13 +490,14 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
         " · Shift+parem: pre-deploy siht";
     } else {
       this.el.qtxt.textContent = this.activeTab === "builds"
-        ? "Vali insener + ehita (BUILDS)"
+        ? "Ehita: vali hoone, seejärel koht kaardil"
         : "Tooda üksusi — vajad vastavat tootmishoonet";
     }
     if (this.el.predeployBar) {
       this.el.predeployBar.hidden = !selectedProducer;
     }
     const selectedUpgrade=[...selection].map(id=>world.byId.get(id)).find(e=>e&&!e.dead&&e.team===world.playerTeam&&!!e.def.building);
+    this.el.facilityActions.hidden=!selectedUpgrade;
     const producerUpgrade = rootButton(this, "button[data-upgrade-producer]");
     if (producerUpgrade) { producerUpgrade.hidden=!selectedUpgrade; producerUpgrade.textContent=selectedUpgrade?.upgrading ? `Uuendamine… ${Math.ceil((selectedUpgrade.upgradeTime??10)-(selectedUpgrade.upgradeProgress??0))}s` : (selectedUpgrade && world.producerLevel(selectedUpgrade)>=3 ? `${selectedUpgrade.kind === "airbase" ? "Lennujaam" : "Tootja"} MAX · Tase 3` : `${selectedUpgrade?.kind === "airbase" ? "Uuenda lennubaasi" : "Uuenda hoonet"} → tase ${(selectedUpgrade ? world.producerLevel(selectedUpgrade)+1 : 2)} (${selectedUpgrade ? world.producerUpgradeCost(world.producerLevel(selectedUpgrade)) : 260})`); producerUpgrade.disabled=!running||!selectedUpgrade||!!selectedUpgrade.upgrading||!world.canUpgradeProducer(selectedUpgrade)||world.resources<(selectedUpgrade ? world.producerUpgradeCost(world.producerLevel(selectedUpgrade)) : 9999)||world.credits<(selectedUpgrade ? world.producerUpgradeCost(world.producerLevel(selectedUpgrade)) : 9999); }
     const supplyDepot = [...selection].map(id=>world.byId.get(id)).find(e=>e && !e.dead && e.team===world.playerTeam && e.kind==="supply");
@@ -500,12 +523,12 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
       this.setSelectedMarkup(`<button data-close-inspector>↩ Tagasi valiku juurde</button><div class="role-summary">${def.ability??def.roleLabel??""} · Hind ${def.cost} · Baastootmistöö ${def.buildTime} s · Hoone Lv${world.unitRequiredBuildingLevel(kind)}</div><small>${def.squadSize?`Mehi ${def.squadSize} · `:""}HP ${def.hp} · Soomus ${def.armorFront}/${def.armorSide}/${def.armorRear} · Optika ${def.optics} ${Math.round(def.opticsRange??0)} m · Kiirus ${def.speed.toFixed(1)} m/s · Kütus ${def.fuelCapacity??0} · Kulu ${def.fuelUsePerSec??0}/s</small>${weaponCards(world,view)}`);
     }else if (!sel.length) {
       this.el.selT.textContent = "Üksusi pole valitud";
-      this.setSelectedMarkup("Vali üksusi hiire vasaku nupuga või tõmba kast.");
+      this.setSelectedMarkup(`<div class="empty-selection">${icon("focus")}<b>Vali üksus või rühm</b><span>Klõpsa üksusel või tõmba valikukast.</span><span>Parem klõps annab liikumis-, ründe- või sisenemiskäsu.</span><span>Shift lisab järgmise käsu. Esc tühistab sihtkäsu.</span></div>`);
     } else if (sel.length === 1) {
       const u = sel[0]!;
       this.el.selT.textContent = world.unitDisplayName(u.kind, u.team);
       const meter=(label:string,value:number,max:number)=>`<div class="unit-meter"><span>${label}</span><b>${Math.ceil(value)}/${Math.ceil(max)}</b><i><em style="width:${Math.min(100,Math.max(0,value/Math.max(1,max)*100))}%"></em></i></div>`;
-    const status=(u.kind==="logiTruck"||u.kind==="transport"&&u.supplyDepotId!=null)?logisticsStatus(world,u):u.def.armor==="air"?airOperationStatus(world,u):u.def.damage?combatStatus(world,u):u.underConstruction?"Ehitamisel":u.def.building?"Hoone · tase "+world.producerLevel(u):u.mode==="move"?"Liigub":"Ootab käsku";
+    const status=(u.kind==="logiTruck"||u.kind==="transport"&&u.supplyDepotId!=null)?logisticsStatus(world,u):u.def.armor==="air"?airOperationStatus(world,u):(u.def.damage||u.kind==="engineer"&&u.mode==="repair")?combatStatus(world,u):u.underConstruction?"Ehitamisel":u.def.building?"Hoone · tase "+world.producerLevel(u):u.mode==="move"?"Liigub":"Ootab käsku";
       this.setSelectedMarkup(`<div class="selected-summary"><div class="selected-picture">${unitPicture(u.kind,(u.team===world.playerTeam?world.playerFaction:world.enemyFaction))}</div><div class="meters">${meter("Elud",u.hp,maxHitPoints(u))}${(u.maxAmmo??0)>0?meter("Moon",u.ammo??0,u.maxAmmo!):""}${(u.maxFuel??0)>0?meter("Kütus",u.fuel??0,u.maxFuel!):""}${u.def.speed>0?meter("Moraal",u.morale??100,100):""}</div></div><span class="unit-status">${status}</span>${u.def.speed>0&&u.def.armor!=="air"?`<small class="terrain-status">${world.terrain.fireAt(u.x,u.z)?"🔥 METSATULEKAHJU · lahku alalt":world.terrain.burntAt(u.x,u.z)?"Põlenud mets · vähe katet":world.terrain.densityAt(u.x,u.z)>.65?"Sügav mets · tugevam varjatus":world.terrain.densityAt(u.x,u.z)>0?"Metsaserv · osaline kate":"Avatud maastik"} · ${(u.motionSpeed??0)>.2?"Liikumine suurendab märkamisohtu":u.lastCombatTime>0&&world.time-u.lastCombatTime<5?"Lasu jälg suurendab märkamisohtu":"Paigal; varjatus ei taga nähtamatust"}</small>`:""}<small class="role-summary">${u.squadMaxMembers?`Meeskond ${u.squadMembers}/${u.squadMaxMembers} · `:""}${u.def.roleLabel??BUILD_LABELS[u.kind]??u.kind}${u.def.damage?` · Ulatus ${Math.round(effectiveWeaponRange(u))} m${u.def.minimumRange?` (min ${u.def.minimumRange})`:""} · Läbivus ${u.def.weapons?.[0]?weaponPenetration(u,u.def.weapons[0]).toFixed(1):u.def.penetration??0}`:""}${u.kind==="supply"?` · Moon ${Math.floor(u.ammoStock??0)} · Kütus ${Math.floor(u.fuelStock??0)} · Remont ${Math.floor(u.repairStock??0)} · ${u.logisticsPaused?"VEOD PEATATUD":u.preferredResourceIndex!=null?"Rajatis "+(u.preferredResourceIndex+1):"Automaatne kogumine"} · Vahepunkte ${u.logisticsWaypoints?.length??0}`:""}</small><details class="unit-details"><summary>Taktikalised andmed</summary>Kate ${coverValueAt(world,u.x,u.z)} · Soomus ${armorValue(u,"front")}/${armorValue(u,"side")}/${armorValue(u,"rear")} · Surve ${Math.round(u.suppression??0)} · Optika ${u.def.optics??"—"} (${Math.round(u.def.opticsRange??0)} m) · Varjatus ${u.def.stealthLevel??0} · Liikumise baas ${u.def.speed.toFixed(1)} m/s${u.def.armor!=="air"&&u.def.domain!=="sea"?` · Tee ×${mobilityProfile(u).roadSpeed} · Maastik praegu ×${groundTerrainFactor(world,u).toFixed(2)}`:""} · Stabilisaator ${u.def.stabilizer??"none"} · ${world.isInSupply(u)?"Varustusalas":"Väljaspool varustusala"}${u.components?` · Kahjustused ${Math.round(Math.max(...Object.values(u.components)))}%`:""}</details>${u.def.damage?`<div class="range-controls"><button data-range-toggle aria-pressed="${this.showWeaponRanges}">◎ Ulatusringid ${this.showWeaponRanges?"sees":"väljas"}</button><small>${this.rangeSlot==null?"Kõik relvad":"Relv "+(this.rangeSlot+1)+" · sama nupp taastab kõik"} · Katkendjoon = minimaalne kaugus. Ulatus ei taga luuret ega tulejoont.</small></div>`:""}${u.garrisonId?`<div class="garrison-card"><b>Garnison · ${u.kind==="manpad"?"katusepositsioon":"laskeava"}</b><small>${world.mapFeatures.find(f=>f.id===u.garrisonId)?.label??"Tsiviilhoone"} · Sektor ${Math.round(GARRISON_RULES.firingArc*180/Math.PI)}° · HE ja hoone varisemine on ohtlikud</small>${u.team===world.playerTeam?`<button data-garrison-face>◎ Vaatesuund</button><button data-garrison-exit>↪ Välju hoonest</button>`:""}</div>`:""}${u.loadedIntoId!=null&&u.team===world.playerTeam?`<button data-select-unit="${u.loadedIntoId}">Vali transport · väljumine U + paremklõps</button>`:""}${transportCapacity(u)>0?`<div class="transport-status"><b>Transport ${occupiedSeats(world,u)}/${transportCapacity(u)} kohta</b><small> Broneeritud ${occupiedSeats(world,u,true)-occupiedSeats(world,u)} kohta (${u.transportQueue?.length??0} rühma) · Jalavägi → paremklõps transpordile. Väljumine: U + paremklõps kaardil.</small>${u.cargoUnitIds.map(id=>world.byId.get(id)).filter(p=>p&&!p.dead).map(p=>`<span>${world.unitDisplayName(p!.kind,p!.team)} (${p!.squadMembers??1})</span>`).join(" ")}${u.mode==="transport-unload"&&u.cargoUnitIds.length?"<small>Väljub pärast saabumist; takistatud väljapääsu korral jääb pardale.</small>":""}</div>`:""}${u.team===world.playerTeam&&(u.kind==="supply"||u.kind==="logiTruck"||u.kind==="transport"&&u.supplyDepotId!=null)?logisticsCard(world,u):""}${weaponCards(world,u,u)}${u.team===world.playerTeam?unitDevelopmentCards(world,u,running):""}${["airbase","helipad"].includes(u.kind)?`<div class="air-roster"><small>${world.productionOperational(u).operational?"Lennurajatis töötab":world.productionOperational(u).reason} · Vali õhuoperatsioon ja paremklõpsa sihtpunktile.</small>${airUnitsForOrder(world,[u.id],u.team).map(a=>`<button data-select-unit="${a.id}"><span>${unitPicture(a.kind,u.team===world.playerTeam?world.playerFaction:world.enemyFaction)}</span><span><b>${world.unitDisplayName(a.kind,a.team)}</b><small>${airOperationStatus(world,a)}</small></span></button>`).join("")}</div>`:""}`);
 
     } else {
@@ -600,7 +623,7 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     } card.appendChild(list);
   }
   private showSkirmishMaps(missions: readonly MissionDef[]):void{
-    const card=this.el.scrB.parentElement!; card.querySelectorAll(".mission-list").forEach(n=>n.remove());
+    const card=this.el.scrB.parentElement!; card.querySelectorAll(".mission-list,.secondary").forEach(n=>n.remove());
     this.el.scrT.textContent="SKIRMISH";
     this.el.scrP.textContent="1) Vali rahvus  2) Vali kaart  3) AI raskus. Igal rahvusel on oma tehnika nimed (Abrams / T-90M / Type 99A jne).";
     const list=document.createElement("div"); list.className="mission-list";
@@ -667,7 +690,7 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
 
   private screen(title: string, text: string, button: string, onClick: () => void): void {
     this.el.scrB.hidden = false;
-    this.el.scrB.parentElement?.querySelectorAll(".mission-list").forEach((n) => n.remove());
+    this.el.scrB.parentElement?.querySelectorAll(".mission-list,.secondary").forEach((n) => n.remove());
     this.el.scrT.textContent = title;
     this.el.scrP.textContent = text;
     this.el.scrB.textContent = button;

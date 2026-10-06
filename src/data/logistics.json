@@ -44,5 +44,15 @@
       "fuel": 0.25,
       "repair": 0.5
     }
+  },
+  "naval": {
+    "serviceRadius": 72,
+    "repairPerSecond": 6,
+    "repairPerStock": 4
+  },
+  "groundRepair": {
+    "radius": 80,
+    "perSecond": 10,
+    "componentPerStock": 3.2
   }
 }

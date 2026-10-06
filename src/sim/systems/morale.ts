@@ -2,6 +2,7 @@ import {requestGarrisonExit} from "../garrison";
 import type { World } from "../World";
 import type { Entity } from "../types";
 import { FACTIONS } from "../factions";
+import mobility from "../../data/mobility.json";
 
 export type MoraleState = "steady" | "shaken" | "pinned" | "routing";
 
@@ -60,6 +61,12 @@ export function updateMorale(w: World, dt: number): void {
         if (d < best) { best = d; dest = { x: b.x, z: b.z }; }
       }
       if (dest) {
+        if(u.def.domain!=="air"&&u.def.domain!=="sea"){
+          const node=w.entities.find(e=>!e.dead&&e.team===u.team&&e.x===dest!.x&&e.z===dest!.z);
+          const angle=Math.atan2(u.x-dest.x,u.z-dest.z),gap=(node?.def.radius??0)+u.def.radius+mobility.combat.retreatRallyGap;
+          dest=w.nav.nearestWalkable({x:dest.x+Math.sin(angle)*gap,z:dest.z+Math.cos(angle)*gap},u.def.radius)??dest;
+        }
+        u.fireMission=null;u.artilleryDisplace=null;u.transportQueue=[];u.transportTargetId=null;u.unloadPoint=null;u.moveQueue=[];u.moveQueueStyles=[];u.garrisonOrderId=undefined;u.fastMove=false;u.moveGroup=undefined;
         if(u.garrisonId){requestGarrisonExit(w,u,dest);continue;}
         u.mode = "move";
         u.dest = dest;

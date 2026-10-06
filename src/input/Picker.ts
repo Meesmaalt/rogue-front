@@ -3,7 +3,7 @@ import type { World } from "../sim/World";
 import type { Entity, Point, Team } from "../sim/types";
 import {isGarrisonBuilding} from "../sim/garrison";
 import {pointInFeature,type MapFeatureDef} from "../sim/mapFeatures";
-import { heightAt } from "../sim/heightmap";
+import { heightAt,MAP_SIZE } from "../sim/heightmap";
 
 export interface UnitMarkerRect {id:number;x:number;y:number;width:number;height:number}
 
@@ -30,7 +30,7 @@ export class Picker {
     for(let i=this.markers.length-1;i>=0;i--){
       const r=this.markers[i];
       if(mx<r.x||mx>r.x+r.width||my<r.y||my>r.y+r.height)continue;
-      const e=this.world.entities.find(e=>e.id===r.id);
+      const e=this.world.byId.get(r.id);
       if(e&&!e.dead&&e.loadedIntoId==null&&e.team===team&&(team===this.world.playerTeam||this.world.isSpottedByTeam(e,this.world.playerTeam)))return e;
     }
     let best: Entity | null = null, bs = 0;
@@ -64,14 +64,16 @@ export class Picker {
     this.ray.setFromCamera(new THREE.Vector2(nx, ny), this.camera);
     const o = this.ray.ray.origin, d = this.ray.ray.direction;
     const below = (t: number) => o.y + d.y * t <= heightAt(o.x + d.x * t, o.z + d.z * t);
-    for (let t = 2; t < 900; t += 2) {
+    for (let t = 2; t < this.camera.far + MAP_SIZE; t += 2) {
       if (!below(t)) continue;
       let a = t - 2, b = t;
       for (let i = 0; i < 10; i++) { const m = (a + b) / 2; if (below(m)) b = m; else a = m; }
-      return { x: o.x + d.x * b, z: o.z + d.z * b };
+      return this.clampGround(o.x+d.x*b,o.z+d.z*b);
     }
-    return { x: o.x + d.x * 700, z: o.z + d.z * 700 };
+    return this.clampGround(o.x+d.x*this.camera.far,o.z+d.z*this.camera.far);
   }
+
+  private clampGround(x:number,z:number):Point {const limit=MAP_SIZE/2-10;return {x:Math.max(-limit,Math.min(limit,x)),z:Math.max(-limit,Math.min(limit,z))};}
 
   groundAt(mx: number, my: number): Point {
     return this.groundAtNDC((mx / innerWidth) * 2 - 1, -(my / innerHeight) * 2 + 1);

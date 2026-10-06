@@ -1,4 +1,5 @@
 import logisticsRules from "../../data/logistics.json";
+import {maxHitPoints} from "../unitStats";
 import {weaponSpec,weaponAmmo} from "./combat";
 import {heightAt} from "../heightmap";
 import type { World } from "../World";
@@ -21,11 +22,30 @@ export function supplyRadiusFor(depot: Entity, w: World): number {
   return (d > 90 ? SUPPLY_RADIUS_FORWARD : SUPPLY_RADIUS_DEPOT) * (1 + ((depot.buildingLevel??1)-1)*.18);
 }
 
-export function isTacticallySupplied(w: World, e: Entity): boolean {
+/** A caller may reuse this view within one synchronous refresh, never across ticks. */
+export function tacticalSupplyNodes(w:World,team:Entity["team"]):Entity[] {
+  return w.entities.filter(n=>!n.dead&&!n.underConstruction&&(n.disabledUntil??0)<=w.time&&n.team===team&&(n.kind==="hq"||n.kind==="supply"));
+}
+/** Finite physical repair stock remains usable even while its upstream route is cut. */
+export function repairDepotFor(w:World,e:Entity):Entity|null {
+ return tacticalSupplyNodes(w,e.team).filter(n=>(n.repairStock??0)>0&&Math.hypot(n.x-e.x,n.z-e.z)<=logisticsRules.groundRepair.radius).sort((a,b)=>Math.hypot(a.x-e.x,a.z-e.z)-Math.hypot(b.x-e.x,b.z-e.z)||a.id-b.id)[0]??null;
+}
+/** A harbour consumes its connected land depot's real stock, never a free naval pool. */
+export function navalServiceDepot(w:World,e:Entity):Entity|null {
+ if(e.def.domain!=="sea")return null;
+ for(const port of w.entities){
+  if(port.kind!=="shipyard"||port.team!==e.team||port.dead||port.underConstruction||(port.disabledUntil??0)>w.time||Math.hypot(port.x-e.x,port.z-e.z)>logisticsRules.naval.serviceRadius||!w.hasCommandLink(port)||w.powerStatus(e.team).ratio<.25)continue;
+  const depot=w.nearestSupplyDepot(e.team,port,true,true);
+  if(depot?.kind==="supply"&&Math.hypot(depot.x-port.x,depot.z-port.z)<=80)return depot;
+ }return null;
+}
+export function isTacticallySupplied(w: World, e: Entity, supplyNodes?:readonly Entity[]): boolean {
   if (e.def.speed === 0) return true;
+  if(e.def.domain==="sea"){const naval=navalServiceDepot(w,e);return !!naval&&((naval.ammoStock??0)>0||(naval.fuelStock??0)>0);}
   if(e.def.armor==="air"&&((e.motionSpeed??0)>.5||e.y-heightAt(e.x,e.z)>3))return false;
-  const nodes = w.entities.filter(n=>!n.dead&&!n.underConstruction&&(n.disabledUntil??0)<=w.time&&n.team===e.team&&["hq","supply"].includes(n.kind));
+  const nodes=supplyNodes??tacticalSupplyNodes(w,e.team);
   for (const n of nodes) {
+    if(n.team!==e.team)continue;
     const r = supplyRadiusFor(n, w);
     if (Math.hypot(n.x - e.x, n.z - e.z) <= r) {
       if ((n.ammoStock ?? 0) > 0 || (n.fuelStock ?? 0) > 0) return true;
@@ -68,6 +88,8 @@ export function ensureLogisticsPools(e: Entity): void {
  */
 export function updateTacticalSupply(w: World, dt: number): void {
   const depots=w.entities.filter(n=>!n.dead&&!n.underConstruction&&(n.disabledUntil??0)<=w.time&&["hq","supply"].includes(n.kind));
+  const fuelConvoys:[Entity[],Entity[]]=[[],[]];
+  for(const n of w.entities)if(!n.dead&&n.kind==="logiTruck")fuelConvoys[n.team].push(n);
   const commands=[w.commandNodes(0),w.commandNodes(1)];
   for (const e of w.entities) {
     if (e.dead || e.loadedIntoId != null) continue;
@@ -77,6 +99,8 @@ export function updateTacticalSupply(w: World, dt: number): void {
     let depot:Entity|null=null,best=Infinity;
     const needsFuel=(e.fuel??0)<(e.maxFuel??0),needsAmmo=(e.ammo??0)<(e.maxAmmo??0)||!!e.secondaryAmmo?.some((_,i)=>i>0&&weaponAmmo(e,i)<weaponSpec(e,i).ammoCapacity);
     for(const n of depots){if(n.team!==e.team)continue;const distance=Math.hypot(n.x-e.x,n.z-e.z);const available=(!needsFuel&&!needsAmmo)||needsFuel&&(n.fuelStock??0)>0||needsAmmo&&(n.ammoStock??0)>0;const score=distance+(available?0:1000);if(distance<=supplyRadiusFor(n,w)&&score<best){best=score;depot=n;}}
+    const portDepot=navalServiceDepot(w,e);if(e.def.domain==="sea")depot=portDepot;
+    if(portDepot&&(portDepot.repairStock??0)>0&&(e.hp<maxHitPoints(e)||Math.max(0,...Object.values(e.components??{}))>0)){const hp=Math.min(Math.max(maxHitPoints(e)-e.hp,Math.max(0,...Object.values(e.components??{}))),logisticsRules.naval.repairPerSecond*eff*dt,(portDepot.repairStock??0)*logisticsRules.naval.repairPerStock);e.hp=Math.min(maxHitPoints(e),e.hp+hp);portDepot.repairStock=(portDepot.repairStock??0)-hp/logisticsRules.naval.repairPerStock;if(e.components)for(const key of ["engine","tracks","turret","weapon","crew","ammo"] as const)e.components[key]=Math.max(0,e.components[key]-hp);}
     const inRadius=!!depot && (e.def.armor!=="air" || e.kind==="transport" && e.y-depot.y<3 && (e.motionSpeed??0)<.5);
     const home=w.byId.get(e.airMissionHomeId??-1);
     const groundAirService=e.def.armor==='air'&&['grounded','rearming'].includes(e.airState??'')&&!!home&&!home.dead&&!home.underConstruction&&(home.disabledUntil??0)<=w.time&&w.hasCommandLink(home)&&w.powerStatus(e.team).ratio>=.25&&Math.hypot(e.x-home.x,e.z-home.z)<35&&e.y-heightAt(e.x,e.z)<3;
@@ -96,7 +120,7 @@ export function updateTacticalSupply(w: World, dt: number): void {
     }
     // A stranded ground vehicle can be rescued by a nearby physical fuel convoy.
     if(e.def.domain==="land"&&needsFuel&&(!inRadius||!depot||(depot.fuelStock??0)<=0)){
-      const donor=w.entities.find(n=>n!==e&&!n.dead&&n.team===e.team&&n.kind==="logiTruck"&&(n.logisticsPayload?.fuel??0)>0&&Math.hypot(n.x-e.x,n.z-e.z)<=logisticsRules.mobileRefuelRadius);
+      const donor=fuelConvoys[e.team].find(n=>n!==e&&!n.dead&&n.team===e.team&&n.kind==="logiTruck"&&(n.logisticsPayload?.fuel??0)>0&&Math.hypot(n.x-e.x,n.z-e.z)<=logisticsRules.mobileRefuelRadius);
       if(donor?.logisticsPayload){const take=Math.max(0,Math.min((e.maxFuel??0)-(e.fuel??0),donor.logisticsPayload.fuel,logisticsRules.mobileRefuelRate*eff*dt));donor.logisticsPayload.fuel-=take;donor.cargo=Math.max(0,donor.cargo-take);e.fuel=(e.fuel??0)+take;}
     }
     if (inRadius && depot && (e.maxAmmo??0)>0 && (e.ammo??0)<(e.maxAmmo??0)) {

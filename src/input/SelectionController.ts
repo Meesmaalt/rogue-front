@@ -9,6 +9,8 @@ export class SelectionController {
   readonly selected = new Set<number>();
   drag: DragRect | null = null;
   enabled = false;
+  onFocus:(x:number,z:number)=>void=()=>{};
+  private lastGroup={key:"",time:0};
   onInspectBuilding:(id:string)=>void=()=>{};
   private groups: Record<string, number[]> = {};
   private last = { t: 0, e: null as Entity | null };
@@ -18,17 +20,23 @@ export class SelectionController {
       if (this.enabled && e.button === 0) this.drag = { x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY };
     });
     addEventListener("mousemove", (e) => { if (this.drag) { this.drag.x1 = e.clientX; this.drag.y1 = e.clientY; } });
-    addEventListener("mouseup", (e) => { if (e.button === 0 && this.drag) { const d = this.drag; this.drag = null; this.finish(d, e.shiftKey); } });
+    addEventListener("mouseup", (e) => { if (e.button === 0 && this.drag) { const d = this.drag; this.drag = null; if(this.enabled)this.finish(d, e.shiftKey); } });
+    addEventListener("blur",()=>{this.drag=null;});
     addEventListener("keydown", (e) => {
-      if (!this.enabled || !/^[1-9]$/.test(e.key)) return;
+      if (!this.enabled || (e.target instanceof Element && e.target.closest("input,textarea,select,[contenteditable=true]")) || !/^[1-9]$/.test(e.key)) return;
       if (e.ctrlKey || e.metaKey) { e.preventDefault(); this.groups[e.key] = [...this.selected]; }
-      else if (this.groups[e.key]) this.set(this.groups[e.key].map((id) => this.world.byId.get(id)).filter((x): x is Entity => !!x && !x.dead), false);
+      else if (this.groups[e.key]) {
+        const units=this.groups[e.key].map(id=>this.world.byId.get(id)).filter((x):x is Entity=>!!x&&!x.dead&&x.loadedIntoId==null&&x.team===this.world.playerTeam);
+        this.set(units,false);const now=performance.now();
+        if(units.length&&this.lastGroup.key===e.key&&now-this.lastGroup.time<350)this.onFocus(units.reduce((v,u)=>v+u.x,0)/units.length,units.reduce((v,u)=>v+u.z,0)/units.length);
+        this.lastGroup={key:e.key,time:now};
+      }
     });
   }
 
   /** Eemalda surnud üksused valikust. */
   prune(): void {
-    for (const id of this.selected) { const e = this.world.byId.get(id); if (!e || e.dead) this.selected.delete(id); }
+    for (const id of this.selected) { const e = this.world.byId.get(id); if (!e || e.dead || e.loadedIntoId!=null || e.team!==this.world.playerTeam) this.selected.delete(id); }
   }
 
   private set(list: Entity[], add: boolean): void {
@@ -46,9 +54,10 @@ export class SelectionController {
     if (w < 6 && h < 6) {
       const u = this.picker.pickEntity(d.x1, d.y1, this.world.playerTeam), now = performance.now();
       if (u) {
-        if (this.last.e && this.last.e.kind === u.kind && now - this.last.t < 350 && u.def.speed > 0)
-          this.set(this.world.entities.filter((o) => !o.dead && o.team === this.world.playerTeam && o.kind === u.kind && this.onScreen(o)), add);
-        else this.set([u], add);
+        if(add&&this.selected.has(u.id))this.selected.delete(u.id);
+        else if (this.last.e && this.last.e.id === u.id && now - this.last.t < 350 && u.def.speed > 0)
+          this.set(this.world.entities.filter((o) => !o.dead && o.loadedIntoId==null && o.team === this.world.playerTeam && o.kind === u.kind && this.onScreen(o)), add);
+        else this.set([u],add);
         this.last = { t: now, e: u };
       } else if (!add) {this.selected.clear();const f=this.picker.pickGarrisonBuilding(d.x1,d.y1);if(f)this.onInspectBuilding(f.id);}
       return;
@@ -64,7 +73,7 @@ export class SelectionController {
 
   /** Select all player units of a domain filter. */
   selectFilter(pred: (e: Entity) => boolean, add = false): void {
-    const list = this.world.entities.filter(e => !e.dead && e.team === this.world.playerTeam && e.def.speed > 0 && pred(e));
+    const list = this.world.entities.filter(e => !e.dead && e.loadedIntoId==null && e.team === this.world.playerTeam && e.def.speed > 0 && pred(e));
     this.set(list, add);
   }
 }

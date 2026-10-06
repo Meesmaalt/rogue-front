@@ -63,7 +63,12 @@ export function updateProjectiles(w:World,dt:number):void {
         p.tx=t.x+(miss?p.missX??0:0);p.tz=t.z+(miss?p.missZ??0:0);p.aimY=t.y+t.def.height*.45;
       }
     }
-    const ty=p.aimY??heightAt(p.tx,p.tz)+.15,dx=p.tx-p.x,dy=ty-p.y,dz=p.tz-p.z,d=Math.hypot(dx,dy,dz)||.001;
+    let ty=p.aimY??heightAt(p.tx,p.tz)+.15;
+    const horizontal=Math.hypot(p.tx-p.x,p.tz-p.z);
+    if(p.cruiseAltitude&&horizontal>25)ty=Math.max(ty,heightAt(p.x,p.z)+p.cruiseAltitude,w.waterNav.surfaceAt(p.x,p.z)+p.cruiseAltitude);
+    if(p.visual==="torpedo")ty=w.waterNav.surfaceAt(p.tx,p.tz)+.2;
+    if(p.age<(p.boostTime??0))ty=Math.max(ty,p.y+30);
+    const dx=p.tx-p.x,dy=ty-p.y,dz=p.tz-p.z,d=Math.hypot(dx,dy,dz)||.001;
     if(guided){
       p.speed=Math.min(p.maxSpeed??p.speed,p.speed+(p.acceleration??0)*dt);
       if(!p.guidanceLost){

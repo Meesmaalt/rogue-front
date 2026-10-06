@@ -13,6 +13,19 @@ import {detectionScore,coverValueAt} from "./systems/sensors";
 const features:MapFeatureDef[]=[{id:"forest",kind:"cover",appearance:"forest",x:0,z:-200,width:112,depth:96,height:8,blocksMovement:false},{id:"track",kind:"road",x:38,z:-200,width:6,depth:110}];
 function fixture(){const bases=[{x:0,z:-200,r:200},{x:200,z:200,r:30}];setBases(bases);const w=new World(61,false,[],features,bases,false);w.networkMode=true;return w;}
 afterEach(resetHeightmap);
+it("authored Roheorg villages keep houses off roads and water, resources accessible and dry bridge approaches grounded",()=>{
+ const m=FOCUS_MAP.map;setMapSize(m.size);setBases(m.bases);setTerrainProfile("farmland");
+ const w=new World(FOCUS_MAP.seed,false,m.resources,m.features,m.bases,false),features=w.mapFeatures;
+ for(const house of features.filter(f=>f.kind==="building")){
+  expect(features.some(f=>(f.kind==="road"||f.kind==="water")&&pointInFeature(house.x,house.z,f,Math.max(house.width,house.depth)/2+1)),house.id).toBe(false);
+  expect(w.nav.isWalkableWorld(house.x,house.z,0),house.id).toBe(false);
+ }
+ for(const r of m.resources)expect(w.nav.isWalkableWorld(r.x,r.z,1),r.label).toBe(true);
+ for(const b of features.filter(f=>f.kind==="bridge"))for(const side of [-1,1]){
+  const x=b.x+Math.sin(b.rotation??0)*b.depth*.45*side,z=b.z+Math.cos(b.rotation??0)*b.depth*.45*side;
+  if(!features.some(f=>f.kind==="water"&&pointInFeature(x,z,f)))expect(groundHeightAt(x,z)).toBeCloseTo(heightAt(x,z),3);
+ }
+});
 it("terrain: infantry and armor traverse woods, roads clear canopy, movement and firing expose troops",()=>{
  const w=fixture(),u=w.spawn("inf",0,0,-200),tank=w.spawn("tank",0,0,-205),observer=w.spawn("reconInf",1,-15,-200);
  expect(w.nav.isWalkableWorld(u.x,u.z,u.def.radius)).toBe(true);expect(w.nav.isWalkableWorld(tank.x,tank.z,tank.def.radius)).toBe(true);

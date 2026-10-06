@@ -22,7 +22,7 @@ const OPTICS_MUL: Record<string, number> = {
 /** Phase 76: tactical cover score at a point. Sandbags/crates/tents give light cover; walls/buildings are hard cover. */
 export function coverValueAt(w: World, x: number, z: number): number {
   let value = 0;
-  for (const f of w.mapFeatures) {
+  for (const f of w.terrain.coverFeaturesAt(x,z)) {
     if (!pointInFeature(x, z, f, 0.25)) continue;
     if(f.appearance==="forest")value=Math.max(value,24*w.terrain.foliageAt(x,z));
     else if (f.kind === "cover" && f.appearance!=="field" && f.appearance!=="yard") value = Math.max(value, (f.height ?? 1.5) >= 2 ? 22 : 16);

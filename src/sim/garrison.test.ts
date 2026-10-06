@@ -14,6 +14,18 @@ const house:MapFeatureDef={id:'house',kind:'building',appearance:'farmhouse',x:0
 function fixture(extra:MapFeatureDef[]=[]){setBases(bases);const w=new World(21,false,[],[house,...extra],bases,false);w.networkMode=true;w.spawn('hq',0,-140,-100);w.spawn('hq',1,140,100);return w;}
 function step(w:World,n=1){for(let i=0;i<n;i++){w.time+=1/30;updateGarrisons(w,1/30,(u,a)=>damage(w,u,a,{weapon:'cannon'}));applyCommands(w);w.spatial.rebuild(w.entities);w.vision.update(w.entities);updateUnits(w,1/30);updateProjectiles(w,1/30);}}
 afterEach(resetHeightmap);
+it('an unreachable movement order reports a reason and preserves the previous order',()=>{
+ const w=fixture([{id:'sealed-bank',kind:'wall',x:70,z:0,width:14,depth:1000,height:8}]),u=w.spawn('inf',0,-45,30);
+ u.mode='hold';u.holdPosition=true;
+ w.issue({type:'move',ids:[u.id],x:100,z:30});applyCommands(w);
+ expect(u.mode).toBe('hold');expect(u.holdPosition).toBe(true);expect(w.events.some(e=>e.type==='order-rejected'&&e.unitId===u.id)).toBe(true);
+});
+it('mixed infantry and tank selection enters only infantry; stop cancels a pending doorway approach',()=>{
+ const w=fixture(),u=w.spawn('inf',0,-45,0),tank=w.spawn('tank',0,-50,-30);
+ w.issue({type:'enter-building',ids:[u.id,tank.id],featureId:house.id});applyCommands(w);
+ expect(u.garrisonOrderId).toBe(house.id);expect(tank.garrisonOrderId).toBeUndefined();expect(w.events.some(e=>e.type==='order-rejected')).toBe(false);
+ w.issue({type:'stop',ids:[u.id]});applyCommands(w);step(w,30);expect(u.garrisonOrderId).toBeUndefined();expect(u.garrisonId).toBeUndefined();expect(u.dest).toBeNull();
+});
 it('door approach, capacity reservation and contested ownership; save restores active entry and occupied exit',()=>{
  const w=fixture(),a=w.spawn('inf',0,-45,0),b=w.spawn('reconInf',0,0,-40),extra=w.spawn('inf',0,-40,-40),enemy=w.spawn('inf',1,40,0);
  w.issue({type:'enter-building',ids:[a.id,b.id,extra.id],featureId:house.id});w.issue({type:'enter-building',ids:[enemy.id],featureId:house.id});applyCommands(w);

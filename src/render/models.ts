@@ -346,6 +346,28 @@ export function createModel(kind: UnitKind, team: Team, faction: FactionId = tea
   let turret: THREE.Group | null = null;
   const body = BODY[team], acc = ACC[team];
 
+  if(["destroyer","frigate","missileBoat","submarine"].includes(kind)){
+    const color=faction==="usa"?0x697b87:faction==="russia"?0x65786d:0x7c7f83;
+    if(kind==="submarine"){
+      const hull=new THREE.Mesh(new THREE.CapsuleGeometry(1.15,9,6,14),mat(0x293c43));hull.rotation.x=Math.PI/2;hull.position.y=.25;g.add(hull);
+      g.add(box(1.25,1.7,2.3,color,0,1.3,-.5));antenna(g,-.3,2,-.4,1.4);antenna(g,.3,2,-.4,1);
+      g.add(box(4,.12,1.1,color,0,.5,-4.5));for(let z=-3;z<3;z+=.9)g.add(box(.7,.06,.65,DARK,0,1.4,z));
+    }else{
+      const length=kind==="destroyer"?20:kind==="frigate"?16:9,width=kind==="missileBoat"?2.6:4.2;
+      const shape=new THREE.Shape();shape.moveTo(0,-length/2);shape.lineTo(width/2,-length*.30);shape.lineTo(width/2,length*.43);shape.lineTo(-width/2,length*.43);shape.lineTo(-width/2,-length*.30);shape.closePath();
+      const hull=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:1.05,bevelEnabled:true,bevelSize:.16,bevelThickness:.14,bevelSegments:1,steps:1}),mat(color));hull.rotation.x=-Math.PI/2;hull.position.y=-.4;g.add(hull);
+      g.add(box(width*.7,1.2,length*.30,color,0,1.3,-.5));g.add(box(width*.55,.8,2,color,0,2.2,.1));
+      for(const side of [-1,1])for(let z=-1.1;z<1.6;z+=.5)g.add(box(.04,.3,.35,0x183440,side*width*.28,2.35,z));
+      antenna(g,0,2.6,-1,kind==="destroyer"?3.8:2.4);g.add(box(2.4,.15,.3,DARK,0,kind==="destroyer"?5.8:4.4,-1));
+      for(const x of [-width*.25,width*.25])for(let z=-length*.31;z<-length*.13;z+=.75)g.add(box(.65,.08,.6,DARK,x,1.3,z));
+      for(const side of [-1,1]){g.add(box(.55,.65,2.2,color,side*width*.30,1.7,-2.4));g.add(box(.2,.2,1.7,acc,side*width*.30,1.6,-2.4));}
+      g.add(box(width*.7,.08,length*.18,0x58616a,0,.85,-length*.30));g.add(box(width*.45,.025,.1,0xc7cebd,0,.91,-length*.30));
+      turret=new THREE.Group();turret.name="Turret";turret.position.set(0,1.1,length*.29);turret.add(box(1.4,.7,1.6,color,0,.3,0));barrel(kind==="destroyer"?3:2,.09,.35,.5,turret);g.add(turret);
+      for(const side of [-1,1])for(let z=-length*.4;z<length*.25;z+=2){g.add(box(.06,.45,.06,0xb6bfc1,side*width*.45,1,z));}
+      g.add(box(.16,.08,length*.6,acc,width*.43,.9,0));
+    }
+    mergeStaticParts(g);return {group:g,turret};
+  }
   if(infantryKinds.has(kind))return infantryModel(kind,team,faction,tactical);
   if (["reconVehicle","lightTank","tankDestroyer","spaa"].includes(kind)) {
     const hullColor = kind === "reconVehicle" ? 0x66705a : kind === "lightTank" ? 0x6f7650 : body;

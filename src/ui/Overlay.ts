@@ -1,6 +1,7 @@
 import {isGarrisonBuilding,garrisonCapacity,buildingCondition} from "../sim/garrison";
 import {maxHitPoints} from "../sim/unitStats";
 import {drawClassIcon,tacticalClass} from "./TacticalClass";
+import type {Entity} from "../sim/types";
 import type { World } from "../sim/World";
 import { heightAt } from "../sim/heightmap";
 import type { UnitMarkerRect, Picker } from "../input/Picker";
@@ -12,6 +13,8 @@ export interface BuildPreview { point: {x:number;z:number} | null; kind: Buildab
 
 export class Overlay {
   private ctx: CanvasRenderingContext2D;
+  private readonly visible:Entity[]=[];
+  private readonly ordinary:Entity[]=[];
   private readonly nameWidths=new Map<string,number>();
   private readonly targetLines=new Map<number,{stamp:number;target:number;clear:boolean}>();
 
@@ -28,7 +31,7 @@ export class Overlay {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  draw(world: World, picker: Picker, sel: SelectionController, preview: BuildPreview | null = null): void {
+  draw(world: World, picker: Picker, sel: SelectionController, preview: BuildPreview | null = null,orders?:{pointer:{x:number;y:number}|null;hint:string;feedbackText:string}): void {
     const c = this.ctx, w = innerWidth, h = innerHeight;
     c.clearRect(0, 0, w, h);
     const line=(points:readonly {x:number;y?:number;z:number}[],color:string,dashed=false)=>{
@@ -71,15 +74,19 @@ export class Overlay {
     }
     const markers:UnitMarkerRect[]=[],occupied=new Set<string>();
     // Selected labels get first choice of screen space; stable entity order breaks ties.
-    const visible=world.entities.filter(u=>!u.dead&&u.loadedIntoId==null&&(u.team===world.playerTeam||world.isSpottedByTeam(u,world.playerTeam)));
-    visible.sort((a,b)=>Number(sel.selected.has(b.id))-Number(sel.selected.has(a.id)));
+    const visible=this.visible,ordinary=this.ordinary;visible.length=0;ordinary.length=0;
+    for(const u of world.entities){
+      if(u.dead||u.loadedIntoId!=null||u.team!==world.playerTeam&&!world.isSpottedByTeam(u,world.playerTeam))continue;
+      (sel.selected.has(u.id)?visible:ordinary).push(u);
+    }
+    for(const u of ordinary)visible.push(u);
     for (const u of visible) {
       const selectedUnit=sel.selected.has(u.id);
-      const distant=u.def.speed>0&&picker.pxPerUnit(u.x,u.y,u.z)<4.2;
-      if (u.dead || (u.team !== world.playerTeam && !world.isSpottedByTeam(u,world.playerTeam)) || (!distant && u.hp >= maxHitPoints(u) && !sel.selected.has(u.id) && u.team===world.playerTeam && (u.def.speed===0 || world.time-u.lastCombatTime>6))) continue;
       const p = picker.toScreen(u.x, u.y + u.def.height + 1, u.z);
       if (p.z > 1 || p.x < -40 || p.x > w + 40 || p.y < -40 || p.y > h + 40) continue;
-      const bw = Math.max(26, u.def.radius * picker.pxPerUnit(u.x, u.y, u.z) * 1.6);
+      const scale=picker.pxPerUnit(u.x,u.y,u.z),distant=u.def.speed>0&&scale<4.2;
+      if (!distant && u.hp >= maxHitPoints(u) && !selectedUnit && u.team===world.playerTeam && (u.def.speed===0 || world.time-u.lastCombatTime>6)) continue;
+      const bw = Math.max(26, u.def.radius * scale * 1.6);
       c.fillStyle = "rgba(8,10,11,.85)";
       c.fillRect(p.x - bw / 2 - 1, p.y - 1, bw + 2, 6);
       c.fillStyle = u.team !== world.playerTeam ? "#e0553f" : "#73bfe3";
@@ -88,13 +95,18 @@ export class Overlay {
         const name=world.unitDisplayName(u.kind,u.team);
         c.font="600 11px Segoe UI, sans-serif";
         let tw=this.nameWidths.get(name);if(tw==null){tw=c.measureText(name).width;if(this.nameWidths.size>256)this.nameWidths.clear();this.nameWidths.set(name,tw);}
-        const fullWidth=tw+35,y=p.y-23;
+        const fullWidth=tw+35;
         const x=Math.max(0,Math.min(w-fullWidth,p.x-fullWidth/2));
-        const cells:string[]=[];
-        for(let ix=Math.floor(x/32);ix<=Math.floor((x+fullWidth)/32);ix++)for(let iy=Math.floor(y/20);iy<=Math.floor((y+18)/20);iy++)cells.push(`${ix},${iy}`);
-        const full=selectedUnit||!cells.some(key=>occupied.has(key));
+        const slots=(left:number,top:number,width:number)=>{const keys:string[]=[];for(let ix=Math.floor(left/32);ix<=Math.floor((left+width)/32);ix++)for(let iy=Math.floor(top/20);iy<=Math.floor((top+18)/20);iy++)keys.push(`${ix},${iy}`);return keys;};
+        let y=p.y-23,cells=slots(x,y,fullWidth),full=!cells.some(key=>occupied.has(key));
+        for(const offset of selectedUnit?[-43,-63,15]:[-43,15]){
+          if(full)break;const trial=p.y+offset;if(trial<0||trial+18>h)continue;
+          const keys=slots(x,trial,fullWidth);if(!keys.some(key=>occupied.has(key))){y=trial;cells=keys;full=true;}
+        }
         const width=full?fullWidth:24,left=full?x:p.x-12;
-        if(full)for(const key of cells)occupied.add(key);
+        if(!full){y=p.y-23;cells=slots(left,y,width);if(cells.some(key=>occupied.has(key)))continue;}
+        for(const key of cells)occupied.add(key);
+        if(full&&y!==p.y-23){c.strokeStyle=u.team===world.playerTeam?"#8acbe580":"#f5a18b80";c.lineWidth=1;c.beginPath();c.moveTo(p.x,p.y-3);c.lineTo(left+width/2,y+9);c.stroke();}
         c.fillStyle=u.team===world.playerTeam?"#142c3aee":"#3c211dee";c.fillRect(left,y,width,18);
         c.strokeStyle=selectedUnit?"#ffd18a":u.team===world.playerTeam?"#8acbe5":"#f5a18b";
         if(selectedUnit)c.strokeRect(left+.5,y+.5,width-1,17);
@@ -122,6 +134,16 @@ export class Overlay {
       c.restore();
       c.fillStyle = preview.valid ? "#66d9a0" : "#e0553f"; c.font = "12px sans-serif";
       c.fillText(preview.valid ? "EHITADA · R = pööra" : "EHITADA EI SAA", p.x + 10, p.y - 10);
+    }
+
+    if(orders?.pointer&&orders.hint){
+      c.font="600 12px Segoe UI,sans-serif";const tw=c.measureText(orders.hint).width;
+      const x=Math.max(6,Math.min(w-tw-18,orders.pointer.x+18)),y=Math.max(28,Math.min(h-210,orders.pointer.y-20));
+      c.fillStyle="#15252ce8";c.fillRect(x-6,y-15,tw+12,23);c.fillStyle="#d6e6e8";c.fillText(orders.hint,x,y);
+    }
+    if(orders?.feedbackText){
+      c.font="600 13px Segoe UI,sans-serif";c.textAlign="center";
+      const tw=c.measureText(orders.feedbackText).width;c.fillStyle="#13232df2";c.fillRect((w-tw)/2-14,82,tw+28,30);c.fillStyle="#dce7eb";c.fillText(orders.feedbackText,w/2,102);c.textAlign="left";
     }
 
     const d = sel.drag;

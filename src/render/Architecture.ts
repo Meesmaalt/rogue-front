@@ -6,7 +6,7 @@ import {mulberry32} from "../sim/rng";
 
 const textures=new Map<string,THREE.CanvasTexture>();
 const materials=new Map<string,THREE.MeshStandardMaterial>();
-function surface(kind:"plaster"|"brick"|"metal"|"roof"|"concrete"):THREE.CanvasTexture {
+function surface(kind:"plaster"|"brick"|"metal"|"roof"|"concrete"|"facade1"|"facade2"):THREE.CanvasTexture {
   const cached=textures.get(kind);if(cached)return cached;
   const canvas=document.createElement("canvas");canvas.width=canvas.height=256;const c=canvas.getContext("2d")!,random=mulberry32(311+kind.length);
   const image=c.createImageData(256,256);
@@ -17,7 +17,15 @@ function surface(kind:"plaster"|"brick"|"metal"|"roof"|"concrete"):THREE.CanvasT
     if(kind==="metal"&&x%16<2)v=155;
     const i=(y*256+x)*4;image.data[i]=v;image.data[i+1]=v;image.data[i+2]=v;image.data[i+3]=255;
   }
-  c.putImageData(image,0,0);const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(2,2);texture.anisotropy=8;textures.set(kind,texture);return texture;
+  c.putImageData(image,0,0);
+  if(kind.startsWith("facade")){
+    const floors=kind==="facade2"?2:1;
+    for(let floor=0;floor<floors;floor++)for(const x of [43,111,179]){
+      const y=floors===2?44+floor*99:75;c.fillStyle="#b4b5a8";c.fillRect(x-3,y-3,39,54);c.fillStyle="#4b5b5c";c.fillRect(x,y,33,47);c.fillStyle="#969d96";c.fillRect(x+15,y,2,47);c.fillRect(x,y+23,33,2);
+    }
+    c.fillStyle="#797c72";c.fillRect(0,238,256,18);c.fillStyle="#777768";c.fillRect(112,174,34,64);
+  }
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(kind.startsWith("facade")?1:2,kind.startsWith("facade")?1:2);texture.anisotropy=8;textures.set(kind,texture);return texture;
 }
 function material(color:number,kind?:Parameters<typeof surface>[0],metalness=.05):THREE.MeshStandardMaterial {
   const key=`${color}/${kind}/${metalness}`;let m=materials.get(key);if(m)return m;
@@ -49,7 +57,7 @@ function facade(g:THREE.Group,w:number,d:number,h:number,floors:number,wall:THRE
 }
 /** Original civilian models: gable roof, facade, sill, rain pipes, chimney and annex. */
 export function createCivilianBuilding(width:number,depth:number,height:number,variant=0,tactical=false):THREE.Group {
-  const g=new THREE.Group(),wall=material([0xb9b4a3,0xa39f91,0xc5bba7,0x9a9d8e][variant%4],variant%3===1?"brick":"plaster"),concrete=material(0x8c8e83,"concrete"),tiles=material([0x706259,0x565f61,0x8a7060][variant%3],"roof");
+  const g=new THREE.Group(),wall=material([0xb9b4a3,0xa39f91,0xc5bba7,0x9a9d8e][variant%4],tactical?(height>6?"facade2":"facade1"):variant%3===1?"brick":"plaster"),concrete=material(0x8c8e83,"concrete"),tiles=material([0x706259,0x565f61,0x8a7060][variant%3],"roof");
   // Height describes the whole house, rather than a wall plus an extra tall roof.
   const rise=Math.min(1.25,height*.22),wallHeight=height-rise-.2;
   box(g,width+.3,.2,depth+.3,0,.1,0,concrete);
@@ -89,6 +97,14 @@ export function createBuildingModel(kind:UnitKind,team:Team,faction:FactionId):{
     box(g,2,.7,1.4,width*.25,height+.8,-depth*.2,dark);for(let x=-.75;x<=.75;x+=.3)box(g,.1,.6,1.45,width*.25+x,height+.8,-depth*.2,steel);
     box(g,2,.16,1.3,0,height*.8,depth/2+.23,trim);
     if(kind==="hq"||kind.includes("Command")||kind.includes("Strategy")){cylinder(g,.07,5,width*.32,height+2.7,-depth*.32,dark);const dish=new THREE.Mesh(new THREE.SphereGeometry(.8,12,8,0,Math.PI*2,0,Math.PI*.5),steel);dish.position.set(width*.32,height+3.5,-depth*.32);dish.rotation.x=-.6;g.add(dish);}
+    if(kind==="shipyard"){
+      const crane=material(0xbba054,"metal");
+      for(const x of [-7,-5])box(g,.45,10,.45,x,5,0,crane);
+      box(g,2.8,.65,2.4,-6,10,0,crane);box(g,2.1,.5,10,-6,10.6,3,crane);
+      for(let z=-1;z<8;z+=2)box(g,2.2,.3,.2,-6,11.2,z,crane);
+      cylinder(g,.06,6,-6,7.5,7,dark);box(g,.7,.6,.7,-6,4.4,7,dark);
+      for(const x of [-3,0,3])box(g,2.6,1.4,2.5,x,.85,-8,steel);
+    }
     if(kind==="supply"){for(const side of [-1,1])for(let i=0;i<3;i++){box(g,1.2,.9,1.2,side*(width/2-.9),.65+i*.9,-depth/2+1,material(0x80785d,"metal"));}for(const x of [-1.2,1.2])cylinder(g,.45,1.4,x,.9,depth/2-1,steel);}
     for(const x of [-width/2+.18,width/2-.18])box(g,.1,height,.1,x,height/2+.22,depth/2+.12,steel);
   }

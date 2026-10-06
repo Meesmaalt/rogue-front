@@ -96,7 +96,22 @@
     "groupJoinDistance": 40,
     "columnWidth": 6,
     "columnRadiusFactor": 3,
-    "columnGap": 2
+    "columnGap": 2,
+    "taskWaypointArrival": 0.2,
+    "taskPathAttempts": 3,
+    "avoidanceSideDuration": 3,
+    "blockedRetry": 1.8,
+    "jamDelay": 1.2,
+    "parkedSearchRadius": 36,
+    "vehicleFiringFactors": [
+      1,
+      0.95
+    ],
+    "infantryFiringFactors": [
+      1,
+      0.65,
+      0.4
+    ]
   },
   "transport": {
     "pickupTimeout": 60,
@@ -108,5 +123,43 @@
     "exitRetry": 0.5,
     "landingMargin": 3,
     "pickupSearch": 30
+  },
+  "combat": {
+    "clearShotPreference": 36,
+    "blockedShotPenalty": 48,
+    "reconsiderTicks": 15,
+    "stoppingRange": 0.92,
+    "helicopterStandoff": 0.78,
+    "helicopterRetreatRatio": 0.68,
+    "retreatRallyGap": 12,
+    "vehicleMinimumStandoff": 0.52,
+    "weaponSettleTime": 0.45,
+    "airEgressDistance": 110,
+    "airEgressTime": 8,
+    "airEgressArrival": 18,
+    "vehicleStandoffRelease": 0.7,
+    "reverseSpeed": 0.55,
+    "airReturnFuelFraction": 0.22,
+    "airReturnSpeedFraction": 0.65,
+    "airReturnLandingSeconds": 20,
+    "airReturnFuelMargin": 1.25,
+    "airReturnHealthFraction": 0.35,
+    "airReturnComponentDamage": 65
+  },
+  "naval": {
+    "acceleration": 1.5,
+    "braking": 3,
+    "arrival": 1,
+    "pathRetry": 2,
+    "berthSpacing": 2
+  },
+  "presentation": {
+    "speedResponse": 10,
+    "tiltResponse": 8,
+    "squadSpreadResponse": 6,
+    "infantryStride": 1.5,
+    "legSwing": 0.45,
+    "teleportDistance": 24,
+    "vehicleBounce": 0.025
   }
 }

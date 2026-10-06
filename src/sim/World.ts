@@ -6,6 +6,7 @@ import logisticsConfig from "../data/logistics.json";
 import type { Command, Entity, GameStatus, Projectile, SimEvent, Team, UnitKind, MapResourceDef, IntelContact } from "./types";
 import { UNITS,factionUnitDefinition } from "./units";
 import { getBases, heightAt, setTerrainFeatures, setMapSize, ensureHeightCache, type BaseDef } from "./heightmap";
+import {WaterNavGrid} from "./nav/WaterNavGrid";
 import {TerrainState} from "./TerrainState";
 import { Rng } from "./rng";
 import { ENEMY_AGGRO, INCOME_PER_SEC, STARTING_CREDITS, STARTING_RESOURCES, AIR_CARGO_INCOME_PER_SEC, AIR_CARGO_LOAD, AIR_CARGO_INTERVAL, RESOURCE_FACILITY_STARTUP, RESOURCE_FACILITY_MAX_STOCK, RESOURCE_FACILITY_PRODUCTION, ROAD_TRUCK_CARGO, ROAD_TRUCK_INTERVAL, ROAD_TRUCK_MAX_PER_DEPOT } from "./constants";
@@ -45,6 +46,7 @@ export class World {
   readonly ai = new WaveAI();
   readonly intel: [Map<number, IntelContact>, Map<number, IntelContact>] = [new Map(), new Map()];
   nav: NavGrid;
+  waterNav:WaterNavGrid;
   vision: Vision;
   readonly terrain:TerrainState;
   get mapSize():number{return this.nav.width*this.nav.cellSize;}
@@ -204,8 +206,8 @@ export class World {
     return effects[kind]?.[Math.min(2, Math.max(0, level - 1))] ?? "Täiustatud rajatis";
   }
   unitRequiredBuildingLevel(kind: UnitKind): number {
-    const elite = ["special","atgm","manpad","tankDestroyer","spaa","mlrs","gunship","casHeli","interceptor","bomber","ecm","attackAircraft","destroyer","submarine","missileBoat"];
-    const advanced = ["engineer","reconInf","sniper","mortar","apc","ifv","artillery","reconVehicle","lightTank","fighter","multirole","frigate","landingcraft"];
+    const elite = ["special","atgm","manpad","tankDestroyer","spaa","mlrs","gunship","casHeli","interceptor","bomber","ecm","attackAircraft","destroyer","submarine"];
+    const advanced = ["engineer","reconInf","sniper","mortar","apc","ifv","artillery","reconVehicle","lightTank","fighter","multirole","frigate"];
     return elite.includes(kind) ? 3 : advanced.includes(kind) ? 2 : 1;
   }
   canProduceAtLevel(producer: Entity, kind: UnitKind): boolean {
@@ -233,9 +235,11 @@ export class World {
     const requiredLevel = kind ? this.unitRequiredBuildingLevel(kind) : 1;
     const strategy = requiredLevel < 2 || this.hasStrategyForProducer(producer.team, producer.kind);
     const parking= !kind||UNITS[kind].armor!=="air"||freeAirSlot(this,producer)>=0;
-    const operational = parking && command && power && logistics && strategy && (producer.disabledUntil ?? 0) <= this.time;
+    const water=producer.kind!=="shipyard"||!!this.waterNav.nearestWater(producer,kind?this.unitDefinition(kind,producer.team).radius:5,64);
+    const operational = water && parking && command && power && logistics && strategy && (producer.disabledUntil ?? 0) <= this.time;
     let reason = "Operatiivne";
-    if (!command) reason = "Puudub command-link";
+    if (!water) reason="Sadam vajab kõrval läbitavat vett";
+    else if (!command) reason = "Puudub command-link";
     else if (!power) reason = "Energiapuudus";
     else if (!logistics) reason = !depot || Math.hypot(depot.x-producer.x,depot.z-producer.z)>80 ? "Lähedal puudub toimiv varustusladu" : (depot.ammoStock??0)<=0 ? "Tootmine peatunud · laos pole laskemoona" : "Tootmine peatunud · laos pole kütust";
     else if (!strategy) reason = "Vajab vastava haru strateegiakeskust";
@@ -279,9 +283,10 @@ export class World {
       { x: -70, z: 70, amount: 1000, radius: 12 }, { x: 70, z: -70, amount: 1000, radius: 12 },
     ];
     this.mapFeatures = [...features.map(f=>({...f})),...(baseDefenses?generateBaseFeatures(this.bases):[]),
-      ...this.resourcePoints.map((rp,i):MapFeatureDef=>({id:`resource-facility-${i}`,kind:"building",x:rp.x+18,z:rp.z,width:13,depth:12,height:6,appearance:rp.facility==="oilfield"?"resource-oil":"resource-industrial",label:"Ressursirajatis"}))];
+      ...this.resourcePoints.map((rp,i):MapFeatureDef=>({id:`resource-facility-${i}`,kind:"building",x:rp.x+(rp.facilityOffset?.x??18),z:rp.z+(rp.facilityOffset?.z??0),width:13,depth:12,height:6,garrisonable:false,appearance:rp.facility==="oilfield"?"resource-oil":"resource-industrial",label:rp.label??"Ressursirajatis"}))];
     this.rng = () => this.rngState.next();
     this.nav = new NavGrid([], this.mapFeatures);
+    this.waterNav=new WaterNavGrid(this.mapFeatures);
     this.terrain=new TerrainState(this.mapFeatures);
     this.vision = new Vision();this.vision.structureDamage=this.infrastructureDamage;this.vision.setFeatures(this.mapFeatures);this.vision.forestObscuration=(a,b)=>this.terrain.obscuration(a,b);
     this.operationalMap = new OperationalMap(this);
@@ -295,7 +300,7 @@ export class World {
   spawn(kind: UnitKind, team: Team, x: number, z: number): Entity {
     const resolved=this.unitDefinition(kind,team);
     const def={...resolved,weapons:resolved.weapons?.map(w=>({...w}))};
-    const y = heightAt(x, z), heading = team ? -Math.PI / 4 : Math.PI * 0.75;
+    const y = def.domain==="sea"?this.waterNav.surfaceAt(x,z)+.15:heightAt(x, z), heading = team ? -Math.PI / 4 : Math.PI * 0.75;
     const e: Entity = {
       id: this.nextId++, kind, team, def, x, y, z, heading, turretYaw: 0,
       px: x, pz: z, pHeading: heading, pTurretYaw: 0,
@@ -436,7 +441,8 @@ export class World {
       setTerrainFeatures(this.mapFeatures.filter(f=>f.kind!=="bridge"||(this.infrastructureDamage.get(f.id)??0)<1));ensureHeightCache();
       this.nav.syncFeatures(this.mapFeatures.filter(f=>f.kind!=="bridge"||(this.infrastructureDamage.get(f.id)??0)<1));
       this.nav.syncBuildings(this.entities);
-      for(const u of this.entities)if(!u.dead&&u.def.domain==="land"&&u.dest){u.navPath=[];u.roadPathGoal=undefined;u.roadPathRetryAt=0;}
+      this.waterNav=new WaterNavGrid(this.mapFeatures.filter(f=>f.kind!=="bridge"||(this.infrastructureDamage.get(f.id)??0)<1));
+      for(const u of this.entities)if(!u.dead&&u.def.domain!=="air"&&u.dest){u.navPath=[];u.roadPathGoal=undefined;u.roadPathRetryAt=0;}
     }
     if (f.kind!=="building" && old < 1 && old + amount >= 1) this.events.push({ type: "supply-delivered", team: this.playerTeam, x: f.x, z: f.z, amount: 0 });
   }
@@ -539,6 +545,7 @@ export class World {
     if (!isBuildable(kind) || !this.canBuildKind(team, kind)) return false;
     if(Math.abs(x)+buildFootprint(kind)>this.mapSize/2-10||Math.abs(z)+buildFootprint(kind)>this.mapSize/2-10)return false;
     const r = buildFootprint(kind);
+    if(kind==="shipyard"&&!this.waterNav.nearestWater({x,z},5,64))return false;
     if(this.mapFeatures.some(f=>(f.kind==="water"||f.kind==="bridge")&&pointInFeature(x,z,f,r)))return false;
     // Soft walkability – allow gentle slopes so crater edges don't block builds
     if (!this.nav.isWalkableWorld(x, z, r * 0.45)) return false;
@@ -800,7 +807,7 @@ export class World {
   }
   restoreRuntime(s: ReturnType<World["captureRuntime"]>): void {
     setTerrainFeatures(this.mapFeatures.filter(f=>f.kind!=="bridge"||(this.infrastructureDamage.get(f.id)??0)<1));ensureHeightCache();
-    if((s.mapSize??this.mapSize)!==this.mapSize){setMapSize(s.mapSize??this.mapSize);ensureHeightCache();this.nav=new NavGrid(this.entities,this.mapFeatures);this.spatial=new SpatialHash(16);this.spatial.rebuild(this.entities);this.vision=new Vision();this.vision.setFeatures(this.mapFeatures);this.vision.forestObscuration=(a,b)=>this.terrain.obscuration(a,b);}
+    if((s.mapSize??this.mapSize)!==this.mapSize){setMapSize(s.mapSize??this.mapSize);ensureHeightCache();this.nav=new NavGrid(this.entities,this.mapFeatures);this.waterNav=new WaterNavGrid(this.mapFeatures);this.spatial=new SpatialHash(16);this.spatial.rebuild(this.entities);this.vision=new Vision();this.vision.setFeatures(this.mapFeatures);this.vision.forestObscuration=(a,b)=>this.terrain.obscuration(a,b);}
     this.terrain.restore(s.terrain);
     this.playerTeam=s.playerTeam; this.playerFaction=s.playerFaction; this.enemyFaction=s.enemyFaction;
     this.networkMode=s.networkMode; this.incomeMultiplier=s.incomeMultiplier; this.victoryMode=s.victoryMode;
@@ -821,6 +828,7 @@ export class World {
     else this.matchController=null;
     if(s.mission){this.missionController=new MissionController(s.mission.definition,this);this.missionController.restore(s.mission.state);}else this.missionController=null;
     this.nav.syncFeatures(this.mapFeatures.filter(f=>f.kind!=="bridge"||(this.infrastructureDamage.get(f.id)??0)<1));
+    this.waterNav=new WaterNavGrid(this.mapFeatures.filter(f=>f.kind!=="bridge"||(this.infrastructureDamage.get(f.id)??0)<1));
     this.nav.syncBuildings(this.entities); this.navDirty=false;
     this.powerCache=null; this.powerCacheTime=-1; this.spatial.rebuild(this.entities);
     this.fobManager.fobs.length=0; this.fobManager.tick(); this.operationalMap.tick(); this.frontline.tick(0);
@@ -828,7 +836,7 @@ export class World {
 
   tick(dt: number): void {
     if (this.status !== "running") return;
-    for (const e of this.entities) { e.px = e.x; e.pz = e.z; e.pHeading = e.heading; e.pTurretYaw = e.turretYaw; }
+    for (const e of this.entities) { e.px = e.x; e.py = e.y; e.pFlightBank=e.flightBank??0; e.pFlightPitch=e.flightPitch??0; e.pz = e.z; e.pHeading = e.heading; e.pTurretYaw = e.turretYaw; }
     this.time += dt;
     this.teamCredits[0] += INCOME_PER_SEC * 0.35 * this.incomeMultiplier * dt; this.teamCredits[1] += INCOME_PER_SEC * 0.35 * this.incomeMultiplier * dt;
     this.updateResourceControl(dt);

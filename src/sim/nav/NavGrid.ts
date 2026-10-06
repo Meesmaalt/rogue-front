@@ -16,10 +16,8 @@ export class NavGrid {
   readonly height = this.width;
   readonly blocked = new Uint8Array(this.width*this.height);
 
-  constructor(entities: readonly Entity[] = [], features: readonly MapFeatureDef[] = []) {
-    this.buildTerrain();
-    this.syncFeatures(features);
-    this.syncBuildings(entities);
+  constructor(entities: readonly Entity[] = [], features: readonly MapFeatureDef[] = [], terrain=true) {
+    if(terrain){this.buildTerrain();this.syncFeatures(features);this.syncBuildings(entities);}
   }
 
   index(ix: number, iz: number): number { return iz * this.width + ix; }
@@ -36,23 +34,22 @@ export class NavGrid {
     return { x: -this.half + (ix + 0.5) * this.cellSize, z: -this.half + (iz + 0.5) * this.cellSize };
   }
 
-  isBlocked(ix: number, iz: number, radius = 0): boolean {
-    if (!this.inBounds(ix, iz) || this.blocked[this.index(ix, iz)] !== 0) return true;
-    const r = Math.ceil(radius / this.cellSize);
-    if (!r) return false;
-    for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
-      if (dx * dx + dz * dz > r * r) continue;
-      const x = ix + dx, z = iz + dz;
-      if (!this.inBounds(x, z) || this.blocked[this.index(x, z)] !== 0) return true;
-    }
-    return false;
+  isBlocked(ix:number,iz:number,radius=0):boolean {
+    if(!this.inBounds(ix,iz)||this.blocked[this.index(ix,iz)]!==0)return true;
+    return radius>0?this.blockedCircle(-this.half+(ix+.5)*this.cellSize,-this.half+(iz+.5)*this.cellSize,radius):false;
   }
-
-  isWalkableWorld(x: number, z: number, radius = 0): boolean {
-    const c = this.worldToCell(x, z);
-    return !this.isBlocked(c.x, c.z, radius);
+  private blockedCircle(x:number,z:number,radius:number):boolean {
+    if(x-radius<=-this.half||z-radius<=-this.half||x+radius>=this.half||z+radius>=this.half)return true;
+    const size=this.cellSize,half=size*.5;
+    const ax=Math.floor((x-radius+this.half)/size),bx=Math.floor((x+radius+this.half)/size),az=Math.floor((z-radius+this.half)/size),bz=Math.floor((z+radius+this.half)/size);
+    for(let iz=az;iz<=bz;iz++)for(let ix=ax;ix<=bx;ix++)if(this.blocked[this.index(ix,iz)]){
+      const dx=Math.max(0,Math.abs(x-(-this.half+(ix+.5)*size))-half),dz=Math.max(0,Math.abs(z-(-this.half+(iz+.5)*size))-half);
+      if(dx*dx+dz*dz<=radius*radius)return true;
+    }return false;
   }
-
+  isWalkableWorld(x:number,z:number,radius=0):boolean {
+    return !this.blockedCircle(x,z,radius);
+  }
 
   syncFeatures(features: readonly MapFeatureDef[]): void {
     // Static map geometry occupies state 1; dynamic buildings use state 2.

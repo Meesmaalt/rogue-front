@@ -51,6 +51,14 @@ export class Fx {
     const pool=this.pools[kind];if(pool.particles.length>=pool.capacity)return;
     pool.particles.push({x,y,z,vx,vy,vz,t:0,life,size,color,stretch});
   }
+  private wakeTimer=0;
+  syncNavalWakes(world:World,dt:number):void {
+    this.wakeTimer+=dt;if(this.wakeTimer<.15)return;this.wakeTimer=0;
+    for(const u of world.entities){if(u.dead||u.def.domain!=="sea"||(u.motionSpeed??0)<.8||u.team!==world.playerTeam&&!world.isSpottedByTeam(u,world.playerTeam))continue;
+      const x=u.x-Math.sin(u.heading)*u.def.radius*.8,z=u.z-Math.cos(u.heading)*u.def.radius*.8,y=world.waterNav.surfaceAt(u.x,u.z)+.12;
+      this.emit("dust",x,y,z,.5,1.2,0xc1d9d8,-Math.sin(u.heading),.02,-Math.cos(u.heading),2);
+    }
+  }
   syncForestFires(world:World,dt:number):void {
     this.forestTimer+=dt;if(this.forestTimer<.18)return;this.forestTimer=0;
     for(const c of world.terrain.fires()){
@@ -64,7 +72,7 @@ export class Fx {
     for(const e of events){
       if((e.type==="fire"&&e.team!==world.playerTeam||e.type!=="fire")&&!world.vision.isVisible(world.playerTeam,e.x,e.z))continue;
       if(e.type==="fire"){
-        const visual=e.visual??"rifle",rocket=["atgm","sam","aam","manpad","rpg","rocket","mlrs"].includes(visual),small=["rifle","mg","sniper"].includes(visual);
+        const visual=e.visual??"rifle",rocket=["atgm","sam","aam","manpad","rpg","rocket","mlrs","cruise","anti-ship","naval-sam"].includes(visual),small=["rifle","mg","sniper"].includes(visual);
         const size=small?.3:rocket?.55:visual==="sabot"?1.25:.7;
         if(visual!=="bomb"){
           this.emit("glow",e.x,e.y,e.z,size,.09,0xffdda0,0,0,0,2.4);
@@ -73,6 +81,10 @@ export class Fx {
           if(!small)for(let i=0;i<5;i++)this.emit("dust",e.x,heightAt(e.x,e.z)+.2,e.z,.6,.55,0xab9c7c,this.r(4),Math.random(),this.r(4));
         }
       }else if(e.type==="impact"){
+        if(world.waterNav.isWalkableWorld(e.x,e.z)&&e.y-world.waterNav.surfaceAt(e.x,e.z)<6){
+          const surface=world.waterNav.surfaceAt(e.x,e.z)+.2;
+          for(let i=0;i<18;i++)this.emit("dust",e.x,surface,e.z,.5,.7,0xb8dce3,this.r(8),2+Math.random()*9,this.r(8),7);
+        }
         if(e.result==="ricochet"){
           for(let i=0;i<12;i++)this.emit("spark",e.x,e.y,e.z,.1,.3,0xffda94,this.r(10),Math.random()*6,this.r(10),3);
           this.emit("smoke",e.x,e.y,e.z,.7,.6,0x9a988e);continue;
@@ -80,7 +92,7 @@ export class Fx {
         if(e.weapon==="bullet"||e.visual==="sniper"){
           for(let i=0;i<3;i++)this.emit("dust",e.x,e.y,e.z,.25,.25,0xab9c7c,this.r(2),Math.random()*2,this.r(2));continue;
         }
-        const heavy=["bomb","howitzer","mlrs"].includes(e.visual??""),size=heavy?2.2:e.visual==="mortar"?1.35:e.result==="penetration"?.75:1.1;
+        const heavy=["bomb","howitzer","mlrs","cruise","anti-ship","torpedo"].includes(e.visual??""),size=heavy?2.2:e.visual==="mortar"?1.35:e.result==="penetration"?.75:1.1;
         this.explode(e.x,e.y,e.z,size,e.result==="airburst");
       }else if(e.type==="death")this.explode(e.x,e.y,e.z,e.big?3:1.8,e.y-heightAt(e.x,e.z)>6,true);
       else if(e.type==="build-complete"||e.type==="repair-complete")this.ping(e.x,e.z,0x77ba9e);
@@ -91,14 +103,14 @@ export class Fx {
     const key=p.visual??p.weapon??"rifle",cached=this.models.get(key);if(cached)return cached.clone(true);
     const group=new THREE.Group(),rocket=p.weapon==="missile",bomb=key==="bomb";
     if(rocket||bomb){
-      const length=bomb?1.25:key==="aam"?1.9:key==="sam"?1.75:key==="mlrs"?1.3:key==="rpg"?.8:key==="rocket"?.7:1.1;
-      const radius=bomb?.18:key==="sam"?.105:key==="aam"?.095:.075,parts:THREE.BufferGeometry[]=[];
+      const length=bomb?1.25:key==="cruise"?2.8:key==="anti-ship"?2.3:key==="torpedo"?2.2:key==="naval-sam"?2.1:key==="aam"?1.9:key==="sam"?1.75:key==="mlrs"?1.3:key==="rpg"?.8:key==="rocket"?.7:1.1;
+      const radius=bomb?.18:key==="torpedo"?.16:key==="cruise"?.14:key==="sam"?.105:key==="aam"?.095:.075,parts:THREE.BufferGeometry[]=[];
       parts.push(new THREE.CylinderGeometry(radius,radius,length,8).rotateX(Math.PI/2));
       parts.push(new THREE.ConeGeometry(radius,.3,8).rotateX(Math.PI/2).translate(0,0,length/2+.13));
       for(let i=0;i<2;i++)parts.push(new THREE.BoxGeometry(radius*5,.025,.22).rotateZ(i*Math.PI/2).translate(0,0,-length*.33));
       const geometry=mergeGeometries(parts)!;parts.forEach(g=>g.dispose());
       group.add(new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:bomb?0x777e63:key==="sam"?0xd0d0bf:0xb9beb6,roughness:.8,metalness:.12})));
-      if(!bomb){const flame=new THREE.Mesh(new THREE.ConeGeometry(radius*1.2,.45,6).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xffc16b,toneMapped:false}));flame.position.z=-length*.5-.22;group.add(flame);}
+      if(!bomb&&key!=="torpedo"){const flame=new THREE.Mesh(new THREE.ConeGeometry(radius*1.2,.45,6).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xffc16b,toneMapped:false}));flame.position.z=-length*.5-.22;group.add(flame);}
     }else {
       const tracer=p.weapon==="bullet"||["autocannon","flak","sabot"].includes(key),length=key==="sabot"?3.2:key==="sniper"?2.2:tracer?1.5:.7;
       group.add(new THREE.Mesh(new THREE.BoxGeometry(key==="sabot"?.045:.035,.035,length),new THREE.MeshBasicMaterial({color:tracer?0xffd4a0:0xbbb5a0,toneMapped:false})));
@@ -114,7 +126,8 @@ export class Fx {
       const m=shell.group;m.visible=true;
       const x=(p.px??p.x)+(p.x-(p.px??p.x))*alpha,y=(p.py??p.y)+(p.y-(p.py??p.y))*alpha,z=(p.pz??p.z)+(p.z-(p.pz??p.z))*alpha;
       m.position.set(x,y,z);this.direction.set(p.vx,p.vy,p.vz).normalize();m.lookAt(x+this.direction.x,y+this.direction.y,z+this.direction.z);
-      if(p.weapon==="missile"){
+      if(p.visual==="torpedo"){this.emit("dust",x,y+.12,z,.15,.4,0xc2e2df,0,.1,0);}
+      else if(p.weapon==="missile"){
         const distance=Math.hypot(x-shell.lastX,y-shell.lastY,z-shell.lastZ),spacing=p.visual==="sam"?.7:.5;
         if(distance>=spacing){const count=Math.min(12,Math.floor(distance/spacing));
           for(let i=1;i<=count;i++){const t=i/count;this.emit("smoke",shell.lastX+(x-shell.lastX)*t,shell.lastY+(y-shell.lastY)*t,shell.lastZ+(z-shell.lastZ)*t,p.visual==="sam"?.55:p.visual==="mlrs"?.4:.22,p.visual==="aam"?1.3:2,0xc6c6b8,.25,.35,0);}

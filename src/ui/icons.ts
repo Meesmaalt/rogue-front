@@ -1,7 +1,6 @@
 import type { UnitKind } from "../sim/types";
 /** Original SVG silhouettes remain legible at command-card size. */
-export function icon(kind: string): string {
-  const paths:Record<string,string>={
+const paths:Record<string,string>={
     infantry:'<circle cx="16" cy="6" r="3"/><path d="M12 11h8l2 9h-4v9h-3v-9h-3zM9 13l-3 8 3 1 4-8m7-1 6 7-2 2-6-7"/>',
     atInf:'<circle cx="11" cy="7" r="3"/><path d="M7 12h8v10h-3v8H8V21H5zM12 11l16-5 2 4-16 5z"/>',
     manpad:'<circle cx="10" cy="9" r="3"/><path d="M7 14h8v9h-3v7H8v-9H5zM12 12L27 3l3 4-16 9z"/><path d="M20 21l5-5m-1 9 6-6" fill="none" stroke="currentColor" stroke-width="2"/>',
@@ -26,17 +25,42 @@ export function icon(kind: string): string {
     focus:'<path d="M3 3h10v3H6v7H3zm16 0h10v10h-3V6h-7zM3 19h3v7h7v3H3zm23 0h3v10H19v-3h7z"/>',
     hold:'<path d="M7 4h5v24H7zm13 0h5v24h-5z"/>',
     naval:'<path d="M3 20h26l-6 9H9zm8-2V9h10v9zm4-9V2h2v7z"/>',
+    holdfire:'<path d="M6 4l24 24-3 3L3 7z"/><circle cx="16" cy="16" r="11" fill="none" stroke="currentColor" stroke-width="2"/>',
+    patrol:'<path d="M5 13a11 11 0 0 1 19-5l4-3v11H17l4-4a7 7 0 0 0-12 3zm22 6a11 11 0 0 1-19 5l-4 3V16h11l-4 4a7 7 0 0 0 12-3z"/>',
+    repair:'<path d="M27 3l-7 7-4-4 7-7a9 9 0 0 0-11 12L2 23l7 7 12-11A9 9 0 0 0 27 3z"/>',
+    radar:'<path d="M14 17h4v13h-4zM5 28h22v3H5z"/><path d="M6 4a14 14 0 0 0 22 15L17 8z"/><path d="M20 3a9 9 0 0 1 9 9M21 7a4 4 0 0 1 4 4" fill="none" stroke="currentColor" stroke-width="2"/>',
+    truck:'<path d="M2 9h18v15H2zM21 14h5l5 7v3H21z"/><circle cx="8" cy="26" r="4"/><circle cx="25" cy="26" r="4"/>',
+    ifv:'<path d="M3 19h27v8H3zM6 17l3-6h13l5 6zM17 10V7h12v3z"/><path d="M7 23h19" stroke="#152027" stroke-width="2"/>',
+    apc:'<path d="M3 12h23l4 11H3z"/><circle cx="8" cy="26" r="4"/><circle cx="17" cy="26" r="4"/><circle cx="26" cy="26" r="4"/>',
+    aa:'<path d="M3 22h26v7H3zM12 21V11h8v10zM12 12l6-9 3 2-6 9zm6 0 6-9 3 2-6 9z"/>',
+    command:'<path d="M4 19h24v11H4zM15 3h2v14h-2zM18 3h11l-4 5 4 5H18z"/><path d="M8 23h4v4H8zm12 0h4v4h-4z" fill="#152027"/>',
+    box:'<path d="M4 4h9v9H4zm15 0h9v9h-9zM4 19h9v9H4zm15 0h9v9h-9z"/>',
+    line:'<path d="M2 12h7v8H2zm10 0h7v8h-7zm11 0h7v8h-7z"/>',
+    wedge:'<path d="M12 3h8v8h-8zM3 19h8v8H3zm18 0h8v8h-8z"/>',
+    column:'<path d="M12 2h8v7h-8zm0 10h8v7h-8zm0 10h8v8h-8z"/>',
+    return:'<path d="M14 3L3 13l11 10v-7h7a5 5 0 0 1 0 10h-6v4h6a9 9 0 0 0 0-18h-7z"/>',
   };
+const iconCache=new Map<string,string>();
+export function icon(kind:string):string {
+  const cached=iconCache.get(kind);if(cached)return cached;
   let role=kind;
-  if(["inf","engineer","special"].includes(kind))role="infantry";
-  else if(["tank","lightTank","tankDestroyer","ifv","apc","spaa"].includes(kind))role="tank";
-  else if(["reconVehicle","logiTruck"].includes(kind))role="recon";
+  if(["inf","special"].includes(kind))role="infantry";
+  else if(["tank","lightTank","tankDestroyer"].includes(kind))role="tank";
+  else if(["reconVehicle"].includes(kind))role="recon";
   else if(["artillery","mlrs"].includes(kind))role="artillery";
   else if(["fighter","interceptor","bomber","multirole","attackAircraft","ecm","cargoPlane"].includes(kind))role="air";
   else if(["heli","transport","gunship","casHeli"].includes(kind))role="heli";
   else if(["destroyer","frigate","missileBoat","submarine","landingcraft"].includes(kind))role="naval";
   else if(kind==="generator")role="power";
-  return `<svg viewBox="0 0 32 32" aria-hidden="true" fill="currentColor">${paths[role]??paths.building}</svg>`;
+  else if(kind==="engineer"||kind==="combatEngineer")role="repair";
+  else if(kind==="logiTruck")role="truck";
+  else if(kind==="spaa")role="aa";
+  else if(kind.endsWith("Command")||kind==="hq")role="command";
+  else if(kind==="barracks")role="infantry";
+  else if(kind==="helipad")role="heli";
+  else if(kind==="airbase")role="air";
+  else if(kind==="shipyard")role="naval";
+  const svg=`<svg viewBox="0 0 32 32" aria-hidden="true" fill="currentColor">${paths[role]??paths.building}</svg>`;iconCache.set(kind,svg);return svg;
 }
 export function unitPicture(kind:UnitKind,faction:string):string {
   const pictures=["tank","lightTank","tankDestroyer","ifv","apc","spaa","reconVehicle","artillery","mlrs","fighter","interceptor","bomber","multirole","attackAircraft","ecm","cargoPlane","heli","transport","gunship","casHeli","logiTruck"];

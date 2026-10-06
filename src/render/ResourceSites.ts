@@ -17,18 +17,19 @@ export class ResourceSites {
       scene.add(root);this.sites.push({root,ring,label,texture,canvas,key:""});
     }
   }
-  sync(world:World):void {
+  sync(world:World,camera?:THREE.Camera):void {
     if(world.time<this.nextUpdate&&world.time>this.nextUpdate-.3)return;this.nextUpdate=world.time+.25;
     const names={mine:"Kaevandus",oilfield:"Naftaväli",factory:"Tööstus",depot:"Ressursiladu"};
     this.sites.forEach((s,i)=>{
       const rp=world.resourcePoints[i];if(!rp)return;
       const known=rp.controlledBy===world.playerTeam||world.vision.isVisible(world.playerTeam,rp.x,rp.z);
       s.root.visible=known||world.vision.isExplored(world.playerTeam,rp.x,rp.z);
+      s.label.visible=!camera||camera.position.distanceTo(s.root.position)<260;
       const color=!known||rp.controlledBy==null?0xc6b27b:rp.controlledBy===world.playerTeam?0x75b7bc:0xce8270;
       (s.ring.material as THREE.MeshBasicMaterial).color.setHex(color);
       const status=!known?"Luura rajatist":rp.controlledBy==null?"Vii insener siia":(rp.disabledUntil??0)>world.time?"Seisatud":!rp.active?`Käivitus · insener ${Math.min(100,Math.round((rp.startupProgress??0)/8*100))}%`:`Laos ${Math.floor(rp.amount/10)*10} · +${(rp.productionRate??0).toFixed(1)}/s`;
-      const text=`${names[rp.facility??"mine"]} · ${status}`,key=text+color;if(key===s.key)return;s.key=key;
-      const c=s.canvas.getContext("2d")!;c.clearRect(0,0,512,96);c.fillStyle="rgba(17,30,32,.88)";c.fillRect(0,0,512,96);c.fillStyle="#"+color.toString(16).padStart(6,"0");c.fillRect(0,0,5,96);c.fillStyle="#e3e4d6";c.font="bold 23px sans-serif";c.textAlign="center";c.fillText(names[rp.facility??"mine"],256,34);c.font="21px sans-serif";c.fillText(status,256,70);s.texture.needsUpdate=true;
+      const title=rp.label??names[rp.facility??"mine"],text=`${title} · ${status}`,key=text+color;if(key===s.key)return;s.key=key;
+      const c=s.canvas.getContext("2d")!;c.clearRect(0,0,512,96);c.fillStyle="rgba(17,30,32,.88)";c.fillRect(0,0,512,96);c.fillStyle="#"+color.toString(16).padStart(6,"0");c.fillRect(0,0,5,96);c.fillStyle="#e3e4d6";c.font="bold 23px sans-serif";c.textAlign="center";c.fillText(title,256,34);c.font="21px sans-serif";c.fillText(status,256,70);s.texture.needsUpdate=true;
     });
   }
 }

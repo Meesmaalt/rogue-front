@@ -42,11 +42,7 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
       // Clear paved base pad like Real War bases
       if (d < b.r * 0.85) c.lerp(pad, 0.72 * (1 - d / (b.r * 0.85)));
     }
-    if (theme === "temperate") {
-      for (const f of features) if (f.appearance === "field" && pointInFeature(x,z,f)) c.setHex(f.color ?? 0x879357).multiplyScalar(.95+rnd()*.1);
-      for(const f of features)if(f.kind==="water"&&pointInFeature(x,z,f,12))c.lerp(new THREE.Color(0x7b7964),.65);
-      for (const f of features) if (f.appearance === "forest" && pointInFeature(x,z,f,3)) c.lerp(new THREE.Color(0x3b5335), .7);
-    }
+    if (theme === "temperate") c.setScalar(1-Math.min(.18,sl*.12));
     col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
   }
   geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
@@ -57,7 +53,7 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
     geo,
     new THREE.MeshStandardMaterial({
       vertexColors: true,
-      map: grain,
+      map: theme==="temperate"?makeLandscapeTexture(features,bases):grain,
       bumpMap:grain,bumpScale:.10,
       roughness: 0.92,
       metalness: 0,
@@ -68,9 +64,26 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
   group.add(terrain);
   if (theme !== "temperate") group.add(createRocks(rnd, bases, features));
   else group.add(createForest(features));
-  group.add(createDecals(rnd));
-  group.add(batchStaticScene(createMapFeatures(features)));
+  if(theme!=="temperate")group.add(createDecals(rnd));
+  group.add(batchStaticScene(createMapFeatures(features,theme==="temperate")));
   return group;
+}
+
+function riverTexture():THREE.CanvasTexture {
+  const canvas=document.createElement("canvas");canvas.width=128;canvas.height=256;
+  const ctx=canvas.getContext("2d")!,rnd=mulberry32(841);
+  ctx.fillStyle="#c0cac7";ctx.fillRect(0,0,128,256);
+  for(let i=0;i<420;i++){
+    const x=rnd()*128,y=rnd()*256;ctx.strokeStyle=`rgba(239,244,235,${.04+rnd()*.12})`;ctx.lineWidth=.4+rnd()*.8;
+    ctx.beginPath();ctx.moveTo(x,y);ctx.bezierCurveTo(x+1,y+3,x-2,y+5,x,y+8+rnd()*6);ctx.stroke();
+  }
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.anisotropy=4;return texture;
+}
+
+export function animateRiverTerrain(group:THREE.Group,time:number):void {
+  const mapFeatures=group.children.find(o=>o.name==="map-features");
+  const flow=mapFeatures?.userData.riverFlow as THREE.CanvasTexture|undefined;
+  if(flow)flow.offset.y=time*.012;
 }
 
 function makeGrainTexture(theme:string):THREE.CanvasTexture {
@@ -84,6 +97,46 @@ function makeGrainTexture(theme:string):THREE.CanvasTexture {
   }
   g.putImageData(im,0,0);
   const t=new THREE.CanvasTexture(cv);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(80,80);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return t;
+}
+
+/** A single world-space landcover atlas avoids floating, overlapping field slabs.
+ * Geometry, tree placement, navigation and cover still use the same map features. */
+function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (Point&{r:number})[]):THREE.CanvasTexture {
+  const canvas=document.createElement("canvas");canvas.width=canvas.height=2048;
+  const ctx=canvas.getContext("2d")!,scale=canvas.width/MAP_SIZE,half=MAP_SIZE/2,rnd=mulberry32(917);
+  const noise=document.createElement("canvas");noise.width=noise.height=512;const nc=noise.getContext("2d")!,data=nc.createImageData(512,512);
+  for(let z=0;z<512;z++)for(let x=0;x<512;x++){
+    const macro=Math.sin(x/62)*Math.cos(z/79)*5+Math.sin((x+z)/41)*3,grain=rnd()*9-4,i=(z*512+x)*4;
+    data.data[i]=143+macro+grain;data.data[i+1]=151+macro+grain;data.data[i+2]=121+macro+grain;data.data[i+3]=255;
+  }
+  nc.putImageData(data,0,0);ctx.drawImage(noise,0,0,2048,2048);
+  ctx.setTransform(scale,0,0,scale,half*scale,half*scale);
+  const local=(f:MapFeatureDef,paint:()=>void)=>{ctx.save();ctx.translate(f.x,f.z);ctx.rotate(-(f.rotation??0));paint();ctx.restore();};
+  for(const f of features.filter(f=>f.appearance==="field"))local(f,()=>{
+    ctx.beginPath();ctx.rect(-f.width/2,-f.depth/2,f.width,f.depth);ctx.clip();
+    ctx.fillStyle=`#${(f.color??0x969572).toString(16).padStart(6,"0")}`;ctx.fillRect(-f.width/2,-f.depth/2,f.width,f.depth);
+    ctx.strokeStyle="rgba(63,67,42,.11)";ctx.lineWidth=.28;
+    for(let x=-f.width/2+1;x<f.width/2;x+=1.8){ctx.beginPath();ctx.moveTo(x,-f.depth/2);ctx.lineTo(x,f.depth/2);ctx.stroke();}
+    ctx.strokeStyle="rgba(60,65,44,.18)";ctx.lineWidth=1.2;ctx.strokeRect(-f.width/2+1.5,-f.depth/2+1.5,f.width-3,f.depth-3);
+    for(let i=0;i<22;i++){ctx.fillStyle=`rgba(208,205,165,${.02+rnd()*.025})`;ctx.fillRect(-f.width/2+rnd()*f.width,-f.depth/2,1+rnd()*3,f.depth);}
+  });
+  // Forest floor follows irregular shared ellipses, with soft soil transition.
+  for(const f of features.filter(f=>f.appearance==="forest"))local(f,()=>{
+    ctx.scale(f.width/2,f.depth/2);const gradient=ctx.createRadialGradient(0,0,.15,0,0,1);
+    gradient.addColorStop(0,"rgba(49,68,43,.78)");gradient.addColorStop(.65,"rgba(57,74,46,.68)");gradient.addColorStop(1,"rgba(67,81,51,0)");
+    ctx.fillStyle=gradient;ctx.beginPath();if(f.shape==="ellipse")ctx.arc(0,0,1,0,Math.PI*2);else ctx.rect(-1,-1,2,2);ctx.fill();
+  });
+  // Mud and meadow banks follow the continuous watercourse, underneath bridges.
+  ctx.lineCap="round";
+  for(const width of [48,37,29]){
+    ctx.strokeStyle=width===48?"rgba(147,149,118,.65)":width===37?"#969581":"#858778";ctx.lineWidth=width;
+    for(const f of features.filter(f=>f.kind==="water"))local(f,()=>{ctx.beginPath();ctx.moveTo(0,-f.depth/2);ctx.lineTo(0,f.depth/2);ctx.stroke();});
+  }
+  for(const b of bases){const g=ctx.createRadialGradient(b.x,b.z,b.r*.4,b.x,b.z,b.r);g.addColorStop(0,"rgba(157,157,139,.72)");g.addColorStop(1,"rgba(157,157,139,0)");ctx.fillStyle=g;ctx.beginPath();ctx.arc(b.x,b.z,b.r,0,Math.PI*2);ctx.fill();}
+  // Narrow mown shoulders keep rural routes legible without bright paint stripes.
+  for(const f of features.filter(f=>f.kind==="road"))local(f,()=>{ctx.fillStyle=f.roadClass==="track"?"#aaa58b":"#a0a18d";ctx.fillRect(-f.width/2-1.8,-f.depth/2,f.width+3.6,f.depth);});
+  ctx.resetTransform();
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=8;return texture;
 }
 
 function createRocks(rnd: () => number, bases: readonly (Point & { r: number })[], features: readonly MapFeatureDef[] = []): THREE.InstancedMesh {
@@ -131,20 +184,24 @@ function createDecals(rnd: () => number): THREE.InstancedMesh {
 }
 
 
-function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
+function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=false): THREE.Group {
   const group = new THREE.Group();
   group.name = "map-features";
-  const riverMaterial=new THREE.MeshStandardMaterial({color:0x426773,roughness:.32,metalness:.2});
+  const flow=riverTexture();group.userData.riverFlow=flow;
+  const riverMaterial=new THREE.MeshStandardMaterial({color:0x526d70,map:flow,bumpMap:flow,bumpScale:.055,roughness:.36,metalness:.14});
   for (const f of features) {
     const y = heightAt(f.x, f.z);
-    if(f.appearance==="yard"){group.add(drapedStrip(f,f.width,f.color??0x858578,.07));continue;}
+    if(f.appearance==="yard"){group.add(drapedStrip(f,f.width,f.color??0x858578,f.width>12&&f.depth>12?.025:.07));continue;}
     if (f.appearance === "forest") continue;
     if (f.appearance === "field") {
+      if(landscapeAtlas)continue;
       const field=drapedStrip(f,f.width,f.color??0x879357,.025);
       (field.material as THREE.MeshStandardMaterial).map=fieldTexture();group.add(field);continue;
     }
     if (f.kind === "water") {
       const geo=new THREE.PlaneGeometry(f.width,f.depth).rotateX(-Math.PI/2);
+      const uv=geo.attributes.uv,pos=geo.attributes.position,c=Math.cos(f.rotation??0),s=Math.sin(f.rotation??0);
+      for(let i=0;i<uv.count;i++){const x=f.x+pos.getX(i)*c+pos.getZ(i)*s,z=f.z-pos.getX(i)*s+pos.getZ(i)*c;uv.setXY(i,x/6,z/12);}
       const mesh=new THREE.Mesh(geo,riverMaterial);
       mesh.position.set(f.x,f.surfaceHeight??y-.55,f.z);mesh.rotation.y=f.rotation??0;mesh.receiveShadow=true;
       group.add(mesh);
@@ -152,9 +209,15 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
     }
     if (f.kind === "road" || f.kind === "bridge") {
       if(f.kind === "road") {
-        group.add(drapedStrip(f, f.width+2, 0xb1a68c, .035));
-        group.add(drapedStrip(f, f.width, 0x5e6360, .06));
-        for(let z=-f.depth/2+3;z<f.depth/2-2;z+=9) group.add(drapedStrip({...f,x:f.x+Math.sin(f.rotation??0)*z,z:f.z+Math.cos(f.rotation??0)*z,depth:3},.16,0xd6d1b8,.075));
+        const track=f.roadClass==="track",urban=f.roadClass==="street";
+        group.add(drapedStrip(f, f.width+(urban?1:2), track?0x94927a:0x999885, .035));
+        group.add(drapedStrip(f, f.width, track?0x8e8b73:0x686d69, .06));
+        if(!track&&!urban)for(let z=-f.depth/2+3;z<f.depth/2-2;z+=10){
+          const x=f.x+Math.sin(f.rotation??0)*z,zz=f.z+Math.cos(f.rotation??0)*z;
+          // Markings stop at real intersections and at bridge decks.
+          if(features.some(o=>o!==f&&(o.kind==="road"||o.kind==="bridge")&&pointInFeature(x,zz,o,1)))continue;
+          group.add(drapedStrip({...f,x,z:zz,depth:3},.13,0xc9c7b4,.075));
+        }
       } else {
         const mesh=new THREE.Mesh(new THREE.BoxGeometry(f.width,.7,f.depth),new THREE.MeshStandardMaterial({color:0x8a8980,roughness:.9}));
         mesh.position.set(f.x,(f.surfaceHeight??y)-.29,f.z);mesh.rotation.y=f.rotation??0;mesh.receiveShadow=true;
@@ -201,6 +264,8 @@ function createMapFeatures(features: readonly MapFeatureDef[]): THREE.Group {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       if(f.appearance === "farmhouse") {
+        // Small paving/apron grounds the facade without covering neighbouring roads.
+        group.add(drapedStrip({...f,kind:"cover",appearance:"yard",depth:f.depth+3},f.width+3,0x8f9181,.025));
         const variant=Number(f.id.split("-").at(-1))||0,house=new THREE.LOD();
         house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant),0);
         house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,true),235, .15);

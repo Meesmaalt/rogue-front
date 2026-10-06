@@ -2,6 +2,7 @@ import type { World } from "../World";
 import type { Entity, Point } from "../types";
 import {turnToward,wrapAngle} from "../math";
 import { fireGroundProjectile,weaponRange,weaponSpec } from "./combat";
+import {moraleState} from "./morale";
 
 const BATTERIES = ["artillery", "mortar", "mlrs"] as const;
 const SALVO_SIZE: Record<string, number> = { artillery: 3, mortar: 4, mlrs: 6 };
@@ -47,7 +48,7 @@ export function updateArtillery(w: World, _dt: number): void {
     }
 
     const mission = u.fireMission;
-    if (!mission || (u.disabledUntil??0)>w.time || u.standingOrder==="holdfire" || u.loadedIntoId!=null || u.cooldown > 0 || (u.ammo ?? 0) <= 0 || w.time < (u.artilleryReadyAt ?? 0)) continue;
+    if (!mission || (u.motionSpeed??0)>.5 || moraleState(u)==="routing" || (u.disabledUntil??0)>w.time || u.standingOrder==="holdfire" || u.loadedIntoId!=null || u.cooldown > 0 || (u.ammo ?? 0) <= 0 || w.time < (u.artilleryReadyAt ?? 0)) continue;
     const d = dist(u, mission);
     const spec=weaponSpec(u);
     const maxRange=weaponRange(u,spec);

@@ -549,22 +549,51 @@
     },
     "destroyer": {
       "weapons": [
-        {}
+        {
+          "name": "Mk 45 · 127 mm"
+        },
+        {
+          "name": "Harpoon"
+        },
+        {
+          "name": "Tomahawk"
+        },
+        {
+          "name": "SM-2"
+        }
       ]
     },
     "submarine": {
       "weapons": [
-        {}
+        {
+          "name": "Mk 48"
+        },
+        {
+          "name": "Tomahawk"
+        }
       ]
     },
     "frigate": {
       "weapons": [
-        {}
+        {
+          "name": "Mk 45 · 127 mm"
+        },
+        {
+          "name": "Harpoon"
+        },
+        {
+          "name": "SM-2"
+        }
       ]
     },
     "missileBoat": {
       "weapons": [
-        {}
+        {
+          "name": "Harpoon"
+        },
+        {
+          "name": "76 mm laevakahur"
+        }
       ]
     },
     "special": {
@@ -1153,22 +1182,51 @@
     },
     "destroyer": {
       "weapons": [
-        {}
+        {
+          "name": "AK-130 · 130 mm"
+        },
+        {
+          "name": "Oniks"
+        },
+        {
+          "name": "Kalibr"
+        },
+        {
+          "name": "Shtil"
+        }
       ]
     },
     "submarine": {
       "weapons": [
-        {}
+        {
+          "name": "UGST"
+        },
+        {
+          "name": "Kalibr"
+        }
       ]
     },
     "frigate": {
       "weapons": [
-        {}
+        {
+          "name": "AK-130 · 130 mm"
+        },
+        {
+          "name": "Oniks"
+        },
+        {
+          "name": "Shtil"
+        }
       ]
     },
     "missileBoat": {
       "weapons": [
-        {}
+        {
+          "name": "Oniks"
+        },
+        {
+          "name": "76 mm laevakahur"
+        }
       ]
     },
     "special": {
@@ -1757,22 +1815,51 @@
     },
     "destroyer": {
       "weapons": [
-        {}
+        {
+          "name": "H/PJ-38 · 130 mm"
+        },
+        {
+          "name": "YJ-18"
+        },
+        {
+          "name": "CJ-10"
+        },
+        {
+          "name": "HHQ-9"
+        }
       ]
     },
     "submarine": {
       "weapons": [
-        {}
+        {
+          "name": "Yu-6"
+        },
+        {
+          "name": "CJ-10"
+        }
       ]
     },
     "frigate": {
       "weapons": [
-        {}
+        {
+          "name": "H/PJ-38 · 130 mm"
+        },
+        {
+          "name": "YJ-18"
+        },
+        {
+          "name": "HHQ-9"
+        }
       ]
     },
     "missileBoat": {
       "weapons": [
-        {}
+        {
+          "name": "YJ-18"
+        },
+        {
+          "name": "76 mm laevakahur"
+        }
       ]
     },
     "special": {

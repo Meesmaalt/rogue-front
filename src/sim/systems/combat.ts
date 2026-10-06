@@ -51,7 +51,7 @@ export function weaponMuzzle(u:Entity,spec:WeaponSpec,index:number):{x:number;y:
 }
 export function weaponCanTarget(spec:WeaponSpec,t:Pick<Entity,"def">):boolean {
   const air=t.def.armor==="air";
-  return spec.targets==="air"?air:spec.targets==="armor"?!air&&t.def.speed>0&&t.def.category!=="infantry"&&t.def.domain!=="sea":spec.targets==="all"?true:!air;
+  return spec.targets==="naval"?t.def.domain==="sea":spec.targets==="air"?air:spec.targets==="armor"?!air&&t.def.speed>0&&t.def.category!=="infantry"&&t.def.domain!=="sea":spec.targets==="all"?true:!air;
 }
 export function selectWeapon(u:Entity,t:Entity,ready=false):number {
   if(t.dead||t.loadedIntoId!=null||t.team===u.team)return -1;
@@ -78,6 +78,11 @@ export function weaponRange(u:Entity,spec:WeaponSpec):number {
   return slotRange(u,spec);
 }
 export function effectiveWeaponRange(u:Entity,target?:Entity):number {
+  if(!target){
+    let maximum=0;
+    for(let i=0;i<(u.def.weapons?.length??1);i++){const spec=weaponSpec(u,i);if(spec.damage>0&&(spec.ammoCapacity<=0||weaponAmmo(u,i)>=spec.ammoUsePerShot))maximum=Math.max(maximum,weaponRange(u,spec));}
+    return maximum;
+  }
   const index=target?selectWeapon(u,target):-1;
   const range=index>=0?weaponSpec(u,index).range:u.def.range;
   return slotRange(u,{range});
@@ -149,7 +154,7 @@ function applySquadCasualties(w: World, u: Entity, damageAmount: number): void {
 function targetCoverValue(w: World, t: Entity): number {
   if(t.garrisonId)return garrisonCover(w,t);
   let v = 0;
-  for (const f of w.mapFeatures) {
+  for (const f of w.terrain.coverFeaturesAt(t.x,t.z)) {
     if (!pointInFeature(t.x, t.z, f, 0.2)) continue;
     if(f.appearance==="forest")v=Math.max(v,(t.squadMaxMembers||t.def.category==="infantry"?.30:.18)*w.terrain.foliageAt(t.x,t.z));
     else if (f.kind === "cover" && f.appearance!=="field" && f.appearance!=="yard") v = Math.max(v, 0.14);
@@ -245,9 +250,10 @@ function launchProjectile(w:World,u:Entity,spec:WeaponSpec,index:number,x:number
   const speed=spec.flight==="guided"?spec.launchSpeed:spec.speed;
   const flightTime=Math.max(spec.minFlight,Math.hypot(dx,dz)/Math.max(1,speed),.1);
   const ballistic=spec.flight==="ballistic";
-  const vx=ballistic?dx/flightTime:dx/length*speed,vz=ballistic?dz/flightTime:dz/length*speed;
-  const vy=ballistic?(dy+.5*spec.gravity*flightTime*flightTime)/flightTime:dy/length*speed;
-  const p:Projectile={id:w.nextId++,team:u.team,x,y,z,px:x,py:y,pz:z,vx,vy,vz,tx,tz,aimY:ty,target,sourceId:u.id,damage:dealt,impactDamage:dealt,speed,splash:spec.splash,weapon:spec.weapon,profile:spec.profile,visual:spec.visual,flight:spec.flight,guidance:spec.guidance,warhead:spec.warhead,gravity:spec.gravity,flightTime,suppressionPower:spec.suppressionPower,launchX:u.x,launchZ:u.z,age:0,lifetime:Math.max(8,flightTime+4,length/Math.max(1,speed)+4),turnRate:spec.turnRate,acceleration:spec.acceleration,maxSpeed:spec.speed,penetration,hitChance,hitRoll,missX,missZ};
+  const vertical=spec.launch==="vertical";
+  const vx=vertical?0:ballistic?dx/flightTime:dx/length*speed,vz=vertical?0:ballistic?dz/flightTime:dz/length*speed;
+  const vy=vertical?speed:ballistic?(dy+.5*spec.gravity*flightTime*flightTime)/flightTime:dy/length*speed;
+  const p:Projectile={id:w.nextId++,team:u.team,x,y,z,px:x,py:y,pz:z,vx,vy,vz,tx,tz,aimY:ty,target,sourceId:u.id,damage:dealt,impactDamage:dealt,speed,splash:spec.splash,weapon:spec.weapon,profile:spec.profile,visual:spec.visual,flight:spec.flight,guidance:spec.guidance,warhead:spec.warhead,gravity:spec.gravity,flightTime,suppressionPower:spec.suppressionPower,launchX:u.x,launchZ:u.z,age:0,lifetime:Math.max(8,flightTime+4,length/Math.max(1,speed)+4),turnRate:spec.turnRate,acceleration:spec.acceleration,maxSpeed:spec.speed,boostTime:spec.boostTime,cruiseAltitude:spec.cruiseAltitude,penetration,hitChance,hitRoll,missX,missZ};
   w.projectiles.push(p);
   if(index===0&&spec.weapon==="cannon")u.gunElevation=Math.atan2(vy,Math.hypot(vx,vz));
   if(index===0){if(spec.ammoCapacity>0)u.ammo=Math.max(0,(u.ammo??0)-spec.ammoUsePerShot);}else {u.secondaryAmmo??=[];u.secondaryAmmo[index]=Math.max(0,weaponAmmo(u,index)-spec.ammoUsePerShot);}

@@ -1,98 +1,67 @@
 {
   "id": "tutorial-logistics",
-  "name": "Õpetus: Logistika ja combined arms",
-  "briefing": "Ehita ja õpi varustusahelat.\n\n1) Ehita generaator ja varustusladu HQ lähedale.\n2) Saada teine insener lähimasse ressursipunkti. Ta hõivab selle ja käivitab rajatise 8 sekundiga.\n3) Kopterid ja veokid toovad füüsilist lasti: raha, laskemoona, kütust ja remondivaru.\n4) Ehita maaväe juhtimiskeskus ning kasarmu või tehas. Tooda jalavägi ja tankid.\n5) Strateegiakeskus ja tootja tase 2 avavad luure, IFV ja suurtükiväe.\n6) Vali luureüksus ja otsi vastane. Kaudtuli: F, seejärel parem klõps sihtpunktile.\n7) Ehita rindele varustusladu ning uuenda see FOB-iks. Kaitse veokeid ja tarneid.\n8) Hävita vastase varustusladu ning HQ.\n\nParem hiir: liikumine/rünnak. X: peata. A: ründav liikumine. Insener + parem klõps kahjustatud üksusele: remont.",
-  "seed": 42,
+  "name": "Õpetus: Roheoru ühendatud lahing",
+  "briefing": "Õpi samal Roheoru kaardil: ehitus → päris ressursivedu → tootmine ja uuendus → luure → transport → majalahing → varustus → vastase baas. Ekraani vasakus servas kuvatakse jooksva sammu juhis. Vastase esimene suur rünnak on õpetuses edasi lükatud. Parem hiir annab sihtkäsu, A ründeliikumise, G teeliikumise ning U väljumise. Salvestada ja jätkata saab igal ajal.",
+  "seed": 20261004,
   "map": {
-    "id": "tutorial-plain",
-    "name": "Harjutusväli",
-    "theme": "desert",
-    "heightmap": "/maps/city.png",
-    "maxHeight": 18,
-    "bases": [
-      {
-        "x": -110,
-        "z": 110,
-        "r": 36
-      },
-      {
-        "x": 110,
-        "z": -110,
-        "r": 36
-      }
-    ],
+    "name": "Roheorg · õpetus",
     "objects": [
       {
         "kind": "hq",
         "team": 0,
-        "x": -110,
-        "z": 110
+        "x": -362.88,
+        "z": 246.24
       },
       {
         "kind": "engineer",
         "team": 0,
-        "x": -95,
-        "z": 100
+        "x": -350.88,
+        "z": 236.24
       },
       {
         "kind": "engineer",
         "team": 0,
-        "x": -100,
-        "z": 95
+        "x": -344.88,
+        "z": 238.24
       },
       {
         "kind": "hq",
         "team": 1,
-        "x": 110,
-        "z": -110
+        "x": 362.88,
+        "z": -246.24
       },
       {
         "kind": "engineer",
         "team": 1,
-        "x": 95,
-        "z": -100
+        "x": 350.88,
+        "z": -236.24
+      },
+      {
+        "kind": "engineer",
+        "team": 1,
+        "x": 344.88,
+        "z": -238.24
       },
       {
         "kind": "generator",
         "team": 1,
-        "x": 95,
-        "z": -120
+        "x": 382.88,
+        "z": -228.24
       },
       {
         "kind": "supply",
         "team": 1,
-        "x": 120,
-        "z": -95
+        "x": 362.88,
+        "z": -221.24
       }
-    ],
-    "resources": [
-      {
-        "x": -40,
-        "z": 40,
-        "amount": 600,
-        "radius": 12
-      },
-      {
-        "x": 40,
-        "z": -40,
-        "amount": 600,
-        "radius": 12
-      },
-      {
-        "x": 0,
-        "z": 0,
-        "amount": 400,
-        "radius": 10
-      }
-    ],
-    "features": []
+    ]
   },
   "objectives": [
     {
       "id": "generator",
       "kind": "build",
       "title": "Ehita generaator",
-      "description": "F2 valib insenerid. BUILDS → Generaator → vasak klõps vabal maastikul HQ lähedal.",
+      "description": "Vali insener. Ehita → Generaator → vaba plats peakorteri lähedal.",
       "target": {
         "kind": "generator",
         "count": 1
@@ -102,7 +71,7 @@
       "id": "warehouse",
       "kind": "build",
       "title": "Ehita varustusladu",
-      "description": "Vali insener ja ehita ladu generaatori lähedale.",
+      "description": "Vali insener ja ehita ladu peakorteri ning tulevase tehase lähedale.",
       "requires": [
         "generator"
       ],
@@ -114,8 +83,8 @@
     {
       "id": "first-delivery",
       "kind": "deliver",
-      "title": "Käivita ressursipunkt ja võta vastu tarne",
-      "description": "Saada teine insener lähimasse ressursipunkti. Oota rajatise käivitamist ja veoki saabumist lattu.",
+      "title": "Käivita ressursirajatis ja võta vastu tarne",
+      "description": "Saada insener kodubaasi lähima ressursimärgi juurde. Hõive ja käivituse järel toob transport lattu päris koorma.",
       "requires": [
         "warehouse"
       ],
@@ -124,12 +93,25 @@
       }
     },
     {
-      "id": "factory",
+      "id": "land-command",
       "kind": "build",
-      "title": "Ehita maaväe juhtimiskeskus ja soomustehas",
-      "description": "HQ ehitusharust maaväe juhtimiskeskus; vali see ja ehita Soomustehas ladu teenindavasse piirkonda.",
+      "title": "Ehita maaväe juhtimiskeskus",
+      "description": "Vali insener või peakorter: Ehita → Maaväe juhtimiskeskus.",
       "requires": [
         "first-delivery"
+      ],
+      "target": {
+        "kind": "landCommand",
+        "count": 1
+      }
+    },
+    {
+      "id": "factory",
+      "kind": "build",
+      "title": "Ehita soomustehas",
+      "description": "Vali juhtimiskeskus ja ehita Soomustehas varustuslaost kuni 80 m kaugusele.",
+      "requires": [
+        "land-command"
       ],
       "target": {
         "kind": "factory",
@@ -139,37 +121,161 @@
     {
       "id": "first-tank",
       "kind": "produce",
-      "unitKind": "tank",
       "title": "Tooda esimene tank",
-      "description": "LAND-paneelis M1A2 / T-90 / ZTZ-99. Vajad töötavat tehast, energiat ja varustusladu.",
+      "description": "Vali tehas → Maa → tank. Tootmine vajab juhtimisühendust, energiat, laskemoona ja kütust.",
       "requires": [
         "factory"
       ],
+      "unitKind": "tank",
       "target": {
         "count": 1
       }
     },
     {
+      "id": "strategy",
+      "kind": "build",
+      "title": "Ehita maaväe strateegiakeskus",
+      "description": "Maaväe juhtimiskeskuse ehitusharust ava strateegiakeskus. See lubab kõrgema taseme tootjad.",
+      "requires": [
+        "first-tank"
+      ],
+      "target": {
+        "kind": "landStrategy",
+        "count": 1
+      }
+    },
+    {
+      "id": "barracks",
+      "kind": "build",
+      "title": "Ehita kasarmu",
+      "description": "Ehita kasarmu varustuslao lähedale. Siit tulevad jalavägi ja luure.",
+      "requires": [
+        "strategy"
+      ],
+      "target": {
+        "kind": "barracks",
+        "count": 1
+      }
+    },
+    {
+      "id": "upgrade-barracks",
+      "kind": "upgrade",
+      "title": "Uuenda kasarmu tasemele 2",
+      "description": "Vali kasarmu ja kasuta hoone taseme uuenduse nuppu. Oota töö lõpetamist.",
+      "requires": [
+        "barracks"
+      ],
+      "target": {
+        "kind": "barracks",
+        "count": 2
+      }
+    },
+    {
+      "id": "recon",
+      "kind": "produce",
+      "title": "Tooda luurejalavägi",
+      "description": "Vali kasarmu → Maa → luurejalavägi. Eraldi optika avab sihtmärgid teistele relvadele.",
+      "requires": [
+        "upgrade-barracks"
+      ],
+      "unitKind": "reconInf",
+      "target": {
+        "count": 1
+      }
+    },
+    {
+      "id": "recon-forest",
+      "kind": "reach",
+      "title": "Vii luure metsa",
+      "description": "Vali luure ning liigu metsa keskpunkti -485, 185. Mets varjab, kuid liikumine ja tulistamine suurendavad avastamist.",
+      "requires": [
+        "recon"
+      ],
+      "unitKind": "reconInf",
+      "point": {
+        "x": -485,
+        "z": 185
+      },
+      "radius": 24
+    },
+    {
+      "id": "infantry",
+      "kind": "produce",
+      "title": "Tooda jalaväerühm",
+      "description": "Kasarmu → Maa → liinijalavägi. Rühmal on piiratud relvavaru ja liikmete arv.",
+      "requires": [
+        "recon-forest"
+      ],
+      "unitKind": "inf",
+      "target": {
+        "count": 1
+      }
+    },
+    {
+      "id": "upgrade-factory",
+      "kind": "upgrade",
+      "title": "Uuenda tehas tasemele 2",
+      "description": "Vali soomustehas ja uuenda selle tase. See avab jalaväe transpordi.",
+      "requires": [
+        "infantry"
+      ],
+      "target": {
+        "kind": "factory",
+        "count": 2
+      }
+    },
+    {
+      "id": "apc",
+      "kind": "produce",
+      "title": "Tooda soomustransportöör",
+      "description": "Tehas → Maa → APC. Too see jalaväe juurde.",
+      "requires": [
+        "upgrade-factory"
+      ],
+      "unitKind": "apc",
+      "target": {
+        "count": 1
+      }
+    },
+    {
+      "id": "boarding",
+      "kind": "transport",
+      "title": "Laadi jalavägi transporti",
+      "description": "Vali jalavägi ja paremklõpsa oma APC-le. Rühm läheneb, kasutab kohti ning jääb pardale.",
+      "requires": [
+        "apc"
+      ],
+      "unitKind": "inf"
+    },
+    {
+      "id": "urban",
+      "kind": "garrison",
+      "title": "Paiguta jalavägi majja",
+      "description": "Vali APC, U ning klõps lähima küla lähedale. Vali väljunud jalavägi ja paremklõpsa hõivatavale majale. Rühm läheb ukse kaudu sisse.",
+      "requires": [
+        "boarding"
+      ],
+      "unitKind": "inf"
+    },
+    {
       "id": "destroy-enemy-supply",
-      "title": "Hävita vaenlase varustusladu",
-      "description": "Ehita gen → supply → land command → üksused. Seejärel lõika vaenlase logistika.",
       "kind": "destroy",
-      "primary": true,
+      "title": "Lõika vastase logistika",
+      "description": "Kasuta luuret ja tanki: valluta sillapää ning hävita vastase algne varustusladu. Too oma varustus kaasa; ehita eesliinile ladu ja kasuta konvoisid.",
+      "requires": [
+        "urban"
+      ],
       "target": {
         "kind": "supply",
         "team": 1,
         "count": 1
-      },
-      "requires": [
-        "first-tank"
-      ]
+      }
     },
     {
       "id": "destroy-hq",
-      "title": "Hävita vaenlase HQ",
-      "description": "Võit pärast logistika lõikamist.",
       "kind": "destroy",
-      "primary": true,
+      "title": "Hävita vastase peakorter",
+      "description": "Tugevda armeed, remondi kahjustatud tehnika inseneriga ja kasuta ründeliikumist. Õhuvägi väljub oma rajatisest ning vajab varustust.",
       "requires": [
         "destroy-enemy-supply"
       ],
@@ -180,5 +286,6 @@
       }
     }
   ],
-  "triggers": []
+  "triggers": [],
+  "mapRef": "roheorg"
 }

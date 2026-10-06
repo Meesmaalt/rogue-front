@@ -14,7 +14,22 @@ export class TerrainState {
   private accumulator=0;
   revision=0;
   private vegetation=new Map<string,MapFeatureDef[]>();
+  private readonly coverBins=new Map<string,MapFeatureDef[]>();
+  private readonly emptyCover:readonly MapFeatureDef[]=[];
+  /** Static broad phase only: consumers keep their exact footprint and damage rules. */
+  coverFeaturesAt(x:number,z:number):readonly MapFeatureDef[] {
+    return this.coverBins.get(`${Math.floor(x/32)}/${Math.floor(z/32)}`)??this.emptyCover;
+  }
   constructor(features:readonly MapFeatureDef[]){
+    for(const f of features){
+      if(f.appearance!=="forest"&&f.kind!=="cover"&&f.kind!=="building"&&f.kind!=="wall"&&f.kind!=="chokepoint")continue;
+      const c=Math.abs(Math.cos(f.rotation??0)),s=Math.abs(Math.sin(f.rotation??0));
+      // Expand local half extents before rotating: preserves padded corner queries.
+      const hx=c*(f.width/2+.25)+s*(f.depth/2+.25),hz=s*(f.width/2+.25)+c*(f.depth/2+.25);
+      for(let ix=Math.floor((f.x-hx)/32);ix<=Math.floor((f.x+hx)/32);ix++)for(let iz=Math.floor((f.z-hz)/32);iz<=Math.floor((f.z+hz)/32);iz++){
+        const key=`${ix}/${iz}`,bin=this.coverBins.get(key);if(bin)bin.push(f);else this.coverBins.set(key,[f]);
+      }
+    }
     for(const f of features.filter(f=>f.kind==="cover"||f.kind==="road"||f.kind==="bridge"||f.kind==="water"||f.appearance==="yard")){
       const r=Math.hypot(f.width,f.depth)/2+2;
       for(let x=Math.floor((f.x-r)/64);x<=Math.floor((f.x+r)/64);x++)for(let z=Math.floor((f.z-r)/64);z<=Math.floor((f.z+r)/64);z++){

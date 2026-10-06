@@ -22,7 +22,7 @@ export function airParkingPoint(u:Entity,pad:Entity):Point {
 }
 export function stationAircraft(w:World,u:Entity,pad:Entity,slot=freeAirSlot(w,pad)):void {
   u.airMissionHomeId=pad.id;u.airHomeSlot=Math.max(0,slot);u.airState="grounded";u.airSortieTime=0;u.airTaxiPhase="apron";u.motionSpeed=0;
-  const p=airParkingPoint(u,pad);u.x=u.px=p.x;u.z=u.pz=p.z;u.y=heightAt(p.x,p.z);u.heading=u.pHeading=pad.heading;
+  const p=airParkingPoint(u,pad);u.x=u.px=p.x;u.z=u.pz=p.z;u.y=u.py=heightAt(p.x,p.z);u.pFlightBank=u.flightBank=0;u.pFlightPitch=u.flightPitch=0;u.heading=u.pHeading=pad.heading;
 }
 export function airUnitsForOrder(w:World,ids:number[],team:Team):Entity[] {
   const facilities=new Set(ids.filter(id=>{const e=w.byId.get(id);return e&&e.team===team&&!e.dead&&!e.underConstruction&&["airbase","helipad"].includes(e.kind);}));
@@ -39,6 +39,8 @@ export function hasAirMissionAmmo(u:Entity):boolean {
   return (u.def.weapons??[weaponSpec(u)]).some((s,i)=>s.damage>0&&(mission==null||mission==="cap"?(mission==null||s.targets==="air"||s.targets==="all"):s.targets!=="air")&&(s.ammoCapacity<=0||weaponAmmo(u,i)>=s.ammoUsePerShot));
 }
 export function requestAirReturn(u:Entity):void {
+  u.holdPosition=false;u.standingOrder=null;u.flightOrbitCenter=undefined;u.flightAttackExit=undefined;u.flightAttackExitUntil=undefined;
+  u.transportQueue=[];u.transportTargetId=null;u.transportPickupPoint=undefined;u.unloadPoint=null;
   u.target=null;u.dest=null;u.mode="idle";u.airMission=null;u.airMissionPoint=null;u.patrolPoints=[];u.moveQueue=[];
   if(u.airState==="grounded"||u.airState==="rearming")return;
   u.airState=u.airState==="taxi"&&u.def.category!=="heli"?"landing":"returning";u.airReturnReason="manual";u.airLandingPhase="approach";
@@ -51,6 +53,7 @@ export function airOperationStatus(w:World,u:Entity):string {
   if(u.airState==="landing")return "Maandunud · ruleerib parkimiskohale";
   if(u.airState==="rearming")return "Baasis · laskemoona, kütuse ja remondi ootel";
   if(u.airState==="returning")return "Naaseb baasi · "+({fuel:"kütus",ammo:"laskemoon",damage:"kahjustus / õhutõrje",manual:"mängija käsk",base:"baas kadunud või rada suletud"}[u.airReturnReason??"manual"])+(pad&&!pad.dead?"":" · lennurajatis puudub");
+  if(u.flightAttackExit)return "Lennul · eemaldub pärast ründeläbimist";
   return "Lennul · "+({cap:"õhukaitse",strike:"baasirünnak",sead:"õhutõrje rünnak",ground:"maaväe toetus"}[u.airMission??"ground"]);
 }
 
@@ -82,6 +85,7 @@ export function assignAirMission(
   point?: Point | null,
 ): void {
   if(!supportsAirMission(u,mission))return;
+  u.target=null;u.moveQueue=[];u.transportQueue=[];u.transportTargetId=null;u.unloadPoint=null;u.flightAttackExit=undefined;u.flightAttackExitUntil=undefined;
   u.holdPosition=false;u.flightOrbitCenter=undefined;
   u.airMission = mission;
   u.airMissionPoint = point ? { x: point.x, z: point.z } : null;

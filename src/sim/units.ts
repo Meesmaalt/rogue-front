@@ -203,7 +203,7 @@ export function parseUnits(data: unknown): Record<UnitKind, UnitDef> {
     // Legacy stealth boolean
     if (d.stealth === true && (def.stealthLevel ?? 0) < 1) def.stealthLevel = 2;
     const loadouts=weaponData.loadouts as Record<string,Array<Record<string,string|number>>>;
-    const profiles=weaponData.profiles as Record<string,Record<string,string|number>>;
+    const profiles=weaponData.profiles as Record<string,Record<string,string|number|boolean>>;
     def.weapons=(loadouts[k]??[]).map(slot=>{
       const profile=String(slot.profile),config=profiles[profile];if(!config)throw new Error(`Missing weapon profile ${profile}`);
       return {profile,range:def.range,minimumRange:def.minimumRange??0,damage:def.damage,cooldown:def.cooldown,penetration:def.penetration??5,accuracy:def.accuracy??.6,splash:def.splash??0,ammoCapacity:def.ammoCapacity??0,ammoUsePerShot:def.ammoUsePerShot??1,suppressionPower:def.suppressionPower??1,launchSpeed:Number(config.speed),acceleration:0,turnRate:0,gravity:0,minFlight:0,...config,...slot} as unknown as WeaponSpec;
@@ -222,7 +222,7 @@ export function factionUnitDefinition(kind:UnitKind,faction:FactionId):UnitDef {
   const key=faction+":"+kind,cached=factionCache.get(key);if(cached)return cached;
   const base=UNITS[kind],bonus=FACTIONS[faction].bonuses;
   const variants=factionLoadouts as unknown as Record<FactionId,Partial<Record<UnitKind,Omit<Partial<UnitDef>,"weapons">&{weapons?:Partial<WeaponSpec>[]}>>>;
-  const variant=variants[faction][kind]??{},profiles=weaponData.profiles as Record<string,Record<string,string|number>>;
+  const variant=variants[faction][kind]??{},profiles=weaponData.profiles as Record<string,Record<string,string|number|boolean>>;
   const def={...base,...variant} as UnitDef;
   if(variant.weapons)def.weapons=variant.weapons.map((override,i)=>{
     const primary=base.weapons?.[i]??base.weapons?.[0];

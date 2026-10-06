@@ -28,6 +28,11 @@ export function createSkirmish(w: World, ready = false): void {
       const forward={x:-sign*82,z:sign*50};
       const kinds=["tank","tank","apc","inf","inf","reconVehicle"] as const;
       kinds.forEach((kind,i)=>{const u=w.spawn(kind,team,forward.x+(i%3-1)*9,forward.z+Math.floor(i/3)*9*sign);u.heading=team===0?Math.PI*.65:-Math.PI*.35;u.pHeading=u.heading;});
+      const water=w.waterNav.nearestWater(b,10,260);
+      if(water){const length=Math.hypot(b.x-water.x,b.z-water.z)||1,dx=(b.x-water.x)/length,dz=(b.z-water.z)/length,port={x:water.x+dx*30,z:water.z+dz*30};
+        w.spawn("shipyard",team,port.x,port.z);w.spawn("seaCommand",team,port.x+dx*35,port.z+dz*35);w.spawn("seaStrategy",team,port.x+dx*50,port.z+dz*50+25);w.spawn("supply",team,port.x+dx*45,port.z+dz*45);
+        for(const [i,kind] of (["frigate","missileBoat"] as const).entries()){const q=w.waterNav.nearestWater({x:water.x-dx*30,z:water.z-dz*30+i*24},w.unitDefinition(kind,team).radius,40);if(q)w.spawn(kind,team,q.x,q.z);}
+      }
       const home=w.resourcePoints[team];
       if(home){const engineer=w.entities.find(e=>e.team===team&&e.kind==="engineer");if(engineer)w.issue({type:"move",ids:[engineer.id],team,x:home.x,z:home.z});}
     }

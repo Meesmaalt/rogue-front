@@ -11,7 +11,14 @@ Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on j�
 - [x] Jõudluse esmane parandusetapp enne A6: LOS-i ruumiline takistuste indeks, HUD-i/garnisoni korduspäringute vähendamine, staatiliste visuaalide 5 Hz uuendus, taaskasutatav fog-pintsel ning valitavad kaugvaate nimed/klassiikoonid. Build + 8 sihitud kontrolli läbisid; brauseri FPS/visuaalne ülevaatus ootel. Vt PERFORMANCE-TACTICAL-MARKERS.md.
 - [x] Taktikaline tempo ja Roheoru layout 10: rahulikumad kiirused/kiirendus, väiksemad mudelid koos footprinti ja muzzle ühendusega, 1088 m kaart, 85 hoonet ja kvartalite tänavad, majade kaugvaate LOD ning peatunud tehnika kõrval kinnijäämise parandus. Build ja 8 sihitud kontrolli; brauseri visuaal/FPS/tasakaal ootel. Vt TACTICAL-SCALE-ROHEORG.md.
 - [x] Võrdluspildist lähtuv Roheoru layout 11: looklev jõgi ja kaldad, viis teedega joondatud silda, päris deck/riverbed kõrgused, silla purunemise nav/render/save ühendus, jõekalda ladu ja kaugvaate märgid. Build + sihitud kaardi/garnisoni/nav kontrollid; GPU/browser ülevaatus ootel (kohalik Chromium puudub). Vt RIVER-CITY-OVERVIEW.md.
+- [x] Üksuste juhtimise viimistlus: vasaku klõpsuga sihtkäsud, Shift-vahepunktid/minikaart, patrulli sihtpunkt, valiku toggle/grupid, kursori vihjed ja nav-tõrgete põhjused; A* töömälu ning octile heuristika. Jõepinna ja majade ümbruse viimistlus, vähem kattuvad nimed. Vt CONTROL-POLISH.md.
+- [x] Lahingu ja üksuste käitumise viimistlus: kasutatava lisarelva auto-ulatus, avatud tulejoone eelistus, peatumine/tulekeeld, vanade ülesannete lõpetamine, patarei peatumine ja päris taandumine, nav-ohutu insener/remondivaru säilimine, HUD-i põhjused ning laiendatud replay-hash. Vt COMBAT-GAMEPLAY-POLISH.md.
+- [x] Roheoru kaardi kompositsioon: kaks kompaktset küla, selgem teedevõrk, väiksemad põllud ja metsavööndid, sujuv jõgi, ühine maastikuatlas, kaugmaja fassaadid ning üks ressursihoone punkti kohta. Build + 5 maastikukontrolli läbisid; päris brauseri/GPU ülevaatus ootel. Vt MAP-COMPOSITION-ROHEORG.md.
+- [x] Jõudluse ja intuitiivse HUD-i viimistlus: minikaardi staatiline taust/silla invalidatsioon, ühine varustussõlmede vaade, tootjate üks läbimine; eristatavad käsu- ja klassiikoonid, loogilised tööalad, tegelik aktiivne olek, järjekorra ja hoone arendusnuppude kättesaadavus. Build + 6 sihitud kontrolli; brauseri UI/FPS ülevaatus ootel. Vt UI-PERFORMANCE-POLISH.md.
+- [x] Järgmine jõudluse viimistlus: kohalik katteindeks luures/lahingus, hõivatud ruumiliste lahtrite tühjendamine, kütusekonvoide alamhulk, renderduse ühine varustuspäring ja sortimiseta üksusesildid. Build + 5 sihitud kontrolli; 96 üksuse lühike CPU-võrdlus sama hashiga. Brauseri/GPU FPS ootel. Vt PERFORMANCE-LOCAL-QUERIES.md.
+- [x] Üldauditi ühendusparandused: ranniku kaardivalik, Roheoru sammupõhine õpetus, missiooni algsed siht-ID-d, v20 save/load sobivus ja rollback, laadimise juhtimisseisund, püsiv HUD-i tagasiside ning ruumipuudusest sõltumatu lõpuaken. Sihitud kontrollid/build; päris alpha läbipääs jätkub. Vt PROJECT-QUALITY-AUDIT.md.
 - [ ] A6: õpetus, save/load, visuaalne viimistlus ja maalahingu alpha läbipääs.
+- [x] Mereväe ühendused: Murdlaine rannikumapp, veenavigatsioon, vabad tootmiskaid, moodne mitmerelvaline arsenal, raketilend ja torpeedod, füüsiline sadamateenindus, mere-AI, mudelid ja efektid. Build + sihitud sim-kontrollid; brauseri läbimängimine ootel. Vt NAVAL-WARFARE-RELEASE.md.
 - [ ] B1: olemasolev merevägi, päris veenavigatsioon/sadam ja üks lõpetatud rannikumissioon.
 - [ ] B2: režiimide/kampaania/multiplayeri lõpetamine ning beta läbipääs.
 - [ ] C: hilisem valitav strateegiline tuumarežiim pärast kaugmaa relvade ja vastumeetmete lõpetamist.
@@ -207,3 +214,24 @@ Rakendatud renderduses ning eksporditud mänguvarades. Build ja lühike GLB stru
 - [x] Koordinaattule ja sihtmärgitule ühine ulatuskordaja, suurtükirelvade andmepõhised minimaalsed kaugused.
 - [x] HUD-i avatud detailide/kerimise säilitamine ja paigal oleva ulatusgeomeetria vahemälu.
 - [ ] Ulatusringide/tekstisuuruse brauseripildi kontroll eri suumidel ning uute miinimumkauguste matšitasakaal.
+
+## Liikumine ja taastumine
+
+- [x] Tegeliku jalajälje navikontroll, stabiilne möödumiskülg ja piiratud kohalik ümbersõiduotsing.
+- [x] AI komponentkahjust sõltuv taastumine, läbitava teeninduskoha valik ja inseneri remonditöö reserveerimine.
+- [x] Sama füüsiline remondivaru AI ja inseneri loogikas; lennuki/laeva komponendikahju teenindus. Vt MOVEMENT-RECOVERY-POLISH.md.
+- [ ] Suurte kolonnide ja päris sildade brauseris jälgimine ning peatunud üksuste tee loovutamise hindamine.
+
+## Laskmiseks manööverdamine ja EVAC
+
+- [x] Tehnika kaugema laskepositsiooni valik, hüstereesiga laskekauguse taastamine ja torniga sõiduki tagurdamine.
+- [x] Paigalolekut nõudva relva stabiliseerumise aeg koos tegeliku lasu ja HUD-i ühendusega.
+- [x] Ründelennuki laskmisjärgne eemaldumine ning EVAC-nupp/klahv E, ülesannete tühistamine ja reisijate säilitamine.
+- [x] Baasi kaugusega kütusereserv ning komponentkahjust sõltuv automaatne tagasipöördumine. Vt FIRING-MANEUVER-EVAC.md.
+- [ ] Grupi tagurdamise, lennuki pöörderaadiuse ja uue EVAC-nupu brauseris jälgimine.
+
+## Visuaalne liikumine
+
+- [x] Kõrguse/lennukalde interpolatsioon, tegelikust liikumisest lähtuv sujuv jalaväe samm ja vedrustus ning pausi interpolatsiooni parandus.
+- [x] Kaamera vaatesse naasmise ja järsu ümberpaigutuse lähtestamine; 3 renderdusloogika kontrolli, replay ja build. Vt VISUAL-MOTION-POLISH.md.
+- [ ] Renderdatud brauserivaate, suurte gruppide ning eri LOD-ide visuaalne jälgimine ja FPS-mõõtmine.

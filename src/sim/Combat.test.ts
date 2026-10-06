@@ -4,7 +4,7 @@ import { World } from "./World";
 
 describe("combat", () => {
   it("tekitab tule ja tabamuse sündmused", () => {
-    const w = new World(3); w.spawn("tank", 0, 0, 0); w.spawn("inf", 1, 20, 0);
+    const w = tacticalWorld(); const tank=w.spawn("tank", 0, -20, -200),inf=w.spawn("inf", 1, 20, -200);tank.heading=Math.PI/2;inf.spottedUntil[0]=20;inf.standingOrder="holdfire";
     for (let i = 0; i < 120; i++) w.tick(SIM_STEP);
     const events = w.drainEvents();
     expect(events.some((e) => e.type === "fire")).toBe(true);
@@ -101,7 +101,7 @@ it("vehicle depth: helicopter rockets launch from separate racks and cannot rear
   const w=tacticalWorld(),u=w.spawn("heli",0,-20,-200);
   expect(u.ammo).toBe(8);expect(weaponAmmo(u,2)).toBe(38);
   const a=weaponMuzzle(u,weaponSpec(u,0),0);u.ammo!--;const b=weaponMuzzle(u,weaponSpec(u,0),0);
-  expect(Math.hypot(a.x-b.x,a.z-b.z)).toBeCloseTo(3.3);expect(a.y).toBeCloseTo(u.y+.89);
+  expect(Math.hypot(a.x-b.x,a.z-b.z)).toBeCloseTo(3.3*(u.def.modelScale??1));expect(a.y).toBeCloseTo(u.y+.89*(u.def.modelScale??1));
   const depot=w.spawn("supply",0,-25,-200);depot.ammoStock=.2;
   const before=u.ammo!;updateTacticalSupply(w,.1);
   expect(u.ammo).toBe(before);expect(depot.ammoStock).toBeCloseTo(.2);

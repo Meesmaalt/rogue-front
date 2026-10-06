@@ -1,0 +1,11 @@
+{
+  "referenceFullScans": true,
+  "scenario": "Roheorg: 96 mobile units, two HQs, 48-unit attack-move",
+  "ticks": 60,
+  "orderTickMs": 37.67545099999995,
+  "meanTickMs": 2.1321925833333313,
+  "medianTickMs": 1.7906800000000658,
+  "p95TickMs": 4.1504699999999275,
+  "hash": "4ffdf4ed",
+  "note": "CPU simulation only; no browser/GPU FPS measurement"
+}

@@ -1,5 +1,7 @@
 # Rogue Front: viimistlusest tervikliku RTS-ini
 
+Aktuaalne 06.10.2026 hinnang ja alles jäänud prioriteedid: [PROJECT-QUALITY-AUDIT.md](PROJECT-QUALITY-AUDIT.md). Allpool olevad lähteseisu tabelid ja A1–A5 kirjeldused on ajaloolised, mitte praeguste paranduste puudumise tõend.
+
 Koostatud 05.10.2026. Aluseks praeguse projekti koodi ülevaatus pärast tulejuhtimise muudatust, mitte üksnes vanade TODO-de märkeruudud. See on järgmise arenduse põhiplaan. Käesolevas töös muudetakse dokumentatsiooni, mitte mängumehaanikat.
 
 ## Suund ja ulatus

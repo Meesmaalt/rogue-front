@@ -9,7 +9,7 @@ import { DeckBuilder } from "./ui/DeckBuilder";
 import { World } from "./sim/World";
 import { heightAt, loadHeightmap, setBases, ensureHeightCache, setProceduralSeed, setTerrainProfile, setMapSize } from "./sim/heightmap";
 import { createRenderContext } from "./render/Renderer";
-import { createTerrain,syncForestTerrain,syncGarrisonTerrain,syncBridgeTerrain } from "./render/Terrain";
+import { createTerrain,syncForestTerrain,syncGarrisonTerrain,syncBridgeTerrain,animateRiverTerrain } from "./render/Terrain";
 import { RtsCamera } from "./render/RtsCamera";
 import { loadArtModels } from "./render/ArtModels";
 import { RangeOverlay } from "./render/RangeOverlay";
@@ -25,7 +25,7 @@ import { Minimap } from "./ui/Minimap";
 import { Overlay } from "./ui/Overlay";
 import { MISSIONS } from "./data/missions";
 import { MissionController } from "./sim/Mission";
-import { loadWorld, saveWorld } from "./sim/SaveState";
+import { loadWorld, saveWorld, type WorldSave } from "./sim/SaveState";
 import { ReplayRecorder } from "./sim/Replay";
 import { AudioManager } from "./render/Audio";
 import { loadSettings, SettingsPanel } from "./ui/Settings";
@@ -81,7 +81,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const replayRecorder = new ReplayRecorder(mission.seed);
   const audio = new AudioManager();
   let visualQuality=loadSettings().quality;
-  let intelAcc=0, terrainAcc=.2;
+  let intelAcc=0, terrainAcc=.2, hoverAcc=0;
   const settingsPanel = new SettingsPanel((settings) => { audio.setSettings(settings);visualQuality=settings.quality; ctx.setQuality(settings.quality); });
   let paused = false;
   const originalIssue = world.issue.bind(world);
@@ -89,6 +89,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     if (multiplayer && !applyingNetwork) { net!.submit(command); return; }
     if(multiplayer||command.team===undefined||command.team===world.playerTeam)replayRecorder.record({...command,team:command.team??world.playerTeam}); originalIssue(command);
   };
+  hud.selectedFaction=faction;
   world.playerFaction = faction;
   world.enemyFaction = FACTION_LIST.find(f => f !== faction) ?? "russia";
   for (const obj of skirmish || multiplayer ? [] : mission.map.objects ?? []) {
@@ -108,10 +109,12 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const modeController = new MatchModeController(world, activeMode, mission);
   if (skirmish) world.matchController = modeController;
   else if (!multiplayer) world.missionController = missionRuntime;
-  if (skirmish) { createSkirmish(world, mission.id === "roheorg" && queryParams.get("deployment") !== "base"); world.ai.setProfile(skirmishDifficulty === "hard" ? "aggressive" : skirmishDifficulty === "easy" ? "defensive" : "economic", skirmishDifficulty!); }
+  if (skirmish) { createSkirmish(world, ["roheorg","operation-tidebreaker"].includes(mission.id) && queryParams.get("deployment") !== "base"); world.ai.setProfile(skirmishDifficulty === "hard" ? "aggressive" : skirmishDifficulty === "easy" ? "defensive" : "economic", skirmishDifficulty!); }
+  if(!skirmish&&!multiplayer&&mission.id==="operation-tidebreaker")world.externalVictoryMode=true;
   if (skirmish && activeMode !== "skirmish") world.externalVictoryMode = true;
   if (multiplayer) world.setNetworkMode(0);
 
+  if(mission.id==="tutorial-logistics"&&!skirmish&&!multiplayer){world.ai.setProfile("defensive","easy");world.ai.attackTimer=240;}
   replayRecorder.reset(world);
 
   const glCanvas = document.getElementById("game") as HTMLCanvasElement;
@@ -163,12 +166,13 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   }
 
   minimap.onJump = (x, z) => cam.jumpTo(x, z);
-  minimap.onOrder = (x, z) => commands.moveTo(x, z);
+  minimap.onOrder = (x, z, append) => commands.moveTo(x, z, append);
   selection.onInspectBuilding=id=>hud.inspectBuilding(id);
-  hud.onGarrisonFace=()=>{if(running&&!paused){commands.garrisonFaceMode=true;commands.unloadMode=false;commands.fastMoveMode=false;commands.attackMoveMode=false;hud.setWarning("Garnisoni vaatesuund: parem klõps kaardil või minikaardil");}};
+  selection.onFocus=(x,z)=>cam.jumpTo(x,z);
+  hud.onGarrisonFace=()=>{if(running&&!paused){commands.armOrder("face");hud.setWarning("Garnisoni vaatesuund: klõps kaardil või minikaardil");}};
   hud.onGarrisonExit=ids=>{if(running&&!paused)world.issue({type:"leave-building",ids});};
   hud.onSelect=ids=>{selection.selected.clear();ids.forEach(id=>selection.selected.add(id));};
-  hud.onOrder=order=>{if(!running||paused)return;if(order==="stop")world.issue({type:"stop",ids:selection.selectedIds()});else if(order==="focus"){const list=selection.selectedIds().map(id=>world.byId.get(id)).filter(e=>e&&!e.dead);if(list.length)cam.jumpTo(list.reduce((n,e)=>n+e!.x,0)/list.length,list.reduce((n,e)=>n+e!.z,0)/list.length);}else {commands.garrisonFaceMode=false;commands.attackMoveMode=order==="attack";commands.fastMoveMode=order==="fast";commands.unloadMode=order==="unload";hud.setWarning(order==="fast"?"Kiirliigu: parem klõps kaardil või minikaardil":order==="unload"?"Välju transpordist: parem klõps sihtpunktile":order==="attack"?"Ründeliikumine: parem klõps kaardil või minikaardil":"Liigu: parem klõps sihtpunktile");}};
+  hud.onOrder=order=>{if(!running||paused)return;if(order==="stop"){commands.cancelOrders();world.issue({type:"stop",ids:selection.selectedIds()});}else if(order==="focus"){const list=selection.selectedIds().map(id=>world.byId.get(id)).filter(e=>e&&!e.dead);if(list.length)cam.jumpTo(list.reduce((n,e)=>n+e!.x,0)/list.length,list.reduce((n,e)=>n+e!.z,0)/list.length);}else {commands.armOrder(order);hud.setWarning(order==="fast"?"Kiirliigu: klõps kaardil või minikaardil":order==="unload"?"Välju transpordist: klõps sihtpunktile":order==="attack"?"Ründeliikumine: klõps kaardil või minikaardil":"Liigu: klõps sihtpunktile");}};
   hud.onProduce = (kind, producerId) => { if (running && !paused) world.issue({ type: "produce", kind, producerId }); };
   hud.onBuild = (kind) => { if (running && !paused) commands.startBuild(kind); };
   hud.onUnitUpgrade=(ids,upgrade)=>{if(running&&!paused)world.issue({type:"upgrade",ids,upgrade});};
@@ -183,17 +187,38 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   };
   hud.onDepotPriority = (ids, focus) => { if (running && !paused) world.issue({ type: "depot-priority", ids, focus }); };
   hud.onUpgradeProducer = (ids) => { if (running && !paused) world.issue({ type: "upgrade", ids, upgrade: "producer" }); };
-  hud.onStance = (ids, mode) => { if (running && !paused) world.issue({ type: "standing", ids, mode }); };
+  hud.onStance = (ids, mode) => { if (running && !paused) {if(mode==="patrol")commands.armOrder("patrol");else world.issue({ type: "standing", ids, mode });} };
   hud.onPriority = (ids, focus) => { if (running && !paused) world.issue({ type: "priority", ids, focus }); };
   hud.onPreDeploy = (ids, mode) => { if (running && !paused) world.issue({ type: "predeploy", ids, mode }); };
   hud.onFormation = (kind) => {if(running&&!paused)world.issue({type:"formation",kind});};
-  hud.onAirReturn=ids=>{if(running&&!paused)world.issue({type:"air-return",ids});};
-  hud.onAirMission=(ids,mission)=>{if(running&&!paused){commands.startAirMission(ids,mission);hud.setWarning("Õhuoperatsioon: parem klõps sihtpunktile, Esc tühistab");}};
+  hud.onNavalReturn=ids=>{if(!running||paused)return;for(const id of ids){const u=world.byId.get(id);if(!u||u.team!==world.playerTeam||u.def.domain!=="sea")continue;
+    const port=world.entities.filter(e=>!e.dead&&!e.underConstruction&&e.team===u.team&&e.kind==="shipyard").sort((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z))[0];
+    const point=port?world.waterNav.nearestWater(port,u.def.radius,64):null;if(point)world.issue({type:"move",ids:[u.id],x:point.x,z:point.z});else hud.setWarning("Puudub ligipääsetav oma sadam");
+  }};
+  hud.onAirReturn=ids=>{if(running&&!paused){commands.cancelOrders();world.issue({type:"air-return",ids});hud.setWarning("EVAC: lennuvägi naaseb baasi");}};
+  hud.onAirMission=(ids,mission)=>{if(running&&!paused){commands.startAirMission(ids,mission);hud.setWarning("Õhuoperatsioon: klõps sihtpunktile, Esc tühistab");}};
   hud.onCancelProduce = (producerId) => { if (running && !paused) world.issue({ type: "cancel-produce", producerId }); };
-  const saveKey = SAVE_PREFIX + mission.id + (mission.id==="roheorg"?".layout11":"") + "." + (skirmish ? activeMode : "campaign") + "." + faction;
-  const hasSave = () => localStorage.getItem(saveKey) !== null;
-  const saveGame = () => { localStorage.setItem(saveKey, JSON.stringify(saveWorld(world))); localStorage.setItem("rogue-front.replay.v1." + mission.id, JSON.stringify(replayRecorder.file())); };
-  const loadGame = () => { const raw = localStorage.getItem(saveKey); if (!raw) return; try { loadWorld(world, JSON.parse(raw));units.reset();ranges.reset();fx.reset();selection.selected.clear();replayRecorder.reset(world); running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); } catch (err) { console.error("Salvestuse laadimine ebaõnnestus", err); hud.setWarning("Salvestuse laadimine ebaõnnestus"); } };
+  const saveKey = SAVE_PREFIX + mission.id + (mission.id==="roheorg"?".layout12":mission.id==="operation-tidebreaker"?".coast1":mission.id==="tutorial-logistics"?".training12":"") + "." + (skirmish ? activeMode : "campaign") + "." + faction;
+  const sessionContext=JSON.stringify({mission:mission.id,seed:mission.seed,heightmap:mission.map.heightmap,terrain:mission.map.terrainProfile,maxHeight:mission.map.maxHeight,mode:skirmish?activeMode:"campaign",faction});
+  const hasSave = () => {try{return !multiplayer&&localStorage.getItem(saveKey)!==null;}catch{return false;}};
+  const saveGame = () => {localStorage.setItem(saveKey,JSON.stringify({format:"rogue-front-session",context:sessionContext,savedAt:new Date().toISOString(),world:saveWorld(world)}));};
+  const loadGame = () => {
+    if(multiplayer)return;
+    try{
+      const raw=localStorage.getItem(saveKey);if(!raw){hud.setWarning("Selle lahingu salvestus puudub");return;}
+      const saved=JSON.parse(raw) as {format?:string;context?:string;world?:WorldSave}&WorldSave;
+      if(saved.format&&saved.context!==sessionContext)throw new Error("Salvestuse kaart, fraktsioon või režiim ei vasta sellele lahingule");
+      loadWorld(world,saved.format?saved.world!:saved);
+      units.reset();ranges.reset();fx.reset();commands.reset();selection.selected.clear();replayRecorder.reset(world);
+      hud.hideScreen();running=world.status==="running";paused=false;hud.setPaused(false);setEnabled(running);audio.unlock();if(running)audio.startMusic();else audio.stopMusic();
+      const hq=world.hq[world.playerTeam];if(hq)cam.jumpTo(hq.x,hq.z);
+      if(!running)hud.showResult(world.status as "won"|"lost",world.time,"Laaditud lõpetatud lahing");
+      hud.setWarning("Salvestus taastatud · "+Math.floor(world.time/60)+" min");
+    }catch(err){hud.setWarning(err instanceof Error?err.message:"Salvestuse laadimine ebaõnnestus");}
+  };
+  hud.onGuideTarget=p=>{cam.jumpTo(p.x,p.z);fx.ping(p.x,p.z,0x77ba9e);};
+  hud.onGuideFocus=ids=>{commands.reset();selection.selected.clear();for(const id of ids)selection.selected.add(id);const u=world.byId.get(ids[0]);if(u)cam.jumpTo(u.x,u.z);};
+  hud.setSaveAvailability(hasSave(),false);
   const togglePause = () => { if(multiplayer){hud.setWarning("Võrgumäng peatub ühenduse katkemisel automaatselt.");return;} paused = !paused; setEnabled(running && !paused); hud.setPaused(paused); if (paused) audio.pause(); else { audio.unlock(); audio.resume(); } };
   hud.onPause = togglePause;
   hud.onSettings = () => settingsPanel.open();
@@ -207,14 +232,16 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   hud.showBriefing(skirmish ? { ...mission, name: "Skirmish — " + mission.map.name, briefing: mission.id === "roheorg" ? mission.briefing + "\n\n" + modeController.label() + "\n\n" + (queryParams.get("deployment")==="base" ? "Ehita generaator → varustusladu → maaväe juhtimiskeskus → tehas. Saada insener ressursipunkti." : "Baas ja väike lahingugrupp on valmis. Saada luure ette; tugevda koosseisu Maa-paneelist. Insener käivitab koduse ressursipunkti kogumise.") + "\n\nF1: vali soomus · Fookus: kaamera valikule\nRündeliiku + parem klõps: liigu ja võitle\nInsener / juhtimishoone → Ehita: baas ja FOB\nMoon, kütus ja remont vajavad tegelikku varustust." : modeController.label() + "\n\nREAL WAR baas:\n1) Generaator → varustusladu → maaväe juhtimiskeskus → tehas\n2) Saada teine insener ressursipunkti; ta käivitab kogumise\n3) Veokid toovad raha ja ammo/kütusevaru. Katkenud tarne peatab tootmise\n\nWARGAME lahing:\n• Optika/recon — kes näeb, tulistab\n• Supply raadius — ammo/kütus; forward ladu risk\n• Flank ja moraal loevad\n• Õhk: CAP / Strike / SEAD; ilma AA-ta kaotad\n\nDoktriin: " + facBlur + "\n\nKlahvid: F1 soomus F2 jala F3 õhk F4 toetus · Ctrl+1-9 grupid" } : mission, () => { if(multiplayer)return; running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); }, hasSave(), loadGame);
 
   addEventListener("keydown", (e) => {
-    if (e.key.toLowerCase() === loadSettings().keys.pause && running) togglePause();
+    if(e.repeat||(e.target instanceof Element&&e.target.closest("input,textarea,select,[contenteditable=true]")))return;
+    if (!e.defaultPrevented && e.key.toLowerCase() === loadSettings().keys.pause && running) togglePause();
     if (!running || paused) return;
     const k = e.key.toLowerCase();
+    if(["f1","f2","f3","f4"].includes(k))e.preventDefault();
     // Quick filters (Wargame-style selection aids)
     if (k === "f1") selection.selectFilter(u => ["tank","ifv","apc"].includes(u.kind));
-    if (k === "f2") selection.selectFilter(u => ["inf","special","engineer"].includes(u.kind));
+    if (k === "f2") selection.selectFilter(u => ["inf","atInf","mgInf","reconInf","sniper","manpad","atgm","mortar","special","engineer"].includes(u.kind));
     if (k === "f3") selection.selectFilter(u => u.def.armor === "air" || ["heli","gunship","fighter","interceptor","bomber"].includes(u.kind));
-    if (k === "f4") selection.selectFilter(u => ["artillery","mlrs","aa"].includes(u.kind));
+    if (k === "f4") selection.selectFilter(u => ["artillery","mortar","mlrs","aa","spaa","manpad","logiTruck"].includes(u.kind));
   });
 
   let frames = 0, fpsAcc = 0, hudAcc = 1;
@@ -245,43 +272,50 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
           const result = world.status === "won" ? "win" : world.status === "lost" ? "loss" : "draw";
           void import("./net/Api").then(({ api }) => api.matchResult(multiplayerRoom, result).catch(() => {}));
         }
-        if (world.status === "won" && !skirmish && !multiplayer) { MissionController.markCompleted(mission.id); completeCampaignMission(mission); }
-        localStorage.setItem("rogue-front.replay.v1." + mission.id, JSON.stringify(replayRecorder.file()));
+        let persistenceFailed=false;
+        if(world.status==="won"&&!skirmish&&!multiplayer){try{completeCampaignMission(mission);MissionController.markCompleted(mission.id);}catch{persistenceFailed=true;}}
+        try{localStorage.setItem("rogue-front.replay.v1."+mission.id,JSON.stringify(replayRecorder.file()));}catch{persistenceFailed=true;}
         const next = !skirmish && !multiplayer && world.status === "won" ? CAMPAIGN.find(n=>!loadCampaign().completed.includes(n.id)&&isUnlocked(n)) : undefined;
-        hud.showResult(world.status, world.time, skirmish ? (world.matchController?.label()??modeController.label()) : mission.name, next?.missionId);
+        hud.showResult(world.status, world.time, (skirmish ? (world.matchController?.label()??modeController.label()) : mission.name)+(persistenceFailed?" · Edenemise või replay salvestamine ebaõnnestus; brauseri salvestusruum võib olla täis.":""), next?.missionId);
+        if(persistenceFailed)hud.setWarning("Lahing lõppes, kuid edenemise või replay salvestamine ebaõnnestus. Brauseri salvestusruum võib olla täis.");
       }
     },
     (alpha, frameDt) => {
       cam.update(frameDt);
       selection.prune();
       const events = world.drainEvents();
-      units.handleEvents(events);
-      units.sync(world, alpha, selection.selected,frameDt,visualQuality);
+      units.handleEvents(events);commands.handleEvents(events);
+      hoverAcc+=frameDt;if(hoverAcc>=.08){hoverAcc%=.08;commands.updateHover();}
+      const visualAlpha=paused||!running||world.status!=="running"?1:alpha;
+      const animationDt=paused||!running||world.status!=="running"?0:frameDt;
+      units.sync(world, visualAlpha, selection.selected,animationDt,visualQuality);
       ranges.sync(world,selection.selected,hud.showWeaponRanges,hud.rangeSlot);
       ctx.updateShadows(units.shadowDirty);units.shadowDirty=false;
       intelAcc+=frameDt;if(intelAcc>=.2){units.syncIntelGhosts(world);intelAcc=0;}
       fx.handleEvents(events,world);
       audio.events(events, world.playerTeam);
-      fx.syncProjectiles(world, alpha);
+      fx.syncProjectiles(world, visualAlpha);
       terrainAcc+=frameDt;
       if(terrainAcc>=.2){
         terrainAcc%=.2;
         const forestChanged=syncForestTerrain(terrainView,world),housesChanged=syncGarrisonTerrain(terrainView,world);
         const bridgesChanged=syncBridgeTerrain(terrainView,world);
         if(forestChanged||housesChanged||bridgesChanged)ctx.updateShadows(true);
-        resourceSites.sync(world);
+        resourceSites.sync(world,ctx.camera);
       }
-      fx.syncForestFires(world,frameDt);
+      animateRiverTerrain(terrainView,world.time);
+      fx.syncForestFires(world,frameDt);fx.syncNavalWakes(world,frameDt);
       fx.update(frameDt);
       const animateWater = ctx.water.material as THREE.ShaderMaterial;
       if (animateWater.uniforms?.time) animateWater.uniforms.time.value += frameDt;
       ctx.post.render();
       fog.draw(world, picker);
-      overlay.draw(world, picker, selection, { point: commands.buildPoint, kind: commands.buildMode, rotation: commands.buildRotation, valid: commands.buildValid });
+      overlay.draw(world, picker, selection, { point: commands.buildPoint, kind: commands.buildMode, rotation: commands.buildRotation, valid: commands.buildValid },commands);
       minimap.draw(frameDt);
       hudAcc += frameDt; frames++; fpsAcc += frameDt;
       if (hudAcc > 0.2) {
         hudAcc = 0;
+        hud.setSaveAvailability(hasSave(),running&&!multiplayer);
         hud.update(world, selection.selected, running && !paused, skirmish ? [] : (world.missionController?.summary()??[]), skirmish ? (world.matchController?.label()??modeController.label()) : (world.missionController?.messageText??""));
       }
       const ownHq = world.hq[world.playerTeam];

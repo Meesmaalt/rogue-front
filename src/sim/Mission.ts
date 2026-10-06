@@ -7,6 +7,7 @@ interface ObjectiveState {
   progress: number;
   holdTime: number;
   initialTargets: number;
+  targetIds?:number[];
 }
 
 const SAVE_KEY = "rogue-front.missions.v1";
@@ -22,12 +23,14 @@ export class MissionController {
     this.mission = mission;
     this.objectives = mission.objectives.map((def) => ({
       def, complete: false, progress: 0, holdTime: 0,
+      targetIds: (def.kind === "destroy" || def.kind === "sabotage") ? this.world.entities.filter(e=>!e.dead&&e.team===(def.target?.team??1)&&(!def.target?.kind||e.kind===def.target.kind)).map(e=>e.id):undefined,
       initialTargets: (def.kind === "destroy" || def.kind === "sabotage") ? this.countTargets(def) : 0,
     }));
   }
 
   tick(dt: number): void {
     if (this.world.status !== "running") return;
+    if(this.world.hq[this.world.playerTeam]?.dead){this.world.status="lost";return;}
     for (const state of this.objectives) this.updateObjective(state, dt);
     this.runTriggers();
     this.messageTimer = Math.max(0, this.messageTimer - dt);
@@ -35,7 +38,7 @@ export class MissionController {
   }
 
   snapshot() {
-    return { objectives:this.objectives.map(o=>({complete:o.complete,progress:o.progress,holdTime:o.holdTime,initialTargets:o.initialTargets})),
+    return { objectives:this.objectives.map(o=>({complete:o.complete,progress:o.progress,holdTime:o.holdTime,initialTargets:o.initialTargets,targetIds:o.targetIds})),
       fired:[...this.fired],message:this.message,messageTimer:this.messageTimer };
   }
   restore(s: ReturnType<MissionController["snapshot"]>): void {
@@ -43,6 +46,8 @@ export class MissionController {
     this.fired.clear(); s.fired.forEach(id=>this.fired.add(id)); this.message=s.message; this.messageTimer=s.messageTimer;
   }
 
+  get activeObjective(){return this.objectives.find(o=>!o.complete&&(!o.def.requires?.length||o.def.requires.every(id=>this.objectiveComplete(id))))?.def;}
+  get completedObjectives():number{return this.objectives.filter(o=>o.complete).length;}
   get messageText(): string { return this.messageTimer > 0 ? this.message : ""; }
 
   get activePhase(): number {
@@ -65,7 +70,7 @@ export class MissionController {
     if (d.requires?.some(id => !this.objectiveComplete(id))) { state.progress = 0; return; }
     switch (d.kind) {
       case "destroy": {
-        const destroyed = Math.max(0, state.initialTargets - this.countTargets(d));
+        const destroyed = Math.max(0, state.targetIds ? state.targetIds.filter(id=>!this.world.byId.get(id)||this.world.byId.get(id)!.dead).length : state.initialTargets - this.countTargets(d));
         const required = Math.max(1, d.target?.count ?? 1);
         state.progress = Math.min(1, destroyed / required);
         state.complete = destroyed >= required;
@@ -94,13 +99,19 @@ export class MissionController {
         break;
       }
       case "sabotage": {
-        const remaining = this.world.entities.filter(e => !e.dead && e.team === (d.target?.team ?? 1) && (!d.target?.kind || e.kind === d.target.kind) && (e.disabledUntil ?? 0) <= this.world.time).length;
+        const remaining = this.world.entities.filter(e => (!state.targetIds||state.targetIds.includes(e.id)) && !e.dead && e.team === (d.target?.team ?? 1) && (!d.target?.kind || e.kind === d.target.kind) && (e.disabledUntil ?? 0) <= this.world.time).length;
         const initial = Math.max(1, state.initialTargets);
         const done = Math.max(0, initial - remaining);
         const required = Math.max(1, d.target?.count ?? 1);
         state.progress = Math.min(1, done / required);
         state.complete = done >= required;
         break;
+      }
+      case "upgrade": {
+        state.complete=this.world.entities.some(e=>!e.dead&&!e.underConstruction&&e.team===this.world.playerTeam&&e.kind===d.target?.kind&&this.world.producerLevel(e)>=(d.target?.count??2));state.progress=state.complete?1:0;break;
+      }
+      case "garrison": case "transport": {
+        state.complete=this.world.entities.some(e=>!e.dead&&e.team===this.world.playerTeam&&(!d.unitKind||e.kind===d.unitKind)&&(d.kind==="garrison"?!!e.garrisonId:e.loadedIntoId!=null));state.progress=state.complete?1:0;break;
       }
       case "build": {
         const count=this.world.entities.filter(e=>!e.dead&&!e.underConstruction&&e.team===(d.target?.team??this.world.playerTeam)&&e.kind===d.target?.kind).length;
@@ -151,7 +162,7 @@ export class MissionController {
         for (let i = 0; i < count; i++) {
           const u = this.world.spawn(s.kind, s.team, s.x + i * spacing, s.z);
           const hq = this.world.hq[0];
-          if (s.team === 1 && hq && !hq.dead) { u.mode = "amove"; u.dest = { x: hq.x, z: hq.z }; }
+          if(s.team===1&&hq&&!hq.dead){const goal=u.def.domain==="sea"?this.world.waterNav.nearestWater(hq,u.def.radius,this.world.mapSize):{x:hq.x,z:hq.z};if(goal){u.mode="amove";u.dest=goal;}}
         }
       }
     }
@@ -185,5 +196,5 @@ export class MissionController {
 }
 
 export function missionObjectiveKindLabel(kind: MissionObjectiveKind): string {
-  return ({ build:"Ehita", produce:"Tooda", deliver:"Varusta", destroy: "Hävita", defend: "Kaitse", reach: "Jõua", survive: "Ela üle", capture: "Hõiva", sabotage: "Saboteeri" })[kind];
+  return ({ upgrade:"Uuenda", garrison:"Sisene majja", transport:"Laadi transporti", build:"Ehita", produce:"Tooda", deliver:"Varusta", destroy: "Hävita", defend: "Kaitse", reach: "Jõua", survive: "Ela üle", capture: "Hõiva", sabotage: "Saboteeri" })[kind];
 }

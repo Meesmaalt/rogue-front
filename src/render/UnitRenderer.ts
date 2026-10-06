@@ -1,4 +1,8 @@
 import * as THREE from "three";
+import mobility from "../data/mobility.json";
+import {sampleMotion,smoothMotion,type MotionPose} from "./MotionPresentation";
+import {isTacticallySupplied,tacticalSupplyNodes} from "../sim/systems/tacticalSupply";
+import type {Entity} from "../sim/types";
 import type { World } from "../sim/World";
 import { heightAt } from "../sim/heightmap";
 import { wrapAngle } from "../sim/math";
@@ -15,8 +19,7 @@ contactContext.fillStyle = contactGradient; contactContext.fillRect(0,0,64,64);
 const contactGeometry = new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2); contactGeometry.userData.sharedArt = true;
 const contactMaterial = new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(contactCanvas),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1}); contactMaterial.userData.sharedArt = true;
 
-interface View { near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group; lastBuildingLevel?: number; lastAirState?: string }
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+interface View { resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;tiltPitch:number;tiltRoll:number; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group; lastBuildingLevel?: number; lastAirState?: string }
 const lerpAngle = (a: number, b: number, t: number) => a + wrapAngle(b - a) * t;
 
 
@@ -122,6 +125,7 @@ export class UnitRenderer {
   constructor(private readonly scene: THREE.Scene,private readonly camera:THREE.PerspectiveCamera) {}
 
   sync(world: World, alpha: number, selected: ReadonlySet<number>,frameDt:number,quality:"low"|"medium"|"high"): void {
+    let supplyNodes:Entity[]|null=null;
     const seen=this.seen;seen.clear();
     this.camera.updateMatrixWorld();
     this.frustum.setFromProjectionMatrix(this.projection.multiplyMatrices(this.camera.projectionMatrix,this.camera.matrixWorldInverse));
@@ -132,7 +136,7 @@ export class UnitRenderer {
       seen.add(e.id);
       const spotted=e.team===world.playerTeam||world.isSpottedByTeam(e,world.playerTeam);
       let v = this.views.get(e.id);
-      if(!spotted){if(v)v.group.visible=false;continue;}
+      if(!spotted){if(v){v.group.visible=false;v.resetPose=true;}continue;}
       this.bounds.center.set(e.x,e.y+e.def.height*.5,e.z);this.bounds.radius=Math.max(10,e.def.radius*2,e.def.height);
       const onScreen=this.frustum.intersectsSphere(this.bounds);
       if(!v&&!onScreen&&e.def.speed>0)continue;
@@ -172,22 +176,25 @@ export class UnitRenderer {
         });
         this.scene.add(m.group);
         const guns:THREE.Object3D[]=[],gears:THREE.Object3D[]=[],turrets:THREE.Group[]=[],legs:THREE.Object3D[]=[],members:THREE.Object3D[]=[];
-        lod.traverse(o=>{if(o.name==="Gun"){o.userData.restZ=o.position.z;o.userData.restX=o.rotation.x;guns.push(o);}if(o.name==="LandingGear")gears.push(o);if(o.name==="Turret")turrets.push(o as THREE.Group);if(o.name==="LeftLeg"||o.name==="RightLeg")legs.push(o);if(o.name.startsWith("SquadMember")){o.userData.squadPosition=o.position.clone();members.push(o);}});
+        lod.traverse(o=>{if(o.name==="Gun"){o.userData.restZ=o.position.z;o.userData.restX=o.rotation.x;guns.push(o);}if(o.name==="LandingGear")gears.push(o);if(o.name==="Turret")turrets.push(o as THREE.Group);if(o.name==="LeftLeg"||o.name==="RightLeg"){o.userData.restLegX=o.rotation.x;o.userData.walkPhase=Math.floor(legs.length/2)*.8;legs.push(o);}if(o.name.startsWith("SquadMember")){o.userData.squadPosition=o.position.clone();members.push(o);}});
         if(staticBuilding)this.shadowDirty=true;
-        v = { near:visual.group,far,shadow:lod.getObjectByName("ContactShadow"),guns,gears,turrets,legs,members,status:new Map(),staticBuilding,group: m.group, turret: m.turret, ring, tactical, kind: e.kind, phase: (e.id * 0.731) % 6.28, recoil: 0 };
+        v = { resetPose:true,pose:{x:e.x,y:e.y,z:e.z,heading:e.heading,bank:e.flightBank??0,pitch:e.flightPitch??0,speed:0},visualSpeed:0,walkPhase:(e.id*.731)%6.28,spread:1,tiltPitch:0,tiltRoll:0,near:visual.group,far,shadow:lod.getObjectByName("ContactShadow"),guns,gears,turrets,legs,members,status:new Map(),staticBuilding,group: m.group, turret: m.turret, ring, tactical, kind: e.kind, phase: (e.id * 0.731) % 6.28, recoil: 0 };
         this.views.set(e.id, v);
       }
       v.group.visible=onScreen||v.staticBuilding;
-      if(!onScreen&&!v.staticBuilding)continue;
-      const x=lerp(e.px,e.x,alpha),z=lerp(e.pz,e.z,alpha),h=lerpAngle(e.pHeading,e.heading,alpha);
+      if(!onScreen&&!v.staticBuilding){v.resetPose=true;continue;}
+      sampleMotion(e,alpha,v.pose);
+      const {x,z,heading:h}=v.pose;
+      v.visualSpeed=v.resetPose?v.pose.speed:smoothMotion(v.visualSpeed,v.pose.speed,mobility.presentation.speedResponse,frameDt);
+      v.walkPhase=(v.walkPhase+v.visualSpeed*frameDt*Math.PI*2/mobility.presentation.infantryStride)%(Math.PI*2);
       const distance=this.camera.position.distanceTo(this.bounds.center);
       if(v.far){const unitLimit=e.squadMaxMembers?(quality==="high"?90:quality==="medium"?70:50):lodDistance;const limit=unitLimit*(v.far.visible?.85:1.1);const detailed=(quality!=="low"&&selected.size<=12&&selected.has(e.id))||distance<limit;v.near.visible=detailed;v.far.visible=!detailed;}
       const ground=heightAt(x,z);
       const flying=e.def.armor==="air"&&e.airState!=="grounded"&&e.airState!=="rearming"&&e.airState!=="taxi";
-      v.group.position.set(x,flying||e.garrisonId?e.y:ground,z);
+      v.group.position.set(x,flying||e.def.domain==="sea"?v.pose.y:e.garrisonId?e.y:ground,z);
       const shadow=v.shadow;
       if(shadow)shadow.position.y=ground-v.group.position.y+.045;
-      if(v.members.length){const alive=Math.max(1,e.squadMembers??e.squadMaxMembers!),spread=1-Math.min(.45,(e.suppression??0)/220);
+      if(v.members.length){const alive=Math.max(1,e.squadMembers??e.squadMaxMembers!),spread=v.spread=smoothMotion(v.spread,1-Math.min(.45,(e.suppression??0)/220),mobility.presentation.squadSpreadResponse,frameDt);
         for(const o of v.members){o.visible=Number(o.name.slice("SquadMember".length))<Math.min(alive,e.garrisonId?2:alive);const origin=o.userData.squadPosition as THREE.Vector3;o.position.x=origin.x*spread*(e.garrisonId?.2:1);o.position.z=origin.z*spread*(e.garrisonId?.2:1);}
       }
       const buildingLevel = e.buildingLevel ?? (e.upgrades.has("producer-3") ? 3 : e.upgrades.has("producer-2") ? 2 : 1);
@@ -217,7 +224,7 @@ export class UnitRenderer {
       } else {
         v.group.scale.set(1, 1, 1);
       }
-      const animT = now + v.phase;
+      const animT = world.time-(1-alpha)/30 + v.phase;
       if(v.staticBuilding&&(e.underConstruction||e.upgrading)&&now-this.lastConstructionShadow>.2){this.shadowDirty=true;this.lastConstructionShadow=now;}
       const recoil = this.recoilById.get(e.id) ?? 0;
       v.recoil = Math.max(0, recoil - frameDt);
@@ -234,18 +241,17 @@ export class UnitRenderer {
         }
       }
       if (e.def.category === "infantry" || e.kind === "reconInf" || e.kind === "sniper") {
-        const moving = Math.hypot(e.x-e.px,e.z-e.pz)>.003;
-        for(const o of v.legs)o.rotation.x=moving?Math.sin(animT*10+(o.name==="RightLeg"?Math.PI:0))*.45:0;
-        const step = moving ? Math.abs(Math.sin(animT * 10)) * 0.045 : Math.sin(animT * 2) * 0.012;
-        v.group.position.y += step;
-        v.group.rotation.z = moving ? Math.sin(animT * 10) * 0.025 : 0;
+        const pace=Math.min(1,v.visualSpeed/Math.max(.1,e.def.speed));
+        for(const o of v.legs)o.rotation.x=Number(o.userData.restLegX)+Math.sin(v.walkPhase+Number(o.userData.walkPhase)+(o.name==="RightLeg"?Math.PI:0))*mobility.presentation.legSwing*pace;
+        v.group.position.y+=Math.abs(Math.sin(v.walkPhase))*.045*pace;
+        v.group.rotation.z=Math.sin(v.walkPhase)*.025*pace;
       }
-      if (e.kind === "tank" || e.kind === "artillery" || e.kind === "aa") {
-        const moving = e.mode === "move" || e.mode === "amove" || e.mode === "patrol";
-        v.group.position.y += moving ? Math.sin(animT * 14) * 0.025 : Math.sin(animT * 2) * 0.008;
+      if(e.def.domain==="land"&&e.def.speed>0&&e.def.category!=="infantry"){
+        const pace=Math.min(1,v.visualSpeed/Math.max(.1,e.def.speed));
+        v.group.position.y+=Math.sin(animT*14)*mobility.presentation.vehicleBounce*pace;
       }
       for(const gun of v.guns){gun.position.z=Number(gun.userData.restZ)-Math.sin(v.recoil*Math.PI)*.24;gun.rotation.x=Number(gun.userData.restX)-(e.gunElevation??0);}
-      for(const gear of v.gears)gear.visible=e.y-ground<12;
+      for(const gear of v.gears)gear.visible=v.pose.y-ground<12;
 
       // Construction progress bar – always strip when finished (search all children)
       if (e.underConstruction) {
@@ -272,7 +278,7 @@ export class UnitRenderer {
       // Status icons (player units only): out of supply / routing / low ammo
       if (e.team === world.playerTeam && e.def.speed > 0) {
         const icons: { name: string; color: number; on: boolean }[] = [
-          { name: "StOutSupply", color: 0xe05030, on: (((e.maxAmmo??0)>0 && (e.ammo??0)<(e.maxAmmo??1)*.35) || ((e.maxFuel??0)>0 && (e.fuel??0)<(e.maxFuel??1)*.35) || (e.supply??100)<20) && !world.isInSupply(e) },
+          { name: "StOutSupply", color: 0xe05030, on: (((e.maxAmmo??0)>0 && (e.ammo??0)<(e.maxAmmo??1)*.35) || ((e.maxFuel??0)>0 && (e.fuel??0)<(e.maxFuel??1)*.35) || (e.supply??100)<20) && !isTacticallySupplied(world,e,supplyNodes??=tacticalSupplyNodes(world,world.playerTeam)) },
           { name: "StRouting", color: 0xffcc33, on: (e.morale ?? 100) < 22 || (e.suppression ?? 0) > 80 },
           { name: "StNoAmmo", color: 0xaaaaaa, on: (e.maxAmmo ?? 0) > 0 && (e.ammo ?? 0) <= 0 },
         ];
@@ -304,18 +310,24 @@ export class UnitRenderer {
         // Heading first, then bounded local suspension tilt. Raw terrain seams
         // must not flip a vehicle onto its side.
         const tilt = (angle: number) => Math.max(-0.35,Math.min(0.35,angle));
-        v.group.rotation.set(tilt(-Math.atan2(hf - hb, 2 * f)), h, tilt(Math.atan2(hr - hl, 3)), "YXZ");
-      } else if(e.def.armor === "air")v.group.rotation.set(e.flightPitch??0,h,e.flightBank??0,"YXZ");
+        v.tiltPitch=v.resetPose?tilt(-Math.atan2(hf-hb,2*f)):smoothMotion(v.tiltPitch,tilt(-Math.atan2(hf-hb,2*f)),mobility.presentation.tiltResponse,frameDt);
+        v.tiltRoll=v.resetPose?tilt(Math.atan2(hr-hl,3)):smoothMotion(v.tiltRoll,tilt(Math.atan2(hr-hl,3)),mobility.presentation.tiltResponse,frameDt);
+        v.group.rotation.set(v.tiltPitch,h,v.tiltRoll,"YXZ");
+      } else if(e.def.domain==="sea")v.group.rotation.set(Math.sin(animT*.8)*.015,h,Math.sin(animT*.6)*.025,"YXZ");
+      else if(e.def.armor === "air")v.group.rotation.set(v.pose.pitch,h,v.pose.bank,"YXZ");
       else if(e.def.speed>0&&e.def.category!=="infantry"){
         const sa=Math.sin(h),ca=Math.cos(h),length=2;
         const pitch=-Math.atan2(heightAt(x+sa*length,z+ca*length)-heightAt(x-sa*length,z-ca*length),length*2);
         const roll=Math.atan2(heightAt(x+ca,z-sa)-heightAt(x-ca,z+sa),2);
-        v.group.rotation.set(Math.max(-.3,Math.min(.3,pitch)),h,Math.max(-.3,Math.min(.3,roll)),"YXZ");
+        v.tiltPitch=v.resetPose?Math.max(-.3,Math.min(.3,pitch)):smoothMotion(v.tiltPitch,Math.max(-.3,Math.min(.3,pitch)),mobility.presentation.tiltResponse,frameDt);
+        v.tiltRoll=v.resetPose?Math.max(-.3,Math.min(.3,roll)):smoothMotion(v.tiltRoll,Math.max(-.3,Math.min(.3,roll)),mobility.presentation.tiltResponse,frameDt);
+        v.group.rotation.set(v.tiltPitch,h,v.tiltRoll,"YXZ");
       } else v.group.rotation.y = h;
       if(shadow&&e.def.armor==="air"){
         const inverse=this.inverse.copy(v.group.quaternion).invert();shadow.position.set(0,ground-v.group.position.y+.045,0).applyQuaternion(inverse);shadow.quaternion.copy(inverse);
       }
       for(const turret of v.turrets)turret.rotation.y=lerpAngle(e.pTurretYaw,e.turretYaw,alpha);
+      v.resetPose=false;
       v.ring.visible = selected.has(e.id);
       if (v.tactical) v.tactical.visible = selected.has(e.id);
     }

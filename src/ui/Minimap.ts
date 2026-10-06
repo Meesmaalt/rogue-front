@@ -1,3 +1,4 @@
+import {isTacticallySupplied,tacticalSupplyNodes} from "../sim/systems/tacticalSupply";
 import type { World } from "../sim/World";
 import type { Picker } from "../input/Picker";
 import type { Entity } from "../sim/types";
@@ -41,11 +42,13 @@ function unitSize(u: Entity): number {
 
 /** Minikaart: rollivärvid, intel, kaamera. */
 export class Minimap {
+  private readonly features:World["mapFeatures"];
   enabled = false;
   onJump: (x: number, z: number) => void = () => {};
-  onOrder: (x: number, z: number) => void = () => {};
+  onOrder: (x: number, z: number, append: boolean) => void = () => {};
   private ctx: CanvasRenderingContext2D;
   private base: HTMLCanvasElement;
+  private bridgeSignature="";
   private dragging = false;
   private frame = 0;
   private elapsed=.1;
@@ -54,13 +57,16 @@ export class Minimap {
   private fogFrame = -10;
 
   constructor(private readonly canvas: HTMLCanvasElement, private readonly world: World, private readonly picker: Picker) {
+    const layer=(f:World["mapFeatures"][number])=>f.appearance==="field"?0:f.appearance==="forest"?1:f.appearance==="yard"?2:f.kind==="road"?3:f.kind==="water"?4:f.kind==="bridge"?5:6;
+    this.features=[...world.mapFeatures].sort((a,b)=>layer(a)-layer(b));
     this.ctx = canvas.getContext("2d")!;
     this.base = this.makeBase();
+    this.bridgeSignature=this.bridgeState();
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
     canvas.addEventListener("mousedown", (e) => {
       if (!this.enabled) return;
       const [x, z] = this.pos(e);
-      if (e.button === 2) this.onOrder(x, z);
+      if (e.button === 2) this.onOrder(x, z, e.shiftKey);
       else { this.dragging = true; this.onJump(x, z); }
     });
     addEventListener("mousemove", (e) => { if (this.dragging) { const [x, z] = this.pos(e); this.onJump(x, z); } });
@@ -71,17 +77,10 @@ export class Minimap {
     this.elapsed+=frameDt;if(this.elapsed<.1)return;this.elapsed=0;
     const c = this.ctx;
     this.frame++;
+    const bridgeState=this.bridgeState();
+    if(bridgeState!==this.bridgeSignature){this.base=this.makeBase();this.bridgeSignature=bridgeState;}
     c.drawImage(this.base, 0, 0);
 
-    for (const f of this.world.mapFeatures) {
-      const [mx, my] = this.w2m(f.x, f.z);
-      c.save(); c.translate(mx, my); c.rotate(-(f.rotation ?? 0));
-      c.fillStyle = f.appearance === "forest" ? "#304a2b" : f.appearance === "field" ? "#8b935e" : f.kind === "water" ? "rgba(55,105,125,.72)" : f.kind === "road" || f.kind === "bridge" ? "rgba(210,190,150,.48)" : featureBlocksMovement(f) ? "rgba(45,48,50,.78)" : "rgba(180,170,140,.35)";
-      if(f.kind==="bridge"&&(this.world.infrastructureDamage.get(f.id)??0)>=1)c.fillStyle="#524839";
-      if(f.shape==="ellipse"){c.beginPath();c.ellipse(0,0,f.width/MAP_SIZE*S/2,f.depth/MAP_SIZE*S/2,0,0,Math.PI*2);c.fill();}
-      else c.fillRect(-f.width / MAP_SIZE * S / 2, -f.depth / MAP_SIZE * S / 2, f.width / MAP_SIZE * S, f.depth / MAP_SIZE * S);
-      c.restore();
-    }
     for(const fire of this.world.terrain.fires()){
       if(!this.world.vision.isVisible(this.world.playerTeam,fire.x,fire.z))continue;
       const [x,z]=this.w2m(fire.x,fire.z);c.fillStyle=fire.burnt?"#63605a":"#ff9b36";c.beginPath();c.arc(x,z,2.5,0,Math.PI*2);c.fill();
@@ -144,6 +143,7 @@ export class Minimap {
       c.stroke();
     }
 
+    const supplyNodes=tacticalSupplyNodes(this.world,this.world.playerTeam);
     // Units – role colors; enemy only if spotted or vision
     for (const u of this.world.entities) {
       if (u.dead) continue;
@@ -176,7 +176,7 @@ export class Minimap {
         c.fill();
       }
       // Out of supply pulse for friendlies
-      if (u.team === this.world.playerTeam && u.def.speed > 0 && !this.world.isInSupply(u)) {
+      if (u.team === this.world.playerTeam && u.def.speed > 0 && !isTacticallySupplied(this.world,u,supplyNodes)) {
         c.strokeStyle = "rgba(240,80,60,.85)";
         c.lineWidth = 1;
         c.strokeRect(mx - s * 0.6, my - s * 0.6, s * 1.2, s * 1.2);
@@ -195,6 +195,22 @@ export class Minimap {
     c.stroke();
   }
 
+  /** Only collapse changes the static layer; partial damage is a dynamic world state. */
+  private bridgeState():string {
+    return this.features.filter(f=>f.kind==="bridge").map(f=>(this.world.infrastructureDamage.get(f.id)??0)>=1?"1":"0").join("");
+  }
+  private paintFeatures(c:CanvasRenderingContext2D):void {
+    for (const f of this.features) {
+      const [mx, my] = this.w2m(f.x, f.z);
+      c.save(); c.translate(mx, my); c.rotate(-(f.rotation ?? 0));
+      c.fillStyle = f.appearance === "forest" ? "#304a2b" : f.appearance === "field" ? "#8b935e" : f.kind === "water" ? "rgba(55,105,125,.72)" : f.kind === "road" || f.kind === "bridge" ? "rgba(210,190,150,.48)" : featureBlocksMovement(f) ? "rgba(45,48,50,.78)" : "rgba(180,170,140,.35)";
+      if(f.kind==="bridge"&&(this.world.infrastructureDamage.get(f.id)??0)>=1)c.fillStyle="#524839";
+      if(f.shape==="ellipse"){c.beginPath();c.ellipse(0,0,f.width/MAP_SIZE*S/2,f.depth/MAP_SIZE*S/2,0,0,Math.PI*2);c.fill();}
+      else c.fillRect(-f.width / MAP_SIZE * S / 2, -f.depth / MAP_SIZE * S / 2, f.width / MAP_SIZE * S, f.depth / MAP_SIZE * S);
+      c.restore();
+    }
+  }
+
   private w2m(x: number, z: number): [number, number] {
     return [((x + MAP_SIZE / 2) / MAP_SIZE) * S, ((z + MAP_SIZE / 2) / MAP_SIZE) * S];
   }
@@ -207,14 +223,14 @@ export class Minimap {
   private makeBase(): HTMLCanvasElement {
     const cv = document.createElement("canvas");
     cv.width = cv.height = S;
-    const g = cv.getContext("2d")!, im = g.createImageData(S, S);
+    const g = cv.getContext("2d")!, im = g.createImageData(S, S),green=this.features.some(f=>f.appearance==="field");
     for (let py = 0; py < S; py++) for (let px = 0; px < S; px++) {
       const x = (px / S) * MAP_SIZE - MAP_SIZE / 2, z = (py / S) * MAP_SIZE - MAP_SIZE / 2, h = heightAt(x, z);
       const k = Math.max(0.55, Math.min(1.3, 0.85 + h * 0.012 + (h - heightAt(x + 4, z + 4)) * 0.05)), i = (py * S + px) * 4;
-      const green=this.world.mapFeatures.some(f=>f.appearance==="field");
       im.data[i] = Math.min(255, (green?103:150) * k); im.data[i + 1] = Math.min(255, (green?128:133) * k); im.data[i + 2] = Math.min(255, (green?77:92) * k); im.data[i + 3] = 255;
     }
     g.putImageData(im, 0, 0);
+    this.paintFeatures(g);
     return cv;
   }
 }

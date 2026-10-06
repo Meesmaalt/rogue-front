@@ -5,7 +5,9 @@ import type { Projectile, Command, SimEvent } from "./types";
 import { UNITS } from "./units";
 
 export interface WorldSave {
-  version: 19 | 18 | 17 | 16 | 15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1;
+  version: 20 | 19 | 18 | 17 | 16 | 15 | 14 | 13 | 12 | 11 | 10 | 9 | 8 | 7 | 6 | 5 | 4 | 3 | 2 | 1;
+  mapSignature?:string;
+  ruleset?:string;
   runtime?: ReturnType<World["captureRuntime"]>;
   fullEntities?: Array<Omit<Entity,"target"|"upgrades"|"flowField"> & { targetId:number|null; upgrades:string[]; flowTarget:Point|null; flowCosts:Array<number|null>|null }>;
   projectiles?: Array<Omit<Projectile,"target"> & {targetId:number|null}>;
@@ -49,7 +51,7 @@ export interface WorldSave {
 
 export function saveWorld(world: World): WorldSave {
   return {
-    version: 19,
+    version: 20, mapSignature:saveMapSignature(world), ruleset:SAVE_RULESET,
     runtime: structuredClone(world.captureRuntime()),
     fullEntities: [...world.entities, ...world.hq.filter((h): h is Entity => !!h && !world.byId.has(h.id))].map(e=>{
       const {target,upgrades,flowField,...rest}=e;
@@ -77,8 +79,29 @@ export function saveWorld(world: World): WorldSave {
   };
 }
 
-export function loadWorld(world: World, state: WorldSave): void {
-  if (state.version === 19 && state.fullEntities && state.runtime) {
+export const SAVE_RULESET="2026-10-06.integrated-session";
+/** Geometry compatibility excludes changing resource stocks/control. */
+export function saveMapSignature(world:World):string {
+  const text=JSON.stringify([world.mapSize,world.bases,world.mapFeatures,world.resourcePoints.map(r=>[r.x,r.z,r.radius,r.facility])]);
+  let h=2166136261;for(let i=0;i<text.length;i++)h=Math.imul(h^text.charCodeAt(i),16777619);return (h>>>0).toString(16);
+}
+export function loadWorld(world:World,state:WorldSave):void {
+  if(!state||typeof state!=="object"||!Number.isInteger(state.version)||state.version<1||state.version>20)throw new Error("Tundmatu või vigane salvestuse versioon");
+  if(state.version===20&&(state.mapSignature!==saveMapSignature(world)||state.ruleset!==SAVE_RULESET))throw new Error("Salvestus kuulub teisele kaardiversioonile või mängureeglitele");
+  if(![state.time,state.credits,state.resources,state.rngState].every(Number.isFinite)||!["running","won","lost"].includes(state.status)||state.time<0||!Number.isFinite(state.rngState)||!Number.isInteger(state.nextId)||!Array.isArray(state.entities)||!Array.isArray(state.resourcePoints))throw new Error("Salvestuse põhiandmed on vigased");
+  for(const key of ["teamCredits","teamResources","teamPower","teamPowerUse","teamMorale","areaControl"] as const)if(state[key]&&(!Array.isArray(state[key])||state[key]!.length!==2||!state[key]!.every(Number.isFinite)))throw new Error("Salvestuse majandusandmed on vigased");
+  if(state.runtime?.mapSize!=null&&state.runtime.mapSize!==world.mapSize)throw new Error("Salvestuse kaardi suurus ei vasta avatud kaardile");
+  if(state.version>=19){
+    if(!state.runtime||!Array.isArray(state.fullEntities))throw new Error("Salvestuse simulatsiooniseisund puudub");
+    const ids=new Set<number>();
+    for(const e of state.fullEntities){if(!e||!Number.isInteger(e.id)||ids.has(e.id)||!UNITS[e.kind]||!e.def||![e.x,e.y,e.z,e.hp,e.heading].every(Number.isFinite)||!Array.isArray(e.upgrades)||!Array.isArray(e.navPath)||!Array.isArray(e.productionQueue))throw new Error("Salvestuse üksuseandmed on vigased");ids.add(e.id);}
+  }
+  if(state.projectiles&&!state.projectiles.every(p=>p&&[p.x,p.y,p.z,p.vx,p.vy,p.vz,p.speed].every(Number.isFinite)))throw new Error("Salvestuse mürsuandmed on vigased");
+  const previous=saveWorld(world);
+  try{restoreWorld(world,state);}catch(error){restoreWorld(world,previous);throw new Error("Salvestuse taastamine ebaõnnestus; eelmine lahing säilitati",{cause:error});}
+}
+function restoreWorld(world: World, state: WorldSave): void {
+  if ((state.version === 19||state.version===20) && state.fullEntities && state.runtime) {
     world.entities.length=0; world.byId.clear(); world.projectiles.length=0;
     for (const saved of state.fullEntities) {
       const {targetId: _targetId,flowTarget: _flowTarget,flowCosts: _flowCosts,upgrades,...rest}=saved;

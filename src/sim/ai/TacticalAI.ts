@@ -1,9 +1,10 @@
 import {weaponSpec,weaponRange,canEngage} from '../systems/combat';
 import {aaThreatAt} from '../systems/airDoctrine';
+import {findPath} from '../nav/Pathfinder';
 import {supplyRadiusFor} from '../systems/tacticalSupply';
 import {isGarrisonBuilding,garrisonCapacity,garrisonOccupants} from '../garrison';
 import {maxHitPoints} from '../unitStats';
-import {knownContacts,visibleEnemies,fieldCombat,needsRecovery,recoveryComplete,AI_RULES} from './knowledge';
+import {knownContacts,visibleEnemies,fieldCombat,needsRecovery,recoveryComplete,ammunitionFraction,componentDamage,AI_RULES} from './knowledge';
 import type {World} from '../World';
 import type {Entity,Team} from '../types';
 
@@ -12,7 +13,8 @@ export function updateTacticalAI(w:World,team:Team,dt:number):void {
  if(dt<=0)return;
  const own=w.entities.filter(e=>!e.dead&&e.team===team&&e.loadedIntoId==null),enemies=visibleEnemies(w,team),contacts=knownContacts(w,team);
  const nodes=own.filter(e=>!e.underConstruction&&(e.disabledUntil??0)<=w.time&&['hq','supply'].includes(e.kind));
- for(const u of own.filter(fieldCombat)){
+ const repairClaims=new Set(own.filter(e=>e.kind==='engineer'&&e.mode==='repair'&&e.target&&!e.target.dead).map(e=>e.id));
+ for(const u of own.filter(e=>e.def.domain!=="sea"&&fieldCombat(e))){
   if(w.time<(u.aiDecisionAt??0))continue;u.aiDecisionAt=w.time+AI_RULES.decisionInterval;
   if(['returning','rearming','taxi','landing'].includes(u.airState??''))continue;
   if(u.def.armor==='air'){
@@ -21,7 +23,7 @@ export function updateTacticalAI(w:World,team:Team,dt:number):void {
    continue;
   }
   if(u.aiIntent==='resupply'||u.aiIntent==='retreat'){
-   if(recoveryComplete(u)){u.aiIntent=null;w.issue({type:'hold',ids:[u.id],team});}else recover(u);
+   if(recoveryComplete(u)){for(const e of own)if(e.kind==='engineer'&&e.mode==='repair'&&e.target===u)w.issue({type:'stop',ids:[e.id],team});u.aiIntent=null;w.issue({type:'hold',ids:[u.id],team});}else recover(u);
    continue;
   }
   const hostile=enemies.filter(e=>canEngage(e,u)&&Math.hypot(e.x-u.x,e.z-u.z)<AI_RULES.localThreatRadius);
@@ -43,10 +45,23 @@ export function updateTacticalAI(w:World,team:Team,dt:number):void {
   }
  }
  function recover(u:Entity):void {
-  const needAmmo=(u.maxAmmo??0)>0,needFuel=(u.maxFuel??0)>0,needRepair=u.hp<maxHitPoints(u)*AI_RULES.readyHealth;
-  const d=nodes.filter(n=>(!needAmmo||(n.ammoStock??0)>0)&&(!needFuel||(n.fuelStock??0)>0)&&(!needRepair||(n.repairStock??0)>0)).sort((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z))[0];
-  if(!d){w.issue({type:'hold',ids:[u.id],team});return;}
-  if(Math.hypot(d.x-u.x,d.z-u.z)>supplyRadiusFor(d,w)*.75){const a=Math.atan2(u.x-d.x,u.z-d.z),r=d.def.radius+u.def.radius+6;w.issue({type:'move',ids:[u.id],x:d.x+Math.sin(a)*r,z:d.z+Math.cos(a)*r,team});}
-  else {w.issue({type:'hold',ids:[u.id],team});if(needRepair){const engineers=own.filter(e=>e.kind==='engineer'&&!e.garrisonId&&e.mode!=='build'&&Math.hypot(e.x-u.x,e.z-u.z)<supplyRadiusFor(d,w));if(engineers.length)w.issue({type:'repair',ids:[engineers[0].id],targetId:u.id,team});}}
+  const needAmmo=ammunitionFraction(u)<.5,needFuel=(u.maxFuel??0)>0&&(u.fuel??0)<(u.maxFuel??0)*.5;
+  const needRepair=u.hp<maxHitPoints(u)*AI_RULES.readyHealth||componentDamage(u)>AI_RULES.readyComponentDamage,needSupply=(u.supply??100)<AI_RULES.recoveredSupply;
+  const ranked=nodes.map(n=>({node:n,score:Math.hypot(n.x-u.x,n.z-u.z)+((needAmmo&&(n.ammoStock??0)<=0||needFuel&&(n.fuelStock??0)<=0||needRepair&&(n.repairStock??0)<=0||needSupply&&(n.ammoStock??0)+(n.fuelStock??0)<=0)?1000:0)+enemies.filter(e=>e.def.damage>0&&Math.hypot(e.x-n.x,e.z-n.z)<AI_RULES.localThreatRadius).length*AI_RULES.defenseRadius})).sort((a,b)=>a.score-b.score||a.node.id-b.node.id);
+  let depot:Entity|undefined,point:{x:number;z:number}|undefined;
+  for(const {node:n} of ranked.slice(0,AI_RULES.recoveryPathCandidates)){
+   if(Math.hypot(n.x-u.x,n.z-u.z)<=supplyRadiusFor(n,w)*.75){depot=n;break;}
+   const a=Math.atan2(u.x-n.x,u.z-n.z),r=n.def.radius+u.def.radius+AI_RULES.servicePadding;
+   for(const offset of [(u.id%5-2)*.25,.7,-.7,1.4,-1.4,Math.PI]){const p={x:n.x+Math.sin(a+offset)*r,z:n.z+Math.cos(a+offset)*r};if(w.nav.isWalkableWorld(p.x,p.z,u.def.radius)&&findPath(w.nav,u,p,u.def.radius).length){depot=n;point=p;break;}}
+   if(depot)break;
+  }
+  if(!depot){if(u.mode!=='hold')w.issue({type:'hold',ids:[u.id],team});return;}
+  if(point){if(u.mode!=='move'||!u.dest||Math.hypot(u.dest.x-point.x,u.dest.z-point.z)>3)w.issue({type:'move',ids:[u.id],x:point.x,z:point.z,team});return;}
+  if(u.mode!=='hold')w.issue({type:'hold',ids:[u.id],team});
+  if(needRepair&&(depot.repairStock??0)>0){
+   if(own.some(e=>e.kind==='engineer'&&e.mode==='repair'&&e.target===u))return;
+   const engineer=own.filter(e=>e.kind==='engineer'&&!e.garrisonId&&!repairClaims.has(e.id)&&['idle','hold','move'].includes(e.mode)&&Math.hypot(e.x-u.x,e.z-u.z)<AI_RULES.repairDispatchRadius&&!(e.dest&&w.resourcePoints.some(r=>!r.active&&Math.hypot(r.x-e.dest!.x,r.z-e.dest!.z)<r.radius))).sort((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z)||a.id-b.id)[0];
+   if(engineer){repairClaims.add(engineer.id);w.issue({type:'repair',ids:[engineer.id],targetId:u.id,team});}
+  }
  }
 }

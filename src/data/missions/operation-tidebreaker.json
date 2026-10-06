@@ -1,48 +1,446 @@
 {
   "id": "operation-tidebreaker",
   "name": "Operatsioon Murdlaine",
-  "briefing": "Võta ranniku varustuspunkt, lõika vastase logistika läbi, murra dessandiga tema kaitseliin ja hävita lõpuks peakorter.",
+  "briefing": "Juhi mereväge: laevakahurid, laevatõrjeraketid, VLS tiibraketid ja õhutõrje. Luura rannikut jalaväega; sadam täidab ja parandab laevu ühendatud lao päris varudest. Valluta terminal, hävita vastase fregatt ja rannaku õhutõrje, seejärel peakorter. Laev ei liigu üle maa.",
   "map": {
-    "id": "desert",
-    "name": "Rannikukoridor",
-    "theme": "desert",
-    "heightmap": "/maps/desert.png",
-    "maxHeight": 55,
+    "id": "murdlaine-coast",
+    "name": "Murdlaine · rannikusadamad",
+    "theme": "temperate",
+    "maxHeight": 8,
     "bases": [
-      {"x": -130, "z": 130, "r": 34},
-      {"x": 130, "z": -130, "r": 34}
+      {
+        "x": 40,
+        "z": 310,
+        "r": 45
+      },
+      {
+        "x": 40,
+        "z": -310,
+        "r": 45
+      }
     ],
     "resources": [
-      {"x": -55, "z": 55, "amount": 1400, "radius": 13},
-      {"x": 5, "z": 5, "amount": 1400, "radius": 13},
-      {"x": 70, "z": -65, "amount": 1400, "radius": 13}
+      {
+        "x": -40,
+        "z": 270,
+        "amount": 5000,
+        "radius": 18,
+        "facility": "factory",
+        "label": "Sadama varustus"
+      },
+      {
+        "x": -40,
+        "z": -270,
+        "amount": 5000,
+        "radius": 18,
+        "facility": "factory",
+        "label": "Sadama varustus"
+      },
+      {
+        "x": -40,
+        "z": 0,
+        "amount": 5000,
+        "radius": 18,
+        "facility": "oilfield",
+        "label": "Rannikuterminal"
+      }
     ],
     "objects": [
-      {"kind":"hq","team":0,"x":-130,"z":130},
-      {"kind":"engineer","team":0,"x":-112,"z":112},
-      {"kind":"inf","team":0,"x":-105,"z":105,"count":5,"dx":4,"dz":0},
-      {"kind":"tank","team":0,"x":-96,"z":115,"count":2,"dx":5,"dz":0},
-      {"kind":"hq","team":1,"x":130,"z":-130},
-      {"kind":"engineer","team":1,"x":112,"z":-112,"count":2,"dx":4,"dz":0},
-      {"kind":"barracks","team":1,"x":112,"z":-126},
-      {"kind":"generator","team":1,"x":124,"z":-112},
-      {"kind":"factory","team":1,"x":108,"z":-100},
-      {"kind":"supply","team":1,"x":78,"z":-78},
-      {"kind":"tank","team":1,"x":100,"z":-105,"count":3,"dx":5,"dz":0},
-      {"kind":"inf","team":1,"x":92,"z":-95,"count":7,"dx":4,"dz":0}
+      {
+        "kind": "hq",
+        "team": 0,
+        "x": 40,
+        "z": 310
+      },
+      {
+        "kind": "engineer",
+        "team": 0,
+        "x": 55,
+        "z": 322
+      },
+      {
+        "kind": "generator",
+        "team": 0,
+        "x": 65,
+        "z": 345
+      },
+      {
+        "kind": "supply",
+        "team": 0,
+        "x": -30,
+        "z": 310
+      },
+      {
+        "kind": "seaCommand",
+        "team": 0,
+        "x": -45,
+        "z": 285
+      },
+      {
+        "kind": "seaStrategy",
+        "team": 0,
+        "x": -5,
+        "z": 285
+      },
+      {
+        "kind": "shipyard",
+        "team": 0,
+        "x": -78,
+        "z": 310
+      },
+      {
+        "kind": "landCommand",
+        "team": 0,
+        "x": 65,
+        "z": 282
+      },
+      {
+        "kind": "barracks",
+        "team": 0,
+        "x": 95,
+        "z": 310
+      },
+      {
+        "kind": "radar",
+        "team": 0,
+        "x": -35,
+        "z": 350
+      },
+      {
+        "kind": "reconInf",
+        "team": 0,
+        "x": -60,
+        "z": 265
+      },
+      {
+        "kind": "inf",
+        "team": 0,
+        "x": -45,
+        "z": 250
+      },
+      {
+        "kind": "frigate",
+        "team": 0,
+        "x": -180,
+        "z": 310
+      },
+      {
+        "kind": "missileBoat",
+        "team": 0,
+        "x": -160,
+        "z": 275
+      },
+      {
+        "kind": "destroyer",
+        "team": 0,
+        "x": -220,
+        "z": 355
+      },
+      {
+        "kind": "hq",
+        "team": 1,
+        "x": 40,
+        "z": -310
+      },
+      {
+        "kind": "engineer",
+        "team": 1,
+        "x": 55,
+        "z": -298
+      },
+      {
+        "kind": "generator",
+        "team": 1,
+        "x": 65,
+        "z": -275
+      },
+      {
+        "kind": "supply",
+        "team": 1,
+        "x": -30,
+        "z": -310
+      },
+      {
+        "kind": "seaCommand",
+        "team": 1,
+        "x": -45,
+        "z": -335
+      },
+      {
+        "kind": "seaStrategy",
+        "team": 1,
+        "x": -5,
+        "z": -335
+      },
+      {
+        "kind": "shipyard",
+        "team": 1,
+        "x": -78,
+        "z": -310
+      },
+      {
+        "kind": "landCommand",
+        "team": 1,
+        "x": 65,
+        "z": -338
+      },
+      {
+        "kind": "barracks",
+        "team": 1,
+        "x": 95,
+        "z": -310
+      },
+      {
+        "kind": "radar",
+        "team": 1,
+        "x": -35,
+        "z": -270
+      },
+      {
+        "kind": "reconInf",
+        "team": 1,
+        "x": -60,
+        "z": -355
+      },
+      {
+        "kind": "inf",
+        "team": 1,
+        "x": -45,
+        "z": -370
+      },
+      {
+        "kind": "frigate",
+        "team": 1,
+        "x": -180,
+        "z": -310
+      },
+      {
+        "kind": "missileBoat",
+        "team": 1,
+        "x": -160,
+        "z": -345
+      },
+      {
+        "kind": "aa",
+        "team": 1,
+        "x": -50,
+        "z": -235
+      }
+    ],
+    "size": 1024,
+    "terrainProfile": "farmland",
+    "features": [
+      {
+        "id": "coastal-sea",
+        "kind": "water",
+        "x": -310,
+        "z": 0,
+        "width": 420,
+        "depth": 1024,
+        "surfaceHeight": 0,
+        "label": "Murdlaine meri"
+      },
+      {
+        "id": "coast-road",
+        "kind": "road",
+        "x": -50,
+        "z": 0,
+        "width": 8,
+        "depth": 820,
+        "roadClass": "secondary"
+      },
+      {
+        "id": "port-road--310",
+        "kind": "road",
+        "x": 25,
+        "z": -310,
+        "width": 8,
+        "depth": 200,
+        "rotation": 1.5707963267948966,
+        "roadClass": "street"
+      },
+      {
+        "id": "port-road-310",
+        "kind": "road",
+        "x": 25,
+        "z": 310,
+        "width": 8,
+        "depth": 200,
+        "rotation": 1.5707963267948966,
+        "roadClass": "street"
+      },
+      {
+        "id": "coast-forest-0",
+        "kind": "cover",
+        "appearance": "forest",
+        "shape": "ellipse",
+        "x": 170,
+        "z": 110,
+        "width": 100,
+        "depth": 150,
+        "height": 8,
+        "density": 0.8,
+        "blocksMovement": false
+      },
+      {
+        "id": "coast-forest-1",
+        "kind": "cover",
+        "appearance": "forest",
+        "shape": "ellipse",
+        "x": 280,
+        "z": -170,
+        "width": 100,
+        "depth": 150,
+        "height": 8,
+        "density": 0.8,
+        "blocksMovement": false
+      },
+      {
+        "id": "coast-forest-2",
+        "kind": "cover",
+        "appearance": "forest",
+        "shape": "ellipse",
+        "x": 160,
+        "z": -80,
+        "width": 100,
+        "depth": 150,
+        "height": 8,
+        "density": 0.8,
+        "blocksMovement": false
+      },
+      {
+        "id": "coast-forest-3",
+        "kind": "cover",
+        "appearance": "forest",
+        "shape": "ellipse",
+        "x": 290,
+        "z": 230,
+        "width": 100,
+        "depth": 150,
+        "height": 8,
+        "density": 0.8,
+        "blocksMovement": false
+      },
+      {
+        "id": "coast-village-0",
+        "kind": "building",
+        "appearance": "farmhouse",
+        "x": 10,
+        "z": -75,
+        "width": 7,
+        "depth": 8,
+        "height": 4,
+        "garrisonCapacity": 1,
+        "label": "Rannaküla"
+      },
+      {
+        "id": "coast-village-1",
+        "kind": "building",
+        "appearance": "farmhouse",
+        "x": 30,
+        "z": -45,
+        "width": 7,
+        "depth": 8,
+        "height": 4,
+        "garrisonCapacity": 1,
+        "label": "Rannaküla"
+      },
+      {
+        "id": "coast-village-2",
+        "kind": "building",
+        "appearance": "farmhouse",
+        "x": 10,
+        "z": 45,
+        "width": 7,
+        "depth": 8,
+        "height": 4,
+        "garrisonCapacity": 1,
+        "label": "Rannaküla"
+      },
+      {
+        "id": "coast-village-3",
+        "kind": "building",
+        "appearance": "farmhouse",
+        "x": 30,
+        "z": 75,
+        "width": 7,
+        "depth": 8,
+        "height": 4,
+        "garrisonCapacity": 1,
+        "label": "Rannaküla"
+      }
     ]
   },
   "seed": 44031,
   "objectives": [
-    {"id":"secure-depot","title":"Võta esimene varustuspunkt","description":"Kontrolli läänepoolset varustuspunkti.","kind":"capture","primary":true,"point":{"x":-55,"z":55},"radius":15},
-    {"id":"cut-logistics","title":"Lõika logistika läbi","description":"Saboteeri vastase varustusdepoo.","kind":"sabotage","primary":true,"target":{"team":1,"kind":"supply","count":1},"requires":["secure-depot"]},
-    {"id":"hold-corridor","title":"Hoia koridori","description":"Hoia keskne ala 35 sekundit.","kind":"defend","primary":true,"point":{"x":5,"z":5},"radius":18,"duration":35,"requires":["cut-logistics"]},
-    {"id":"destroy-hq","title":"Hävita vaenlase HQ","description":"Lõplik eesmärk: hävita vastase komandopunkt.","kind":"destroy","primary":true,"target":{"team":1,"kind":"hq","count":1},"requires":["hold-corridor"]}
+    {
+      "id": "terminal",
+      "title": "Hõiva rannikuterminal",
+      "description": "Valikuline: vii maavägi keskmise terminali juurde.",
+      "kind": "capture",
+      "primary": false,
+      "point": {
+        "x": -40,
+        "z": 0
+      },
+      "radius": 18
+    },
+    {
+      "id": "fleet",
+      "title": "Hävita vastase fregatt",
+      "description": "Kasuta laevatõrjerakette ja kaitse oma laevastikku.",
+      "kind": "destroy",
+      "primary": true,
+      "target": {
+        "team": 1,
+        "kind": "frigate",
+        "count": 1
+      }
+    },
+    {
+      "id": "shore-aa",
+      "title": "Hävita rannaku õhutõrje",
+      "description": "Luura rannikut ja kasuta hävitaja tiibrakette.",
+      "kind": "destroy",
+      "primary": true,
+      "target": {
+        "team": 1,
+        "kind": "aa",
+        "count": 1
+      }
+    },
+    {
+      "id": "destroy-hq",
+      "title": "Hävita vastase peakorter",
+      "description": "Murra ranniku kaitse ja hävita peakorter.",
+      "kind": "destroy",
+      "primary": true,
+      "target": {
+        "team": 1,
+        "kind": "hq",
+        "count": 1
+      },
+      "requires": [
+        "fleet",
+        "shore-aa"
+      ]
+    }
   ],
   "triggers": [
-    {"id":"counterattack-1","when":{"objective":"secure-depot"},"once":true,"message":"VAENLANE: esimene vasturünnak on teel."},
-    {"id":"counterattack-2","when":{"objective":"cut-logistics"},"once":true,"message":"VAENLANE: nad koondavad jõud kesksele koridorile.","spawn":{"kind":"tank","team":1,"x":85,"z":-85,"count":3,"spacing":5}},
-    {"id":"air-response","when":{"objective":"hold-corridor"},"once":true,"message":"VAENLANE: õhuvägi reageerib.","spawn":{"kind":"fighter","team":1,"x":112,"z":-112,"count":1}},
-    {"id":"final-wave","when":{"objective":"hold-corridor"},"once":true,"message":"VIIMANE FAAS: vaenlase baas on täielikus häires.","spawn":{"kind":"special","team":1,"x":100,"z":-105,"count":2,"spacing":4}}
+    {
+      "id": "naval-response",
+      "when": {
+        "objective": "fleet"
+      },
+      "once": true,
+      "message": "Vaenlane saadab sadamast uue rakettkaatri.",
+      "spawn": {
+        "kind": "missileBoat",
+        "team": 1,
+        "x": -190,
+        "z": -340,
+        "count": 1
+      }
+    }
   ]
 }

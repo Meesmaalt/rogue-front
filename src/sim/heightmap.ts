@@ -144,7 +144,12 @@ export function groundHeightAt(x:number,z:number):number {
   for(const {f,c,s} of hydrology){
     if(f.kind!=="bridge")continue;
     const dx=x-f.x,dz=z-f.z;
-    if(Math.abs(dx*c-dz*s)<f.width/2+14&&Math.abs(dx*s+dz*c)<f.depth/2+14)return computeRaw(x,z,false);
+    if(Math.abs(dx*c-dz*s)<f.width/2+14&&Math.abs(dx*s+dz*c)<f.depth/2+14){
+      const wet=hydrology.some(({f:water,c:wc,s:ws})=>{if(water.kind!=="water")return false;const wx=x-water.x,wz=z-water.z;return Math.abs(wx*wc-wz*ws)<=water.width/2&&Math.abs(wx*ws+wz*wc)<=water.depth/2;});
+      // Keep the wet channel below the deck; dry approaches follow the same
+      // flattened bank/ramp as units, so long decks cannot disappear in soil.
+      return wet?computeRaw(x,z,false):heightAt(x,z);
+    }
   }
   return heightAt(x,z);
 }

@@ -9,6 +9,7 @@ export class SpatialHash {
   private readonly half: number;
   private buckets: Entity[][] = [];
   private version = 0;
+  private readonly occupied:number[]=[];
 
   constructor(cellSize = 16) {
     this.cellSize = cellSize;
@@ -29,7 +30,8 @@ export class SpatialHash {
   }
 
   clear(): void {
-    for (let i = 0; i < this.buckets.length; i++) this.buckets[i].length = 0;
+    for (const index of this.occupied) this.buckets[index].length = 0;
+    this.occupied.length=0;
     this.version++;
   }
 
@@ -39,7 +41,9 @@ export class SpatialHash {
     for (const e of entities) {
       if (e.dead || e.loadedIntoId !== null) continue;
       const { ix, iz } = this.cellOf(e.x, e.z);
-      this.buckets[this.key(ix, iz)].push(e);
+      const index=this.key(ix,iz),bucket=this.buckets[index];
+      if(bucket.length===0)this.occupied.push(index);
+      bucket.push(e);
     }
   }
 

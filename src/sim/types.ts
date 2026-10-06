@@ -26,9 +26,10 @@ export type UnitCategory = "infantry" | "armor" | "recon" | "support" | "heli" |
 export type ProjectileFlight="direct"|"guided"|"ballistic";
 export type Guidance="none"|"command"|"infrared"|"radar";
 export interface WeaponSpec {
+  launch?:"vertical";boostTime?:number;cruiseAltitude?:number;
   stabilizer?:Stabilizer;fireOnMove?:boolean;muzzleSide?:number;
   profile:string;name:string;model?:string;weapon:"bullet"|"cannon"|"missile";visual:string;flight:ProjectileFlight;guidance:Guidance;
-  warhead:"kinetic"|"heat"|"he";targets:"ground"|"armor"|"air"|"all";
+  warhead:"kinetic"|"heat"|"he";targets:"ground"|"armor"|"air"|"all"|"naval";
   range:number;minimumRange:number;damage:number;cooldown:number;penetration:number;accuracy:number;splash:number;
   ammoCapacity:number;ammoUsePerShot:number;suppressionPower:number;
   speed:number;launchSpeed:number;acceleration:number;turnRate:number;gravity:number;minFlight:number;
@@ -96,6 +97,7 @@ export interface Entity {
   x: number; y: number; z: number; heading: number; turretYaw: number;
   /** eelmise ticki väärtused renderduse interpolatsiooniks */
   px: number; pz: number; pHeading: number; pTurretYaw: number;
+  py?: number; pFlightBank?: number; pFlightPitch?: number;
   hp: number; cooldown: number; mode: Mode; dest: Point | null; target: Entity | null;
   aggro: number; dead: boolean;
   navPath: Point[]; navPathIndex: number; flowField: FlowField | null; stuckTime: number; stuckX: number; stuckZ: number;
@@ -112,6 +114,7 @@ export interface Entity {
   roadTripGoal?: Point;
   roadPathGoal?: Point;
   roadPathRetryAt?: number;
+  avoidanceSide?:number;avoidanceUntil?:number;navWaiting?:boolean;
   components?: { engine: number; tracks: number; turret: number; weapon: number; crew: number; ammo: number };
  supply?: number; maxSupply?: number; role?: "line" | "support" | "siege" | "air-superiority" | "air-ground" | "logistics"; holdPosition: boolean; patrolPoints: Point[]; patrolIndex: number; upgrades: Set<string>; cargo: number; logisticsTarget: Point | null; logisticsHome: Point | null; logisticsPhase: "idle" | "loading" | "unloading"; productionQueue: UnitKind[]; productionProgress: number; rallyPoint: Point | null;
   constructionProgress: number;
@@ -142,6 +145,10 @@ export interface Entity {
   firingArc: number;
   firingRange: number;
   facingLocked: boolean;
+  combatWithdrawing?: boolean;
+  stationaryFireReadyAt?: number;
+  flightAttackExit?: Point;
+  flightAttackExitUntil?: number;
   fuel?: number; maxFuel?: number; ammo?: number; maxAmmo?: number;
   /** Phase 77 artillery battery state. */
   artilleryReadyAt?: number; artilleryLastFire?: number; artillerySignatureUntil?: number; artilleryShotsInSalvo?: number; artilleryDisplace?: Point | null; artilleryMissionRound?: number;
@@ -155,7 +162,7 @@ export interface Entity {
   aiIntent?: "attack" | "defend" | "recon" | "resupply" | "counterbattery" | "retreat" | null;
   gunElevation?:number;weaponCooldowns?:number[];secondaryAmmo?:number[];activeWeapon?:number;
   motionSpeed?: number; flightBank?: number; flightPitch?: number; flightOrbitCenter?: Point; airLandingPhase?: "approach"|"final";
-  airHomeSlot?:number;airTaxiPhase?:"apron"|"lining-up"|"runway";combatPosition?:Point;combatPositionTarget?:number;combatPositionAnchor?:Point;combatPositionRetryAt?:number;
+  airHomeSlot?:number;airTaxiPhase?:"apron"|"lining-up"|"runway";combatPosition?:Point;combatPositionTarget?:number;combatPositionAnchor?:Point;combatPositionRetryAt?:number;taskApproachIndex?:number;
   airState?: AirState; airMissionHomeId?: number | null; airSortieTime?: number; airMission?: AirMission; airMissionPoint?: Point | null; fireMission?: Point | null; lastCombatTime: number; morale?: number; disabledUntil?: number; builderIds: number[]; underConstruction: boolean; cargoUnitIds: number[]; loadedIntoId: number | null; transportTargetId: number | null; unloadPoint: Point | null; standingOrder?: "hold" | "patrol" | "attack" | "holdfire" | null; priorityFocus?: "supply" | "generator" | "aa" | null; preDeployOrder?: { mode: "move" | "attack" | "hold"; x?: number; z?: number } | null;
 }
 
@@ -168,7 +175,7 @@ export interface Projectile {
   penetration?: number;
   impactDamage?: number;
   age?: number; lifetime?: number; turnRate?: number; acceleration?: number; maxSpeed?: number;
-  aimY?: number; launchX?: number; launchZ?: number;
+  aimY?: number; launchX?: number; launchZ?: number;boostTime?:number;cruiseAltitude?:number;
   px?:number;py?:number;pz?:number;profile?:string;visual?:string;flight?:ProjectileFlight;guidance?:Guidance;guidanceLost?:boolean;
   warhead?:"kinetic"|"heat"|"he";gravity?:number;flightTime?:number;suppressionPower?:number;
   hitRoll?:number;missX?:number;missZ?:number;
@@ -183,6 +190,7 @@ export type Command = ({type:"face-building";ids:number[];x:number;z:number} | {
   { type: "research"; tech: "air" | "advanced-armor" } | { type: "produce"; kind: UnitKind; producerId?: number } | { type: "cancel-produce"; producerId: number } | { type: "load"; ids: number[]; targetId: number } | { type: "unload"; ids: number[]; x: number; z: number } | { type: "fire-mission"; ids: number[]; x: number; z: number } | { type: "standing"; ids: number[]; mode: "hold" | "patrol" | "attack" | "holdfire"; x?: number; z?: number } | { type: "predeploy"; ids: number[]; mode: "move" | "attack" | "hold"; x?: number; z?: number } | { type: "priority"; ids: number[]; focus: "supply" | "generator" | "aa" } | { type: "depot-priority"; ids: number[]; focus: "ammo" | "fuel" | "repair" | "balanced" } | { type: "logistics-source"; ids:number[]; sourceIndex:number|null; paused?:boolean } | { type: "logistics-route"; ids: number[]; x: number; z: number; append?: boolean; clear?: boolean } | {type:"air-return";ids:number[]} | { type: "air-mission"; ids: number[]; mission: "cap" | "strike" | "sead" | "ground"; x?: number; z?: number }) & { team?: Team };
 
 export type SimEvent =
+  | {type:"order-rejected";team:Team;unitId:number;x:number;z:number;message:string}
   | { type: "impact"; x: number; y: number; z: number; weapon: string;visual?:string;result?:"penetration"|"ricochet"|"ground"|"airburst"|"miss";size?:number }
   | { type: "fire"; team: Team; x: number; y: number; z: number; sourceId?: number; weapon?: string; caliber?: number;visual?:string;dx?:number;dy?:number;dz?:number;weaponIndex?:number }
   | { type: "hit"; x: number; y: number; z: number }
@@ -192,7 +200,7 @@ export type SimEvent =
   | { type: "supply-delivered"; team: Team; x: number; z: number; amount: number };
 
 
-export type MissionObjectiveKind = "destroy" | "defend" | "reach" | "survive" | "capture" | "sabotage" | "build" | "produce" | "deliver";
+export type MissionObjectiveKind = "destroy" | "defend" | "reach" | "survive" | "capture" | "sabotage" | "build" | "produce" | "deliver" | "upgrade" | "garrison" | "transport";
 export interface MissionObjectiveDef {
   id: string;
   title: string;
@@ -216,6 +224,9 @@ export interface MissionTriggerDef {
 }
 export type ResourceFacilityKind = "mine" | "oilfield" | "factory" | "depot";
 export interface MapResourceDef {
+  label?:string;
+  /** Authored facility position relative to its convoy pickup point. */
+  facilityOffset?:Point;
   x: number; z: number; amount: number; radius: number;
   controlledBy?: Team | null; controlProgress?: number;
   facility?: ResourceFacilityKind;
@@ -245,6 +256,7 @@ export interface MissionMapDef {
   features?: MapFeatureDef[];
 }
 export interface MissionDef {
+  mapRef?:"roheorg";
   id: string;
   name: string;
   briefing: string;

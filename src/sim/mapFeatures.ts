@@ -14,6 +14,7 @@ export interface MapFeatureDef {
   height?: number;
   /** Absolute water surface / bridge deck elevation, shared by sim and render. */
   surfaceHeight?:number;
+  roadClass?:"arterial"|"secondary"|"street"|"track";
   blocksMovement?: boolean;
   /** Optional tactical metadata used by UI/rendering. */
   label?: string;

@@ -1,6 +1,6 @@
 # Arhitektuur
 
-Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 11, 85 hoonet, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
+Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 12, 48 tsiviilhoonet + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
 
 ## Põhimõte
 Kolm kihti, sõltuvused ainult allapoole: **ui/input → sim ← render** (render ja ui *loevad* sim olekut, annavad käske, kuid sim ei tea neist midagi).
@@ -18,6 +18,8 @@ src/
 ```
 
 ## Simulatsioon
+
+Merevägi kasutab sama tootmise, käsu-, relva- ja varustussüsteemi; `World.waterNav` hoiab eraldi ainult veest tuletatud A* maski. Sadam kulutab ühendatud maa-lao füüsilisi varusid. Rannikumapi ja relvade ühendused: [NAVAL-WARFARE-RELEASE.md](NAVAL-WARFARE-RELEASE.md).
 - `World` hoiab entiteete (`id`, `type`, `team`, `x`, `z`, `hp`, komponendid: `Movement`, `Weapon`, `Producer`...).
 - Süsteemid töötavad kindlas järjekorras igal tickil: Commands → Production → Vision → Targeting → Movement(nav) → Combat → Projectiles → Cleanup → AI → Win/Lose.
 - Sim väljastab sündmusi (`unitDied`, `projectileFired`, `unitSpawned`...), mida renderdus kasutab efektide jaoks.
@@ -43,11 +45,13 @@ Ruudustik 2 m, blokeeritud ruudud = kaardi takistused + hooned + järsk kalle. M
 
 ## Integreeritud käitus
 
+Õpetuse `mapRef` lahendatakse samast Roheoru JSON-ist nagu skirmish: maastikuandmeid ei dubleerita missioonifaili. Roheoru õpetus kasutab `MissionController`-i olemasolevat ülesannete ahelat. Uuendus, pardale minek ja garnison kontrollivad päris entiteedi seisundit; HUD loeb aktiivse sammu ja annab vaid valiku/kaamera käsu. Hävitamis- ja sabotaažisihtmärgid seotakse algsete ID-dega ning säilivad snapshot'is. Üldauditi raport: [PROJECT-QUALITY-AUDIT.md](PROJECT-QUALITY-AUDIT.md).
+
 `OnlineShell` avab vaikimisi kohaliku mänguseadistuse. `main.ts` valib ühe algoleku (skirmish või kampaania), loob ühe `World`-i ja kinnitab sellele sobiva võidu- või missioonikontrolleri. Need töötavad `World.tick()` sees; HUD ei muuda skoori ega missiooni progressi.
 
 Ressursirajatis käivitatakse inseneriga. Füüsiline kogumistransport annab tarne saabudes `World.receiveSupply()` kaudu raha ning ammo/fuel/repair varud. Tootja vajab töötavat juhtimisharu, energiat ja kohalikku varustatud ladu. Eesliinilaole veetakse piiratud varud pealaost; edasisaatmine uut raha ei tekita. Marsruudikäsud määravad päris veoki teekonna vahepunktid.
 
-Formation on meeskonna `Command`, mitte mooduli globaalne UI-olek. v19 salvestus sisaldab entiteetide täisolekut, sihtviiteid, mürske, ootel käske, varusid, RNG-d, nägemisvõrku, AI ajastust, decki ja kontrollerite progressi. v2 replay alustab salvestatud algolekust; replay peab kasutama sama kaardi/kõrgusvälja seadistust. Laadimine taastab simulatsiooni ja tühjendab renderdusvaated.
+Formation on meeskonna `Command`, mitte mooduli globaalne UI-olek. v20 salvestus lisab kaardi geomeetria signatuuri, reeglistiku tunnuse ja taastamise vea korral rollback'i. Kohalik salvestusümbris kontrollib missiooni, kõrgusallikat, fraktsiooni ja režiimi. Salvestus sisaldab entiteetide täisolekut, sihtviiteid, mürske, ootel käske, varusid, RNG-d, nägemisvõrku, AI ajastust, decki ja kontrollerite progressi. v2 replay alustab salvestatud algolekust; replay peab kasutama sama kaardi/kõrgusvälja seadistust. Laadimine taastab simulatsiooni ja tühjendab renderdusvaated.
 
 Frondijoon on olukorrainfo. Operatiivne/taktikaline AI käsutab üksnes vastast ja on võrgumängus välja lülitatud. Decki kasutamisel tulevad üksused ainult tootmisjärjekorrast ning nende saadavust piiravad decki kaardid.
 
@@ -180,3 +184,23 @@ Air service töötab maas parkimispunktis rajatise/energia/juhtimise ja eraldi t
 `ai/knowledge.ts` ühendab nähtavate vastaste ja värskete jagatud mälukontaktide päringu. Peidetud live Entity ei kirjuta kontakti koordinaate üle. WaveAI logistika-/baasirünnakud, nähtavate ohtude kaitse ja õhuülesanded kasutavad seda teadmist; avalik algbaasi punkt ei anna Entity target-viidet. OperationalCommander kasutab avalikke sektoreid, oma kohalolekut ja kontakte, mitte OperationalMap-i peidetud vastase threat/control väärtusi. Conquesti korral on sektorivalik seotud ressursipunktidega.
 
 fieldCombat/availableCombat eristavad päris lahingujõudu logistika-, cargo-, garnisoni-, luure- ja taastumisülesannetest. TacticalAI käsud läbivad sama commands.ts valideerimise nagu mängija omad. Relvapesade moona ühine suhtarv väldib tühja põhirelva tõttu ekslikku taandumist. Taastumine valib vajalike stock'idega sõlme; remont kasutab inseneri käsuteed, õhk air-return käsuteed. aiDecisionAt vähendab käsu/marsruudi nullimist iga tick ning kuulub koos aiIntent-iga worldHash-i ja v19 täielikku Entity olekusse. JSON ai-tactics määrab kontakti vanuse, otsuse intervalli, reservi ja taastumise lävendid; uut AI kõrvalsimulatsiooni ei lisatud.
+
+## HUD ja minikaardi taaskasutus
+
+HUD eristab kaarti, üksuse valikut/käske ja tootmist/ehitust; kontekstnupud jäävad samade Command-käskude kaudu ühendatuks. Tootjate lühima järjekorra indeks arvutatakse iga HUD-uuenduse kohta ühe läbimisega, mitte ei püsi simulatsioonis. Minikaart hoiab staatilist kõrguse/feature canvas't, mille silla kokkuvarisemise või taastumise olek invalideerib. tacticalSupplyNodes vaadet taaskasutatakse vaid ühe joonistuse sees; varustuse otsuse teeb ühine isTacticallySupplied. Vt UI-PERFORMANCE-POLISH.md.
+
+## Kohalikud kattepäringud
+
+TerrainState hoiab staatiliste kattefeature'ite 32 m kandidaatindeksit. Sensors ja combat kontrollivad kandidaatide täpseid pööratud footprint'e seniste paddingutega; live metsakahju/garnison loetakse tavaliselt. SpatialHash taaskasutab bucket'e ja tühjendab ainult hõivatud lahtrid. Mõlemad indeksid on tuletatud, mitte save/hash olek. Konvoide ja renderduse varustusalamhulgad kehtivad vaid ühe funktsioonikutse jooksul. Vt PERFORMANCE-LOCAL-QUERIES.md.
+
+## Kitsaskohad ja taastumine
+
+NavGrid kasutab ringi ja blokeeritud ruudu kaugust, mitte üles ümardatud raadiuse ruududilatatsiooni. units.ts jagatud groundSidestep hoiab möödumiskülge; ummiku A* ümbersõit otsib lähedasi peatunud sõidukeid SpatialHash-ist ja on ajaliselt piiratud. Vältimisolek ja kinnijäämise loendurid kuuluvad save/hash-i. TacticalAI hindab tegelikult vajalikke laovarusid, läbitavat teeninduskohta ning reserveerib hõivatud remondiinsenerid. tacticalSupply.repairDepotFor ühendab AI/üksuse teenindamise füüsilise varu reegliga; katkestatud ühendus ei kustuta alles olevat laovaru. Andmepõhine componentDamage taastumislävend ühendab komponentkahju taandumisega. Vt MOVEMENT-RECOVERY-POLISH.md.
+
+## Laskekauguse hoidmine ja EVAC
+
+units.ts valib tehnika laskepositsioonid mobility.navigation.vehicleFiringFactors järgi ning kasutab combatWithdrawing hüstereesi. Torniga tehnikal pööratakse tagurdamiseks liikumisvektor, säilitades kere ja torni sihtimise. stationaryFireReadyAt piirab ainult fireOnMove=false relva päris lasku. Ründelennuki flightAttackExit/Until juhivad laskmisjärgset eemaldumist olemasolevas moveAirTo tsüklis; CAP jääb eraldi. air-return puhastab vana ülesande ja airDoctrine.requestAirReturn tühistab pooleli transpordi, säilitades cargoUnitIds. Baasi kauguse kütusehinnang ja komponendikahju kasutavad olemasolevat returning/landing/rearming tsüklit. Uued olekud kuuluvad v20 save ja replay hash-i. HUD ja klahv E väljastavad sama olemasoleva käsu. Vt FIRING-MANEUVER-EVAC.md.
+
+## Visuaalse liikumise näidis
+
+World.tick säilitab py/pFlightPitch/pFlightBank koos olemasoleva px/pz/pHeading/pTurretYaw-ga. render/MotionPresentation täidab caller-owned poosi ning filtreerib ainult kosmeetilisi amplituude; see ei kirjuta World-i ega anna käske. UnitRenderer kasutab tegelikku ticki teekonda sammu ja vedrustuse animatsioonis ning interpoleeritud lennukõrgust/kallet. main külmutab pausi/lõpu korral alpha=1 ja animationDt=0, sealhulgas mürskude asukohad. Optional visuaalsed lähteandmed säilivad fullEntities salvestuses ning vanade salvestuste korral kasutatakse praegust kõrgust/kallet. Vt VISUAL-MOTION-POLISH.md.

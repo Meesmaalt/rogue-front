@@ -22,26 +22,34 @@ class MinHeap {
   }
 }
 
-const heuristic = (x: number, z: number, tx: number, tz: number): number => Math.hypot(tx - x, tz - z);
+const heuristic = (x: number, z: number, tx: number, tz: number): number => Math.max(Math.abs(tx-x),Math.abs(tz-z))+(Math.SQRT2-1)*Math.min(Math.abs(tx-x),Math.abs(tz-z));
 
 export interface PathCost { cell(x:number,z:number):number; edge?(ax:number,az:number,bx:number,bz:number):number; minimum:number }
+// Sequential searches share scratch arrays. Generation stamps replace full-map
+// clears, preserving A* ordering while avoiding allocations on every group order.
+interface SearchWorkspace {gs:Float64Array;parent:Int32Array;closed:Uint32Array;seen:Uint32Array;generation:number}
+const searchWorkspaces=new WeakMap<NavGrid,SearchWorkspace>();
+function workspaceFor(grid:NavGrid):SearchWorkspace {
+  let cache=searchWorkspaces.get(grid);
+  if(!cache){const n=grid.width*grid.height;cache={gs:new Float64Array(n),parent:new Int32Array(n),closed:new Uint32Array(n),seen:new Uint32Array(n),generation:0};searchWorkspaces.set(grid,cache);}
+  cache.generation=(cache.generation+1)>>>0;
+  if(!cache.generation){cache.seen.fill(0);cache.closed.fill(0);cache.generation=1;}
+  return cache;
+}
 export function findPath(grid: NavGrid, from: Point, to: Point, radius = 0, cost?:PathCost,avoid:readonly (Point&{radius:number})[]=[]): Point[] {
   const blocked=(x:number,z:number)=>{if(grid.isBlocked(x,z,radius))return true;if(!avoid.length)return false;const p=grid.cellToWorld(x,z);return avoid.some(o=>{const distance=Math.hypot(p.x-o.x,p.z-o.z);return distance<o.radius+radius+.3&&distance<Math.hypot(from.x-o.x,from.z-o.z)-.01;});};
   const s = grid.nearestWalkable(from, radius), g = grid.nearestWalkable(to, radius);
   if (!s || !g) return [];
   const sc = grid.worldToCell(s.x, s.z), gc = grid.worldToCell(g.x, g.z);
-  const n = grid.width * grid.height;
-  const gs = new Float64Array(n); gs.fill(Infinity);
-  const parent = new Int32Array(n); parent.fill(-1);
-  const closed = new Uint8Array(n);
-  const heap = new MinHeap();
-  const sid = grid.index(sc.x, sc.z), gid = grid.index(gc.x, gc.z);
-  gs[sid] = 0; heap.push({ id: sid, g: 0, f: heuristic(sc.x, sc.z, gc.x, gc.z)*(cost?.minimum??1) });
+  const {gs,parent,closed,seen,generation}=workspaceFor(grid);
+  const sid=grid.index(sc.x,sc.z),gid=grid.index(gc.x,gc.z),heap=new MinHeap();
+  gs[sid]=0;parent[sid]=-1;seen[sid]=generation;
+  heap.push({id:sid,g:0,f:heuristic(sc.x,sc.z,gc.x,gc.z)*(cost?.minimum??1)});
   const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]] as const;
   while (heap.length) {
     const cur = heap.pop()!;
-    if (closed[cur.id]) continue;
-    closed[cur.id] = 1;
+    if (closed[cur.id]===generation) continue;
+    closed[cur.id] = generation;
     if (cur.id === gid) break;
     const cx = cur.id % grid.width, cz = Math.floor(cur.id / grid.width);
     for (const [dx,dz] of dirs) {
@@ -49,12 +57,12 @@ export function findPath(grid: NavGrid, from: Point, to: Point, radius = 0, cost
       if (!grid.inBounds(nx,nz) || blocked(nx,nz)) continue;
       if (dx && dz && (blocked(cx + dx, cz) || blocked(cx, cz + dz))) continue;
       const id = grid.index(nx,nz), step = dx && dz ? 1.41421356237 : 1, ng = gs[cur.id] + step*(cost?(cost.edge?.(cx,cz,nx,nz)??(cost.cell(cx,cz)+cost.cell(nx,nz))*.5):1);
-      if (ng >= gs[id]) continue;
-      gs[id] = ng; parent[id] = cur.id;
+      if (seen[id]===generation && ng >= gs[id]) continue;
+      seen[id]=generation;gs[id] = ng; parent[id] = cur.id;
       heap.push({ id, g: ng, f: ng + heuristic(nx,nz,gc.x,gc.z)*(cost?.minimum??1) });
     }
   }
-  if (sid !== gid && parent[gid] < 0) return [];
+  if (sid !== gid && seen[gid]!==generation) return [];
   const cells: NavCell[] = [];
   for (let id = gid; id >= 0; id = parent[id]) { cells.push({ x: id % grid.width, z: Math.floor(id / grid.width) }); if (id === sid) break; }
   cells.reverse();

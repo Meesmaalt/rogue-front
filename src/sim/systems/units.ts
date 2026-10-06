@@ -12,7 +12,7 @@ import { dist2d, turnToward, wrapAngle } from "../math";
 import { fireProjectile, canEngage, effectiveWeaponRange,selectWeapon,weaponSpec,weaponAmmo,weaponMuzzle } from "./combat";
 import { coverValueAt,isSpottedBy } from "./sensors";
 import { moraleSpeedMul, moraleAccuracyMul, moraleState } from "./morale";
-import { outOfFuel, outOfAmmo } from "./tacticalSupply";
+import { outOfFuel, outOfAmmo,repairDepotFor } from "./tacticalSupply";
 import { updateAirDoctrine,airFacilityPoint,airParkingPoint,freeAirSlot,airOperationStatus,hasAirMissionAmmo } from "./airDoctrine";
 import { pointInFeature } from "../mapFeatures";
 import { findPath } from "../nav/Pathfinder";
@@ -43,7 +43,9 @@ export function nearestEnemy(w: World, u: Entity, range: number): Entity | null 
     const d = Math.sqrt(distSq) - e.def.radius;
     if (d > range) return;
     if (!hasSpotter(w, u, e)) return;
-    if (!canEngage(u,e)) return;
+    const slot=selectWeapon(u,e);if(slot<0)return;
+    const reach=effectiveWeaponRange(u,e),spec=weaponSpec(u,slot);
+    if((u.mode==="hold"||u.holdPosition||u.mode==="move")&&(d>reach||Math.sqrt(distSq)<spec.minimumRange))return;
     if(u.def.armor==="air"&&u.airMission==="cap"&&e.def.armor!=="air")return;
     if ((u.kind === "bunker" || u.kind === "aa" || u.kind === "spaa") && !inFiringArc(u, e)) return;
     let priority = d;
@@ -55,7 +57,11 @@ export function nearestEnemy(w: World, u: Entity, range: number): Entity | null 
     if (e.def.speed === 0 && e.def.damage === 0) priority += 12;
     // Real War priority orders: focus supply / power / AA when set
     if (u.priorityFocus && e.kind === u.priorityFocus) priority -= 80;
-    if (priority < bestScore) { bestScore = priority; best = e; }
+    if(d<=reach&&Math.sqrt(distSq)>=spec.minimumRange){
+      if(["artillery","mortar","mlrs"].includes(u.kind)||w.vision.hasLineOfSight(u,e))priority-=mobility.combat.clearShotPreference;
+      else priority+=mobility.combat.blockedShotPenalty;
+    }
+    if (priority < bestScore || priority===bestScore&&e.id<(best?.id??Infinity)) { bestScore = priority; best = e; }
   });
   return best;
 }
@@ -73,6 +79,15 @@ function bodyClear(w:World,u:Entity,p:Point):boolean {
     if(next<min&&next<old-.001)clear=false;
   });return clear;
 }
+/** Keep the passing side stable: reversing it every blocked frame causes oscillation. */
+function groundSidestep(w:World,u:Entity,dx:number,dz:number,travel:number):boolean {
+  const locked=w.time<(u.avoidanceUntil??0),side=u.avoidanceSide??-1;
+  for(const sign of locked?[side]:[side,-side]){
+    const x=u.x+(dx*.25-dz*sign*mobility.navigation.sidestep)*travel,z=u.z+(dz*.25+dx*sign*mobility.navigation.sidestep)*travel;
+    if(!w.nav.isWalkableWorld(x,z,u.def.radius)||!bodyClear(w,u,{x,z}))continue;
+    u.x=x;u.z=z;u.avoidanceSide=sign;if(!locked)u.avoidanceUntil=w.time+mobility.navigation.avoidanceSideDuration;return true;
+  }return false;
+}
 /** A bounded, cached search for a reachable firing point instead of the enemy's center. */
 function firingPosition(w:World,u:Entity,target:Entity,range:number):Point|null {
   const cfg=mobility.navigation,anchor=u.combatPositionAnchor;
@@ -80,7 +95,7 @@ function firingPosition(w:World,u:Entity,target:Entity,range:number):Point|null 
   u.combatPositionTarget=target.id;u.combatPositionAnchor={x:target.x,z:target.z};u.combatPositionRetryAt=w.time+cfg.firingPositionRetry;u.combatPosition=undefined;
   const index=selectWeapon(u,target),spec=index>=0?weaponSpec(u,index):weaponSpec(u),radius=Math.max(spec.minimumRange+u.def.radius+target.def.radius,range*cfg.firingDistance+target.def.radius);
   const angle=Math.atan2(u.x-target.x,u.z-target.z),candidates:Array<{point:Point;score:number}>=[];
-  for(const factor of [1,.65,.4])for(const offset of [0,.35,-.35,.7,-.7,1.1,-1.1,1.6,-1.6,Math.PI]){
+  for(const factor of (u.def.category==="infantry"?cfg.infantryFiringFactors:cfg.vehicleFiringFactors))for(const offset of [0,.35,-.35,.7,-.7,1.1,-1.1,1.6,-1.6,Math.PI]){
     const r=Math.max(spec.minimumRange+u.def.radius+target.def.radius,radius*factor),a=angle+offset+(u.id%3-1)*.06,p={x:target.x+Math.sin(a)*r,z:target.z+Math.cos(a)*r};
     if(!w.nav.isWalkableWorld(p.x,p.z,u.def.radius)||!bodyClear(w,u,p))continue;
     if(!["artillery","mortar","mlrs"].includes(u.kind)&&!w.vision.hasLineOfSight({...u,...p,y:heightAt(p.x,p.z)},target))continue;
@@ -106,7 +121,7 @@ function smoothWaypoint(w:World,u:Entity):void {
 function moveRoadTruckTo(w: World, u: Entity, goal: Point, dt: number, arrival=3.2): boolean {
   const finalGoal=goal;
   if(!u.roadTripGoal&&dist2d(u,finalGoal)<=arrival){u.motionSpeed=0;return true;}
-  if(!u.roadTripGoal||Math.hypot(u.roadTripGoal.x-finalGoal.x,u.roadTripGoal.z-finalGoal.z)>5){u.roadTripGoal={...finalGoal};u.patrolIndex=0;u.navPath=[];}
+  if(!u.roadTripGoal||Math.hypot(u.roadTripGoal.x-finalGoal.x,u.roadTripGoal.z-finalGoal.z)>5){u.roadTripGoal={x:finalGoal.x,z:finalGoal.z};u.taskApproachIndex=0;u.patrolIndex=0;u.navPath=[];}
   const depot=u.supplyDepotId!=null?w.byId.get(u.supplyDepotId):null;
   const route=depot?.logisticsWaypoints??[];
   const reverse=u.logisticsSourceIndex!=null?u.cargo>0:u.cargo<=0;
@@ -117,15 +132,17 @@ function moveRoadTruckTo(w: World, u: Entity, goal: Point, dt: number, arrival=3
   if(!u.navPath.length && u.roadPathGoal && Math.hypot(u.roadPathGoal.x-goal.x,u.roadPathGoal.z-goal.z)<5 && w.time<(u.roadPathRetryAt??0))return false;
   if(!u.navPath.length || u.navPathIndex>=u.navPath.length || !u.roadPathGoal || Math.hypot(u.roadPathGoal.x-goal.x,u.roadPathGoal.z-goal.z)>5){
     const cost=travelPathCost(w,u);
-    if(goal===finalGoal&&!w.nav.isWalkableWorld(goal.x,goal.z,u.def.radius)&&arrival>5){
-      const angle=Math.atan2(u.x-goal.x,u.z-goal.z),points=Array.from({length:16},(_,i)=>{const a=angle+i*Math.PI/8;return {x:goal.x+Math.sin(a)*(arrival-1),z:goal.z+Math.cos(a)*(arrival-1)};}).sort((a,b)=>dist2d(u,a)-dist2d(u,b));
-      u.navPath=[];for(const p of points){if(!w.nav.isWalkableWorld(p.x,p.z,u.def.radius))continue;const path=findPath(w.nav,u,p,u.def.radius,cost);if(path.length){u.navPath=path;break;}}
+    if(goal===finalGoal&&arrival>5&&(u.kind==="engineer"||!w.nav.isWalkableWorld(goal.x,goal.z,u.def.radius))){
+      const angle=Math.atan2(u.x-goal.x,u.z-goal.z),points=Array.from({length:16},(_,i)=>{const a=angle+i*Math.PI/8;return {x:goal.x+Math.sin(a)*(arrival-1),z:goal.z+Math.cos(a)*(arrival-1)};}).filter(p=>w.nav.isWalkableWorld(p.x,p.z,u.def.radius)).sort((a,b)=>dist2d(u,a)-dist2d(u,b));
+      u.navPath=[];const start=u.taskApproachIndex??0,attempts=Math.min(points.length,mobility.navigation.taskPathAttempts);
+      for(let i=0;i<attempts;i++){const p=points[(start+i)%points.length],path=findPath(w.nav,u,p,u.def.radius,cost);if(path.length){u.navPath=path;u.taskApproachIndex=0;break;}}
+      if(!u.navPath.length)u.taskApproachIndex=points.length?(start+attempts)%points.length:0;
     }else u.navPath=findPath(w.nav,u,goal,u.def.radius,cost);
-    u.navPathIndex=0;u.roadPathGoal={...goal};u.roadPathRetryAt=w.time+2;
+    u.navPathIndex=0;u.roadPathGoal={x:goal.x,z:goal.z};u.roadPathRetryAt=w.time+mobility.navigation.blockedRetry;
     if(!u.navPath.length)return false;
   }
   let p=goal;
-  while(u.navPathIndex<u.navPath.length && Math.hypot(u.x-u.navPath[u.navPathIndex].x,u.z-u.navPath[u.navPathIndex].z)<mobility.navigation.arrival)u.navPathIndex++;
+  while(u.navPathIndex<u.navPath.length && Math.hypot(u.x-u.navPath[u.navPathIndex].x,u.z-u.navPath[u.navPathIndex].z)<Math.min(mobility.navigation.arrival,mobility.navigation.taskWaypointArrival))u.navPathIndex++;
   smoothWaypoint(w,u);
   if(u.navPathIndex<u.navPath.length)p=u.navPath[u.navPathIndex];
   const dx=p.x-u.x,dz=p.z-u.z,len=Math.hypot(dx,dz)||1;
@@ -134,10 +151,15 @@ function moveRoadTruckTo(w: World, u: Entity, goal: Point, dt: number, arrival=3
   if (roadFeature?.kind === "bridge" && (w.infrastructureDamage.get(roadFeature.id) ?? 0) >= 1) { u.mode="idle"; u.dest=null; return false; }
   const componentSpeed = u.components ? Math.max(0.30, 1 - (u.components.engine ?? 0) / 180 - (u.components.tracks ?? 0) / 260) : 1;
   const speed=u.def.speed*componentSpeed*groundTerrainFactor(w,u)*((u.supply??100)>10?1:0.75)*(outOfFuel(u)?0:1);
-  const desiredSpeed=Math.min(speed*Math.max(0,Math.cos(wrapAngle(want-u.heading))),Math.sqrt(Math.max(0,dist-(goal===finalGoal?arrival:mobility.navigation.arrival))*mobility.wheeled.braking*2));
-  u.motionSpeed=(u.motionSpeed??0)+Math.max(-mobility.wheeled.braking*dt,Math.min(mobility.wheeled.acceleration*dt,desiredSpeed-(u.motionSpeed??0)));
+  const profile=mobilityProfile(u);
+  const desiredSpeed=Math.min(speed*Math.max(0,Math.cos(wrapAngle(want-u.heading))),Math.sqrt(Math.max(0,dist-(goal===finalGoal?arrival:mobility.navigation.arrival))*profile.braking*2));
+  u.motionSpeed=(u.motionSpeed??0)+Math.max(-profile.braking*dt,Math.min(profile.acceleration*dt,desiredSpeed-(u.motionSpeed??0)));
   const step=Math.min(len,(u.motionSpeed??0)*dt);const nx=u.x+dx/len*step,nz=u.z+dz/len*step;
-  if((w.nav.isWalkableWorld(nx,nz,u.def.radius)||!w.nav.isWalkableWorld(u.x,u.z,u.def.radius))&&bodyClear(w,u,{x:nx,z:nz})){u.x=nx;u.z=nz;}else {u.navPath=[];u.roadPathRetryAt=w.time+.5;}u.y=heightAt(u.x,u.z);u.stuckX=u.x;u.stuckZ=u.z;
+  if((w.nav.isWalkableWorld(nx,nz,u.def.radius)||!w.nav.isWalkableWorld(u.x,u.z,u.def.radius))&&bodyClear(w,u,{x:nx,z:nz})){u.x=nx;u.z=nz;}else {
+    const slides=[{x:nx,z:u.z},{x:u.x,z:nz}].sort((a,b)=>dist2d(a,p)-dist2d(b,p));
+    const slide=slides.find(q=>dist2d(q,p)<dist2d(u,p)-.001&&w.nav.isWalkableWorld(q.x,q.z,u.def.radius)&&bodyClear(w,u,q));
+    if(slide){u.x=slide.x;u.z=slide.z;}else if(groundSidestep(w,u,dx/len,dz/len,step)){}else {u.navWaiting=true;u.navPath=[];u.roadPathRetryAt=w.time+mobility.navigation.blockedRetry;u.motionSpeed=Math.max(0,(u.motionSpeed??0)-profile.braking*dt);}
+  }u.y=heightAt(u.x,u.z);u.stuckX=u.x;u.stuckZ=u.z;
   return false;
 }
 
@@ -220,16 +242,27 @@ function updateRoadTruck(w: World, u: Entity, dt: number): void {
 
 }
 
-function moveSeaTo(u: Entity, target: Point, dt: number): boolean {
-  if(outOfFuel(u))return false;
-  const d = Math.hypot(u.x-target.x,u.z-target.z);
-  if (d <= 3.5) return true;
-  const dx=target.x-u.x,dz=target.z-u.z;
-  u.heading=turnToward(u.heading,Math.atan2(dx,dz),u.def.turnRate*dt);
-  const componentSpeed = u.components ? Math.max(0.30, 1 - (u.components.engine ?? 0) / 180 - (u.components.tracks ?? 0) / 260) : 1;
-  u.x += Math.sin(u.heading)*u.def.speed*componentSpeed*dt; u.z += Math.cos(u.heading)*u.def.speed*componentSpeed*dt;
-  u.y = Math.max(0.4, heightAt(u.x,u.z)-0.8);
-  return false;
+function moveSeaTo(w:World,u: Entity, target: Point, dt: number): boolean {
+  if(outOfFuel(u)){u.motionSpeed=0;return false;}
+  const wet=w.waterNav.nearestWater(target,u.def.radius,64);if(!wet){u.motionSpeed=0;return false;}
+  if(!u.roadPathGoal||Math.hypot(u.roadPathGoal.x-wet.x,u.roadPathGoal.z-wet.z)>5||!u.navPath.length&&w.time>=(u.roadPathRetryAt??0)){
+    u.navPath=findPath(w.waterNav,u,wet,u.def.radius);u.navPathIndex=0;u.roadPathGoal={...wet};u.roadPathRetryAt=w.time+mobility.naval.pathRetry;
+  }
+  while(u.navPathIndex<u.navPath.length&&dist2d(u,u.navPath[u.navPathIndex])<1)u.navPathIndex++;
+  const goal=u.navPath[u.navPathIndex]??wet,d=dist2d(u,goal);
+  if(dist2d(u,wet)<mobility.naval.arrival){u.motionSpeed=0;return true;}
+  if(!u.navPath.length){u.motionSpeed=0;return false;}
+  u.heading=turnToward(u.heading,Math.atan2(goal.x-u.x,goal.z-u.z),u.def.turnRate*dt);
+  const engine=u.components?Math.max(.30,1-(u.components.engine??0)/180-(u.components.tracks??0)/260):1;
+  const alignment=Math.max(.1,Math.cos(Math.atan2(goal.x-u.x,goal.z-u.z)-u.heading));
+  const desired=Math.min(u.def.speed*engine*alignment,Math.sqrt(Math.max(0,dist2d(u,wet)-.5)*mobility.naval.braking));
+  u.motionSpeed=(u.motionSpeed??0)+Math.max(-mobility.naval.braking*dt,Math.min(mobility.naval.acceleration*dt,desired-(u.motionSpeed??0)));
+  const step=Math.min(d,u.motionSpeed*dt),x=u.x+Math.sin(u.heading)*step,z=u.z+Math.cos(u.heading)*step;
+  const clear=(px:number,pz:number)=>!w.entities.some(o=>o!==u&&!o.dead&&o.def.domain==="sea"&&Math.hypot(px-o.x,pz-o.z)<u.def.radius+o.def.radius+mobility.naval.berthSpacing);
+  if(w.waterNav.isWalkableWorld(x,z,u.def.radius)&&clear(x,z)){u.x=x;u.z=z;}else {u.motionSpeed=0;u.heading=turnToward(u.heading,Math.atan2(goal.x-u.x,goal.z-u.z),u.def.turnRate*dt*2);
+    if(w.time>=(u.roadPathRetryAt??0)){const avoid=w.entities.filter(o=>o!==u&&!o.dead&&o.def.domain==="sea").map(o=>({x:o.x,z:o.z,radius:o.def.radius+mobility.naval.berthSpacing}));u.navPath=findPath(w.waterNav,u,wet,u.def.radius,undefined,avoid);u.navPathIndex=0;u.roadPathRetryAt=w.time+mobility.naval.pathRetry;}
+  }
+  u.y=w.waterNav.surfaceAt(u.x,u.z)+.15;return false;
 }
 
 function taxiTo(u:Entity,p:Point,dt:number):boolean {
@@ -285,17 +318,25 @@ function updateLandingCraft(w: World, u: Entity, dt: number): void {
   if (u.mode === "transport-load") {
     const target = u.transportTargetId ? w.byId.get(u.transportTargetId) : null;
     if (!target || target.dead || target.loadedIntoId !== null) { u.mode = "idle"; u.transportTargetId = null; return; }
-    if (!moveSeaTo(u, {x:target.x,z:target.z}, dt)) return;
+    if (!moveSeaTo(w,u, {x:target.x,z:target.z}, dt)||dist2d(u,target)>14) return;
     if (u.cargoUnitIds.length < 8) { target.loadedIntoId=u.id; target.mode="idle"; target.dest=null; target.target=null; u.cargoUnitIds.push(target.id); }
     u.transportTargetId=null; u.mode="idle"; u.dest=null; return;
   }
   if (u.mode === "transport-unload") {
     if (!u.unloadPoint) { u.mode="idle"; return; }
-    if (!moveSeaTo(u,u.unloadPoint,dt)) return;
-    const ids=[...u.cargoUnitIds]; ids.forEach((id,i)=>{ const passenger=w.byId.get(id); if(!passenger||passenger.dead)return; passenger.loadedIntoId=null; passenger.x=u.unloadPoint!.x+(i%3-1)*3; passenger.z=u.unloadPoint!.z+(Math.floor(i/3))*3; passenger.y=heightAt(passenger.x,passenger.z); passenger.px=passenger.x; passenger.pz=passenger.z; passenger.mode="idle"; });
+    if (!moveSeaTo(w,u,u.unloadPoint,dt)) return;
+    const remaining:number[]=[];
+    for(const id of u.cargoUnitIds){const passenger=w.byId.get(id);if(!passenger||passenger.dead)continue;
+      const offset=u.cargoUnitIds.indexOf(id)*3;
+      const p=w.nav.nearestWalkable({x:u.unloadPoint.x,z:u.unloadPoint.z+offset},passenger.def.radius);
+      if(!p||dist2d(u,p)>24){remaining.push(id);continue;}
+      passenger.loadedIntoId=null;passenger.x=passenger.px=p.x;passenger.z=passenger.pz=p.z;passenger.y=heightAt(p.x,p.z);passenger.mode="idle";
+    }
+    if(remaining.length){u.cargoUnitIds=remaining;return;}
+
     u.cargoUnitIds=[]; u.unloadPoint=null; u.mode="idle"; u.dest=null; return;
   }
-  const goal=u.target&&!u.target.dead?{x:u.target.x,z:u.target.z}:u.dest; if(goal) moveSeaTo(u,goal,dt);
+  const goal=u.target&&!u.target.dead?{x:u.target.x,z:u.target.z}:u.dest; if(goal&&moveSeaTo(w,u,goal,dt)&&["move","amove"].includes(u.mode))finishMoveWaypoint(u);
 }
 
 function updateCargoPlane(w: World, u: Entity, dt: number): void {
@@ -419,14 +460,14 @@ export function updateUnits(w: World, dt: number): void {
 }
 
 function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): void {
-  const d = u.def;
+  const d = u.def;u.navWaiting=false;
   const transporting=d.domain!=="air"&&transportCapacity(u)>0&&prepareTransport(w,u);
   if (u.kind === "cargoPlane") { updateCargoPlane(w, u, dt); return; }
   if (u.kind === "transport"&&u.supplyDepotId!=null) { updateTransport(w, u, dt); return; }
   if (u.kind === "logiTruck") { updateRoadTruck(w, u, dt); return; }
   if (u.kind === "landingcraft") { updateLandingCraft(w, u, dt); return; }
-  if (u.kind === "special" && !u.garrisonId && u.mode !== "enter-building" && u.mode !== "attack") {
-    const target = w.entities.find(e=>!e.dead && e.team!==u.team && e.def.building && Math.hypot(e.x-u.x,e.z-u.z)<7);
+  if (u.kind === "special" && !u.garrisonId && u.standingOrder!=="holdfire" && ["idle","amove","sabotage"].includes(u.mode)) {
+    const target = w.entities.find(e=>!e.dead && e.team!==u.team && e.def.building && isSpottedBy(e,u.team,w.time) && Math.hypot(e.x-u.x,e.z-u.z)<7);
     if (target) { target.hp = Math.max(0,target.hp-18*dt); w.sabotageBuilding(target, 25); u.mode="sabotage"; u.target=target; if(target.hp<=0) { target.dead=true; w.lossValue[target.team] += target.def.cost; } return; }
   }
   const disabled = (u.disabledUntil ?? 0) > w.time;
@@ -437,38 +478,29 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     if (!target || target.dead) { u.mode = "idle"; u.target = null; u.dest = null; return; }
     if (target.def.speed > 0 && !target.def.building) {
       if (Math.hypot(u.x - target.x, u.z - target.z) <= 12) {
-        const depot = w.nearestSupplyDepot(target.team, {x: target.x, z: target.z}, true);
-        const available = depot && dist2d(depot,target)<80 ? depot.repairStock??0 : 0;
-        const repair = Math.min(10 * w.repairMultiplier(u.team) * dt, available);
-        if (depot) depot.repairStock = Math.max(0, available - repair);
+        const depot=repairDepotFor(w,target),available=depot?.repairStock??0;
+        const work=Math.max(maxHitPoints(target)-target.hp,Math.max(0,...Object.values(target.components??{}))/logisticsConfig.groundRepair.componentPerStock);
+        if(work<=0){u.mode="idle";u.target=null;u.dest=null;u.motionSpeed=0;return;}
+        const repair=Math.min(logisticsConfig.groundRepair.perSecond*w.repairMultiplier(u.team)*dt,available,work);
+        u.motionSpeed=0;
+        if (depot&&repair>0) depot.repairStock = Math.max(0, available - repair);
         if (repair > 0) {
           target.hp = Math.min(maxHitPoints(target), target.hp + repair);
           if (target.components) {
-            const step = repair * 3.2;
+            const step = repair * logisticsConfig.groundRepair.componentPerStock;
             for (const key of ["engine","tracks","turret","weapon","crew","ammo"] as const) target.components[key] = Math.max(0, target.components[key] - step);
           }
           target.disabledUntil = Math.max(0, Math.min(target.disabledUntil ?? 0, w.time + 0.5));
-          if (target.hp >= maxHitPoints(target) * 0.995 && target.components && Object.values(target.components).every(v => v < 1)) {
+          if (target.hp >= maxHitPoints(target) * 0.995 && (!target.components || Object.values(target.components).every(v => v < 1))) {
             target.hp = maxHitPoints(target); u.mode = "idle"; u.target = null; u.dest = null;
           }
         }
         return;
       }
     }
-    if (Math.hypot(u.x - target.x, u.z - target.z) > 11) {
-      if(!u.navPath.length || !u.roadPathGoal || Math.hypot(u.roadPathGoal.x-target.x,u.roadPathGoal.z-target.z)>5 || u.stuckTime>1){
-        u.navPath=findPath(w.nav,u,target,u.def.radius);u.navPathIndex=0;u.roadPathGoal={x:target.x,z:target.z};u.stuckTime=0;
-      }
-      while(u.navPathIndex<u.navPath.length && Math.hypot(u.x-u.navPath[u.navPathIndex].x,u.z-u.navPath[u.navPathIndex].z)<mobility.navigation.arrival)u.navPathIndex++;
-      const p = u.navPath[u.navPathIndex] ?? target;
-      const before=Math.hypot(u.x-target.x,u.z-target.z);
-      const dx = p.x - u.x, dz = p.z - u.z, len = Math.hypot(dx,dz) || 1;
-      u.heading = turnToward(u.heading, Math.atan2(dx,dz), d.turnRate * dt);
-      u.x += Math.sin(u.heading) * d.speed * dt * Math.min(1, len / 3) * combatSpeedFactor;
-      u.z += Math.cos(u.heading) * d.speed * dt * Math.min(1, len / 3) * combatSpeedFactor;
-      u.y = heightAt(u.x,u.z);
-      if(Math.hypot(u.x-target.x,u.z-target.z)>=before-.005)u.stuckTime+=dt;else u.stuckTime=0;
-    }
+    const taskReach=target.def.building?13:12;
+    if (Math.hypot(u.x - target.x, u.z - target.z) > taskReach) moveRoadTruckTo(w,u,target,dt,taskReach-.5);
+    else u.motionSpeed=0;
     return;
   }
   const supplyFactor = u.def.speed === 0 || (u.supply ?? 100) > 20 ? 1 : 0.65;
@@ -476,7 +508,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
   u.cooldown = Math.max(0, u.cooldown - dt);
   if(u.weaponCooldowns)for(let i=1;i<u.weaponCooldowns.length;i++)u.weaponCooldowns[i]=Math.max(0,u.weaponCooldowns[i]-dt);
 
-  if (u.fireMission && !u.artilleryDisplace && ["artillery","mortar","mlrs"].includes(u.kind)) {u.target=null;return;}
+  if (u.fireMission && !u.artilleryDisplace && ["artillery","mortar","mlrs"].includes(u.kind)) {u.target=null;u.motionSpeed=Math.max(0,(u.motionSpeed??0)-mobilityProfile(u).braking*dt);return;}
   if (!d.damage && d.speed === 0) return;
 
   const isAir = d.armor === "air";
@@ -493,8 +525,8 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       if(pad&&depot&&dist2d(u,airParkingPoint(u,pad))<2&&dist2d(depot,pad)<80&&(pad.disabledUntil??0)<=w.time&&w.hasCommandLink(pad)&&w.powerStatus(u.team).ratio>=.25){
         const fuel=Math.max(0,Math.min((u.maxFuel??0)-(u.fuel??0),34*dt,depot.fuelStock??0));
         const ammo=Math.max(0,Math.min((u.maxAmmo??0)-(u.ammo??0),2.2*dt,depot.ammoStock??0));
-        const repair=Math.max(0,Math.min(maxHitPoints(u)-u.hp,maxHitPoints(u)*.05*dt,depot.repairStock??0));
-        u.fuel=(u.fuel??0)+fuel;u.ammo=(u.ammo??0)+ammo;u.hp+=repair;depot.ammoStock=(depot.ammoStock??0)-ammo;
+        const repair=Math.max(0,Math.min(Math.max(maxHitPoints(u)-u.hp,Math.max(0,...Object.values(u.components??{}))/logisticsConfig.groundRepair.componentPerStock),maxHitPoints(u)*.05*dt,depot.repairStock??0));
+        u.fuel=(u.fuel??0)+fuel;u.ammo=(u.ammo??0)+ammo;u.hp=Math.min(maxHitPoints(u),u.hp+repair);if(u.components)for(const key of ["engine","tracks","turret","weapon","crew","ammo"] as const)u.components[key]=Math.max(0,u.components[key]-repair*logisticsConfig.groundRepair.componentPerStock);depot.ammoStock=(depot.ammoStock??0)-ammo;
         if(u.secondaryAmmo)for(let i=1;i<(d.weapons?.length??0);i++){const spec=weaponSpec(u,i),take=Math.max(0,Math.min(spec.ammoCapacity-weaponAmmo(u,i),4.5*dt,depot.ammoStock??0));u.secondaryAmmo[i]+=take;depot.ammoStock=(depot.ammoStock??0)-take;}
         depot.fuelStock=(depot.fuelStock??0)-fuel;depot.repairStock=(depot.repairStock??0)-repair;
       }
@@ -528,7 +560,8 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     }
     u.airSortieTime=(u.airSortieTime??0)+dt;
     if(u.airState==="airborne")updateAirDoctrine(w,u,dt);
-    const reason=(u.fuel??0)<(u.maxFuel??0)*.22?"fuel":armed&&!hasAirMissionAmmo(u)?"ammo":u.hp<d.hp*.35?"damage":null;
+    const returnFuel=pad?(dist2d(u,pad)/Math.max(1,d.speed*mobility.combat.airReturnSpeedFraction)+mobility.combat.airReturnLandingSeconds)*(d.fuelUsePerSec??1)*mobility.combat.airReturnFuelMargin:0;
+    const reason=(u.fuel??0)<Math.max((u.maxFuel??0)*mobility.combat.airReturnFuelFraction,returnFuel)?"fuel":armed&&!hasAirMissionAmmo(u)?"ammo":u.hp<maxHitPoints(u)*mobility.combat.airReturnHealthFraction||Math.max(0,...Object.values(u.components??{}))>mobility.combat.airReturnComponentDamage?"damage":null;
     if(reason&&u.airState!=="returning"&&u.airState!=="landing"){u.airState="returning";u.airReturnReason=reason;u.airLandingPhase="approach";}
     if((u.fuel??0)<=0){u.hp=0;u.dead=true;w.lossValue[u.team]+=d.cost;return;}
     if(u.airState==="landing"){
@@ -551,17 +584,21 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     if(u.kind==="transport"){updateTransport(w,u,dt);return;}
   }
 
+  // Hold fire preserves travel orders but cannot make scouts chase contacts.
+  if(u.standingOrder==="holdfire"||moraleState(u)==="routing")u.target=null;
+  const mayAcquire=u.standingOrder!=="holdfire"&&moraleState(u)!=="routing";
   // sihtmärgi valik – throttle retarget (~every 4 ticks staggered by id)
-  if (u.mode === "attack" && (!u.target || u.target.dead)) {
+  if (mayAcquire&&u.mode === "attack" && (!u.target || u.target.dead)) {
     u.target = nearestEnemy(w, u, Math.max(effectiveRange, u.aggro));
     if (!u.target) u.mode = "idle";
   }
-  if (u.mode !== "attack") {
+  if (mayAcquire&&u.mode !== "attack") {
     const lim = u.mode === "move" ? effectiveRange : Math.max(effectiveRange, u.aggro);
-    const needNew = !u.target || u.target.dead || dist2d(u, u.target) - u.target.def.radius > lim * 1.15;
+    const tick = Math.floor(w.time * 30);
+    const reconsider=!!u.target&&(tick+u.id)%mobility.combat.reconsiderTicks===0&&(!canEngage(u,u.target)||(!["artillery","mortar","mlrs"].includes(u.kind)&&!w.vision.hasLineOfSight(u,u.target)));
+    const needNew = !u.target || u.target.dead || !isSpottedBy(u.target,u.team,w.time) || !canEngage(u,u.target) || dist2d(u, u.target) - u.target.def.radius > lim * 1.15 || reconsider;
     if (needNew) {
-      const tick = Math.floor(w.time * 30);
-      if ((tick + u.id) % 4 === 0 || !u.target || u.target.dead) {
+      if ((tick + u.id) % 4 === 0 || !u.target || u.target.dead || reconsider) {
         u.target = nearestEnemy(w, u, lim);
       }
     }
@@ -579,21 +616,24 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
   if(transporting)u.target=null;
   const target = u.target;
   if(target){effectiveRange=effectiveWeaponRange(u,target);u.firingRange=effectiveRange;}
-  const inRange = !!target && dist2d(u, target) - target.def.radius <= effectiveRange * 0.92;
+  const inRange = !!target && dist2d(u, target) - target.def.radius <= effectiveRange * mobility.combat.stoppingRange;
   let goal: Point | null = null;
   const indirect=["artillery","mortar","mlrs"].includes(u.kind);
   const clearShot=!target || indirect || w.vision.hasLineOfSight(u,target);
   if(transporting)goal=u.dest;
   else if(target&&u.mode!=="move"&&u.mode!=="enter-building"){
     const index=selectWeapon(u,target),minimum=index>=0?weaponSpec(u,index).minimumRange:0;
-    if((!inRange||!clearShot||dist2d(u,target)<minimum)&&!u.holdPosition&&u.mode!=="hold"){
+    const tooClose=d.domain==="land"&&d.category!=="infantry"&&dist2d(u,target)<Math.max(minimum+u.def.radius+target.def.radius,effectiveRange*mobility.combat.vehicleMinimumStandoff);
+    if(tooClose)u.combatWithdrawing=true;
+    if(dist2d(u,target)>=Math.max(minimum+u.def.radius+target.def.radius,effectiveRange*mobility.combat.vehicleStandoffRelease))u.combatWithdrawing=false;
+    if((!inRange||!clearShot||dist2d(u,target)<minimum||u.combatWithdrawing)&&!u.holdPosition&&u.mode!=="hold"){
       if(d.armor!=="air"&&d.domain!=="sea"&&d.speed>0)goal=firingPosition(w,u,target,effectiveRange);
       else goal=target;
     }
   }else if(["move","amove","patrol","enter-building"].includes(u.mode))goal=u.dest;
   if(target && d.category==="heli" && u.mode!=="move" && !u.holdPosition && u.mode!=="hold"){
-    const distance=dist2d(u,target),standoff=effectiveRange*.78;
-    if(distance<standoff*.68){const a=Math.atan2(u.x-target.x,u.z-target.z);goal={x:target.x+Math.sin(a)*standoff,z:target.z+Math.cos(a)*standoff};}
+    const distance=dist2d(u,target),standoff=effectiveRange*mobility.combat.helicopterStandoff;
+    if(distance<standoff*mobility.combat.helicopterRetreatRatio){const a=Math.atan2(u.x-target.x,u.z-target.z);goal={x:target.x+Math.sin(a)*standoff,z:target.z+Math.cos(a)*standoff};}
     else if(!inRange){const a=Math.atan2(u.x-target.x,u.z-target.z);goal={x:target.x+Math.sin(a)*standoff,z:target.z+Math.cos(a)*standoff};}
   }
   if(u.garrisonId){goal=null;u.motionSpeed=0;u.holdPosition=true;}
@@ -616,7 +656,9 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     const isAir = d.armor === "air";
     if (isAir && u.airState === "grounded") return;
     if(isAir){
-      if(d.category!=="heli"&&target)goal={x:target.x,z:target.z};
+      if(u.flightAttackExit&&(dist2d(u,u.flightAttackExit)<mobility.combat.airEgressArrival||w.time>=(u.flightAttackExitUntil??0))){u.flightAttackExit=undefined;u.flightAttackExitUntil=undefined;}
+      if(d.category!=="heli"&&target)goal=u.flightAttackExit??{x:target.x,z:target.z};
+      else if(u.flightAttackExit)goal=u.flightAttackExit;
       if(d.category!=="heli"){
         if(goal)u.flightOrbitCenter=undefined;
         else {const center=u.flightOrbitCenter??{x:u.x,z:u.z};u.flightOrbitCenter=center;const angle=w.time*.22+u.id;goal={x:center.x+Math.sin(angle)*45,z:center.z+Math.cos(angle)*45};}
@@ -624,7 +666,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       if(goal)moveAirTo(u,goal,dt,w);
       else {u.motionSpeed=Math.max(0,(u.motionSpeed??0)-mobility.helicopter.braking*dt);u.y+=Math.max(-4*dt,Math.min(4*dt,heightAt(u.x,u.z)+mobility.helicopter.altitude-u.y));u.flightBank=(u.flightBank??0)*Math.max(0,1-dt*4);}
     }
-    if(u.def.domain==="sea") {if(goal&&!outOfFuel(u))moveSeaTo(u,goal,dt);}
+    if(u.def.domain==="sea") {if(goal&&!outOfFuel(u)){if(moveSeaTo(w,u,goal,dt)&&["move","amove"].includes(u.mode))finishMoveWaypoint(u);}else u.motionSpeed=0;}
     let sx = 0, sz = 0;
     // Spatial separation – only nearby cells (was O(n²) over all entities)
     const sepRange = d.radius + 10;
@@ -643,7 +685,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     let dx = 0, dz = 0, moving = false;
     if (goal) {
       const gx = goal.x - u.x, gz = goal.z - u.z, gd = Math.hypot(gx, gz);
-      if (goal === u.dest && gd < mobility.navigation.arrival && u.mode!=="patrol"&&u.mode!=="enter-building"&&!transporting) {
+      if (u.def.domain!=="sea" && goal === u.dest && gd < mobility.navigation.arrival && u.mode!=="patrol"&&u.mode!=="enter-building"&&!transporting) {
         finishMoveWaypoint(u);
       }
       else { dx = gx / gd; dz = gz / gd; moving = true; }
@@ -660,7 +702,8 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       }
       let ex = navDx + sx * .65, ez = navDz + sz * .65;
       const l = Math.hypot(ex, ez) || 1; ex /= l; ez /= l;
-      const want = Math.atan2(ex, ez);
+      const reverse=!!u.combatWithdrawing&&!!d.turret;
+      const want = Math.atan2(reverse?-ex:ex, reverse?-ez:ez);
       u.heading = turnToward(u.heading, want, d.turnRate * dt);
       const diff = Math.abs(wrapAngle(want - u.heading));
       const slope = (heightAt(u.x + ex * 2, u.z + ez * 2) - u.y) / 2;
@@ -672,39 +715,39 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       const sp = d.speed * componentMove * combatSpeedFactor * terrainMod * supplyMove * roleMove * moraleSpeedMul(u) * fuelMul * Math.min(1.3, Math.max(0.35, 1 - slope * 1.2)) * (d.category === "infantry" ? 1 : Math.max(0, Math.cos(diff)));
       const profile=mobilityProfile(u);
       const distanceToWaypoint=u.navPathIndex<u.navPath.length?Math.hypot(u.x-u.navPath[u.navPathIndex].x,u.z-u.navPath[u.navPathIndex].z):goal?dist2d(u,goal):0;
-      const desiredSpeed=Math.min(sp,Math.sqrt(Math.max(0,goal?dist2d(u,goal)-1:0)*2*profile.braking));
+      const desiredSpeed=Math.min(sp*(reverse?mobility.combat.reverseSpeed:1),Math.sqrt(Math.max(0,goal?dist2d(u,goal)-1:0)*2*profile.braking));
       const currentSpeed=u.motionSpeed??0;u.motionSpeed=currentSpeed+Math.max(-profile.braking*dt,Math.min(profile.acceleration*dt,desiredSpeed-currentSpeed));
       const travel=Math.min(distanceToWaypoint,u.motionSpeed*dt);
-      const moveX=d.category==="infantry"?ex:Math.sin(u.heading),moveZ=d.category==="infantry"?ez:Math.cos(u.heading);
+      const moveX=d.category==="infantry"?ex:Math.sin(u.heading)*(reverse?-1:1),moveZ=d.category==="infantry"?ez:Math.cos(u.heading)*(reverse?-1:1);
       const nx=u.x+moveX*travel,nz=u.z+moveZ*travel;
       if(isAir || u.navPath.length && w.nav.isWalkableWorld(nx,nz,d.radius) && bodyClear(w,u,{x:nx,z:nz})) {u.x=nx;u.z=nz;}
       else if(!isAir){const px=u.x+navDx*travel,pz=u.z+navDz*travel;if(u.navPath.length&&w.nav.isWalkableWorld(px,pz,d.radius)&&bodyClear(w,u,{x:px,z:pz})){u.x=px;u.z=pz;}else {
-        let avoided=false;
-        for(const side of [u.id%2?1:-1,u.id%2?-1:1]){
-          const ax=u.x+(navDx*.25-navDz*side*mobility.navigation.sidestep)*travel,az=u.z+(navDz*.25+navDx*side*mobility.navigation.sidestep)*travel;
-          if(w.nav.isWalkableWorld(ax,az,d.radius)&&bodyClear(w,u,{x:ax,z:az})){u.x=ax;u.z=az;avoided=true;break;}
-        }
-        if(!avoided){u.motionSpeed=Math.max(0,(u.motionSpeed??0)-profile.braking*dt);u.stuckTime+=dt;}
+        const avoided=groundSidestep(w,u,navDx,navDz,travel);
+        if(!avoided){u.navWaiting=true;u.motionSpeed=Math.max(0,(u.motionSpeed??0)-profile.braking*dt);u.stuckTime+=dt;}
       }}
     }
-    if(!goal&&!isAir){
+    if(!goal&&!isAir&&d.domain!=="sea"){
       u.motionSpeed=Math.max(0,(u.motionSpeed??0)-mobilityProfile(u).braking*dt);
       if((u.motionSpeed??0)>.25){const nx=u.x+Math.sin(u.heading)*u.motionSpeed!*dt,nz=u.z+Math.cos(u.heading)*u.motionSpeed!*dt;if(w.nav.isWalkableWorld(nx,nz,d.radius)&&bodyClear(w,u,{x:nx,z:nz})){u.x=nx;u.z=nz;}else u.motionSpeed=0;}
     }
     const limit=MAP_SIZE/2-10;u.x=Math.max(-limit,Math.min(limit,u.x));u.z=Math.max(-limit,Math.min(limit,u.z));
-    if(!isAir&&!u.garrisonId)u.y=heightAt(u.x,u.z);
+    if(!isAir&&d.domain!=="sea"&&!u.garrisonId)u.y=heightAt(u.x,u.z);
     // Sideways avoidance can oscillate without approaching a waypoint. Count
     // actual route progress, not any displacement, before clearing the jam timer.
     const progressGoal=u.navPath[u.navPathIndex]??goal;
     const progress=progressGoal?Math.hypot(u.stuckX-progressGoal.x,u.stuckZ-progressGoal.z)-dist2d(u,progressGoal):0;
     if(moving&&progress<.5)u.stuckTime+=dt;
     else {u.stuckTime=0;u.stuckX=u.x;u.stuckZ=u.z;}
-    if (u.stuckTime > 1.2 && goal && !isAir) {
-      const parked=w.entities.filter(e=>e!==u&&!e.dead&&e.loadedIntoId==null&&e.def.speed>0&&e.def.domain==="land"&&(!e.dest||e.mode==="hold")).map(e=>({x:e.x,z:e.z,radius:e.def.radius}));
-      u.navPath = findPath(w.nav, u, goal, u.def.radius,u.fastMove&&u.mode==="move"?travelPathCost(w,u):undefined,parked); u.navPathIndex = 0;
-      u.stuckTime = 0; u.stuckX = u.x; u.stuckZ = u.z;
+    if(u.stuckTime>mobility.navigation.jamDelay&&goal&&!isAir&&d.domain!=="sea"&&w.time>=(u.roadPathRetryAt??0)){
+      const parked:Array<Point&{radius:number}>=[];
+      w.spatial.queryRadius(u.x,u.z,mobility.navigation.parkedSearchRadius,e=>{if(e!==u&&!e.dead&&e.loadedIntoId==null&&!e.garrisonId&&e.def.speed>0&&e.def.domain==="land"&&(!e.dest||e.mode==="hold"))parked.push({x:e.x,z:e.z,radius:e.def.radius});});
+      const path=findPath(w.nav,u,goal,u.def.radius,u.fastMove&&u.mode==="move"?travelPathCost(w,u):undefined,parked);
+      if(path.length){u.navPath=path;u.navPathIndex=0;u.roadPathGoal={...goal};}
+      u.roadPathRetryAt=w.time+mobility.navigation.blockedRetry;u.stuckTime=0;u.stuckX=u.x;u.stuckZ=u.z;
     }
   }
+
+  if((u.motionSpeed??0)>.5)u.stationaryFireReadyAt=w.time+mobility.combat.weaponSettleTime;
 
   // Aim + fire
   // - Turret units (tank, ifv, aa): can shoot on the move once turret is on target
@@ -734,8 +777,9 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
   const moveOk = canFireOnMove || !isMovingFast || (inRange && !mustStopToFire);
   const weaponIndex=target?selectWeapon(u,target,true):-1;
   const spec=weaponIndex>=0?weaponSpec(u,weaponIndex):null;
+  if(d.domain==="sea"&&spec?.weapon==="missile")aligned=true;
   const spotted=target?isSpottedBy(target,u.team,w.time):false;
-  if(target&&spec&&spotted&&aligned&&stationaryOk&&moveOk&&!disabled&&moraleState(u)!=="routing"&&u.standingOrder!=="holdfire"&&(u.firingArc>=Math.PI*2-.01||inFiringArc(u,target))&&hasSpotter(w,u,target)&&(indirect||w.vision.hasLineOfSight(u,target))){
+  if(target&&spec&&(!u.flightAttackExit)&&(spec.fireOnMove!==false||w.time>=(u.stationaryFireReadyAt??0))&&spotted&&aligned&&stationaryOk&&moveOk&&!disabled&&moraleState(u)!=="routing"&&u.standingOrder!=="holdfire"&&(u.firingArc>=Math.PI*2-.01||inFiringArc(u,target))&&hasSpotter(w,u,target)&&(indirect||spec.visual==="cruise"||w.vision.hasLineOfSight(u,target))){
     const muzzle=weaponMuzzle(u,spec,weaponIndex);
     fireProjectile(w,u,target,muzzle.x,muzzle.y,muzzle.z,weaponIndex);
 
@@ -743,6 +787,10 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     const reload=spec.cooldown*(.95+w.rng()*.1)*(u.components?1+u.components.turret/130+u.components.crew/220:1)/Math.max(.7,d.reloadSkill??1)/(spec.weapon!=="bullet"&&u.squadMaxMembers?Math.max(.3,u.squadFirepower??1):1);
     if(weaponIndex===0)u.cooldown=reload;else {u.weaponCooldowns??=[];u.weaponCooldowns[weaponIndex]=reload;}
     u.lastCombatTime=w.time;
+    if(d.category==="air"&&u.airMission!=="cap"&&target.def.armor!=="air"){
+      const away=spec.weapon==="missile"?Math.atan2(u.x-target.x,u.z-target.z):u.heading,span=mobility.combat.airEgressDistance,edge=w.mapSize/2-20;
+      u.flightAttackExit={x:Math.max(-edge,Math.min(edge,u.x+Math.sin(away)*span)),z:Math.max(-edge,Math.min(edge,u.z+Math.cos(away)*span))};u.flightAttackExitUntil=w.time+mobility.combat.airEgressTime;
+    }
   }
 }
 
@@ -754,18 +802,35 @@ export function combatStatus(w:World,u:Entity):string {
   if(u.loadedIntoId!=null){const carrier=w.byId.get(u.loadedIntoId);return "Transpordis · "+(carrier?w.unitDisplayName(carrier.kind,carrier.team):"pardal");}
   if(u.mode==="transport-load")return "Kogub jalaväge · kohad broneeritud";
   if(u.mode==="transport-unload")return "Viib väljumiskohta · ootab vaba väljapääsu";
+  if(u.navWaiting)return "Ootab vaba läbipääsu · otsib möödumisteed";
   if(u.mode==="move"&&u.fastMove)return "Kiirliikumine · eeldatava sõiduaja järgi";
   if((u.disabledUntil??0)>w.time)return "Relvasüsteem häiritud";
   if(u.standingOrder==="holdfire")return "Tuli keelatud";
+  if(u.kind==="engineer"&&u.mode==="repair"&&u.target){
+    if(dist2d(u,u.target)>12)return "Läheneb remondikohale mööda läbitavat teed";
+    const depot=repairDepotFor(w,u.target);
+    return depot?"Remondib · kulutab lao remondivaru":"Remont ootab · vaja lähedast remondivaruga ladu";
+  }
   if(u.def.armor==="air"&&u.supplyDepotId==null&&u.kind!=="cargoPlane")return airOperationStatus(w,u);
   if(outOfAmmo(u))return "Laskemoon otsas — vaja varustust";
   if(moraleState(u)==="routing")return "Taandub";
+  if(u.fireMission){
+    const spec=weaponSpec(u),distance=dist2d(u,u.fireMission);
+    if(distance>effectiveWeaponRange(u))return "Tulemissioon ootab · sihtpunkt liiga kaugel";
+    if(distance<spec.minimumRange)return "Tulemissioon ootab · sihtpunkt liiga lähedal";
+    if((u.motionSpeed??0)>.5)return "Peatub tulemissiooni avamiseks";
+    if(!w.vision.isVisible(u.team,u.fireMission.x,u.fireMission.z)&&!w.getFreshIntel(u.team,20).some(c=>dist2d(c,u.fireMission!)<22))return "Tulemissioon ootab · vaja vaatlejat või värsket luurekontakti";
+    if(u.cooldown>0||w.time<(u.artilleryReadyAt??0))return "Tulemissioon · laadib järgmist lasku või salvet";
+    return "Tulemissioon · sihib ja avab kaudtule";
+  }
+  if(u.combatWithdrawing&&u.target&&!u.holdPosition)return "Taastab laskekaugust · hoiab relva vaenlase suunas";
   if(!u.target)return u.dest?"Liigub · otsib sihtmärki":"Valmis · sihtmärk puudub";
   if(!isSpottedBy(u.target,u.team,w.time))return "Luurekontakt kadunud";
   if(dist2d(u,u.target)-u.target.def.radius>effectiveWeaponRange(u,u.target))return "Läheneb sihtmärgile";
   if(!["artillery","mortar","mlrs"].includes(u.kind)&&!w.vision.hasLineOfSight(u,u.target))return "Tulejoon blokeeritud · otsib positsiooni";
   const slot=selectWeapon(u,u.target);
   if(slot>=0&&dist2d(u,u.target)<weaponSpec(u,slot).minimumRange)return "Sihtmärk liiga lähedal";
+  if(slot>=0&&((u.motionSpeed??0)>.5||w.time<(u.stationaryFireReadyAt??0))&&weaponSpec(u,slot).fireOnMove===false)return "Peatub · sobiva relvaga liikumiselt ei tulista";
   if(selectWeapon(u,u.target,true)<0)return "Relv laadib / sihtmärk väljaspool sobiva relva ulatust";
   return "Sihib / avab tule";
 }

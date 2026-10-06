@@ -21,12 +21,20 @@ function spawnProduced(w: World, producer: Entity, kind: UnitKind): boolean {
   const def=w.unitDefinition(kind,producer.team);
   const air=def.armor==="air",slot=air?freeAirSlot(w,producer):-1;
   if(air&&slot<0)return false;
+  let waterPoint=def.domain==="sea"?w.waterNav.nearestWater(producer,def.radius,64):null;
+  if(def.domain==="sea"){
+    if(!waterPoint)return false;
+    const origin=waterPoint,free=(p:{x:number;z:number})=>w.waterNav.isWalkableWorld(p.x,p.z,def.radius)&&!w.entities.some(e=>!e.dead&&e.def.domain==="sea"&&Math.hypot(e.x-p.x,e.z-p.z)<e.def.radius+def.radius+2);
+    if(!free(origin)){waterPoint=null;for(let r=8;r<=48&&!waterPoint;r+=8)for(let i=0;i<16;i++){const a=i*Math.PI/8,p={x:origin.x+Math.sin(a)*r,z:origin.z+Math.cos(a)*r};if(free(p)){waterPoint=p;break;}}}
+    if(!waterPoint)return false;
+  }
   const battlegroup = w.battlegroupForTeam(producer.team);
   if (battlegroup && kind !== "engineer" && !battlegroup.deploy(kind, 1)) return false;
   const counts = w.producedForTeam(producer.team);
   if (w.networkMode || producer.team === w.playerTeam) counts[kind] = (counts[kind] ?? 0) + 1;
-  const p = exitPoint(producer,Math.max(10,producer.def.radius+def.radius+4));
+  const p = waterPoint??exitPoint(producer,Math.max(10,producer.def.radius+def.radius+4));
   const u = w.spawn(kind, producer.team, p.x, p.z);
+  if(def.domain==="sea"){u.y=w.waterNav.surfaceAt(u.x,u.z)+.15;u.heading=producer.heading;u.pHeading=u.heading;}
   if (air) stationAircraft(w,u,producer,slot);
   if (producer.preDeployOrder) { const o = producer.preDeployOrder; u.mode = o.mode === "attack" ? "amove" : o.mode; u.dest = o.x !== undefined && o.z !== undefined ? {x:o.x,z:o.z} : null; if (o.mode === "hold") u.holdPosition = true; }
   if (kind === "special") { u.supply = 100; }

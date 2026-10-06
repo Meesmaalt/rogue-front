@@ -214,6 +214,90 @@
       "speed": 300,
       "muzzle": 2.2,
       "muzzleHeight": 2.4
+    },
+    "naval-gun": {
+      "name": "127 mm laevakahur",
+      "weapon": "cannon",
+      "flight": "direct",
+      "guidance": "none",
+      "visual": "naval-shell",
+      "warhead": "he",
+      "targets": "ground",
+      "speed": 220,
+      "muzzle": 5,
+      "muzzleHeight": 2,
+      "fireOnMove": true,
+      "stabilizer": "full"
+    },
+    "anti-ship": {
+      "name": "Laevatõrjerakett",
+      "weapon": "missile",
+      "flight": "guided",
+      "guidance": "radar",
+      "visual": "anti-ship",
+      "warhead": "he",
+      "targets": "naval",
+      "speed": 90,
+      "launchSpeed": 28,
+      "acceleration": 45,
+      "turnRate": 1.6,
+      "muzzle": 0,
+      "muzzleHeight": 2,
+      "fireOnMove": true,
+      "cruiseAltitude": 4
+    },
+    "cruise": {
+      "name": "Tiibrakett · rannikulöök",
+      "weapon": "missile",
+      "flight": "guided",
+      "guidance": "radar",
+      "visual": "cruise",
+      "warhead": "he",
+      "targets": "ground",
+      "speed": 90,
+      "launchSpeed": 28,
+      "acceleration": 45,
+      "turnRate": 1.6,
+      "muzzle": 0,
+      "muzzleHeight": 2,
+      "fireOnMove": true,
+      "launch": "vertical",
+      "boostTime": 0.7,
+      "cruiseAltitude": 14
+    },
+    "naval-sam": {
+      "name": "VLS õhutõrjerakett",
+      "weapon": "missile",
+      "flight": "guided",
+      "guidance": "radar",
+      "visual": "naval-sam",
+      "warhead": "he",
+      "targets": "air",
+      "speed": 90,
+      "launchSpeed": 28,
+      "acceleration": 45,
+      "turnRate": 1.6,
+      "muzzle": 0,
+      "muzzleHeight": 2,
+      "fireOnMove": true,
+      "launch": "vertical",
+      "boostTime": 0.45
+    },
+    "torpedo": {
+      "name": "Rasketorpeedo",
+      "weapon": "missile",
+      "flight": "guided",
+      "guidance": "radar",
+      "visual": "torpedo",
+      "warhead": "he",
+      "targets": "naval",
+      "speed": 28,
+      "launchSpeed": 14,
+      "acceleration": 8,
+      "turnRate": 1.8,
+      "muzzle": 5,
+      "muzzleHeight": -0.1,
+      "fireOnMove": true
     }
   },
   "loadouts": {
@@ -490,25 +574,132 @@
     ],
     "destroyer": [
       {
-        "profile": "autocannon"
+        "profile": "naval-gun",
+        "range": 175,
+        "damage": 22,
+        "cooldown": 2,
+        "penetration": 18,
+        "accuracy": 0.78,
+        "ammoCapacity": 90,
+        "splash": 3,
+        "minimumRange": 0
+      },
+      {
+        "profile": "anti-ship",
+        "range": 440,
+        "minimumRange": 30,
+        "damage": 105,
+        "cooldown": 8,
+        "penetration": 35,
+        "accuracy": 0.82,
+        "ammoCapacity": 8,
+        "splash": 5
+      },
+      {
+        "profile": "cruise",
+        "range": 560,
+        "minimumRange": 45,
+        "damage": 85,
+        "cooldown": 11,
+        "penetration": 18,
+        "accuracy": 0.78,
+        "ammoCapacity": 6,
+        "splash": 8
+      },
+      {
+        "profile": "naval-sam",
+        "range": 390,
+        "minimumRange": 16,
+        "damage": 40,
+        "cooldown": 3.8,
+        "penetration": 25,
+        "accuracy": 0.84,
+        "ammoCapacity": 16,
+        "splash": 1.5
       }
     ],
     "submarine": [
       {
-        "profile": "atgm",
-        "targets": "ground"
+        "profile": "torpedo",
+        "range": 260,
+        "minimumRange": 12,
+        "damage": 140,
+        "cooldown": 9,
+        "penetration": 40,
+        "accuracy": 0.88,
+        "ammoCapacity": 12,
+        "splash": 4
+      },
+      {
+        "profile": "cruise",
+        "range": 560,
+        "minimumRange": 45,
+        "damage": 85,
+        "cooldown": 11,
+        "penetration": 18,
+        "accuracy": 0.78,
+        "ammoCapacity": 4,
+        "splash": 8
       }
     ],
     "frigate": [
       {
-        "profile": "atgm",
-        "targets": "ground"
+        "profile": "naval-gun",
+        "range": 175,
+        "damage": 22,
+        "cooldown": 2,
+        "penetration": 18,
+        "accuracy": 0.78,
+        "ammoCapacity": 90,
+        "splash": 3,
+        "minimumRange": 0
+      },
+      {
+        "profile": "anti-ship",
+        "range": 440,
+        "minimumRange": 30,
+        "damage": 105,
+        "cooldown": 8,
+        "penetration": 35,
+        "accuracy": 0.82,
+        "ammoCapacity": 8,
+        "splash": 5
+      },
+      {
+        "profile": "naval-sam",
+        "range": 290,
+        "minimumRange": 16,
+        "damage": 40,
+        "cooldown": 3.8,
+        "penetration": 25,
+        "accuracy": 0.84,
+        "ammoCapacity": 8,
+        "splash": 1.5
       }
     ],
     "missileBoat": [
       {
-        "profile": "atgm",
-        "targets": "ground"
+        "profile": "anti-ship",
+        "range": 440,
+        "minimumRange": 30,
+        "damage": 105,
+        "cooldown": 8,
+        "penetration": 35,
+        "accuracy": 0.82,
+        "ammoCapacity": 4,
+        "splash": 5
+      },
+      {
+        "profile": "naval-gun",
+        "range": 130,
+        "damage": 12,
+        "cooldown": 2,
+        "penetration": 18,
+        "accuracy": 0.78,
+        "ammoCapacity": 60,
+        "splash": 3,
+        "minimumRange": 0,
+        "name": "76 mm laevakahur"
       }
     ],
     "special": [
