@@ -55,3 +55,25 @@ export function forestDensityAt(x:number,z:number,features:readonly MapFeatureDe
   if(density&&features.some(f=>(f.kind==="road"||f.kind==="bridge"||f.kind==="water"||f.appearance==="yard")&&pointInFeature(x,z,f,1)))return 0;
   return Math.min(1,density);
 }
+
+/** Conservative rotated footprint bins; exact predicates remain at each consumer.
+ * Source order is preserved, so overlapping roads keep deterministic precedence. */
+export class MapFeatureIndex {
+  private readonly bins=new Map<string,MapFeatureDef[]>();
+  private readonly empty:readonly MapFeatureDef[]=[];
+  constructor(features:readonly MapFeatureDef[],private readonly cellSize=64,padding=3){
+    for(const f of features){
+      const c=Math.abs(Math.cos(f.rotation??0)),s=Math.abs(Math.sin(f.rotation??0));
+      const hx=c*(f.width/2+padding)+s*(f.depth/2+padding);
+      const hz=s*(f.width/2+padding)+c*(f.depth/2+padding);
+      for(let x=Math.floor((f.x-hx)/cellSize);x<=Math.floor((f.x+hx)/cellSize);x++)
+        for(let z=Math.floor((f.z-hz)/cellSize);z<=Math.floor((f.z+hz)/cellSize);z++){
+          const key=`${x}/${z}`,bin=this.bins.get(key);
+          if(bin)bin.push(f);else this.bins.set(key,[f]);
+        }
+    }
+  }
+  at(x:number,z:number):readonly MapFeatureDef[]{
+    return this.bins.get(`${Math.floor(x/this.cellSize)}/${Math.floor(z/this.cellSize)}`)??this.empty;
+  }
+}

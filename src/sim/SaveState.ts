@@ -81,13 +81,13 @@ export function saveWorld(world: World): WorldSave {
 
 export const SAVE_RULESET="2026-10-06.integrated-session";
 /** Geometry compatibility excludes changing resource stocks/control. */
-export function saveMapSignature(world:World):string {
-  const text=JSON.stringify([world.mapSize,world.bases,world.mapFeatures,world.resourcePoints.map(r=>[r.x,r.z,r.radius,r.facility])]);
+export function saveMapSignature(world:World,canonical=true):string {
+  const text=JSON.stringify([world.mapSize,world.bases,canonical?[...world.mapFeatures].sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0):world.mapFeatures,world.resourcePoints.map(r=>[r.x,r.z,r.radius,r.facility])]);
   let h=2166136261;for(let i=0;i<text.length;i++)h=Math.imul(h^text.charCodeAt(i),16777619);return (h>>>0).toString(16);
 }
 export function loadWorld(world:World,state:WorldSave):void {
   if(!state||typeof state!=="object"||!Number.isInteger(state.version)||state.version<1||state.version>20)throw new Error("Tundmatu või vigane salvestuse versioon");
-  if(state.version===20&&(state.mapSignature!==saveMapSignature(world)||state.ruleset!==SAVE_RULESET))throw new Error("Salvestus kuulub teisele kaardiversioonile või mängureeglitele");
+  if(state.version===20&&((state.mapSignature!==saveMapSignature(world)&&state.mapSignature!==saveMapSignature(world,false))||state.ruleset!==SAVE_RULESET))throw new Error("Salvestus kuulub teisele kaardiversioonile või mängureeglitele");
   if(![state.time,state.credits,state.resources,state.rngState].every(Number.isFinite)||!["running","won","lost"].includes(state.status)||state.time<0||!Number.isFinite(state.rngState)||!Number.isInteger(state.nextId)||!Array.isArray(state.entities)||!Array.isArray(state.resourcePoints))throw new Error("Salvestuse põhiandmed on vigased");
   for(const key of ["teamCredits","teamResources","teamPower","teamPowerUse","teamMorale","areaControl"] as const)if(state[key]&&(!Array.isArray(state[key])||state[key]!.length!==2||!state[key]!.every(Number.isFinite)))throw new Error("Salvestuse majandusandmed on vigased");
   if(state.runtime?.mapSize!=null&&state.runtime.mapSize!==world.mapSize)throw new Error("Salvestuse kaardi suurus ei vasta avatud kaardile");

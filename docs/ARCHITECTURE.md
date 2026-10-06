@@ -1,6 +1,6 @@
 # Arhitektuur
 
-Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 12, 48 tsiviilhoonet + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
+Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 13, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
 
 ## Põhimõte
 Kolm kihti, sõltuvused ainult allapoole: **ui/input → sim ← render** (render ja ui *loevad* sim olekut, annavad käske, kuid sim ei tea neist midagi).
@@ -204,3 +204,11 @@ units.ts valib tehnika laskepositsioonid mobility.navigation.vehicleFiringFactor
 ## Visuaalse liikumise näidis
 
 World.tick säilitab py/pFlightPitch/pFlightBank koos olemasoleva px/pz/pHeading/pTurretYaw-ga. render/MotionPresentation täidab caller-owned poosi ning filtreerib ainult kosmeetilisi amplituude; see ei kirjuta World-i ega anna käske. UnitRenderer kasutab tegelikku ticki teekonda sammu ja vedrustuse animatsioonis ning interpoleeritud lennukõrgust/kallet. main külmutab pausi/lõpu korral alpha=1 ja animationDt=0, sealhulgas mürskude asukohad. Optional visuaalsed lähteandmed säilivad fullEntities salvestuses ning vanade salvestuste korral kasutatakse praegust kõrgust/kallet. Vt VISUAL-MOTION-POLISH.md.
+
+## Kaart ja lahinguvaate ruum
+
+Roheoru autoritud layout13 pärineb scripts/maps/finish-road-network.py-st. Tee servad joonistatakse enne sõiduteevõrku jagatud materjalidega; sillad sisaldavad oma eemaldatavas juures ka sõidupinda ja toestusi. Hud reparentib olemasoleva tootmispaneeli juure alla avatavaks ülemiseks ribaks, säilitades nupud/viited/käsud. Alumisel alal on sõltumatud minikaart ja valiku paneel. Fullscreen.ts ühendab brauseri Fullscreen API nii HUD-i kui OnlineShell-i nupuga. OnlineShell renderdab kahe skirmish-kaardi eelvaated tegelikest feature-andmetest. Murdlaine coast2 kasutab olemasolevat mereväe missiooni, lisades kuiva maa asulaid ja teid. saveMapSignature sordib staatilise feature-loendi ID järgi koopias; legacy signatuuri kontroll jääb sama järjestusega vanale v20 failile. Vt MAP-HUD-FULLSCREEN.md.
+
+## Ranniku ühine geomeetria ja indeks
+
+Murdlaine layout 3 kasutab sama veeribade geomeetriat kõrgusväljas, laevade navigatsioonis, minikaardil ja mere renderduses. `mapFeatures.MapFeatureIndex` säilitab allikajärjekorra ja annab pööratud/polsterdatud AABB alusel kohaliku kandidaatide hulga pinnase- ning veokipäringutele ja puude paigutamisele. Täpsed jäljekontrollid jäävad tarbijatesse. WaterNavGrid kasutab rasterdamiseks kitsamat pööratud AABB-d. Ülevaade ja kontrollid: [COAST-MAP-PERFORMANCE.md](COAST-MAP-PERFORMANCE.md).

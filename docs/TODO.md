@@ -17,6 +17,7 @@ Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on j�
 - [x] Jõudluse ja intuitiivse HUD-i viimistlus: minikaardi staatiline taust/silla invalidatsioon, ühine varustussõlmede vaade, tootjate üks läbimine; eristatavad käsu- ja klassiikoonid, loogilised tööalad, tegelik aktiivne olek, järjekorra ja hoone arendusnuppude kättesaadavus. Build + 6 sihitud kontrolli; brauseri UI/FPS ülevaatus ootel. Vt UI-PERFORMANCE-POLISH.md.
 - [x] Järgmine jõudluse viimistlus: kohalik katteindeks luures/lahingus, hõivatud ruumiliste lahtrite tühjendamine, kütusekonvoide alamhulk, renderduse ühine varustuspäring ja sortimiseta üksusesildid. Build + 5 sihitud kontrolli; 96 üksuse lühike CPU-võrdlus sama hashiga. Brauseri/GPU FPS ootel. Vt PERFORMANCE-LOCAL-QUERIES.md.
 - [x] Üldauditi ühendusparandused: ranniku kaardivalik, Roheoru sammupõhine õpetus, missiooni algsed siht-ID-d, v20 save/load sobivus ja rollback, laadimise juhtimisseisund, püsiv HUD-i tagasiside ning ruumipuudusest sõltumatu lõpuaken. Sihitud kontrollid/build; päris alpha läbipääs jätkub. Vt PROJECT-QUALITY-AUDIT.md.
+- [x] Ranniku layout 3 ja kaardikoormuse viimistlus: päris lahesopid, sadama-/külateed ja hooned, mere madalikud, ühine pööratud jälgede indeks ja kitsam veenavigatsiooni rasterdus. Build + 5 sihitud kontrolli; brauseri pilt/FPS ootel. Vt COAST-MAP-PERFORMANCE.md.
 - [ ] A6: õpetus, save/load, visuaalne viimistlus ja maalahingu alpha läbipääs.
 - [x] Mereväe ühendused: Murdlaine rannikumapp, veenavigatsioon, vabad tootmiskaid, moodne mitmerelvaline arsenal, raketilend ja torpeedod, füüsiline sadamateenindus, mere-AI, mudelid ja efektid. Build + sihitud sim-kontrollid; brauseri läbimängimine ootel. Vt NAVAL-WARFARE-RELEASE.md.
 - [ ] B1: olemasolev merevägi, päris veenavigatsioon/sadam ja üks lõpetatud rannikumissioon.
@@ -235,3 +236,12 @@ Rakendatud renderduses ning eksporditud mänguvarades. Build ja lühike GLB stru
 - [x] Kõrguse/lennukalde interpolatsioon, tegelikust liikumisest lähtuv sujuv jalaväe samm ja vedrustus ning pausi interpolatsiooni parandus.
 - [x] Kaamera vaatesse naasmise ja järsu ümberpaigutuse lähtestamine; 3 renderdusloogika kontrolli, replay ja build. Vt VISUAL-MOTION-POLISH.md.
 - [ ] Renderdatud brauserivaate, suurte gruppide ning eri LOD-ide visuaalne jälgimine ja FPS-mõõtmine.
+
+## Pildi põhjal kaardi ja HUD-i parandus
+
+- [x] Roheoru layout13: sidus ja sillaotstega joondatud teedevõrk, ümardatud suunamuutused ja ohutud ressursihoone kohad.
+- [x] Kitsamad servad enne kogu sõiduteevõrku, jagatud asfalt ning silla sõidupind/toestused.
+- [x] Ülemine avatav tootmisriba, eraldi alumised minikaardi/valiku paneelid, täisekraan ja Kaardid-nupp.
+- [x] Nähtavad kahe kaardi eelvaated ning Murdlaine coast2 sadamalinnad ja ühendusteed.
+- [x] Staatilise geomeetria järjekorrast sõltumatu save-signatuur; 5 sihitud kontrolli ja build. Vt MAP-HUD-FULLSCREEN.md.
+- [ ] HUD-i eri ekraanisuuruste, täisekraani ja teepindade renderdatud brauseripildi ülevaatus.

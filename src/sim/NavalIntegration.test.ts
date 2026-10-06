@@ -1,6 +1,6 @@
 import {afterEach,describe,expect,it} from 'vitest';
 import {World} from './World';
-import {resetHeightmap,setMapSize,setBases} from './heightmap';
+import {resetHeightmap,setMapSize,setBases,setTerrainProfile} from './heightmap';
 import {updateUnits} from './systems/units';
 import {updateProduction} from './systems/production';
 import {updateProjectiles} from './systems/projectiles';
@@ -9,7 +9,7 @@ import {updateTacticalSupply} from './systems/tacticalSupply';
 import {saveWorld,loadWorld} from './SaveState';
 import {worldHash} from './Replay';
 import {SIM_STEP} from './constants';
-import type {MapFeatureDef} from './mapFeatures';
+import {pointInFeature,type MapFeatureDef} from './mapFeatures';
 import type {MissionDef} from './types';
 import coast from '../data/missions/operation-tidebreaker.json';
 import {MissionController} from './Mission';
@@ -56,4 +56,20 @@ describe('integrated navy',()=>{
   for(const kind of ['frigate','aa','hq']){for(const e of w.entities)if(e.team===1&&e.kind===kind)e.dead=true;mission.tick(SIM_STEP);}
   expect(w.status).toBe('won');
  });
+});
+
+it('authored coastline keeps ports supplied, ship lanes connected and town buildings off roads',()=>{
+ const m=coast as unknown as MissionDef;setMapSize(m.map.size);setBases(m.map.bases);setTerrainProfile(m.map.terrainProfile);
+ const w=new World(m.seed,false,m.map.resources,m.map.features,m.map.bases,false);w.networkMode=true;
+ for(const o of m.map.objects??[])w.spawn(o.kind,o.team,o.x,o.z);
+ for(const port of w.entities.filter(e=>e.kind==='shipyard')){
+  expect(w.waterNav.isWalkableWorld(port.x,port.z,0)).toBe(false); // port stays on land
+  expect(w.productionOperational(port,'missileBoat').operational).toBe(true);
+  expect(w.waterNav.nearestWater(port,5,64)).not.toBeNull();
+ }
+ for(let z=-460;z<=460;z+=8)expect(w.waterNav.isWalkableWorld(-200,z,8)).toBe(true);
+ for(const f of m.map.features??[])if(f.kind==='building'){
+  expect((m.map.features??[]).some(o=>(o.kind==='road'||o.kind==='water')&&pointInFeature(f.x,f.z,o,Math.max(f.width,f.depth)/2+1)),f.id).toBe(false);
+ }
+ for(const r of m.map.resources)expect(w.nav.isWalkableWorld(r.x,r.z,1),r.label).toBe(true);
 });

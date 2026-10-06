@@ -3,7 +3,7 @@ import * as THREE from "three";
 import {createCivilianBuilding,createBuildingModel,batchStaticScene} from "./Architecture";
 import { getBases, MAP_SIZE, heightAt,groundHeightAt } from "../sim/heightmap";
 import { mulberry32 } from "../sim/rng";
-import { pointInFeature, forestDensityAt, type MapFeatureDef } from "../sim/mapFeatures";
+import { pointInFeature, forestDensityAt, MapFeatureIndex, type MapFeatureDef } from "../sim/mapFeatures";
 import type {World} from "../sim/World";
 import type { Point } from "../sim/types";
 
@@ -84,6 +84,8 @@ export function animateRiverTerrain(group:THREE.Group,time:number):void {
   const mapFeatures=group.children.find(o=>o.name==="map-features");
   const flow=mapFeatures?.userData.riverFlow as THREE.CanvasTexture|undefined;
   if(flow)flow.offset.y=time*.012;
+  const sea=mapFeatures?.userData.seaFlow as THREE.CanvasTexture|undefined;
+  if(sea){sea.offset.x=time*.002;sea.offset.y=time*.0015;}
 }
 
 function makeGrainTexture(theme:string):THREE.CanvasTexture {
@@ -130,11 +132,17 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
   ctx.lineCap="round";
   for(const width of [48,37,29]){
     ctx.strokeStyle=width===48?"rgba(147,149,118,.65)":width===37?"#969581":"#858778";ctx.lineWidth=width;
-    for(const f of features.filter(f=>f.kind==="water"))local(f,()=>{ctx.beginPath();ctx.moveTo(0,-f.depth/2);ctx.lineTo(0,f.depth/2);ctx.stroke();});
+    for(const f of features.filter(f=>f.kind==="water"&&f.width<128))local(f,()=>{ctx.beginPath();ctx.moveTo(0,-f.depth/2);ctx.lineTo(0,f.depth/2);ctx.stroke();});
   }
+  // Ocean shore is the actual water footprint boundary, never a river stripe.
+  for(const f of features.filter(f=>f.kind==="water"&&f.width>=128))local(f,()=>{
+    const beach=ctx.createLinearGradient(f.width/2-4,0,f.width/2+18,0);
+    beach.addColorStop(0,"#777f76");beach.addColorStop(.35,"#b3ac8d");beach.addColorStop(1,"rgba(155,157,126,0)");
+    ctx.fillStyle=beach;ctx.fillRect(f.width/2-4,-f.depth/2,22,f.depth);
+  });
   for(const b of bases){const g=ctx.createRadialGradient(b.x,b.z,b.r*.4,b.x,b.z,b.r);g.addColorStop(0,"rgba(157,157,139,.72)");g.addColorStop(1,"rgba(157,157,139,0)");ctx.fillStyle=g;ctx.beginPath();ctx.arc(b.x,b.z,b.r,0,Math.PI*2);ctx.fill();}
   // Narrow mown shoulders keep rural routes legible without bright paint stripes.
-  for(const f of features.filter(f=>f.kind==="road"))local(f,()=>{ctx.fillStyle=f.roadClass==="track"?"#aaa58b":"#a0a18d";ctx.fillRect(-f.width/2-1.8,-f.depth/2,f.width+3.6,f.depth);});
+  for(const f of features.filter(f=>f.kind==="road"))local(f,()=>{ctx.fillStyle=f.roadClass==="track"?"#aaa58b":"#8c907c";ctx.fillRect(-f.width/2-.8,-f.depth/2,f.width+1.6,f.depth);});
   ctx.resetTransform();
   const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=8;return texture;
 }
@@ -189,6 +197,14 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
   group.name = "map-features";
   const flow=riverTexture();group.userData.riverFlow=flow;
   const riverMaterial=new THREE.MeshStandardMaterial({color:0x526d70,map:flow,bumpMap:flow,bumpScale:.055,roughness:.36,metalness:.14});
+  const seaFlow=riverTexture();group.userData.seaFlow=seaFlow;
+  const seaMaterial=new THREE.MeshStandardMaterial({color:0xffffff,map:seaFlow,bumpMap:seaFlow,bumpScale:.12,roughness:.48,metalness:.12,vertexColors:true});
+  const ocean=features.filter(f=>f.kind==="water"&&f.width>=128);
+  const asphalt=asphaltTexture();
+  const roadMat=new THREE.MeshStandardMaterial({color:0x626862,map:asphalt,bumpMap:asphalt,bumpScale:.015,roughness:.96,polygonOffset:true,polygonOffsetFactor:-1});
+  const vergeMat=new THREE.MeshStandardMaterial({color:0x8c907c,roughness:1,polygonOffset:true,polygonOffsetFactor:-1});
+  // All shoulders sit below the complete carriageway network, including junctions.
+  for(const f of features)if(f.kind==="road"&&f.roadClass!=="track")group.add(drapedStrip(f,f.width+1.2,0x8c907c,.028,vergeMat));
   for (const f of features) {
     const y = heightAt(f.x, f.z);
     if(f.appearance==="yard"){group.add(drapedStrip(f,f.width,f.color??0x858578,f.width>12&&f.depth>12?.025:.07));continue;}
@@ -199,10 +215,21 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
       (field.material as THREE.MeshStandardMaterial).map=fieldTexture();group.add(field);continue;
     }
     if (f.kind === "water") {
-      const geo=new THREE.PlaneGeometry(f.width,f.depth).rotateX(-Math.PI/2);
+      const sea=f.width>=128;
+      const geo=new THREE.PlaneGeometry(f.width,f.depth,sea?Math.ceil(f.width/16):1,1).rotateX(-Math.PI/2);
       const uv=geo.attributes.uv,pos=geo.attributes.position,c=Math.cos(f.rotation??0),s=Math.sin(f.rotation??0);
       for(let i=0;i<uv.count;i++){const x=f.x+pos.getX(i)*c+pos.getZ(i)*s,z=f.z-pos.getX(i)*s+pos.getZ(i)*c;uv.setXY(i,x/6,z/12);}
-      const mesh=new THREE.Mesh(geo,riverMaterial);
+      if(sea){
+        const colors=new Float32Array(pos.count*3),deep=new THREE.Color(0x314e60),shallow=new THREE.Color(0x738e88),tint=new THREE.Color();
+        for(let i=0;i<pos.count;i++){
+          const x=f.x+pos.getX(i),z=f.z+pos.getZ(i);
+          const shores=ocean.filter(w=>Math.abs(z-w.z)<=w.depth/2+.01);
+          const shore=Math.max(...shores.map(w=>w.x+w.width/2));
+          tint.copy(deep).lerp(shallow,Math.max(0,1-(shore-x)/48));tint.toArray(colors,i*3);
+        }
+        geo.setAttribute("color",new THREE.BufferAttribute(colors,3));
+      }
+      const mesh=new THREE.Mesh(geo,sea?seaMaterial:riverMaterial);
       mesh.position.set(f.x,f.surfaceHeight??y-.55,f.z);mesh.rotation.y=f.rotation??0;mesh.receiveShadow=true;
       group.add(mesh);
       continue;
@@ -210,8 +237,7 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
     if (f.kind === "road" || f.kind === "bridge") {
       if(f.kind === "road") {
         const track=f.roadClass==="track",urban=f.roadClass==="street";
-        group.add(drapedStrip(f, f.width+(urban?1:2), track?0x94927a:0x999885, .035));
-        group.add(drapedStrip(f, f.width, track?0x8e8b73:0x686d69, .06));
+        group.add(drapedStrip(f,f.width,track?0x8e8b73:0x626862,.065,track?undefined:roadMat));
         if(!track&&!urban)for(let z=-f.depth/2+3;z<f.depth/2-2;z+=10){
           const x=f.x+Math.sin(f.rotation??0)*z,zz=f.z+Math.cos(f.rotation??0)*z;
           // Markings stop at real intersections and at bridge decks.
@@ -222,6 +248,8 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
         const mesh=new THREE.Mesh(new THREE.BoxGeometry(f.width,.7,f.depth),new THREE.MeshStandardMaterial({color:0x8a8980,roughness:.9}));
         mesh.position.set(f.x,(f.surfaceHeight??y)-.29,f.z);mesh.rotation.y=f.rotation??0;mesh.receiveShadow=true;
         const bridge=new THREE.Group();bridge.userData.bridgeId=f.id;bridge.add(mesh);
+        const surface=new THREE.Mesh(new THREE.PlaneGeometry(f.width-.8,f.depth).rotateX(-Math.PI/2),roadMat);surface.position.set(f.x,(f.surfaceHeight??y)+.075,f.z);surface.rotation.y=f.rotation??0;surface.receiveShadow=true;bridge.add(surface);
+        for(const side of [-1,1]){const a=f.rotation??0,offset=f.depth/2*side;const support=new THREE.Mesh(new THREE.BoxGeometry(f.width+1,1.8,2.2),mesh.material);support.position.set(f.x+Math.sin(a)*offset,(f.surfaceHeight??y)-1.3,f.z+Math.cos(a)*offset);support.rotation.y=a;bridge.add(support);}
         addBridgeRails(bridge,f,f.surfaceHeight??y);group.add(bridge);
       }
       continue;
@@ -337,24 +365,25 @@ function addBridgeRails(group:THREE.Group,f:MapFeatureDef,y:number):void {
 }
 
 /** Road geometry samples the same height field as navigation; no floating slabs. */
-function drapedStrip(f:MapFeatureDef,width:number,color:number,lift:number):THREE.Mesh {
+function drapedStrip(f:MapFeatureDef,width:number,color:number,lift:number,sharedMaterial?:THREE.MeshStandardMaterial):THREE.Mesh {
   const geo=new THREE.PlaneGeometry(width,f.depth,2,Math.max(1,Math.ceil(f.depth/3)));geo.rotateX(-Math.PI/2);const p=geo.attributes.position,c=Math.cos(f.rotation??0),s=Math.sin(f.rotation??0);
   for(let i=0;i<p.count;i++){const lx=p.getX(i),lz=p.getZ(i),x=f.x+lx*c+lz*s,z=f.z-lx*s+lz*c;p.setXYZ(i,x,heightAt(x,z)+lift,z);}geo.computeVertexNormals();
   const paved=f.kind==="road"||f.appearance==="yard";
   if(paved){const uv=geo.attributes.uv;for(let i=0;i<p.count;i++)uv.setXY(i,p.getX(i)*.18,p.getZ(i)*.18);}
   const map=paved?asphaltTexture():null;
-  const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color,map,bumpMap:map,bumpScale:.025,roughness:.96,polygonOffset:true,polygonOffsetFactor:-1}));mesh.receiveShadow=true;return mesh;
+  const mesh=new THREE.Mesh(geo,sharedMaterial??new THREE.MeshStandardMaterial({color,map,bumpMap:map,bumpScale:.025,roughness:.96,polygonOffset:true,polygonOffsetFactor:-1}));mesh.receiveShadow=true;return mesh;
 }
 /** Crossed cutout crowns have irregular leaf silhouettes, depth writing and no
  * transparent sorting. Separate cell batches keep distant forests culled. */
 function createForest(features:readonly MapFeatureDef[]):THREE.Group {
   const rnd=mulberry32(104),cells=new Map<string,{x:number;z:number;s:number;angle:number;pine:boolean}[]>();
-  const forbidden=features.filter(f=>["building","road","bridge","water","wall"].includes(f.kind)||f.appearance==="yard");
+  const index=new MapFeatureIndex(features);
   for(const f of features.filter(f=>f.appearance==="forest")){
     const c=Math.cos(f.rotation??0),s=Math.sin(f.rotation??0);
     for(let i=0;i<Math.ceil(f.width*f.depth/38);i++){
       const lx=(rnd()-.5)*f.width,lz=(rnd()-.5)*f.depth,x=f.x+lx*c+lz*s,z=f.z-lx*s+lz*c;
-      if(forbidden.some(block=>pointInFeature(x,z,block,2))||rnd()>forestDensityAt(x,z,features))continue;
+      const nearby=index.at(x,z);
+      if(nearby.some(block=>(["building","road","bridge","water","wall"].includes(block.kind)||block.appearance==="yard")&&pointInFeature(x,z,block,2))||rnd()>forestDensityAt(x,z,nearby))continue;
       const pine=rnd()<.4,key=`${Math.floor(x/64)}/${Math.floor(z/64)}/${pine}`,list=cells.get(key)??[];
       list.push({x,z,s:.85+rnd()*.65,angle:rnd()*Math.PI,pine});cells.set(key,list);
     }

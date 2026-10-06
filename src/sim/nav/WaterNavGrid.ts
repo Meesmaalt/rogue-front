@@ -12,7 +12,9 @@ export class WaterNavGrid extends NavGrid {
   for(const f of features.filter(f=>['bridge','building','wall','chokepoint'].includes(f.kind)))this.paint(f,true);
  }
  private paint(f:MapFeatureDef,solid:boolean):void {
-  const r=Math.hypot(f.width,f.depth)/2+2,a=this.worldToCell(f.x-r,f.z-r),b=this.worldToCell(f.x+r,f.z+r);
+  const c=Math.abs(Math.cos(f.rotation??0)),s=Math.abs(Math.sin(f.rotation??0));
+  const hx=c*f.width/2+s*f.depth/2+2,hz=s*f.width/2+c*f.depth/2+2;
+  const a=this.worldToCell(f.x-hx,f.z-hz),b=this.worldToCell(f.x+hx,f.z+hz);
   for(let iz=a.z;iz<=b.z;iz++)for(let ix=a.x;ix<=b.x;ix++){
    const p=this.cellToWorld(ix,iz);if(!pointInFeature(p.x,p.z,f))continue;
    const index=this.index(ix,iz);this.blocked[index]=solid?1:0;if(!solid)this.surfaces[index]=f.surfaceHeight??0;

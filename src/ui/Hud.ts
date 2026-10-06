@@ -1,3 +1,4 @@
+import {bindFullscreen} from "./Fullscreen";
 import logisticsRules from "../data/logistics.json";
 import {stockCapacity,stockTotal,logisticsStatus} from "../sim/stockLogistics";
 import {isGarrisonBuilding,garrisonCapacity,garrisonOccupants,buildingCondition,GARRISON_RULES} from "../sim/garrison";
@@ -172,7 +173,7 @@ export class Hud {
       <header class="top">
         <div class="panel brand">Rogue Front<small>Taktikaline RTS · <span data-r="fps">-- fps</span> · <span data-r="net">üksikmäng</span></small></div>
         <div class="panel obj"><b data-r="missionName">Missioon</b><div data-r="objectiveList">Vali missioon.</div><div class="mission-msg" data-r="missionMsg"></div><div class="warning" data-r="warning"></div></div>
-        <div class="panel controls"><button data-action="pause">Paus</button><button data-action="save">Salvesta</button><button data-action="load">Lae</button><button data-action="settings">Seaded</button></div>
+        <div class="panel controls"><button data-deployment-toggle aria-expanded="false">Tootmine</button><button data-fullscreen></button><button data-map-menu>Kaardid</button><button data-action="pause">Paus</button><button data-action="save">Salvesta</button><button data-action="load">Lae</button><button data-action="settings">Seaded</button></div>
         <div class="panel stat resources">
           <div class="res-row"><span class="res-label">VARUSTUS</span><b data-r="res">0</b></div>
           <div class="res-row"><span class="res-label">ENERGIA</span><b data-r="power">0/0</b>
@@ -270,6 +271,10 @@ export class Hud {
     root.querySelectorAll<HTMLElement>("[data-r]").forEach((n) => (this.el[n.dataset.r!] = n));
     this.minimapCanvas = root.querySelector(".mini") as HTMLCanvasElement;
     this.buttons = [...root.querySelectorAll<HTMLButtonElement>("button[data-kind]")];
+    const production=root.querySelector<HTMLElement>(".build.tactical");if(production)root.appendChild(production);
+    root.querySelector<HTMLButtonElement>("[data-deployment-toggle]")!.onclick=()=>{const open=root.classList.toggle("deployment-open");root.querySelector("[data-deployment-toggle]")!.setAttribute("aria-expanded",String(open));};
+    root.querySelector<HTMLButtonElement>("[data-map-menu]")!.onclick=()=>{location.href=location.pathname;};
+    bindFullscreen(root.querySelector<HTMLButtonElement>("[data-fullscreen]")!,message=>this.setWarning(message));
     this.pauseButton = root.querySelector<HTMLButtonElement>('[data-action="pause"]');
     root.querySelectorAll<HTMLButtonElement>("[data-order]").forEach(b=>b.onclick=()=>this.onOrder(b.dataset.order as "move"|"fast"|"attack"|"unload"|"stop"|"focus"));
     this.buttons.forEach(b=>b.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();this.inspectedKind=b.dataset.kind as UnitKind;}));
@@ -366,6 +371,7 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
   update(world: World, selection: ReadonlySet<number>, running: boolean, objectives: readonly { title: string; description: string; complete: boolean; progress: number }[] = [], missionMessage = ""): void {
     const changed=this.selectedIds.join(",") !== [...selection].join(",");
     this.selectedIds = [...selection];
+    this.root.classList.toggle("has-selection",this.selectedIds.length>0);
     const signature=this.selectedIds.join(",");if(signature!==this.selectionSignature){this.inspectedKind=null;this.inspectedBuildingId=null;this.rangeSlot=null;}this.selectionSignature=signature;
     if(changed && this.selectedIds.length){const first=world.byId.get(this.selectedIds[0]);if(first){const tab=["factory","barracks"].includes(first.kind)?"land":["helipad","airbase"].includes(first.kind)?"air":first.kind==="shipyard"?"sea":first.kind==="engineer"||first.def.building?"builds":first.def.armor==="air"?"air":first.def.domain==="sea"?"sea":"land";this.findButton(`button[data-tab="${tab}"]`)?.click();}}
     const hasMobile=this.selectedIds.some(id=>{const u=world.byId.get(id);return !!u&&!u.dead&&u.team===world.playerTeam&&u.def.speed>0;});

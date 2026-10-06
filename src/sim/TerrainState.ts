@@ -1,6 +1,6 @@
 import {mobilityProfile} from "./unitStats";
 import config from "../data/terrain.json";
-import {forestDensityAt,pointInFeature,type MapFeatureDef} from "./mapFeatures";
+import {forestDensityAt,pointInFeature,MapFeatureIndex,type MapFeatureDef} from "./mapFeatures";
 import {heightAt} from "./heightmap";
 import type {Entity} from "./types";
 import type {World} from "./World";
@@ -13,7 +13,7 @@ export class TerrainState {
   private cells=new Map<string,ForestCell>();
   private accumulator=0;
   revision=0;
-  private vegetation=new Map<string,MapFeatureDef[]>();
+  private readonly vegetation:MapFeatureIndex;
   private readonly coverBins=new Map<string,MapFeatureDef[]>();
   private readonly emptyCover:readonly MapFeatureDef[]=[];
   /** Static broad phase only: consumers keep their exact footprint and damage rules. */
@@ -30,17 +30,15 @@ export class TerrainState {
         const key=`${ix}/${iz}`,bin=this.coverBins.get(key);if(bin)bin.push(f);else this.coverBins.set(key,[f]);
       }
     }
-    for(const f of features.filter(f=>f.kind==="cover"||f.kind==="road"||f.kind==="bridge"||f.kind==="water"||f.appearance==="yard")){
-      const r=Math.hypot(f.width,f.depth)/2+2;
-      for(let x=Math.floor((f.x-r)/64);x<=Math.floor((f.x+r)/64);x++)for(let z=Math.floor((f.z-r)/64);z<=Math.floor((f.z+r)/64);z++){
-        const key=`${x}/${z}`,list=this.vegetation.get(key)??[];list.push(f);this.vegetation.set(key,list);
-      }
-    }
+    this.vegetation=new MapFeatureIndex(features.filter(f=>f.kind==="cover"||f.kind==="road"||f.kind==="bridge"||f.kind==="water"||f.appearance==="yard"));
   }
   private key(x:number,z:number):string{return `${Math.floor(x/rules.cellSize)}/${Math.floor(z/rules.cellSize)}`;}
-  roadAt(x:number,z:number):boolean {return (this.vegetation.get(`${Math.floor(x/64)}/${Math.floor(z/64)}`)??[]).some(f=>(f.kind==="road"||f.kind==="bridge")&&pointInFeature(x,z,f));}
-  slowCoverAt(x:number,z:number):boolean {return (this.vegetation.get(`${Math.floor(x/64)}/${Math.floor(z/64)}`)??[]).some(f=>f.kind==="cover"&&f.appearance!=="forest"&&f.appearance!=="field"&&f.appearance!=="yard"&&pointInFeature(x,z,f));}
-  densityAt(x:number,z:number):number{return forestDensityAt(x,z,this.vegetation.get(`${Math.floor(x/64)}/${Math.floor(z/64)}`)??[]);}
+  roadFeatureAt(x:number,z:number,padding=0):MapFeatureDef|undefined {
+    return this.vegetation.at(x,z).find(f=>(f.kind==="road"||f.kind==="bridge")&&pointInFeature(x,z,f,padding));
+  }
+  roadAt(x:number,z:number):boolean {return this.vegetation.at(x,z).some(f=>(f.kind==="road"||f.kind==="bridge")&&pointInFeature(x,z,f));}
+  slowCoverAt(x:number,z:number):boolean {return this.vegetation.at(x,z).some(f=>f.kind==="cover"&&f.appearance!=="forest"&&f.appearance!=="field"&&f.appearance!=="yard"&&pointInFeature(x,z,f));}
+  densityAt(x:number,z:number):number{return forestDensityAt(x,z,this.vegetation.at(x,z));}
   burntAt(x:number,z:number):boolean{return this.cells.get(this.key(x,z))?.burnt??false;}
   foliageAt(x:number,z:number):number{return this.densityAt(x,z)*(this.burntAt(x,z)?rules.burntCover:1);}
   fireAt(x:number,z:number):boolean {const c=this.cells.get(this.key(x,z));return !!c&&!c.burnt&&c.age<rules.burnDuration;}
