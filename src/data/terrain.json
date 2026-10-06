@@ -42,6 +42,7 @@
     "vehicleDamage": 0.25,
     "suppression": 7,
     "smokeLifetime": 18,
-    "burntCover": 0.18
+    "burntCover": 0.18,
+    "lodDistance": 260
   }
 }

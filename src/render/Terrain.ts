@@ -1,3 +1,4 @@
+import terrainConfig from "../data/terrain.json";
 import {isGarrisonBuilding,GARRISON_RULES} from "../sim/garrison";
 import * as THREE from "three";
 import {createCivilianBuilding,createBuildingModel,batchStaticScene} from "./Architecture";
@@ -405,7 +406,16 @@ function createForest(features:readonly MapFeatureDef[]):THREE.Group {
     trunks.computeBoundingSphere();crowns.computeBoundingSphere();trunks.castShadow=true;crowns.castShadow=true;crowns.receiveShadow=true;trunks.matrixAutoUpdate=crowns.matrixAutoUpdate=false;
     crowns.userData.forestPoints=points;crowns.userData.forestColors=crowns.instanceColor!.array.slice();crowns.userData.forestMatrices=crowns.instanceMatrix.array.slice();
     trunks.userData.forestPoints=points;trunks.userData.forestTrunks=true;trunks.userData.forestColors=trunks.instanceColor!.array.slice();trunks.userData.forestMatrices=trunks.instanceMatrix.array.slice();
-    group.add(trunks,crowns);
+    // Distant overhead canopy drops trunks and two crossed leaf planes per tree.
+    const far=new THREE.InstancedMesh(crownGeometry,crowns.material,points.length);
+    points.forEach((_,i)=>{crowns.getMatrixAt(i*3+2,d.matrix);far.setMatrixAt(i,d.matrix);crowns.getColorAt(i*3,tint);far.setColorAt(i,tint);});
+    far.computeBoundingSphere();far.receiveShadow=true;far.matrixAutoUpdate=false;
+    far.userData.forestPoints=points;far.userData.forestCrownCount=1;
+    far.userData.forestColors=far.instanceColor!.array.slice();far.userData.forestMatrices=far.instanceMatrix.array.slice();
+    const near=new THREE.Group();near.add(trunks,crowns);
+    const lod=new THREE.LOD(),origin=new THREE.Vector3(points[0].x,heightAt(points[0].x,points[0].z),points[0].z);
+    lod.position.copy(origin);near.position.copy(origin).negate();far.position.copy(origin).negate();far.updateMatrix();
+    lod.addLevel(near,0);lod.addLevel(far,terrainConfig.forest.lodDistance,.15);group.add(lod);
   }
   return group;
 }
@@ -418,10 +428,10 @@ export function syncForestTerrain(group:THREE.Group,world:World):boolean {
   group.traverse(o=>{
     if(!(o instanceof THREE.InstancedMesh)||!o.userData.forestPoints)return;
     const points=o.userData.forestPoints as {x:number;z:number}[],colors=o.userData.forestColors as Float32Array,matrices=o.userData.forestMatrices as Float32Array;
-    const count=o.userData.forestTrunks?1:3;
+    const count=o.userData.forestTrunks?1:(o.userData.forestCrownCount??3);
     points.forEach((p,i)=>{const burnt=world.terrain.burntAt(p.x,p.z);
       for(let j=0;j<count;j++){const index=i*count+j;matrix.fromArray(matrices,index*16);color.fromArray(colors,index*3);
-        if(burnt){if(count===3){matrix.decompose(position,rotation,scale);scale.multiplyScalar(.18);matrix.compose(position,rotation,scale);}color.setHex(0x34342d);}
+        if(burnt){if(!o.userData.forestTrunks){matrix.decompose(position,rotation,scale);scale.multiplyScalar(.18);matrix.compose(position,rotation,scale);}color.setHex(0x34342d);}
         o.setMatrixAt(index,matrix);o.setColorAt(index,color);
       }
     });o.instanceMatrix.needsUpdate=true;o.instanceColor!.needsUpdate=true;changed=true;
