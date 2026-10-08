@@ -1,6 +1,15 @@
-# Aktiivne arendusjärjekord — 05.10.2026
+# Aktiivne viimistlusjärjekord — 08.10.2026
 
 Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on järgmise arenduse alus; hilisemad vanad etapid ja märkeruudud jäävad ajalooliseks loendiks. Pakett loetakse tehtuks põhiplaani lõpetamistingimuste järgi, mitte funktsiooni nime olemasolu järgi.
+
+- [x] Kasutatava alpha ulatuse, viie viimistluspaketi ja alpha/beta lõpetamiskriteeriumide uuendamine (08.10.2026).
+- [ ] V1: käivitus/deploy, brauseri jõudluse alusmõõtmine ja suurima kitsaskoha parandus.
+- [ ] V2: grupijuhtimise, maa-/õhuliikumise ja lahingu tunnetuse lõpetamine.
+- [ ] V3: majanduse, füüsilise logistika ja AI matšitempo lõpetamine.
+- [ ] V4: selge HUD ja Roheoru ühtne visuaalne viimistlus.
+- [ ] V5: õpetuse/save-load läbipääs ning DEVELOPMENT-PLAN.md alpha värav; seejärel A6 lõpetatuks.
+
+## Teostatud alused ja seniste pakettide seis
 
 - [x] Praeguse koodi ülevaatus ja viimistlusele keskenduva alpha/beta arenguplaani koostamine.
 - [x] A1: ühised efektiivsed andmed, päris research/uuenduse käsud ja HUD, armor/AP/HP/remont, fraktsiooni tootmistöö ning range/maastikureeglite tarbijad. Kood + 9 sihitud kontrolli; brauseripilt/pikk matš ootel, vt A1-SHARED-RULES-RELEASE.md.
