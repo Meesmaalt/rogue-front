@@ -11,11 +11,22 @@ Järgmise arenduse põhiplaan: [viimistlus → alpha → beta](docs/DEVELOPMENT-
 ## Käivitamine Dockeris
 
 ```bash
-docker compose up dev multiplayer                 # arendus: http://localhost:5173 (HMR)
+docker compose up --build dev multiplayer         # http://localhost:5173; lähtekood Docker image’is
 docker compose run --rm dev npm test  # testid
 docker compose run --rm dev npm run typecheck
 docker compose --profile prod up --build prod multiplayer   # tootmisbuild nginxis: http://localhost:8080
 ```
+
+Portaineri Git-stack kasutab vaikimisi Docker image’isse kopeeritud lähtekoodi ja sõltuvusi. `/app` peale ei monteerita serveri suhtelist hostikausta: selline mount võib image’i failid tühja kaustaga varjata ning põhjustada `ENOENT /app/package.json`. Pärast Git-uuendust ehita image uuesti ja loo `dev` konteiner uuesti; üksnes vana konteineri restart ei rakenda Compose’i parandust. Kontoandmed säilivad `accounts` volume’is. Dev ootab multiplayer-serveri tervisekontrolli ja omab eraldi HTTP tervisekontrolli.
+
+Kohalikuks HMR-arenduseks kasuta projekti juurkaustas teadlikult hosti lähtekoodi ja eraldi ajutist sõltuvuste volume’i:
+
+```bash
+docker compose up -d --build multiplayer
+docker compose run --rm --build --service-ports -v "$PWD:/app" -v /app/node_modules dev
+```
+
+Selle käsu ajal ära käivita teist `dev` konteinerit samal pordil. Portaineri deploy’s neid kohalikke mount’e vaja ei ole.
 
 ## Kaasasolev brauseribuild
 

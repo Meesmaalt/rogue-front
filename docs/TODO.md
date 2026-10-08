@@ -11,6 +11,8 @@ Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on j�
 
 ## Teostatud alused ja seniste pakettide seis
 
+- [x] Portaineri ENOENT-parandus: vaikimisi dev käivitub image’i failidest, suhteline `/app` bind-mount ja sõltuvuste püsiv overlay eemaldatud; multiplayeri valmidussõltuvus ja dev HTTP healthcheck. Compose’i struktuurikontroll läbis; päris serveri rebuild/redeploy ootel.
+
 - [x] Taktikaliste laskepositsioonide ja relvatagasiside viimistlus: püsiv peatumisulatus, eraldatud rühma laskekohad, marssimise/lahingu kolonnireegli eristus, üks ühine lasu/HUD-i valmisolekukontroll ja garnisoni/õhurelvade põhjused. Build + 17 lühikest kontrolli; brauseri visuaal, FPS ja V2 terviklik läbipääs ootel.
 
 - [x] Tootmise/tarnete taastumise viimistlus: läbitav hõivamata maaväljumine, valmis järjekorra säilimine, veokite automaatne allikavahetus ja käsitsi valiku austamine, HUD-i tootmisaja/peatuse põhjused. Build + 12 lühikest kontrolli kolmes olemasolevas failis; brauseri pilt/FPS ja pikk matš ootel.
