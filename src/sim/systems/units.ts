@@ -1,4 +1,4 @@
-import {depositPayload,stockCapacity} from "../stockLogistics";
+import {collectionSource,depositPayload,stockCapacity} from "../stockLogistics";
 import {garrisonFaces} from "../garrison";
 import {prepareTransport,transportCapacity} from "../transport";
 import {travelPathCost} from "../unitStats";
@@ -170,7 +170,16 @@ function updateRoadTruck(w: World, u: Entity, dt: number): void {
     if(u.cargo>0&&u.logisticsSourceIndex!=null)u.logisticsPhase="loading";
   }
   if(depot.logisticsPaused&&u.cargo<=0){u.mode="move";u.dest=u.logisticsHome??depot;moveRoadTruckTo(w,u,u.dest,dt,16);return;}
-  if(u.cargo<=0&&u.logisticsSourceIndex!=null&&depot.preferredResourceIndex!=null)u.logisticsSourceIndex=depot.preferredResourceIndex;
+  if(u.cargo<=0&&u.logisticsSourceIndex!=null){
+    const current=w.resourcePoints[u.logisticsSourceIndex];
+    const next=depot.preferredResourceIndex??(
+      !current||current.controlledBy!==u.team||!current.active||(current.disabledUntil??0)>w.time||current.amount<1
+        ?collectionSource(w,depot,u):u.logisticsSourceIndex);
+    if(next!=null&&next!==u.logisticsSourceIndex){
+      u.logisticsSourceIndex=next;u.logisticsPhase="idle";u.logisticsLoadProgress=0;
+      u.navPath=[];u.roadTripGoal=undefined;
+    }
+  }
   const cap = u.logisticsCargoCapacity ?? 150;
   const source = u.logisticsSourceIndex != null ? w.resourcePoints[u.logisticsSourceIndex] : null;
   const home = u.logisticsHome ?? {x: depot.x,z: depot.z};
@@ -205,6 +214,9 @@ function updateRoadTruck(w: World, u: Entity, dt: number): void {
       return;
     }
   }
+
+  // A missing collection site must not turn its truck into a warehouse convoy.
+  if(u.logisticsSourceIndex!=null){u.mode="move";u.dest={...home};moveRoadTruckTo(w,u,home,dt,16);return;}
 
   // Outbound resupply: finite warehouse stocks -> truck -> forward depot.
   const main=w.primarySupplyDepot(u.team);
@@ -403,9 +415,8 @@ function updateTransport(w: World, u: Entity, dt: number): void {
   if(u.cargo<=0){
     const current=u.logisticsSourceIndex;
     if(current==null||!valid(current)||(w.resourcePoints[current].amount??0)<1){
-      const next=w.resourcePoints.map((r,i)=>({r,i})).filter(({r,i})=>valid(i)&&r.amount>=1)
-        .sort((a,b)=>Math.hypot(a.r.x-u.x,a.r.z-u.z)-Math.hypot(b.r.x-u.x,b.r.z-u.z))[0];
-      u.logisticsSourceIndex=next?.i??null;u.logisticsTarget=next?{x:next.r.x,z:next.r.z}:null;u.logisticsLoadProgress=0;
+      const next=collectionSource(w,depot,u),source=next==null?null:w.resourcePoints[next];
+      u.logisticsSourceIndex=next;u.logisticsTarget=source?{x:source.x,z:source.z}:null;u.logisticsLoadProgress=0;
     }
   }
   const groundedAtHome=dist2d(u,home)<3&&u.y-heightAt(u.x,u.z)<3;
