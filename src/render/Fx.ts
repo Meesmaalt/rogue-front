@@ -7,7 +7,7 @@ import {heightAt} from "../sim/heightmap";
 type ParticleKind="smoke"|"dust"|"glow"|"spark";
 interface Particle{x:number;y:number;z:number;vx:number;vy:number;vz:number;t:number;life:number;size:number;color:number;stretch:number}
 interface Pool{mesh:THREE.InstancedMesh;fade:THREE.InstancedBufferAttribute;particles:Particle[];capacity:number}
-interface Shell{group:THREE.Group;lastX:number;lastY:number;lastZ:number}
+interface Shell{group:THREE.Group;flame?:THREE.Object3D;lastX:number;lastY:number;lastZ:number}
 interface Ring{mesh:THREE.Mesh;t:number;life:number;size:number}
 function particleTexture():THREE.CanvasTexture {
   const cv=document.createElement("canvas");cv.width=cv.height=64;const c=cv.getContext("2d")!;
@@ -24,6 +24,9 @@ export class Fx {
   private rings:Ring[]=[];
   private dummy=new THREE.Object3D();
   private direction=new THREE.Vector3();
+  private frustum=new THREE.Frustum();
+  private projection=new THREE.Matrix4();
+  private point=new THREE.Vector3();
   private color=new THREE.Color();
   private ringGeometry=new THREE.RingGeometry(.86,1,40).rotateX(-Math.PI/2);
   constructor(private readonly scene:THREE.Scene,private readonly camera:THREE.Camera){
@@ -78,7 +81,7 @@ export class Fx {
           this.emit("glow",e.x,e.y,e.z,size,.09,0xffdda0,0,0,0,2.4);
           const count=rocket?5:small?1:5;
           for(let i=0;i<count;i++)this.emit("smoke",e.x-(e.dx??0)*.3,e.y,e.z-(e.dz??0)*.3,rocket?.35:.5,rocket?.85:.55,0xbcb8aa,this.r(1)+(e.dx??0)*1.2,.5+Math.random(),this.r(1)+(e.dz??0)*1.2);
-          if(!small)for(let i=0;i<5;i++)this.emit("dust",e.x,heightAt(e.x,e.z)+.2,e.z,.6,.55,0xab9c7c,this.r(4),Math.random(),this.r(4));
+          if(!small&&e.y-heightAt(e.x,e.z)<3)for(let i=0;i<5;i++)this.emit("dust",e.x,heightAt(e.x,e.z)+.2,e.z,.6,.55,0xab9c7c,this.r(4),Math.random(),this.r(4));
         }
       }else if(e.type==="impact"){
         if(world.waterNav.isWalkableWorld(e.x,e.z)&&e.y-world.waterNav.surfaceAt(e.x,e.z)<6){
@@ -110,7 +113,7 @@ export class Fx {
       for(let i=0;i<2;i++)parts.push(new THREE.BoxGeometry(radius*5,.025,.22).rotateZ(i*Math.PI/2).translate(0,0,-length*.33));
       const geometry=mergeGeometries(parts)!;parts.forEach(g=>g.dispose());
       group.add(new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:bomb?0x777e63:key==="sam"?0xd0d0bf:0xb9beb6,roughness:.8,metalness:.12})));
-      if(!bomb&&key!=="torpedo"){const flame=new THREE.Mesh(new THREE.ConeGeometry(radius*1.2,.45,6).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xffc16b,toneMapped:false}));flame.position.z=-length*.5-.22;group.add(flame);}
+      if(!bomb&&key!=="torpedo"){const flame=new THREE.Mesh(new THREE.ConeGeometry(radius*1.2,.45,6).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xffc16b,toneMapped:false}));flame.name="MotorFlame";flame.position.z=-length*.5-.22;group.add(flame);}
     }else {
       const tracer=p.weapon==="bullet"||["autocannon","flak","sabot"].includes(key),length=key==="sabot"?3.2:key==="sniper"?2.2:tracer?1.5:.7;
       group.add(new THREE.Mesh(new THREE.BoxGeometry(key==="sabot"?.045:.035,.035,length),new THREE.MeshBasicMaterial({color:tracer?0xffd4a0:0xbbb5a0,toneMapped:false})));
@@ -119,19 +122,24 @@ export class Fx {
   }
   syncProjectiles(world:World,alpha:number):void {
     this.seen.clear();
+    this.camera.updateMatrixWorld();
+    this.frustum.setFromProjectionMatrix(this.projection.multiplyMatrices(this.camera.projectionMatrix,this.camera.matrixWorldInverse));
     for(const p of world.projectiles){
       this.seen.add(p.id);const visible=p.team===world.playerTeam||world.vision.isVisible(world.playerTeam,p.x,p.z);
-      let shell=this.shells.get(p.id);if(!visible){if(shell)shell.group.visible=false;continue;}
-      if(!shell){shell={group:this.projectileModel(p),lastX:p.px??p.x,lastY:p.py??p.y,lastZ:p.pz??p.z};this.scene.add(shell.group);this.shells.set(p.id,shell);}
+      let shell=this.shells.get(p.id);if(!visible){if(shell){shell.group.visible=false;shell.lastX=p.x;shell.lastY=p.y;shell.lastZ=p.z;}continue;}
+      if(!shell){shell={group:this.projectileModel(p),lastX:p.px??p.x,lastY:p.py??p.y,lastZ:p.pz??p.z};shell.flame=shell.group.getObjectByName("MotorFlame");this.scene.add(shell.group);this.shells.set(p.id,shell);}
       const m=shell.group;m.visible=true;
       const x=(p.px??p.x)+(p.x-(p.px??p.x))*alpha,y=(p.py??p.y)+(p.y-(p.py??p.y))*alpha,z=(p.pz??p.z)+(p.z-(p.pz??p.z))*alpha;
+      if(!this.frustum.containsPoint(this.point.set(x,y,z))){m.visible=false;shell.lastX=x;shell.lastY=y;shell.lastZ=z;continue;}
+      if(shell.flame){const throttle=(p.age??0)<(p.boostTime??0)?1.6:(p.speed<(p.maxSpeed??p.speed)*.9?1:.55);shell.flame.scale.z=throttle;}
       m.position.set(x,y,z);this.direction.set(p.vx,p.vy,p.vz).normalize();m.lookAt(x+this.direction.x,y+this.direction.y,z+this.direction.z);
       if(p.visual==="torpedo"){this.emit("dust",x,y+.12,z,.15,.4,0xc2e2df,0,.1,0);}
       else if(p.weapon==="missile"){
-        const distance=Math.hypot(x-shell.lastX,y-shell.lastY,z-shell.lastZ),spacing=p.visual==="sam"?.7:.5;
+        const distance=Math.hypot(x-shell.lastX,y-shell.lastY,z-shell.lastZ),spacing=["sam","naval-sam","mlrs"].includes(p.visual??"")?.9:["cruise","anti-ship"].includes(p.visual??"")?1.4:.65;
         if(distance>=spacing){const count=Math.min(12,Math.floor(distance/spacing));
-          for(let i=1;i<=count;i++){const t=i/count;this.emit("smoke",shell.lastX+(x-shell.lastX)*t,shell.lastY+(y-shell.lastY)*t,shell.lastZ+(z-shell.lastZ)*t,p.visual==="sam"?.55:p.visual==="mlrs"?.4:.22,p.visual==="aam"?1.3:2,0xc6c6b8,.25,.35,0);}
-          shell.lastX=x;shell.lastY=y;shell.lastZ=z;
+          for(let i=1;i<=count;i++){const t=i*spacing/distance;this.emit("smoke",shell.lastX+(x-shell.lastX)*t,shell.lastY+(y-shell.lastY)*t,shell.lastZ+(z-shell.lastZ)*t,p.visual==="sam"||p.visual==="naval-sam"?.48:p.visual==="mlrs"?.4:.2,["cruise","anti-ship","aam"].includes(p.visual??"")?1:1.6,0xc6c6b8,.25,.35,0);}
+          const advance=count===12?1:count*spacing/distance;
+          shell.lastX+=(x-shell.lastX)*advance;shell.lastY+=(y-shell.lastY)*advance;shell.lastZ+=(z-shell.lastZ)*advance;
         }
       }
     }

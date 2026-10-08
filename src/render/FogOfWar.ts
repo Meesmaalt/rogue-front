@@ -3,7 +3,7 @@ import type { Picker } from "../input/Picker";
 
 /**
  * Screen fog: rebuild offscreen at 10 Hz, including while the camera moves in pause,
- * then blit each frame — eliminates clearRect strobing.
+ * and preserve the composited canvas between changes.
  */
 export class FogOfWar {
   private readonly ctx: CanvasRenderingContext2D;
@@ -38,17 +38,19 @@ export class FogOfWar {
   setMode(mode: "wargame" | "reduced" | "off"): void { this.mode = mode; this.lastVisionTick = -1; }
 
   draw(world: World, picker: Picker): void {
-    if (this.mode === "off") { this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height); return; }
     if (this.canvas.width !== innerWidth || this.canvas.height !== innerHeight) this.resize();
 
+    if(this.mode==="off"){
+      if(this.lastVisionTick!==0){this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);this.lastVisionTick=0;}
+      return;
+    }
     // Rebuild fog mask at most ~10 Hz or when size changes
     const stamp = Math.floor(performance.now() / 100);
-    if (stamp !== this.lastVisionTick) {
-      this.lastVisionTick = stamp;
-      this.rebuild(world, picker);
-    }
+    if(stamp===this.lastVisionTick)return;
+    this.lastVisionTick=stamp;
+    this.rebuild(world,picker);
 
-    // Blit stable buffer (no full-screen clear of visible holes every rAF)
+    // The separate overlay retains pixels; copy only when its mask changes.
     const c = this.ctx;
     c.clearRect(0, 0, this.canvas.width, this.canvas.height);
     c.drawImage(this.off, 0, 0);

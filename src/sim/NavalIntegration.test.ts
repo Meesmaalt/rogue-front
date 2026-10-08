@@ -35,7 +35,10 @@ describe('integrated navy',()=>{
   const {w}=navalWorld(),ship=w.spawn('destroyer',0,-170,-100),target=w.spawn('tank',1,0,-100);const spec=ship.def.weapons![2],ammo=ship.secondaryAmmo![2];
   expect(weaponCanTarget(ship.def.weapons![1],target)).toBe(false);expect(weaponCanTarget(spec,target)).toBe(true);
   const muzzle=weaponMuzzle(ship,spec,2);fireProjectile(w,ship,target,muzzle.x,muzzle.y,muzzle.z,2);const p=w.projectiles[0];expect(p).toBeDefined();expect(p.vy).toBeGreaterThan(0);expect(p.vx).toBe(0);expect(ship.secondaryAmmo![2]).toBe(ammo-1);
-  p.hitChance=1;p.hitRoll=0;const hp=target.hp;w.spatial.rebuild(w.entities);let climbed=false;
+  p.hitChance=1;p.hitRoll=0;
+  const launchX=p.x,launchZ=p.z;for(let i=0;i<6;i++)updateProjectiles(w,SIM_STEP);
+  expect(p.x).toBeCloseTo(launchX,6);expect(p.z).toBeCloseTo(launchZ,6);
+  const hp=target.hp;w.spatial.rebuild(w.entities);let climbed=false;
   for(let i=0;i<1200&&w.projectiles.length;i++){updateProjectiles(w,SIM_STEP);if(p.y>10)climbed=true;}
   expect(climbed).toBe(true);expect(w.projectiles).toHaveLength(0);expect(target.hp).toBeLessThan(hp);
  });

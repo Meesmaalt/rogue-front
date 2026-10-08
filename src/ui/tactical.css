@@ -74,3 +74,5 @@
 [data-deployment-toggle][aria-expanded=true]{background:#496658!important;color:#fff!important}.tutorial-guide{top:52px}.deployment-open .tutorial-guide{top:172px}
 @media(max-width:1000px){.brand{min-width:95px}.brand small{display:none}.top .obj{max-width:180px}.resources .res-label{display:none}.top .controls{gap:2px}.top .controls button{padding:4px;font-size:9px}.bottom .sel{flex-basis:300px}}
 @media(max-width:700px){.top{height:64px;flex-wrap:wrap}.top .obj{display:none}.top .controls{margin-left:auto}.build.tactical{top:68px}.bottom .sel{flex-basis:240px;max-height:205px}.map-panel{flex-basis:112px!important}.map-panel .mini{width:112px!important;height:112px!important}}
+
+.movement-status{display:block;color:#b6ccd6;font-variant-numeric:tabular-nums}.group-state{display:block;margin-top:5px;color:#e5c58c}

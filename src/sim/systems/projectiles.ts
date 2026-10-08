@@ -5,10 +5,10 @@ import { heightAt } from "../heightmap";
 import {pointInFeature,featureBlocksMovement} from "../mapFeatures";
 import { damage, hitFace,armorValue,weaponDamageMultiplier,penetrationFactor } from "./combat";
 
-function blocked(w:World,p:Projectile,x:number,y:number,z:number):boolean {
+function blocked(w:World,obstacles:readonly Entity[],p:Projectile,x:number,y:number,z:number):boolean {
   if(y<=heightAt(x,z)+.12)return true;
-  for(const f of w.mapFeatures)if(f.kind!=="water"&&featureBlocksMovement(f)&&pointInFeature(x,z,f)&&y<heightAt(x,z)+(f.kind==="building"&&(w.infrastructureDamage.get(f.id)??0)>=1?GARRISON_RULES.rubbleHeight:f.height??3))return true;
-  for(const e of w.entities)if(!e.dead&&e.def.speed===0&&e.id!==p.sourceId&&e!==p.target&&Math.hypot(e.x-x,e.z-z)<e.def.radius&&y<e.y+e.def.height)return true;
+  for(const f of w.terrain.coverFeaturesAt(x,z))if(f.kind!=="water"&&featureBlocksMovement(f)&&pointInFeature(x,z,f)&&y<heightAt(x,z)+(f.kind==="building"&&(w.infrastructureDamage.get(f.id)??0)>=1?GARRISON_RULES.rubbleHeight:f.height??3))return true;
+  for(const e of obstacles)if(!e.dead&&e.def.speed===0&&e.id!==p.sourceId&&e!==p.target&&Math.hypot(e.x-x,e.z-z)<e.def.radius&&y<e.y+e.def.height)return true;
   return false;
 }
 function penetrationMultiplier(p:Projectile,e:Entity):number {
@@ -50,6 +50,8 @@ function impact(w:World,p:Projectile,terrain:boolean):void {
   if(shooter&&hit?.dead){shooter.xp++;shooter.veteran=Math.min(5,Math.floor(shooter.xp/2));shooter.morale=Math.min(100,(shooter.morale??100)+4);}
 }
 export function updateProjectiles(w:World,dt:number):void {
+  if(!w.projectiles.length)return;
+  const obstacles=w.entities.filter(e=>!e.dead&&e.def.speed===0);
   for(let i=w.projectiles.length-1;i>=0;i--){
     const p=w.projectiles[i];p.px=p.x;p.py=p.y;p.pz=p.z;p.age=(p.age??0)+dt;
     if(p.age>(p.lifetime??16)){w.projectiles.splice(i,1);continue;}
@@ -65,10 +67,14 @@ export function updateProjectiles(w:World,dt:number):void {
     }
     let ty=p.aimY??heightAt(p.tx,p.tz)+.15;
     const horizontal=Math.hypot(p.tx-p.x,p.tz-p.z);
-    if(p.cruiseAltitude&&horizontal>25)ty=Math.max(ty,heightAt(p.x,p.z)+p.cruiseAltitude,w.waterNav.surfaceAt(p.x,p.z)+p.cruiseAltitude);
+    if(p.cruiseAltitude){
+      const cruise=Math.max(ty,heightAt(p.x,p.z)+p.cruiseAltitude,w.waterNav.surfaceAt(p.x,p.z)+p.cruiseAltitude);
+      const blend=Math.max(0,Math.min(1,(horizontal-10)/35));ty+=(cruise-ty)*blend;
+    }
     if(p.visual==="torpedo")ty=w.waterNav.surfaceAt(p.tx,p.tz)+.2;
     if(p.age<(p.boostTime??0))ty=Math.max(ty,p.y+30);
-    const dx=p.tx-p.x,dy=ty-p.y,dz=p.tz-p.z,d=Math.hypot(dx,dy,dz)||.001;
+    const boost=p.age<(p.boostTime??0);
+    const dx=boost?0:p.tx-p.x,dy=ty-p.y,dz=boost?0:p.tz-p.z,d=Math.hypot(dx,dy,dz)||.001;
     if(guided){
       p.speed=Math.min(p.maxSpeed??p.speed,p.speed+(p.acceleration??0)*dt);
       if(!p.guidanceLost){
@@ -80,7 +86,7 @@ export function updateProjectiles(w:World,dt:number):void {
     const nx=p.x+p.vx*dt,ny=p.y+p.vy*dt-(ballistic?.5*(p.gravity??0)*dt*dt:0),nz=p.z+p.vz*dt;
     if(ballistic)p.vy-=(p.gravity??0)*dt;
     const steps=Math.max(1,Math.ceil(Math.hypot(nx-p.x,ny-p.y,nz-p.z)/2));let terrain=false;
-    for(let j=1;j<=steps;j++){const t=j/steps,x=p.px+(nx-p.px)*t,y=p.py+(ny-p.py)*t,z=p.pz+(nz-p.pz)*t;if(blocked(w,p,x,y,z)){p.x=x;p.y=Math.max(heightAt(x,z)+.12,y);p.z=z;terrain=true;break;}}
+    for(let j=1;j<=steps;j++){const t=j/steps,x=p.px+(nx-p.px)*t,y=p.py+(ny-p.py)*t,z=p.pz+(nz-p.pz)*t;if(blocked(w,obstacles,p,x,y,z)){p.x=x;p.y=Math.max(heightAt(x,z)+.12,y);p.z=z;terrain=true;break;}}
     if(!terrain){p.x=nx;p.y=ny;p.z=nz;}
     let crossed=false;
     if(!terrain&&p.target&&!p.target.dead){const target=p.target,dx=nx-p.px,dy=ny-p.py,dz=nz-p.pz,len=dx*dx+dy*dy+dz*dz||1;

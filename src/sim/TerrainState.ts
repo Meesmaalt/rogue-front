@@ -22,7 +22,7 @@ export class TerrainState {
   }
   constructor(features:readonly MapFeatureDef[]){
     for(const f of features){
-      if(f.appearance!=="forest"&&f.kind!=="cover"&&f.kind!=="building"&&f.kind!=="wall"&&f.kind!=="chokepoint")continue;
+      if(f.appearance!=="forest"&&f.kind!=="cover"&&f.kind!=="building"&&f.kind!=="wall"&&f.kind!=="chokepoint"&&f.kind!=="gate"&&f.blocksMovement!==true)continue;
       const c=Math.abs(Math.cos(f.rotation??0)),s=Math.abs(Math.sin(f.rotation??0));
       // Expand local half extents before rotating: preserves padded corner queries.
       const hx=c*(f.width/2+.25)+s*(f.depth/2+.25),hz=s*(f.width/2+.25)+c*(f.depth/2+.25);

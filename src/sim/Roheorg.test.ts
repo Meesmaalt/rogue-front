@@ -58,8 +58,10 @@ it("tactical movement: legal formation slots, one-way queues and convoy controls
  const w=world([obstacle]);const group=Array.from({length:4},(_,i)=>w.spawn("tank",0,-35,-209+i*6.8));
  w.issue({type:"move",ids:group.map(u=>u.id),x:0,z:-200});run(w,.1);
  for(const u of group){expect(w.nav.isWalkableWorld(u.dest!.x,u.dest!.z,u.def.radius)).toBe(true);expect(pointInFeature(u.dest!.x,u.dest!.z,obstacle,u.def.radius)).toBe(false);}
- w.issue({type:"move",ids:group.map(u=>u.id),x:35,z:-200});w.issue({type:"move",ids:group.map(u=>u.id),x:65,z:-200,append:true});run(w,20);
- expect(group.filter(u=>u.x>50).length).toBeGreaterThanOrEqual(3);expect(group.every(u=>u.mode!=="patrol")).toBe(true);
+ w.issue({type:"move",ids:group.map(u=>u.id),x:35,z:-200});w.issue({type:"move",ids:group.map(u=>u.id),x:65,z:-200,append:true});
+ // The authored detour needs more than the old fixed 20 s budget even on baseline.
+ for(let i=0;i<900&&group.some(u=>u.dest||u.moveQueue?.length);i++)w.tick(SIM_STEP);
+ expect(group.every(u=>u.x>50&&u.dest===null)).toBe(true);expect(group.every(u=>u.mode!=="patrol")).toBe(true);
  const d=w.spawn("supply",0,-160,140);w.issue({type:"logistics-source",ids:[d.id],sourceIndex:0,paused:true});w.issue({type:"logistics-route",ids:[d.id],x:-140,z:110});run(w,.1);
  expect(d.logisticsPaused).toBe(true);expect(d.preferredResourceIndex).toBe(0);expect(d.logisticsWaypoints).toEqual([{x:-140,z:110}]);
  const save=JSON.parse(JSON.stringify(saveWorld(w))),copy=world([obstacle]);loadWorld(copy,save);expect(worldHash(copy)).toBe(worldHash(w));

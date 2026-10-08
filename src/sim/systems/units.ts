@@ -300,13 +300,13 @@ function moveAirTo(u: Entity, target: Point, dt: number, w: World, cruise=false)
   const delta=wrapAngle(u.heading-oldHeading)/dt;
   const bank=Math.max(-profile.maxBank,Math.min(profile.maxBank,-delta*(helicopter?.18:.48)));
   u.flightBank=(u.flightBank??0)+(bank-(u.flightBank??0))*Math.min(1,dt*3);
-  u.flightPitch=(u.flightPitch??0)+(Math.max(-.22,Math.min(.22,-(u.y-oldY)/Math.max(1,speed*dt)))-(u.flightPitch??0))*Math.min(1,dt*3);
+  if(!helicopter)u.flightPitch=(u.flightPitch??0)+(Math.max(-.22,Math.min(.22,-(u.y-oldY)/Math.max(1,speed*dt)))-(u.flightPitch??0))*Math.min(1,dt*3);
   const desiredSpeed=outOfFuel(u)?0:helicopter?Math.min(u.def.speed,Math.sqrt(2*Math.max(0,distance-mobility.helicopter.hoverRadius)*profile.braking))*Math.max(0,Math.cos(wrapAngle(desiredHeading-u.heading))):final?Math.min(u.def.speed*.48,Math.max(4,distance*.8)):u.def.speed*Math.max(mobility.aircraft.minimumSpeed,1-Math.abs(u.flightBank??0)*.35);
   const acceleration=desiredSpeed>speed?profile.acceleration:profile.braking;
   u.motionSpeed=speed+Math.max(-acceleration*dt,Math.min(acceleration*dt,desiredSpeed-speed));
   const step=Math.min(final||helicopter?distance:Infinity,u.motionSpeed*dt);
   if(helicopter){
-    const pitch=Math.max(-.22,Math.min(.22,-(u.motionSpeed-speed)/dt*.035-u.motionSpeed/Math.max(1,u.def.speed)*.07));
+    const pitch=Math.max(-.22,Math.min(.22,-(u.motionSpeed-speed)/dt*.035-u.motionSpeed/Math.max(1,u.def.speed)*.07-(u.y-oldY)/Math.max(1,speed*dt)*.12));
     u.flightPitch=(u.flightPitch??0)+(pitch-(u.flightPitch??0))*Math.min(1,dt*3);
   }
   const heading=final&&!helicopter?desiredHeading:u.heading;
@@ -691,7 +691,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     let dx = 0, dz = 0, moving = false;
     if (goal) {
       const gx = goal.x - u.x, gz = goal.z - u.z, gd = Math.hypot(gx, gz);
-      if (u.def.domain!=="sea" && goal === u.dest && gd < mobility.navigation.arrival && (!isAir||d.category!=="heli"||(u.motionSpeed??0)<mobility.helicopter.hoverArrivalSpeed) && u.mode!=="patrol"&&u.mode!=="enter-building"&&!transporting) {
+      if (u.def.domain!=="sea" && goal === u.dest && gd < (!isAir&&u.moveQueue?.length&&!u.target?mobility.navigation.queuePassDistance:mobility.navigation.arrival) && (!isAir||d.category!=="heli"||(u.motionSpeed??0)<mobility.helicopter.hoverArrivalSpeed) && u.mode!=="patrol"&&u.mode!=="enter-building"&&!transporting) {
         finishMoveWaypoint(u);
       }
       else { dx = gx / gd; dz = gz / gd; moving = true; }
@@ -721,7 +721,16 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       const sp = d.speed * componentMove * combatSpeedFactor * terrainMod * supplyMove * roleMove * moraleSpeedMul(u) * fuelMul * Math.min(1.3, Math.max(0.35, 1 - slope * 1.2)) * (d.category === "infantry" ? 1 : Math.max(0, Math.cos(diff)));
       const profile=mobilityProfile(u);
       const distanceToWaypoint=u.navPathIndex<u.navPath.length?Math.hypot(u.x-u.navPath[u.navPathIndex].x,u.z-u.navPath[u.navPathIndex].z):goal?dist2d(u,goal):0;
-      const desiredSpeed=Math.min(sp*(reverse?mobility.combat.reverseSpeed:1),Math.sqrt(Math.max(0,goal?dist2d(u,goal)-1:0)*2*profile.braking));
+      let cornerFactor=1;
+      if(d.category!=="infantry"&&u.navPathIndex+1<u.navPath.length&&distanceToWaypoint<mobility.navigation.cornerLookAhead){
+        const a=u.navPath[u.navPathIndex],b=u.navPath[u.navPathIndex+1],angle=Math.abs(wrapAngle(Math.atan2(b.x-a.x,b.z-a.z)-u.heading));
+        const cornerSpeed=Math.max(mobility.navigation.cornerSpeedFloor,Math.cos(angle*.5));
+        cornerFactor=1-(1-cornerSpeed)*Math.max(0,1-distanceToWaypoint/mobility.navigation.cornerLookAhead);
+      }
+      // A queued movement order passes through its intermediate destination.
+      const through=goal===u.dest&&!!u.moveQueue?.length&&["move","amove"].includes(u.mode)&&!u.target;
+      const brakingDistance=through?Infinity:Math.max(0,goal?dist2d(u,goal)-1:0);
+      const desiredSpeed=Math.min(sp*cornerFactor*(reverse?mobility.combat.reverseSpeed:1),Math.sqrt(brakingDistance*2*profile.braking));
       const currentSpeed=u.motionSpeed??0;u.motionSpeed=currentSpeed+Math.max(-profile.braking*dt,Math.min(profile.acceleration*dt,desiredSpeed-currentSpeed));
       const travel=Math.min(distanceToWaypoint,u.motionSpeed*dt);
       const moveX=d.category==="infantry"?ex:Math.sin(u.heading)*(reverse?-1:1),moveZ=d.category==="infantry"?ez:Math.cos(u.heading)*(reverse?-1:1);
