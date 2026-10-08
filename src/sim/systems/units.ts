@@ -9,7 +9,7 @@ import logisticsConfig from "../../data/logistics.json";
 import mobility from "../../data/mobility.json";
 import { heightAt, MAP_SIZE } from "../heightmap";
 import { dist2d, turnToward, wrapAngle } from "../math";
-import { fireProjectile, canEngage, effectiveWeaponRange,selectWeapon,weaponSpec,weaponAmmo,weaponMuzzle } from "./combat";
+import { fireProjectile, canEngage, effectiveWeaponRange,selectWeapon,weaponSpec,weaponAmmo,weaponMuzzle,weaponFireBlocker } from "./combat";
 import { coverValueAt,isSpottedBy } from "./sensors";
 import { moraleSpeedMul, moraleAccuracyMul, moraleState } from "./morale";
 import { outOfFuel, outOfAmmo,repairDepotFor } from "./tacticalSupply";
@@ -93,10 +93,13 @@ function firingPosition(w:World,u:Entity,target:Entity,range:number):Point|null 
   if(u.combatPositionTarget===target.id&&anchor&&dist2d(anchor,target)<cfg.firingTargetMove&&w.time<(u.combatPositionRetryAt??0))return u.combatPosition??null;
   u.combatPositionTarget=target.id;u.combatPositionAnchor={x:target.x,z:target.z};u.combatPositionRetryAt=w.time+cfg.firingPositionRetry;u.combatPosition=undefined;
   const index=selectWeapon(u,target),spec=index>=0?weaponSpec(u,index):weaponSpec(u),radius=Math.max(spec.minimumRange+u.def.radius+target.def.radius,range*cfg.firingDistance+target.def.radius);
+  const reservations:Array<Point&{radius:number}>=[];
+  // A planned position can be far from its approaching owner, so query plans, not current spatial cells.
+  for(const o of w.entities)if(o!==u&&!o.dead&&o.loadedIntoId==null&&o.def.domain==="land"&&o.team===u.team&&o.target?.id===target.id&&o.combatPosition&&!o.holdPosition)reservations.push({...o.combatPosition,radius:o.def.radius});
   const angle=Math.atan2(u.x-target.x,u.z-target.z),candidates:Array<{point:Point;score:number}>=[];
   for(const factor of (u.def.category==="infantry"?cfg.infantryFiringFactors:cfg.vehicleFiringFactors))for(const offset of [0,.35,-.35,.7,-.7,1.1,-1.1,1.6,-1.6,Math.PI]){
     const r=Math.max(spec.minimumRange+u.def.radius+target.def.radius,radius*factor),a=angle+offset+(u.id%3-1)*.06,p={x:target.x+Math.sin(a)*r,z:target.z+Math.cos(a)*r};
-    if(!w.nav.isWalkableWorld(p.x,p.z,u.def.radius)||!bodyClear(w,u,p))continue;
+    if(!w.nav.isWalkableWorld(p.x,p.z,u.def.radius)||!bodyClear(w,u,p)||reservations.some(q=>dist2d(p,q)<u.def.radius+q.radius+cfg.firingPositionGap))continue;
     if(!["artillery","mortar","mlrs"].includes(u.kind)&&!w.vision.hasLineOfSight({...u,...p,y:heightAt(p.x,p.z)},target))continue;
     const cover=u.def.category==="infantry"?coverValueAt(w,p.x,p.z)/34*cfg.coverPreference:0;
     candidates.push({point:p,score:dist2d(u,p)-cover+Math.abs(offset)*3+(radius-r)*.3});
@@ -630,7 +633,9 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
   if(transporting)u.target=null;
   const target = u.target;
   if(target){effectiveRange=effectiveWeaponRange(u,target);u.firingRange=effectiveRange;}
-  const inRange = !!target && dist2d(u, target) - target.def.radius <= effectiveRange * mobility.combat.stoppingRange;
+  if(u.combatHoldingTarget!==target?.id)u.combatHoldingTarget=undefined;
+  const stopFactor=u.combatHoldingTarget!=null?mobility.combat.holdingRange:mobility.combat.stoppingRange;
+  const inRange = !!target && dist2d(u, target) - target.def.radius <= effectiveRange * stopFactor;
   let goal: Point | null = null;
   const indirect=["artillery","mortar","mlrs"].includes(u.kind);
   const clearShot=!target || indirect || w.vision.hasLineOfSight(u,target);
@@ -650,8 +655,10 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     if(distance<standoff*mobility.combat.helicopterRetreatRatio){const a=Math.atan2(u.x-target.x,u.z-target.z);goal={x:target.x+Math.sin(a)*standoff,z:target.z+Math.cos(a)*standoff};}
     else if(!inRange){const a=Math.atan2(u.x-target.x,u.z-target.z);goal={x:target.x+Math.sin(a)*standoff,z:target.z+Math.cos(a)*standoff};}
   }
+  if(target&&inRange&&clearShot&&!goal&&!u.combatWithdrawing)u.combatHoldingTarget=target.id;
+  else u.combatHoldingTarget=undefined;
   if(u.garrisonId){goal=null;u.motionSpeed=0;u.holdPosition=true;}
-  if(goal&&u.moveGroup&&u.moveAxis&&["move","amove"].includes(u.mode)&&d.domain!=="air"&&d.domain!=="sea"&&dist2d(u,goal)>mobility.navigation.groupReformDistance){
+  if(goal&&!target&&u.moveGroup&&u.moveAxis&&["move","amove"].includes(u.mode)&&d.domain!=="air"&&d.domain!=="sea"&&dist2d(u,goal)>mobility.navigation.groupReformDistance){
     const axis=u.moveAxis;
     const members=(groups.get(groupKey(u))??[]).filter(e=>["move","amove"].includes(e.mode)).sort((a,b)=>(b.x-a.x)*axis.x+(b.z-a.z)*axis.z||a.id-b.id);
     const rank=members.indexOf(u),front=members[rank-1];
@@ -773,39 +780,27 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     }
   }
 
-  if((u.motionSpeed??0)>.5)u.stationaryFireReadyAt=w.time+mobility.combat.weaponSettleTime;
+  if((u.motionSpeed??0)>mobility.combat.weaponMotionThreshold)u.stationaryFireReadyAt=w.time+mobility.combat.weaponSettleTime;
 
   // Aim + fire
   // - Turret units (tank, ifv, aa): can shoot on the move once turret is on target
   // - Hull-aim units (inf, special, apc, artillery, mlrs): must face target; artillery/mlrs should be nearly stopped
-  const stab = d.stabilizer ?? (d.turret ? "full" : "none");
-  const canFireOnMove = stab === "full";
-  const mustStopToFire = stab === "none" && ["artillery", "mlrs", "mortar"].includes(u.kind);
-  const isMovingFast = (u.motionSpeed??0)>.6 || !!goal && d.speed > 0;
-
-  let aligned = true;
   if (target) {
     const absWant = Math.atan2(target.x - u.x, target.z - u.z);
     if (d.turret) {
       const want = wrapAngle(absWant - u.heading);
       u.turretYaw = turnToward(u.turretYaw, want, (u.kind === "tank" ? 2.4 : 3.2) * dt);
-      aligned = Math.abs(wrapAngle(want - u.turretYaw)) < 0.14;
     } else {
       // Hull must turn toward target (infantry, fixed guns)
       if (!goal && (inRange || u.mode === "attack" || u.mode === "hold")) {
         u.heading = turnToward(u.heading, absWant, d.turnRate * dt);
       }
-      aligned = Math.abs(wrapAngle(absWant - u.heading)) < 0.2;
     }
   }
 
-  const stationaryOk = !mustStopToFire || !isMovingFast;
-  const moveOk = canFireOnMove || !isMovingFast || (inRange && !mustStopToFire);
   const weaponIndex=target?selectWeapon(u,target,true):-1;
   const spec=weaponIndex>=0?weaponSpec(u,weaponIndex):null;
-  if(d.domain==="sea"&&spec?.weapon==="missile")aligned=true;
-  const spotted=target?isSpottedBy(target,u.team,w.time):false;
-  if(target&&spec&&(!u.flightAttackExit)&&(spec.fireOnMove!==false||w.time>=(u.stationaryFireReadyAt??0))&&spotted&&aligned&&stationaryOk&&moveOk&&!disabled&&moraleState(u)!=="routing"&&u.standingOrder!=="holdfire"&&(u.firingArc>=Math.PI*2-.01||inFiringArc(u,target))&&hasSpotter(w,u,target)&&(indirect||spec.visual==="cruise"||w.vision.hasLineOfSight(u,target))){
+  if(target&&spec&&weaponFireBlocker(w,u,target,weaponIndex)===null){
     const muzzle=weaponMuzzle(u,spec,weaponIndex);
     fireProjectile(w,u,target,muzzle.x,muzzle.y,muzzle.z,weaponIndex);
 
@@ -823,7 +818,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
 
 /** Derived status for the HUD; it reads the same constraints as the firing loop. */
 export function combatStatus(w:World,u:Entity):string {
-  if(u.garrisonId)return u.mode==="leave-building"?"Garnison · ootab vaba väljapääsu":"Garnison · piiratud laskesektor";
+  if(u.garrisonId&&!u.target)return u.mode==="leave-building"?"Garnison · ootab vaba väljapääsu":"Garnison · piiratud laskesektor";
   if(u.garrisonOrderId)return "Läheneb hoone sissepääsule";
   if(u.loadedIntoId!=null){const carrier=w.byId.get(u.loadedIntoId);return "Transpordis · "+(carrier?w.unitDisplayName(carrier.kind,carrier.team):"pardal");}
   if(u.mode==="transport-load")return "Kogub jalaväge · kohad broneeritud";
@@ -837,7 +832,7 @@ export function combatStatus(w:World,u:Entity):string {
     const depot=repairDepotFor(w,u.target);
     return depot?"Remondib · kulutab lao remondivaru":"Remont ootab · vaja lähedast remondivaruga ladu";
   }
-  if(u.def.armor==="air"&&u.supplyDepotId==null&&u.kind!=="cargoPlane")return airOperationStatus(w,u);
+  if(!u.target&&u.def.armor==="air"&&u.supplyDepotId==null&&u.kind!=="cargoPlane")return airOperationStatus(w,u);
   if(outOfAmmo(u))return "Laskemoon otsas — vaja varustust";
   if(moraleState(u)==="routing")return "Taandub";
   if(u.fireMission){
@@ -852,11 +847,10 @@ export function combatStatus(w:World,u:Entity):string {
   if(u.combatWithdrawing&&u.target&&!u.holdPosition)return "Taastab laskekaugust · hoiab relva vaenlase suunas";
   if(!u.target)return u.dest?"Liigub · otsib sihtmärki":"Valmis · sihtmärk puudub";
   if(!isSpottedBy(u.target,u.team,w.time))return "Luurekontakt kadunud";
-  if(dist2d(u,u.target)-u.target.def.radius>effectiveWeaponRange(u,u.target))return "Läheneb sihtmärgile";
-  if(!["artillery","mortar","mlrs"].includes(u.kind)&&!w.vision.hasLineOfSight(u,u.target))return "Tulejoon blokeeritud · otsib positsiooni";
-  const slot=selectWeapon(u,u.target);
-  if(slot>=0&&dist2d(u,u.target)<weaponSpec(u,slot).minimumRange)return "Sihtmärk liiga lähedal";
-  if(slot>=0&&((u.motionSpeed??0)>.5||w.time<(u.stationaryFireReadyAt??0))&&weaponSpec(u,slot).fireOnMove===false)return "Peatub · sobiva relvaga liikumiselt ei tulista";
-  if(selectWeapon(u,u.target,true)<0)return "Relv laadib / sihtmärk väljaspool sobiva relva ulatust";
-  return "Sihib / avab tule";
+  const ready=selectWeapon(u,u.target,true),slot=ready>=0?ready:selectWeapon(u,u.target);
+  if(slot<0)return "Puudub sihtmärgile sobiv moonaga relv";
+  const blocker=weaponFireBlocker(w,u,u.target,slot);
+  if(blocker==="Tulejoon blokeeritud")return u.holdPosition?blocker+" · hoiab positsiooni":blocker+" · otsib positsiooni";
+  if(blocker==="Väljaspool relva ulatust")return u.holdPosition?blocker+" · hoiab positsiooni":u.combatPositionTarget===u.target.id&&!u.combatPosition?"Sobiv laskepositsioon puudub · otsib uut teed":"Läheneb laskepositsioonile";
+  return blocker??weaponSpec(u,slot).name+" · avab tule";
 }

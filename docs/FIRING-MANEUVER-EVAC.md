@@ -25,3 +25,14 @@ Kõik uued lävendid on mobility.json-is. Uued olekud asuvad olemasolevas Entity
 Läbisid neli uut päris tickide ja käskudega kontrolli: tanki tagurdamine koos tulega, IFV lähenemine ja raketiks peatumine, pardal olevate sõduritega EVAC ning ründelennuki eemaldumine. Lisaks läbisid 13 olemasolevat lahingukontrolli, replay determinism ning kaks olemasolevat õhkutõusu/tagasipöördumise/teeninduse kontrolli. Kokku 20 eri kontrolli; TypeScript ja tootmisbuild läbisid.
 
 Visuaalset brauseri läbimängu ega uut FPS-mõõtmist ei tehtud. Eriti vajavad mängus jälgimist suure grupi tagurdamine kitsal teel ja lennuki pöörderaadius kaardi serva lähedal. A6/B1/B2 jäävad avatuks.
+
+
+## Laskepositsioonide ja relvatagasiside viimistlus — 08.10.2026
+
+Üksus läheneb endiselt olemasoleva peatumisulatuseni, kuid väljakujunenud laskepositsioon säilib kuni valitud relva tegeliku maksimaalse ulatuseni. Väike vastase eemaldumine ei käivita uut sõitu ega katkesta iga kord paigalolekut nõudva relva stabiliseerumist. Kontakti või käsu muutumine ning ulatusest lahkumine lähtestavad selle seisundi; lähedalt taandumise ja miinimumulatuse reeglid säilivad. `combatHoldingTarget` kuulub täisoleku salvestusse ja replay-hash'i.
+
+Laskekoha otsing kogub kord otsingu kohta sama sihtmärgi vastu tegutsevate liitlaste planeeritud kohad ning jätab nende jalajälgede ja andmepõhise vahega kattuvad kandidaadid kõrvale. Plaane ei saa pärida omaniku praeguse ruumilahtri järgi: lähenemisest hoolimata on reserveeritud koht sihtmärgi lähedal. Otsingu olemasolev 1.5 s vahemälu ja kandidaatide arvupiir säilivad. Kitsas kohas kolonni järgimine rakendub marsil, mitte aktiivse lahingupositsiooni arvelt.
+
+`weaponFireBlocker` on päris automaatlasu ja HUD-i relvakaardi ühine kontroll: luurekontakt, tulekorraldus, häiring, taandumine, ründelennuki eemaldumine, sihtmärgi liik, garnisoni sektor/relv, läbivus, moon, miinimum-/maksimumulatus, liikumine/stabiliseerumine, laadimine, tulejoon ja sihtimine. Null tähendab, et see relv võib selle kontrolli järgi tulistada; edukas tabamus ei ole garanteeritud. Üksuse olek eristab torni pööramist, relva stabiliseerumist ja laadimise sekundeid. Garnisoni või lennu üldolek ei varja enam oma aktiivse relva tagasisidet. Vastase relvakaart ei ava tema jooksvaid sihtimisandmeid.
+
+Kontroll: TypeScript + Vite build ja 17 lühikest kontrolli CombatPolish, CombatManeuver ning Replay failides. Kolm uut juhtumit kontrollivad peatumisulatuse hüstereesi/save-load'i, ühise stabiliseerumise/sihtimise/laadimise kontrolli seost päris raketilasuga ning rühma eraldatud laskekohti. Brauseri visuaalne tunnetus, FPS ja pikk matš on ootel; V2 ei märgita tervikuna lõpetatuks.

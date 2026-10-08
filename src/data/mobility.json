@@ -116,7 +116,8 @@
     ],
     "cornerLookAhead": 12,
     "cornerSpeedFloor": 0.3,
-    "queuePassDistance": 2
+    "queuePassDistance": 2,
+    "firingPositionGap": 2.5
   },
   "transport": {
     "pickupTimeout": 60,
@@ -149,7 +150,11 @@
     "airReturnLandingSeconds": 20,
     "airReturnFuelMargin": 1.25,
     "airReturnHealthFraction": 0.35,
-    "airReturnComponentDamage": 65
+    "airReturnComponentDamage": 65,
+    "holdingRange": 1,
+    "weaponMotionThreshold": 0.5,
+    "turretAimTolerance": 0.14,
+    "hullAimTolerance": 0.2
   },
   "naval": {
     "acceleration": 1.5,

@@ -4,6 +4,8 @@ import mobility from "../../data/mobility.json";
 import raw from "../../data/damage.json";
 import type { World } from "../World";
 import type { Entity,UnitDef,WeaponSpec,Projectile } from "../types";
+import {isSpottedBy} from "./sensors";
+import {moraleState} from "./morale";
 import {heightAt} from "../heightmap";
 import { wrapAngle } from "../math";
 import { pointInFeature } from "../mapFeatures";
@@ -58,7 +60,7 @@ export function selectWeapon(u:Entity,t:Entity,ready=false):number {
   let best=-1,score=-Infinity;const distance=Math.hypot(t.x-u.x,t.z-u.z);
   for(let i=0;i<(u.def.weapons?.length??1);i++){
     const spec=weaponSpec(u,i);if(!weaponCanTarget(spec,t)||!garrisonWeaponAllowed(u,spec,t,ready)||spec.damage<=0)continue;
-    if(ready&&(u.motionSpeed??0)>.5&&spec.fireOnMove===false)continue;
+    if(ready&&(u.motionSpeed??0)>mobility.combat.weaponMotionThreshold&&spec.fireOnMove===false)continue;
     if(spec.warhead==="kinetic"&&penetrationFactor(spec.warhead,weaponPenetration(u,spec),armorValue(t,hitFace(u.x,u.z,t)),t.def.category==="infantry"||t.def.armor==="air",distance)<=0)continue;
     if(spec.ammoCapacity>0&&weaponAmmo(u,i)<spec.ammoUsePerShot)continue;
     if(ready&&(weaponCooldown(u,i)>0||distance-t.def.radius>weaponRange(u,spec)||distance<spec.minimumRange))continue;
@@ -73,6 +75,37 @@ export function selectWeapon(u:Entity,t:Entity,ready=false):number {
   }return best;
 }
 export function canEngage(u:Entity,t:Entity):boolean {return selectWeapon(u,t)>=0;}
+/** The actual shot and HUD share these gates; null means this slot may fire. */
+export function weaponFireBlocker(w:World,u:Entity,t:Entity,index:number):string|null {
+  const spec=weaponSpec(u,index),distance=Math.hypot(t.x-u.x,t.z-u.z);
+  if(t.dead||t.loadedIntoId!=null||t.team===u.team)return "Sihtmärk pole rünnatav";
+  if(!isSpottedBy(t,u.team,w.time))return "Luurekontakt kadunud";
+  if(u.standingOrder==="holdfire")return "Tuli keelatud";
+  if((u.disabledUntil??0)>w.time)return "Relvasüsteem häiritud";
+  if(moraleState(u)==="routing")return "Taandub · ei ava tuld";
+  if(u.flightAttackExit)return "Eemaldub ründeläbimiselt";
+  if(!weaponCanTarget(spec,t)||spec.damage<=0)return "Sobimatu sihtmärgi liik";
+  if(!garrisonWeaponAllowed(u,spec,t))return "Garnisoni relv või laskesektor ei võimalda tuld";
+  if(spec.warhead==="kinetic"&&penetrationFactor(spec.warhead,weaponPenetration(u,spec),armorValue(t,hitFace(u.x,u.z,t)),t.def.category==="infantry"||t.def.armor==="air",distance)<=0)return "Soomus peatab selle mürsu";
+  if(spec.ammoCapacity>0&&weaponAmmo(u,index)<spec.ammoUsePerShot)return "Moon otsas · vaja varustust";
+  if(distance<spec.minimumRange)return "Sihtmärk liiga lähedal";
+  if(distance-t.def.radius>weaponRange(u,spec))return "Väljaspool relva ulatust";
+  if(spec.fireOnMove===false){
+    if((u.motionSpeed??0)>mobility.combat.weaponMotionThreshold)return "Peatub · relv nõuab paigalolekut";
+    if(w.time<(u.stationaryFireReadyAt??0))return "Stabiliseerib relva · "+((u.stationaryFireReadyAt??0)-w.time).toFixed(1)+" s";
+  }
+  if(["artillery","mlrs","mortar"].includes(u.kind)&&(u.def.stabilizer??"none")==="none"&&(u.motionSpeed??0)>.6)return "Peatub kaudtule avamiseks";
+  if(weaponCooldown(u,index)>0)return "Laadib · "+weaponCooldown(u,index).toFixed(1)+" s";
+  if(spec.visual!=="cruise"&&!["artillery","mortar","mlrs"].includes(u.kind)&&!w.vision.hasLineOfSight(u,t))return "Tulejoon blokeeritud";
+  const angle=Math.atan2(t.x-u.x,t.z-u.z),delta=Math.abs(wrapAngle(angle-u.heading));
+  if(u.firingArc<Math.PI*2-.01&&delta>u.firingArc*.5)return "Sihtmärk väljaspool laskesektorit";
+  if(!(u.def.domain==="sea"&&spec.weapon==="missile")){
+    const error=Math.abs(wrapAngle(angle-u.heading-(u.def.turret?u.turretYaw:0)));
+    if(error>=(u.def.turret?mobility.combat.turretAimTolerance:mobility.combat.hullAimTolerance))return u.def.turret?"Pöörab torni sihtmärgile":"Pöörab relva sihtmärgile";
+  }
+  return null;
+}
+
 /** Same per-slot reach used by firing, movement, HUD and world overlays. */
 export function weaponRange(u:Entity,spec:WeaponSpec):number {
   return slotRange(u,spec);
