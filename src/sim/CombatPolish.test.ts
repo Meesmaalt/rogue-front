@@ -2,7 +2,7 @@ import {it,expect,afterEach,vi} from 'vitest';
 import {World} from './World';
 import {resetHeightmap,setBases} from './heightmap';
 import type {MapFeatureDef} from './mapFeatures';
-import {effectiveWeaponRange,weaponSpec,weaponRange} from './systems/combat';
+import {effectiveWeaponRange,weaponSpec,weaponRange,weaponFireBlocker} from './systems/combat';
 import {updateUnits,nearestEnemy,combatStatus} from './systems/units';
 import {applyCommands} from './systems/commands';
 import {updateArtillery} from './systems/artillery';
@@ -54,4 +54,34 @@ it('a routing battery cancels its fire mission and retreats toward a walkable ra
 it('stop prevents automatic pursuit, and an unsupported attack reports rejection without replacing the current order',()=>{
  const w=fixture(),u=w.spawn('tank',0,-40,0),t=w.spawn('tank',1,100,0);t.spottedUntil[0]=100;t.standingOrder='holdfire';w.issue({type:'stop',ids:[u.id]});applyCommands(w);step(w,30);expect(u.target).toBeNull();expect(u.x).toBe(-40);
  const aa=w.spawn('manpad',0,-40,30);aa.mode='hold';aa.holdPosition=true;w.issue({type:'attack',ids:[aa.id],targetId:t.id});applyCommands(w);expect(aa.mode).toBe('hold');expect(w.events.some(e=>e.type==='order-rejected'&&e.unitId===aa.id)).toBe(true);
+});
+
+it('an established firing position tolerates range-edge motion and resumes approach only beyond weapon reach',()=>{
+ const w=fixture(),u=w.spawn('tank',0,-100,0),t=w.spawn('tank',1,0,0);t.standingOrder='holdfire';t.mode='hold';t.holdPosition=true;t.spottedUntil[0]=100;
+ const reach=effectiveWeaponRange(u,t);t.x=u.x+reach*.85+t.def.radius;u.heading=Math.PI/2;
+ w.issue({type:'attack',ids:[u.id],targetId:t.id});applyCommands(w);step(w,1);
+ expect(u.combatHoldingTarget).toBe(t.id);const start=u.x;
+ t.x=u.x+reach*.97+t.def.radius;step(w,15);expect(u.x).toBeCloseTo(start);expect(u.combatHoldingTarget).toBe(t.id);
+ const copy=fixture();loadWorld(copy,JSON.parse(JSON.stringify(saveWorld(w))));expect(worldHash(copy)).toBe(worldHash(w));step(w,2);step(copy,2);expect(worldHash(copy)).toBe(worldHash(w));
+ t.x=u.x+reach*1.1+t.def.radius;step(w,1);expect(u.combatHoldingTarget).toBeUndefined();expect(u.combatPosition).toBeDefined();
+ w.issue({type:'move',ids:[u.id],x:-120,z:-20});applyCommands(w);expect(u.combatHoldingTarget).toBeUndefined();expect(u.combatPosition).toBeUndefined();
+});
+it('shared weapon feedback distinguishes settling, aiming and reload and gates the actual missile shot',()=>{
+ const w=fixture(),u=w.spawn('ifv',0,-90,0),t=w.spawn('tank',1,0,0);u.heading=Math.PI/2;u.mode='hold';u.holdPosition=true;u.target=t;t.spottedUntil[0]=100;t.standingOrder='holdfire';t.mode='hold';t.holdPosition=true;
+ t.x=u.x+weaponRange(u,weaponSpec(u,1))*.8;u.stationaryFireReadyAt=1;
+ expect(weaponFireBlocker(w,u,t,1)).toContain('Stabiliseerib');step(w,15);
+ expect(w.events.some(e=>e.type==='fire'&&e.sourceId===u.id&&e.weaponIndex===1)).toBe(false);
+ w.time=2;u.turretYaw=Math.PI;expect(weaponFireBlocker(w,u,t,1)).toContain('torni');
+ u.turretYaw=0;u.weaponCooldowns![1]=2;expect(weaponFireBlocker(w,u,t,1)).toContain('Laadib');
+ u.weaponCooldowns![1]=0;expect(weaponFireBlocker(w,u,t,1)).toBeNull();
+ step(w,1);expect(w.events.some(e=>e.type==='fire'&&e.sourceId===u.id&&e.weaponIndex===1)).toBe(true);
+ u.standingOrder='holdfire';expect(weaponFireBlocker(w,u,t,1)).toBe('Tuli keelatud');
+});
+
+it('an attacking group chooses separated firing positions around the same target',()=>{
+ const w=fixture(),a=w.spawn('tank',0,-220,-12),b=w.spawn('tank',0,-220,12),t=w.spawn('tank',1,0,0);
+ t.standingOrder='holdfire';t.mode='hold';t.holdPosition=true;t.spottedUntil[0]=100;
+ w.issue({type:'attack',ids:[a.id,b.id],targetId:t.id});applyCommands(w);step(w,1);
+ expect(a.combatPosition).toBeDefined();expect(b.combatPosition).toBeDefined();
+ expect(Math.hypot(a.combatPosition!.x-b.combatPosition!.x,a.combatPosition!.z-b.combatPosition!.z)).toBeGreaterThan(a.def.radius+b.def.radius+2);
 });

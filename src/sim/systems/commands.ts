@@ -24,7 +24,7 @@ function mobile(w: World, ids: number[], team?: Entity["team"]): Entity[] {
 /** Replace a task without cancelling rounds already in flight or weapon reloads. */
 function replaceTask(w:World,u:Entity):void {
   for(const b of w.entities)if(b.builderIds.includes(u.id))b.builderIds=b.builderIds.filter(id=>id!==u.id);
-  u.combatWithdrawing=false;
+  u.combatWithdrawing=false;u.combatHoldingTarget=undefined;
   u.flightAttackExit=undefined;u.flightAttackExitUntil=undefined;
   u.fireMission=null;u.artilleryDisplace=null;u.artilleryShotsInSalvo=0;
   u.transportQueue=[];u.transportTargetId=null;u.transportPickupPoint=undefined;u.unloadPoint=null;
