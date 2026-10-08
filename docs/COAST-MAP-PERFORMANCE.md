@@ -29,3 +29,14 @@ Püststardiga rakett hoiab boost-faasis vertikaalset suunda; tiibraketi madallen
 Jõudlus: mürsu iga 2 m kokkupõrkeproov kasutab kohalikku takistuste indeksit; ehitiste alamhulk tehakse kord aktiivse mürsutikiga, mitte iga prooviga. Udukate säilitab oma kanvase pikslid ja kopeerib maski ainult selle muutmisel (senine 10 Hz), mitte igal renderkaadril. Kaadrist väljas olevad mürsud ei genereeri suitsuosakesi. Simulatsioon jääb 30 Hz ja sama käsuvoog annab sama hash'i.
 
 Kontroll: build/typecheck ning neli sihitud juhtumit — grupi vahepunktid/nav/save, vertikaalne raketistart ja tegelik tabamus, mereväe save/load jätk ning replay determinism. Grupi vana 20 s ajapiir ebaõnnestus ka puutumata baseline'il; kontroll ootab nüüd kuni 30 s tegelikku saabumist ja nõuab kõigi nelja masina lõpetamist varasema kolme x-koordinaadi asemel. Päris brauseri visuaal, FPS ja pikk alpha läbimäng on ootel. V1–V5 ei ole selle etapiga tervikuna lõpetatud.
+
+
+## Tootmise ja tarnete taastumine — 08.10.2026
+
+Maasõiduki tootmine otsib tehase ümbert andmepõhiste ringide ja stabiilse suunajärjestusega läbitavat, üksuse jalajäljele sobivat ning hõivamata kohta. Kui koht puudub, jäävad tasutud järjekord ja valmis progress alles; battlegroup'i saadavus ja toodetud üksuste arv muutuvad alles päris väljumisel. Ringid, proovid ja vahe on mobility.json-is. Mere- ja õhusõidukite olemasolevad kai/parkimiskoha reeglid säilivad.
+
+Tühi ressursiveok valib katkenud või tühja automaatse allika asemel lähima enda kontrollitud töötava varuga rajatise. Muutunud siht nullib vana marsruudi ja laadimise edenemise. Lao käsitsi valitud allikat austatakse ka siis, kui see ei tööta; koormaga auto toob olemasoleva lasti koju enne ümbervalimist. Puuduv kogumisallikas ei muuda autot FOB-i varustuskonvoiks. Kopteri ja veoki allikavalik kasutavad sama stabiilset otsingut; kopteri varasem ajutine massiiv ja sortimine eemaldati.
+
+Oma tootmishoone valik ja järjekorrariba näitavad päris operatiivset peatuse põhjust, ligikaudset järelejäänud tööaega või blokeeritud väljumist. Töökiiruse valem on HUD-il ja simulatsioonil ühine ning arvestab energiat, hoonetaset, väeliigi juhtimist ja strateegiakeskust. Aja hinnang eeldab jätkuvaid tarneid. Logistika eristab takistatud marsruuti ja rajatise varu ootamist.
+
+Kontroll: build/typecheck ja 12 lühikest juhtumit kolmes olemasolevas failis (stockLogistics, Production, Replay). Kaks uut juhtumit kontrollivad blokeeritud tootmise ühekordset taastumist ning veoki automaatset/käsitsi allikavalikut ja koorma säilimist. Varasemad kontrollid katavad ka osatarne, FOB-i finite varud, tootmise varupuuduse, lennuraja/teeninduse, save/load ja deterministliku replay. Brauseri visuaal, FPS ja matšitasakaal on ootel; V3 tervikuna lõpetatuks ei märgita.

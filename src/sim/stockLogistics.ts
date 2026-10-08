@@ -27,6 +27,15 @@ export function receiveResourceCargo(w:World,depot:Entity,amount:number):number 
  w.teamResources[depot.team]+=accepted*rules.resourceIncomeFraction;w.teamCredits[depot.team]+=accepted*rules.resourceIncomeFraction;
  if(depot.team===w.playerTeam){w.resources=w.teamResources[depot.team];w.credits=w.teamCredits[depot.team];}return accepted;
 }
+/** Stable nearest valid site; an explicit source selection remains authoritative. */
+export function collectionSource(w:World,depot:Entity,from:Entity):number|null {
+ let best:number|null=null,distance=Infinity;
+ for(let i=0;i<w.resourcePoints.length;i++){
+  const r=w.resourcePoints[i];if(depot.preferredResourceIndex!=null&&depot.preferredResourceIndex!==i||r.controlledBy!==depot.team||!r.active||(r.disabledUntil??0)>w.time||r.amount<1)continue;
+  const d=Math.hypot(r.x-from.x,r.z-from.z);if(d<distance){distance=d;best=i;}
+ }
+ return best;
+}
 export function logisticsStatus(w:World,u:Entity):string {
  const depot=w.byId.get(u.supplyDepotId??-1),cap=depot?stockCapacity(w,depot):null;
  if(!depot||depot.dead)return 'Tarne katkestatud · ladu puudub';
@@ -34,6 +43,8 @@ export function logisticsStatus(w:World,u:Entity):string {
  if(u.cargo>0&&cap&&STOCK_KEYS.every(k=>(depot[`${k}Stock`]??0)>=cap[k]))return 'Sihtladu täis · koorem jääb pardale';
  if(depot.logisticsPaused&&u.cargo<=0)return 'Veod peatatud · naaseb või ootab laos';
  if(u.logisticsSourceIndex!=null){const source=w.resourcePoints[u.logisticsSourceIndex];if(u.cargo<=0&&(!source||source.controlledBy!==u.team||!source.active||(source.disabledUntil??0)>w.time))return 'Allikas katkestatud · ootab taastumist';}
+ if(u.navWaiting)return 'Marsruut takistatud · otsib läbipääsu';
+ if(u.logisticsSourceIndex!=null&&u.cargo<=0&&(w.resourcePoints[u.logisticsSourceIndex]?.amount??0)<1)return 'Rajatis kogub varu · koorma ootel';
  if(u.cargo>0)return `Tarne laosse · koorem ${Math.floor(u.cargo)}`;
  if(u.kind==='logiTruck'&&!u.navPath.length&&u.dest)return 'Marsruudi või laadimise ootel';
  return u.logisticsTarget?'Ressursi või varude kogumine':'Ootab töötavat allikat';

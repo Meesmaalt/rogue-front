@@ -3,7 +3,7 @@ import {World} from './World';
 import {setBases,resetHeightmap} from './heightmap';
 import {stockCapacity,depositPayload,stockTotal} from './stockLogistics';
 import {updateUnits} from './systems/units';
-import {updateProduction} from './systems/production';
+import {productionStatus,updateProduction} from './systems/production';
 import {updateTacticalSupply} from './systems/tacticalSupply';
 import {stationAircraft,assignAirMission} from './systems/airDoctrine';
 import {saveWorld,loadWorld} from './SaveState';
@@ -45,4 +45,28 @@ it('one real sortie taxis, takes off, returns after ammunition depletion and rea
  for(let i=0;i<1800&&!['rearming','grounded'].includes(plane.airState??'');i++)w.tick(1/30);
  expect(['rearming','grounded']).toContain(plane.airState);expect(plane.airMissionHomeId).toBe(pad.id);
  for(let i=0;i<120;i++)w.tick(1/30);expect(plane.ammo).toBeGreaterThan(0);expect(d.ammoStock).toBeLessThan(ammo);expect(plane.y).toBeLessThan(3);
+});
+
+it('completed ground production waits for a legal exit and deploys exactly once after it opens',()=>{
+ const w=fixture(),factory=w.spawn('factory',0,-10,-20);w.spawn('supply',0,0,0);w.spawn('landCommand',0,-25,-25);
+ factory.productionQueue=['tank'];factory.productionProgress=w.unitDefinition('tank',0).buildTime;
+ const blocker=w.spawn('tank',1,factory.x,factory.z);blocker.def={...blocker.def,radius:100};
+ const count=w.producedForTeam(0).tank??0;
+ expect(w.productionOperational(factory,'tank').operational).toBe(true);
+ expect(productionStatus(w,factory)).toContain('väljumisala');updateProduction(w,1/30);
+ expect(factory.productionQueue).toEqual(['tank']);expect(w.producedForTeam(0).tank??0).toBe(count);
+ blocker.dead=true;updateProduction(w,1/30);const produced=w.entities.find(e=>e.kind==='tank'&&e.team===0)!;
+ expect(produced).toBeDefined();expect(w.nav.isWalkableWorld(produced.x,produced.z,produced.def.radius)).toBe(true);
+ expect(w.entities.some(e=>e!==produced&&!e.dead&&Math.hypot(e.x-produced.x,e.z-produced.z)<e.def.radius+produced.def.radius)).toBe(false);
+ expect(factory.productionQueue).toEqual([]);expect(w.producedForTeam(0).tank).toBe(count+1);
+ updateProduction(w,1/30);expect(w.producedForTeam(0).tank).toBe(count+1);
+});
+it('resource trucks recover automatically while preserving explicit source choice and loaded cargo',()=>{
+ const w=fixture(),depot=w.spawn('supply',0,0,0),truck=w.spawn('logiTruck',0,-14,0);
+ truck.supplyDepotId=depot.id;truck.logisticsHome={x:0,z:0};truck.logisticsSourceIndex=0;truck.logisticsPhase='idle';
+ w.resourcePoints[0].active=false;Object.assign(w.resourcePoints[1],{active:true,controlledBy:0,amount:100});
+ steps(w,1);expect(truck.logisticsSourceIndex).toBe(1);
+ depot.preferredResourceIndex=0;steps(w,1);expect(truck.logisticsSourceIndex).toBe(0);
+ depot.preferredResourceIndex=1;truck.cargo=50;truck.logisticsPhase='loading';steps(w,1);
+ expect(truck.logisticsSourceIndex).toBe(0);expect(truck.cargo).toBe(50);
 });

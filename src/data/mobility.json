@@ -168,5 +168,14 @@
     "vehicleBounce": 0.025,
     "vehiclePitchResponse": 0.008,
     "vehicleTurnLean": 0.018
+  },
+  "production": {
+    "exitRings": [
+      0,
+      8,
+      16
+    ],
+    "exitSamples": 16,
+    "exitClearance": 0.8
   }
 }
