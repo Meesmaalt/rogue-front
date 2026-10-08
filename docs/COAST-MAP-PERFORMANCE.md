@@ -17,3 +17,15 @@ Kopteri stop-käsk vähendab kiirust koos tegeliku asukoha muutumisega. Pidurdam
 Metsarühmad vahetavad 260 m kaamerakaugusel (15% hüsterees) tüved ja kolme lehepinnaga krooni ühe horisontaalse kroonipinna vastu. Kaugvaate lehekolmnurki on kolmandik, tüvede ja nende dünaamiliste varjude renderdamine kaob. Samad puupositsioonid, nähtav metsaala, varjumine ning tulekahju olek säilivad. Lähivaade kasutab varasemat mudelit. See vähendab kaugvaate geomeetria- ja alpha-test koormust; tegelikku FPS kasvu pole brauseris mõõdetud.
 
 Kontrollid: build/typecheck, stop-käsu inerts ja sihtpunkti saabumine, EVAC koos pardal oleva jalaväega/save-load, vertikaalne õhkutõus ja baasinõue. Kolm sihitud kontrolli läbisid.
+
+## Üldise mängutunnetuse viimistlus — 08.10.2026
+
+Sõidukid vähendavad kurvi lähenedes kiirust järk-järgult ning järjekorras antud liikumisvahepunkti ei käsitleta lõpliku peatumiskohana. Kere lisakalle on piiratud: ratassõidukitel kuni 0.06 rad pidurduse/kiirenduse ja 0.05 rad pöörde tõttu, tankidel poole väiksem. Kopteri pitch ühendab kõrguse muutuse ja kiirenduse ühe silumisega, mitte kahe konkureeriva filtriga.
+
+HUD näitab oma valitud üksuse tegelikku kiirust, sihini jäävat kaugust ja järjekorra pikkust. Õhusõiduki lahinguolek lisandub lennuolekule; rühmavalik näitab liikuvaid, läbipääsu ootavaid, baasi naasvaid ja madala kütusega üksusi. Tootmisnupp ütleb rahapuuduse puhul puuduva krediidisumma, eristades seda päris tarne-/energiapuudusest. Vastase peidetud varude kohta uut infot ei kuvata.
+
+Püststardiga rakett hoiab boost-faasis vertikaalset suunda; tiibraketi madallennult terminalfaasi üleminek on pehme. Suitsujälg on liigiti erineva sammu ja elueaga, selle jääk säilib kaadrite vahel. Nähtamatu või kaadrist väljas olnud lennuosa ei ühendata hiljem pika uue suitsujoonega. Mootorileek eristab boost'i ja reisilendu; õhus toimuv lask ei tekita enam kaugelt all oleva maa tolmupilve.
+
+Jõudlus: mürsu iga 2 m kokkupõrkeproov kasutab kohalikku takistuste indeksit; ehitiste alamhulk tehakse kord aktiivse mürsutikiga, mitte iga prooviga. Udukate säilitab oma kanvase pikslid ja kopeerib maski ainult selle muutmisel (senine 10 Hz), mitte igal renderkaadril. Kaadrist väljas olevad mürsud ei genereeri suitsuosakesi. Simulatsioon jääb 30 Hz ja sama käsuvoog annab sama hash'i.
+
+Kontroll: build/typecheck ning neli sihitud juhtumit — grupi vahepunktid/nav/save, vertikaalne raketistart ja tegelik tabamus, mereväe save/load jätk ning replay determinism. Grupi vana 20 s ajapiir ebaõnnestus ka puutumata baseline'il; kontroll ootab nüüd kuni 30 s tegelikku saabumist ja nõuab kõigi nelja masina lõpetamist varasema kolme x-koordinaadi asemel. Päris brauseri visuaal, FPS ja pikk alpha läbimäng on ootel. V1–V5 ei ole selle etapiga tervikuna lõpetatud.

@@ -113,7 +113,10 @@
       1,
       0.65,
       0.4
-    ]
+    ],
+    "cornerLookAhead": 12,
+    "cornerSpeedFloor": 0.3,
+    "queuePassDistance": 2
   },
   "transport": {
     "pickupTimeout": 60,
@@ -162,6 +165,8 @@
     "infantryStride": 1.5,
     "legSwing": 0.45,
     "teleportDistance": 24,
-    "vehicleBounce": 0.025
+    "vehicleBounce": 0.025,
+    "vehiclePitchResponse": 0.008,
+    "vehicleTurnLean": 0.018
   }
 }

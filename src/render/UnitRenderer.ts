@@ -185,7 +185,11 @@ export class UnitRenderer {
       if(!onScreen&&!v.staticBuilding){v.resetPose=true;continue;}
       sampleMotion(e,alpha,v.pose);
       const {x,z,heading:h}=v.pose;
+      const previousSpeed=v.visualSpeed;
       v.visualSpeed=v.resetPose?v.pose.speed:smoothMotion(v.visualSpeed,v.pose.speed,mobility.presentation.speedResponse,frameDt);
+      const acceleration=frameDt>0&&!v.resetPose?(v.visualSpeed-previousSpeed)/frameDt:0;
+      const chassisPitch=Math.max(-.06,Math.min(.06,-acceleration*mobility.presentation.vehiclePitchResponse));
+      const chassisRoll=Math.max(-.05,Math.min(.05,-wrapAngle(e.heading-e.pHeading)*30*Math.min(1,v.visualSpeed/6)*mobility.presentation.vehicleTurnLean));
       v.walkPhase=(v.walkPhase+v.visualSpeed*frameDt*Math.PI*2/mobility.presentation.infantryStride)%(Math.PI*2);
       const distance=this.camera.position.distanceTo(this.bounds.center);
       if(v.far){const unitLimit=e.squadMaxMembers?(quality==="high"?90:quality==="medium"?70:50):lodDistance;const limit=unitLimit*(v.far.visible?.85:1.1);const detailed=(quality!=="low"&&selected.size<=12&&selected.has(e.id))||distance<limit;v.near.visible=detailed;v.far.visible=!detailed;}
@@ -310,15 +314,15 @@ export class UnitRenderer {
         // Heading first, then bounded local suspension tilt. Raw terrain seams
         // must not flip a vehicle onto its side.
         const tilt = (angle: number) => Math.max(-0.35,Math.min(0.35,angle));
-        v.tiltPitch=v.resetPose?tilt(-Math.atan2(hf-hb,2*f)):smoothMotion(v.tiltPitch,tilt(-Math.atan2(hf-hb,2*f)),mobility.presentation.tiltResponse,frameDt);
-        v.tiltRoll=v.resetPose?tilt(Math.atan2(hr-hl,3)):smoothMotion(v.tiltRoll,tilt(Math.atan2(hr-hl,3)),mobility.presentation.tiltResponse,frameDt);
+        v.tiltPitch=v.resetPose?tilt(-Math.atan2(hf-hb,2*f)+chassisPitch*.5):smoothMotion(v.tiltPitch,tilt(-Math.atan2(hf-hb,2*f)+chassisPitch*.5),mobility.presentation.tiltResponse,frameDt);
+        v.tiltRoll=v.resetPose?tilt(Math.atan2(hr-hl,3)+chassisRoll*.5):smoothMotion(v.tiltRoll,tilt(Math.atan2(hr-hl,3)+chassisRoll*.5),mobility.presentation.tiltResponse,frameDt);
         v.group.rotation.set(v.tiltPitch,h,v.tiltRoll,"YXZ");
       } else if(e.def.domain==="sea")v.group.rotation.set(Math.sin(animT*.8)*.015,h,Math.sin(animT*.6)*.025,"YXZ");
       else if(e.def.armor === "air")v.group.rotation.set(v.pose.pitch,h,v.pose.bank,"YXZ");
       else if(e.def.speed>0&&e.def.category!=="infantry"){
         const sa=Math.sin(h),ca=Math.cos(h),length=2;
-        const pitch=-Math.atan2(heightAt(x+sa*length,z+ca*length)-heightAt(x-sa*length,z-ca*length),length*2);
-        const roll=Math.atan2(heightAt(x+ca,z-sa)-heightAt(x-ca,z+sa),2);
+        const pitch=-Math.atan2(heightAt(x+sa*length,z+ca*length)-heightAt(x-sa*length,z-ca*length),length*2)+chassisPitch;
+        const roll=Math.atan2(heightAt(x+ca,z-sa)-heightAt(x-ca,z+sa),2)+chassisRoll;
         v.tiltPitch=v.resetPose?Math.max(-.3,Math.min(.3,pitch)):smoothMotion(v.tiltPitch,Math.max(-.3,Math.min(.3,pitch)),mobility.presentation.tiltResponse,frameDt);
         v.tiltRoll=v.resetPose?Math.max(-.3,Math.min(.3,roll)):smoothMotion(v.tiltRoll,Math.max(-.3,Math.min(.3,roll)),mobility.presentation.tiltResponse,frameDt);
         v.group.rotation.set(v.tiltPitch,h,v.tiltRoll,"YXZ");
