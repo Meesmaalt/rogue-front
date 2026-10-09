@@ -15,6 +15,7 @@ export interface BuildPreview { point: {x:number;z:number} | null; kind: Buildab
 
 export class Overlay {
   private ctx: CanvasRenderingContext2D;
+  private readonly occupied=new Set<number>();
   private readonly occupants=new Map<string,{own:number;seen:boolean}>();
   private occupantStamp=-1;
   private readonly visible:Entity[]=[];
@@ -30,7 +31,7 @@ export class Overlay {
   }
 
   private resize(): void {
-    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const dpr = Math.min(devicePixelRatio || 1, 1.25);
     this.canvas.width = innerWidth * dpr;
     this.canvas.height = innerHeight * dpr;
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -78,10 +79,17 @@ export class Overlay {
     }
     for(const marker of orders?.orderMarkers??[]){
       const p=picker.toScreen(marker.x,heightAt(marker.x,marker.z)+.5,marker.z);if(p.z>1)continue;
-      const remaining=Math.max(0,Math.min(1,(marker.until-performance.now())/1500)),radius=18+(1-remaining)*10;
-      c.save();c.globalAlpha=remaining;c.strokeStyle=marker.color;c.fillStyle=marker.color;c.lineWidth=3;c.beginPath();c.arc(p.x,p.y,radius,0,Math.PI*2);c.stroke();
-      c.beginPath();if(marker.label==="RÜNDA"){for(const [dx,dy] of [[-1,-1],[1,1],[-1,1],[1,-1]]){c.moveTo(p.x+dx*8,p.y+dy*8);c.lineTo(p.x+dx*15,p.y+dy*15);}}else {c.moveTo(p.x-7,p.y);c.lineTo(p.x-1,p.y+6);c.lineTo(p.x+9,p.y-7);}c.stroke();
-      c.font="bold 12px Segoe UI,sans-serif";c.textAlign="center";c.fillText(marker.label,p.x,p.y-radius-7);c.restore();
+      const remaining=Math.max(0,Math.min(1,(marker.until-performance.now())/850));
+      c.save();c.globalAlpha=Math.min(1,remaining*3);c.strokeStyle=marker.color;c.lineWidth=2;
+      c.beginPath();
+      if(marker.color==="#ff6857"){
+        // Compact corner brackets, fixed size: an order target, not an expanding explosion.
+        for(const [dx,dy] of [[-1,-1],[1,1],[-1,1],[1,-1]]){c.moveTo(p.x+dx*5,p.y+dy*11);c.lineTo(p.x+dx*11,p.y+dy*11);c.lineTo(p.x+dx*11,p.y+dy*5);}
+      }else {
+        // Two destination chevrons are distinct from selection and weapon range rings.
+        for(const offset of [-4,4]){c.moveTo(p.x-7,p.y+offset-3);c.lineTo(p.x,p.y+offset+2);c.lineTo(p.x+7,p.y+offset-3);}
+      }
+      c.stroke();c.restore();
     }
     const placement=orders?.formationPreview;
     if(placement){
@@ -109,7 +117,7 @@ export class Overlay {
       const text=own?`⌂ ${own}/${garrisonCapacity(f)} · garnison`:seen?"⌂ Vaenlase kontakt":buildingCondition(world,f)>=1?"⌂ Varemed":"⌂ Kahjustatud";
       c.font="600 11px Segoe UI,sans-serif";c.textAlign="center";const width=c.measureText(text).width+12;c.fillStyle="#172824dd";c.fillRect(p.x-width/2,p.y-13,width,18);c.fillStyle=own?"#b9dda4":seen?"#eda591":"#d7bf95";c.fillText(text,p.x,p.y);c.textAlign="left";
     }
-    const markers:UnitMarkerRect[]=[],occupied=new Set<string>();
+    const markers:UnitMarkerRect[]=[],occupied=this.occupied;occupied.clear();
     // Selected labels get first choice of screen space; stable entity order breaks ties.
     const visible=this.visible,ordinary=this.ordinary;visible.length=0;ordinary.length=0;
     for(const u of world.entities){
@@ -134,7 +142,7 @@ export class Overlay {
         let tw=this.nameWidths.get(name);if(tw==null){tw=c.measureText(name).width;if(this.nameWidths.size>256)this.nameWidths.clear();this.nameWidths.set(name,tw);}
         const fullWidth=tw+35;
         const x=Math.max(0,Math.min(w-fullWidth,p.x-fullWidth/2));
-        const slots=(left:number,top:number,width:number)=>{const keys:string[]=[];for(let ix=Math.floor(left/32);ix<=Math.floor((left+width)/32);ix++)for(let iy=Math.floor(top/20);iy<=Math.floor((top+18)/20);iy++)keys.push(`${ix},${iy}`);return keys;};
+        const slots=(left:number,top:number,width:number)=>{const keys:number[]=[];for(let ix=Math.floor(left/32);ix<=Math.floor((left+width)/32);ix++)for(let iy=Math.floor(top/20);iy<=Math.floor((top+18)/20);iy++)keys.push(ix+iy*(Math.ceil(w/32)+8));return keys;};
         let y=p.y-23,cells=slots(x,y,fullWidth),full=!cells.some(key=>occupied.has(key));
         for(const offset of selectedUnit?[-43,-63,15]:[-43,15]){
           if(full)break;const trial=p.y+offset;if(trial<0||trial+18>h)continue;

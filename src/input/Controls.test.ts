@@ -2,7 +2,6 @@ import {it,expect,vi,afterEach} from 'vitest';
 import {CommandController} from './CommandController';
 import {SelectionController} from './SelectionController';
 import type {Picker} from './Picker';
-import type {Fx} from '../render/Fx';
 import {World} from '../sim/World';
 import {resetHeightmap} from '../sim/heightmap';
 class Surface extends EventTarget {style={cursor:''};closest(){return null;}}
@@ -13,7 +12,7 @@ function fixture(){
  let picked=a;
  const picker={groundAt:()=>({x:60,z:45}),pickEntity:(_x:number,_y:number,team:number)=>team===0?picked:null,pickGarrisonBuilding:()=>null,toScreen:()=>({x:100,y:100,z:0})} as unknown as Picker;
  const proxy={selected:new Set<number>(),selectedIds(){return [...this.selected];}};
- const commands=new CommandController(el as unknown as HTMLElement,w,picker,proxy as unknown as SelectionController,{ping:vi.fn()} as unknown as Fx);commands.enabled=true;
+ const commands=new CommandController(el as unknown as HTMLElement,w,picker,proxy as unknown as SelectionController);commands.enabled=true;
  const selection=new SelectionController(el as unknown as HTMLElement,w,picker);selection.enabled=true;selection.selected.add(a.id);proxy.selected=selection.selected;
  const click=(shiftKey=false)=>{el.dispatchEvent(event('mousedown',{button:0,clientX:100,clientY:100,shiftKey}));root.dispatchEvent(event('mouseup',{button:0,clientX:100,clientY:100,shiftKey}));};
  const right=(shiftKey=false)=>{el.dispatchEvent(event("mousedown",{button:2,clientX:100,clientY:100,shiftKey}));root.dispatchEvent(event("mouseup",{button:2,clientX:100,clientY:100,shiftKey}));};

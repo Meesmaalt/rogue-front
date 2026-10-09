@@ -11,6 +11,8 @@ Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on j�
 
 ## Teostatud alused ja seniste pakettide seis
 
+- [x] Kaameraga sünkroonne nähtavuskiht: 100 ms ekraaniudu oote eemaldamine, poole resolutsiooniga otsejoonistus ja üksuste interpolatsioon, pausi ajal kaamera muutuse tuvastus. Overlay pikslitiheduse piir 1.25 ja arvulised taaskasutatavad sildilahtrid; käsuringid asendatud lühikeste fikseeritud noolte/sihikuga, dubleeriv 3D-käsuping eemaldatud, kuni 3 tähist. Build + 11 lühikest render/input/replay kontrolli; päris brauseri FPS ja visuaal ootel.
+
 - [x] Hiirejuhtimise/käsupildi parandus: vasakklõps valib ja tühistab vana sihtrežiimi (ehitus jääb eraldi), paremklõps annab käsu, paremlohistus näitab rühma asetust/suunda ja annab käsu vabastamisel. Päris suunatud sihtkohad, nav-kohandus, saabumise pööramine ja queued/save/hash; värvilised ajutised käsuringid, tavaliste marsruudi-/ründe-/kohaliku varustusjoonte eemaldamine. Build + 20 lühikest kontrolli; brauseri hiiretunnetus ja pilt ootel.
 
 - [x] Visuaalse loetavuse ja teatatud lahinguvigade pakett: ründekäsk peatub tegelikus relvaulatuses, sobiv ulatuv relv eelistatud lühikese DPS-relva jälitamisele; kopteri automaatkahur saab lasta koptereid koos CAP/moona/HUD-iga. Madala moona/kütuse kaugmärgid, HUD-i elementide säilitamine, salvestuse olemasolu vahemälu, 8 Hz kaameravarju ja 5 Hz garnisoniloendi värskendus. Build + 21 sihitud lahingu/õhu/replay kontrolli; brauseri FPS, visuaal ja alpha tervikläbipääs ootel.
