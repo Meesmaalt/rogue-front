@@ -38,8 +38,11 @@ export function garrisonFaces(u:Entity,p:Point):boolean {
  const dx=p.x-u.x,dz=p.z-u.z,d=Math.hypot(dx,dz)||1,a=u.garrisonFacing??u.heading;
  return (Math.sin(a)*dx+Math.cos(a)*dz)/d>=Math.cos(rules.firingArc/2);
 }
+export function garrisonWeaponUsable(u:Entity,spec:WeaponSpec):boolean {
+ return !u.garrisonId||(spec.flight!=='ballistic'&&(spec.targets!=='air'||isRoofSquad(u)));
+}
 export function garrisonWeaponAllowed(u:Entity,spec:WeaponSpec,t:Entity,sector=true):boolean {
- return !u.garrisonId||(spec.flight!=='ballistic'&&(!sector||garrisonFaces(u,t))&&(spec.targets!=='air'||isRoofSquad(u)));
+ return garrisonWeaponUsable(u,spec)&&(!sector||garrisonFaces(u,t));
 }
 function valid(w:World,u:Entity,f:MapFeatureDef):boolean {
  const occupants=garrisonOccupants(w,f.id,true).filter(e=>e!==u);

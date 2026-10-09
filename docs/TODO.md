@@ -11,6 +11,8 @@ Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on j�
 
 ## Teostatud alused ja seniste pakettide seis
 
+- [x] Lahinguinfo ja maastiku loetavus: kompaktsed relvarollid/ulatus/moon/lasu põhjus, avatavad AP/tabamuse detailid, tegelik garnisoni/relva laskesektor, hoones kasutamatute relvade ringi peitmine ning simi katte-/liikumiskordajate HUD. Build + 13 lühikest kontrolli; brauseri visuaal/FPS ja kaardi taktikalise kompositsiooni edasine viimistlus ootel.
+
 - [x] Portaineri ENOENT-parandus: vaikimisi dev käivitub image’i failidest, suhteline `/app` bind-mount ja sõltuvuste püsiv overlay eemaldatud; multiplayeri valmidussõltuvus ja dev HTTP healthcheck. Compose’i struktuurikontroll läbis; päris serveri rebuild/redeploy ootel.
 
 - [x] Taktikaliste laskepositsioonide ja relvatagasiside viimistlus: püsiv peatumisulatus, eraldatud rühma laskekohad, marssimise/lahingu kolonnireegli eristus, üks ühine lasu/HUD-i valmisolekukontroll ja garnisoni/õhurelvade põhjused. Build + 17 lühikest kontrolli; brauseri visuaal, FPS ja V2 terviklik läbipääs ootel.

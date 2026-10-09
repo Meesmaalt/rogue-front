@@ -184,7 +184,7 @@ function applySquadCasualties(w: World, u: Entity, damageAmount: number): void {
   }
 }
 
-function targetCoverValue(w: World, t: Entity): number {
+export function targetCoverValue(w: World, t: Entity): number {
   if(t.garrisonId)return garrisonCover(w,t);
   let v = 0;
   for (const f of w.terrain.coverFeaturesAt(t.x,t.z)) {

@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import type {Entity} from "../sim/types";
+import {GARRISON_RULES,garrisonWeaponUsable} from "../sim/garrison";
 import type {World} from "../sim/World";
 import {heightAt} from "../sim/heightmap";
 import {weaponRange} from "../sim/systems/combat";
@@ -6,6 +8,20 @@ import {weaponRange} from "../sim/systems/combat";
 /** Colors match the weapon cards. UI-only; never changes simulation or targeting. */
 export const WEAPON_RANGE_COLORS=["#f2cc69","#79c9ff","#f09dbd","#a9df91","#bdabff","#ffad79"];
 const SEGMENTS=160;
+/** Read the same sector used by the garrison and firing gates. */
+export function weaponSector(u:Entity):{facing:number;arc:number} {
+  return u.garrisonId?{facing:u.garrisonFacing??u.heading,arc:GARRISON_RULES.firingArc}:
+    {facing:u.firingArc<Math.PI*2-.01?u.heading:0,arc:u.firingArc};
+}
+export function writeRangeVertices(points:Float32Array,x:number,z:number,max:number,min:number,facing:number,arc:number):number {
+  let n=0;const limited=arc<Math.PI*2-.01,start=facing-arc/2;
+  const vertex=(angle:number,r:number)=>{const px=x+Math.sin(angle)*r,pz=z+Math.cos(angle)*r;points[n++]=px;points[n++]=heightAt(px,pz)+.55;points[n++]=pz;};
+  for(let j=0;j<SEGMENTS;j++){vertex(start+j/SEGMENTS*arc,max);vertex(start+(j+1)/SEGMENTS*arc,max);}
+  if(min>0)for(let j=0;j<SEGMENTS;j+=2){vertex(start+j/SEGMENTS*arc,min);vertex(start+(j+1)/SEGMENTS*arc,min);}
+  if(limited)for(const a of [start,start+arc]){vertex(a,min);vertex(a,max);}
+  return n/3;
+}
+
 export class RangeOverlay {
   private group=new THREE.Group();
   private slots=WEAPON_RANGE_COLORS.map(color=>{
@@ -30,22 +46,13 @@ export class RangeOverlay {
     if(!this.group.visible||!u)return;
     this.slots.forEach((view,i)=>{
       const spec=u.def.weapons?.[i];
-      view.line.visible=view.label.visible=!!spec&&(slot==null||slot===i);
+      view.line.visible=view.label.visible=!!spec&&garrisonWeaponUsable(u,spec)&&(slot==null||slot===i);
       if(!spec||!view.line.visible)return;
-      const max=weaponRange(u,spec),min=spec.minimumRange;
-      const drawKey=`${u.id}|${u.x}|${u.z}|${max}|${min}|${spec.name}`;
+      const max=weaponRange(u,spec),min=spec.minimumRange,{facing,arc}=weaponSector(u);
+      const drawKey=`${u.id}|${u.x}|${u.z}|${max}|${min}|${spec.name}|${facing}|${arc}`;
       if(view.drawKey===drawKey)return;view.drawKey=drawKey;
-      let n=0;
-      const vertex=(angle:number,r:number)=>{
-        const x=u.x+Math.sin(angle)*r,z=u.z+Math.cos(angle)*r;
-        view.points[n++]=x;view.points[n++]=heightAt(x,z)+.55;view.points[n++]=z;
-      };
-      for(let j=0;j<SEGMENTS;j++){
-        vertex(j/SEGMENTS*Math.PI*2,max);vertex((j+1)/SEGMENTS*Math.PI*2,max);
-      }
-      // Dashed minimum-range circle: the inner area is a firing dead zone.
-      if(min>0)for(let j=0;j<SEGMENTS;j+=2){vertex(j/SEGMENTS*Math.PI*2,min);vertex((j+1)/SEGMENTS*Math.PI*2,min);}
-      view.geometry.setDrawRange(0,n/3);view.geometry.attributes.position.needsUpdate=true;
+      const count=writeRangeVertices(view.points,u.x,u.z,max,min,facing,arc);
+      view.geometry.setDrawRange(0,count);view.geometry.attributes.position.needsUpdate=true;
       const key=`${spec.name}|${Math.round(min)}|${Math.round(max)}`;
       if(view.key!==key){
         view.key=key;const ctx=view.canvas.getContext("2d")!;
@@ -54,7 +61,7 @@ export class RangeOverlay {
         ctx.fillText(`${i+1}. ${Math.round(min)}–${Math.round(max)} m`,192,26);
         ctx.font="18px sans-serif";ctx.fillText(spec.name.slice(0,32),192,51);view.texture.needsUpdate=true;
       }
-      const a=i*.42,x=u.x+Math.sin(a)*max,z=u.z+Math.cos(a)*max;
+      const a=arc<Math.PI*2-.01?facing+(i-1)*Math.min(.25,arc/6):i*.42,x=u.x+Math.sin(a)*max,z=u.z+Math.cos(a)*max;
       view.label.position.set(x,heightAt(x,z)+3,z);
     });
   }
