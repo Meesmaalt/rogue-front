@@ -374,9 +374,8 @@ function drapedStrip(f:MapFeatureDef,width:number,color:number,lift:number,share
   const map=paved?asphaltTexture():null;
   const mesh=new THREE.Mesh(geo,sharedMaterial??new THREE.MeshStandardMaterial({color,map,bumpMap:map,bumpScale:.025,roughness:.96,polygonOffset:true,polygonOffsetFactor:-1}));mesh.receiveShadow=true;return mesh;
 }
-/** Crossed cutout crowns have irregular leaf silhouettes, depth writing and no
- * transparent sorting. Separate cell batches keep distant forests culled. */
-function createForest(features:readonly MapFeatureDef[]):THREE.Group {
+/** Opaque rounded crowns avoid alpha overdraw and leaf shadow-map passes. Separate cell batches keep distant forests culled. */
+export function createForest(features:readonly MapFeatureDef[]):THREE.Group {
   const rnd=mulberry32(104),cells=new Map<string,{x:number;z:number;s:number;angle:number;pine:boolean}[]>();
   const index=new MapFeatureIndex(features);
   for(const f of features.filter(f=>f.appearance==="forest")){
@@ -389,31 +388,30 @@ function createForest(features:readonly MapFeatureDef[]):THREE.Group {
       list.push({x,z,s:.85+rnd()*.65,angle:rnd()*Math.PI,pine});cells.set(key,list);
     }
   }
-  const group=new THREE.Group(),trunkGeometry=new THREE.CylinderGeometry(.13,.3,5,6),crownGeometry=new THREE.PlaneGeometry(7,8);
+  const group=new THREE.Group(),trunkGeometry=new THREE.CylinderGeometry(.13,.3,5,5),crownGeometry=new THREE.SphereGeometry(1,8,5),farGeometry=new THREE.IcosahedronGeometry(1,0);
   const trunkMaterial=new THREE.MeshStandardMaterial({color:0x625a49,roughness:1});
-  const crownMaterial=new THREE.MeshStandardMaterial({color:0xffffff,map:foliageTexture(),alphaTest:.48,side:THREE.DoubleSide,roughness:1,metalness:0});
-  const pineMaterial=new THREE.MeshStandardMaterial({color:0xffffff,map:foliageTexture(true),alphaTest:.48,side:THREE.DoubleSide,roughness:1});
+  const crownMaterial=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,metalness:0});
   const d=new THREE.Object3D(),tint=new THREE.Color();
   for(const points of cells.values()){
-    const trunks=new THREE.InstancedMesh(trunkGeometry,trunkMaterial,points.length),crowns=new THREE.InstancedMesh(crownGeometry,points[0].pine?pineMaterial:crownMaterial,points.length*3);
+    const trunks=new THREE.InstancedMesh(trunkGeometry,trunkMaterial,points.length),crowns=new THREE.InstancedMesh(crownGeometry,crownMaterial,points.length);
     points.forEach((p,i)=>{
       const y=heightAt(p.x,p.z);d.rotation.set(0,p.angle,0);d.position.set(p.x,y+2.5*p.s,p.z);d.scale.set(p.s,p.s,p.s);d.updateMatrix();trunks.setMatrixAt(i,d.matrix);trunks.setColorAt(i,new THREE.Color(1,1,1));
       tint.setHSL(.26+rnd()*.035,.25+rnd()*.12,.30+rnd()*.08);
-      for(let j=0;j<3;j++){
-        d.position.set(p.x,y+5.5*p.s,p.z);d.rotation.set(j===2?-Math.PI/2:0,p.angle+j*Math.PI/2,0);d.scale.set(p.s,p.s,p.s);d.updateMatrix();crowns.setMatrixAt(i*3+j,d.matrix);crowns.setColorAt(i*3+j,tint);
-      }
+      d.position.set(p.x,y+5.2*p.s,p.z);d.rotation.set(0,p.angle,0);
+      d.scale.set((p.pine?3.1:4.4)*p.s,(p.pine?4:3.5)*p.s,(p.pine?3.1:4)*p.s);
+      d.updateMatrix();crowns.setMatrixAt(i,d.matrix);crowns.setColorAt(i,tint);
     });
-    trunks.computeBoundingSphere();crowns.computeBoundingSphere();trunks.castShadow=true;crowns.castShadow=true;crowns.receiveShadow=true;trunks.matrixAutoUpdate=crowns.matrixAutoUpdate=false;
-    crowns.userData.forestPoints=points;crowns.userData.forestColors=crowns.instanceColor!.array.slice();crowns.userData.forestMatrices=crowns.instanceMatrix.array.slice();
+    trunks.computeBoundingSphere();crowns.computeBoundingSphere();trunks.castShadow=false;crowns.castShadow=false;crowns.receiveShadow=true;trunks.matrixAutoUpdate=crowns.matrixAutoUpdate=false;
+    crowns.userData.forestCrownCount=1;crowns.userData.forestPoints=points;crowns.userData.forestColors=crowns.instanceColor!.array.slice();crowns.userData.forestMatrices=crowns.instanceMatrix.array.slice();
     trunks.userData.forestPoints=points;trunks.userData.forestTrunks=true;trunks.userData.forestColors=trunks.instanceColor!.array.slice();trunks.userData.forestMatrices=trunks.instanceMatrix.array.slice();
-    // Distant overhead canopy drops trunks and two crossed leaf planes per tree.
-    const far=new THREE.InstancedMesh(crownGeometry,crowns.material,points.length);
-    points.forEach((_,i)=>{crowns.getMatrixAt(i*3+2,d.matrix);far.setMatrixAt(i,d.matrix);crowns.getColorAt(i*3,tint);far.setColorAt(i,tint);});
+    // Distant opaque canopy retains volume with only 20 triangles and no trunks.
+    const far=new THREE.InstancedMesh(farGeometry,crowns.material,points.length);
+    points.forEach((_,i)=>{crowns.getMatrixAt(i,d.matrix);far.setMatrixAt(i,d.matrix);crowns.getColorAt(i,tint);far.setColorAt(i,tint);});
     far.computeBoundingSphere();far.receiveShadow=true;far.matrixAutoUpdate=false;
     far.userData.forestPoints=points;far.userData.forestCrownCount=1;
     far.userData.forestColors=far.instanceColor!.array.slice();far.userData.forestMatrices=far.instanceMatrix.array.slice();
     const near=new THREE.Group();near.add(trunks,crowns);
-    const lod=new THREE.LOD(),origin=new THREE.Vector3(points[0].x,heightAt(points[0].x,points[0].z),points[0].z);
+    const lod=new THREE.LOD(),origin=new THREE.Vector3(points.reduce((n,p)=>n+p.x,0)/points.length,0,points.reduce((n,p)=>n+p.z,0)/points.length);origin.y=heightAt(origin.x,origin.z);
     lod.position.copy(origin);near.position.copy(origin).negate();far.position.copy(origin).negate();far.updateMatrix();
     lod.addLevel(near,0);lod.addLevel(far,terrainConfig.forest.lodDistance,.15);group.add(lod);
   }
@@ -451,32 +449,6 @@ export function syncForestTerrain(group:THREE.Group,world:World):boolean {
   });positionAttribute.needsUpdate=true;uvAttribute.needsUpdate=true;scorch.geometry.setDrawRange(0,cells.length*6);
   return changed;
 }
-let cachedFoliage:THREE.CanvasTexture|undefined;
-let cachedPine:THREE.CanvasTexture|undefined;
-function foliageTexture(pine=false):THREE.CanvasTexture {
-  if(pine&&cachedPine)return cachedPine;if(!pine&&cachedFoliage)return cachedFoliage;
-  const cv=document.createElement("canvas");cv.width=cv.height=256;
-  const c=cv.getContext("2d")!,rnd=mulberry32(8931);
-  // Original painted clusters: ragged edge and gaps expose the branch structure.
-  c.strokeStyle="#776a47";c.lineWidth=6;c.beginPath();c.moveTo(128,248);c.lineTo(128,75);c.stroke();
-  for(let i=0;i<120;i++){
-    const a=rnd()*Math.PI*2,r=Math.sqrt(rnd()),x=128+Math.cos(a)*r*98,y=117+Math.sin(a)*r*101;
-    const shade=165+Math.floor(rnd()*70);
-    c.fillStyle=`rgb(${shade-8},${shade},${shade-20})`;
-    c.beginPath();c.ellipse(x,y,9+rnd()*17,8+rnd()*15,rnd()*Math.PI,0,Math.PI*2);c.fill();
-  }
-  // Fine leaves break smooth circular clusters at their edges.
-  for(let i=0;i<650;i++){const x=rnd()*256,y=rnd()*230;if(c.getImageData(Math.floor(x),Math.floor(y),1,1).data[3]){c.fillStyle=rnd()>.5?"#e0e1c1":"#85927c";c.fillRect(x,y,2+rnd()*3,2+rnd()*3);}}
-  if(pine){
-    c.clearRect(0,0,256,256);c.fillStyle="#71674e";c.fillRect(124,30,8,222);
-    for(let layer=0;layer<12;layer++){const y=20+layer*17,w=10+layer*8;
-      for(let twig=0;twig<10;twig++){const spread=(twig/9-.5)*2*w;c.strokeStyle=twig%2?"#9bb39c":"#627f69";c.lineWidth=4;
-        c.beginPath();c.moveTo(128,y);c.lineTo(128+spread,y+21+Math.abs(spread)*.15);c.stroke();}
-    }
-  }
-  const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;if(pine)cachedPine=t;else cachedFoliage=t;return t;
-}
-
 let cachedFieldTexture:THREE.CanvasTexture|undefined;
 function fieldTexture():THREE.CanvasTexture {
   if(cachedFieldTexture)return cachedFieldTexture;

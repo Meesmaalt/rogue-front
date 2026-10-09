@@ -169,6 +169,9 @@
     "berthSpacing": 2
   },
   "presentation": {
+    "cameraResponse": 12,
+    "cameraZoomResponse": 8,
+    "cameraHeightResponse": 5,
     "speedResponse": 10,
     "tiltResponse": 8,
     "squadSpreadResponse": 6,

@@ -11,6 +11,8 @@ Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on j�
 
 ## Teostatud alused ja seniste pakettide seis
 
+- [x] Panningu ja metsakoormuse parandus: sujuv kaamera kiirendus/pidurdus/pööre, eksponentsiaalne zoom ja maastikukõrgus; valgus ja varjukaart liiguvad koos alles katvuse piiril või geomeetriamuutusel. Läbipaistvad ristvõrad asendatud ühe instantsitud ümara ruumilise võraga, kaug-LOD 20 kolmnurka; metsavarjude alpha-passid eemaldatud, põlengu/burnt ühendus säilitatud. Build + 12 lühikest render/input kontrolli; päris brauseri FPS/visuaal endiselt mõõtmata.
+
 - [x] Kaameraga sünkroonne nähtavuskiht: 100 ms ekraaniudu oote eemaldamine, poole resolutsiooniga otsejoonistus ja üksuste interpolatsioon, pausi ajal kaamera muutuse tuvastus. Overlay pikslitiheduse piir 1.25 ja arvulised taaskasutatavad sildilahtrid; käsuringid asendatud lühikeste fikseeritud noolte/sihikuga, dubleeriv 3D-käsuping eemaldatud, kuni 3 tähist. Build + 11 lühikest render/input/replay kontrolli; päris brauseri FPS ja visuaal ootel.
 
 - [x] Hiirejuhtimise/käsupildi parandus: vasakklõps valib ja tühistab vana sihtrežiimi (ehitus jääb eraldi), paremklõps annab käsu, paremlohistus näitab rühma asetust/suunda ja annab käsu vabastamisel. Päris suunatud sihtkohad, nav-kohandus, saabumise pööramine ja queued/save/hash; värvilised ajutised käsuringid, tavaliste marsruudi-/ründe-/kohaliku varustusjoonte eemaldamine. Build + 20 lühikest kontrolli; brauseri hiiretunnetus ja pilt ootel.

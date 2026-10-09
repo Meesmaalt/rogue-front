@@ -75,14 +75,17 @@ export function createRenderContext(canvas: HTMLCanvasElement, temperate = false
   resize();
 
   const lastShadow=new THREE.Vector3(Infinity,Infinity,Infinity);
-  let nextShadowRefresh=0;
   const updateShadows=(force:boolean)=>{
     if(!profile.shadows)return;
-    const extent=Math.max(90,Math.min(230,Math.ceil(camera.position.distanceTo(sun.target.position)*.58/16)*16));
+    const focus=(sun.userData.shadowFocus as THREE.Vector3|undefined)??sun.target.position;
+    const extent=Math.max(90,Math.min(230,Math.ceil(camera.position.distanceTo(focus)*.58/16)*16));
     if(sc.right!==extent){sc.left=-extent;sc.right=extent;sc.top=extent;sc.bottom=-extent;sc.updateProjectionMatrix();force=true;}
-    const now=performance.now();
-    // Camera movement must not redraw the complete static map shadow every frame.
-    if(force||now>=nextShadowRefresh&&sun.position.distanceToSquared(lastShadow)>1){lastShadow.copy(sun.position);renderer.shadowMap.needsUpdate=true;nextShadowRefresh=now+125;}
+    // Keep the light and its texture together. Refresh only when coverage is exhausted.
+    if(force||focus.distanceToSquared(lastShadow)>(extent*.3)**2){
+      lastShadow.set(Math.round(focus.x/8)*8,focus.y,Math.round(focus.z/8)*8);
+      sun.position.set(lastShadow.x+70,lastShadow.y+95,lastShadow.z+45);sun.target.position.copy(lastShadow);sun.target.updateMatrixWorld();
+      renderer.shadowMap.needsUpdate=true;
+    }
   };
   return { renderer, scene, camera, sun, post, water, resize, setQuality, updateShadows };
 }
