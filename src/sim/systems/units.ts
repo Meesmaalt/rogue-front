@@ -13,7 +13,7 @@ import { fireProjectile, canEngage, effectiveWeaponRange,selectWeapon,weaponSpec
 import { coverValueAt,isSpottedBy } from "./sensors";
 import { moraleSpeedMul, moraleAccuracyMul, moraleState } from "./morale";
 import { outOfFuel, outOfAmmo,repairDepotFor } from "./tacticalSupply";
-import { updateAirDoctrine,airFacilityPoint,airParkingPoint,freeAirSlot,airOperationStatus,hasAirMissionAmmo } from "./airDoctrine";
+import { updateAirDoctrine,airFacilityPoint,airParkingPoint,freeAirSlot,airOperationStatus,hasAirMissionAmmo,airMissionAllowsTarget } from "./airDoctrine";
 import { findPath } from "../nav/Pathfinder";
 
 function inFiringArc(u: Entity, target: Entity): boolean {
@@ -32,7 +32,7 @@ export function nearestEnemy(w: World, u: Entity, range: number): Entity | null 
   let best: Entity | null = null, bestScore = Number.POSITIVE_INFINITY;
   const searchR = range + 14;
   w.spatial.queryRadius(u.x, u.z, searchR, (e) => {
-    if (!garrisonFaces(u,e))return;
+    if (!garrisonFaces(u,e)||u.def.armor==="air"&&!airMissionAllowsTarget(u,e))return;
     if (e.dead || e.team === u.team || e.underConstruction || e === u) return;
     // Auto-acquire only spotted contacts (Wargame); keeps recon valuable
     if (!isSpottedBy(e, u.team, w.time)) return;
@@ -598,7 +598,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       }else {u.dest=null;const angle=w.time*.22+u.id;moveAirTo(u,{x:u.x+Math.sin(angle)*35,z:u.z+Math.cos(angle)*35},dt,w,true);}
       return;
     }
-    if(u.kind==="transport"){updateTransport(w,u,dt);return;}
+    if(u.kind==="transport"){if(u.flightAttackExit){moveAirTo(u,u.flightAttackExit,dt,w,true);return;}updateTransport(w,u,dt);return;}
   }
 
   // Hold fire preserves travel orders but cannot make scouts chase contacts.

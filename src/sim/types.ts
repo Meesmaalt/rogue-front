@@ -154,7 +154,7 @@ export interface Entity {
   /** Phase 77 artillery battery state. */
   artilleryReadyAt?: number; artilleryLastFire?: number; artillerySignatureUntil?: number; artilleryShotsInSalvo?: number; artilleryDisplace?: Point | null; artilleryMissionRound?: number;
   /** Phase 78 air sortie / weapons state. */
-  airSortieCount?: number; airThreat?: number; airWeaponCooldown?: number; airReturnReason?: "fuel" | "ammo" | "damage" | "manual" | "base" | null;
+  airSortieCount?: number; airThreat?: number; airWeaponCooldown?: number; airReturnReason?: "fuel" | "ammo" | "damage" | "manual" | "base" | "threat" | null;
   /** Phase 86 dynamic frontline assignment. */
   frontlineSector?: string;
   deploymentState?: "reserve" | "deploying" | "frontline" | "fallback";
