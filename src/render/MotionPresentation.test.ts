@@ -41,3 +41,20 @@ it('view versions detect pan, zoom and rotation but remain stable without camera
  const moved=picker.viewVersion;camera.rotation.y=.2;expect(picker.viewVersion).toBeGreaterThan(moved);
  const rotated=picker.viewVersion;camera.fov=50;camera.updateProjectionMatrix();expect(picker.viewVersion).toBeGreaterThan(rotated);
 });
+
+import {RtsCamera} from './RtsCamera';
+import {DirectionalLight,InstancedMesh,LOD,MeshStandardMaterial} from 'three';
+import {createForest} from './Terrain';
+it('camera eases input and terrain height instead of jumping; explicit focus resets drift',()=>{
+ const events=new EventTarget(),surface=new EventTarget();vi.stubGlobal('window',events);vi.stubGlobal('document',new EventTarget());vi.stubGlobal('Element',class {});vi.stubGlobal('innerWidth',1000);vi.stubGlobal('innerHeight',600);
+ const camera=new PerspectiveCamera(),sun=new DirectionalLight(),view=new RtsCamera(camera,()=>30,sun,surface as unknown as HTMLElement);
+ const light=sun.position.clone();view.update(1/60);expect(view.groundY).toBeGreaterThan(0);expect(view.groundY).toBeLessThan(5);expect(sun.position.equals(light)).toBe(true);
+ events.dispatchEvent(Object.assign(new Event('keydown'),{key:'w'}));const start=view.x;view.update(1/60);const first=Math.abs(view.x-start);view.update(1/60);expect(Math.abs(view.x-start)-first).toBeGreaterThan(first);
+ view.jumpTo(0,0);expect(view.groundY).toBe(30);expect(view.x).toBe(0);
+});
+it('rounded forest batches use one opaque crown per tree and no forest shadow casters',()=>{
+ const forest=createForest([{id:'woods',kind:'cover',appearance:'forest',x:0,z:0,width:64,depth:64}]);
+ const batches:InstancedMesh[]=[];forest.traverse(o=>{if(o instanceof InstancedMesh)batches.push(o);});expect(batches.length).toBeGreaterThan(0);
+ let crowns=0;for(const b of batches){expect(b.castShadow).toBe(false);if(!b.userData.forestTrunks){crowns++;expect(b.count).toBe(b.userData.forestPoints.length);expect(b.userData.forestCrownCount).toBe(1);expect((b.material as MeshStandardMaterial).alphaTest).toBe(0);expect(b.geometry.getAttribute('position').count).toBeGreaterThan(4);}}
+ expect(crowns).toBeGreaterThan(0);expect(forest.children.every(o=>o instanceof LOD)).toBe(true);
+});

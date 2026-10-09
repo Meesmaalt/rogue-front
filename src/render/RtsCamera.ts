@@ -1,3 +1,4 @@
+import mobility from "../data/mobility.json";
 import * as THREE from "three";
 import {MAP_SIZE} from "../sim/heightmap";
 
@@ -7,6 +8,8 @@ export class RtsCamera {
   x = -105; z = 105; yaw = -Math.PI / 4;
   dist = 280; targetDist = 280; pitch = 0.83;
   groundY = 0;
+  private vx=0;private vz=0;private rotationSpeed=0;
+  private readonly shadowFocus=new THREE.Vector3();
   private keys = new Set<string>();
   private mouse = { x: -1, y: -1 };
 
@@ -16,9 +19,10 @@ export class RtsCamera {
     private readonly sun: THREE.DirectionalLight,
     el: HTMLElement,
   ) {
+    this.sun.userData.shadowFocus=this.shadowFocus;
     window.addEventListener("keydown", (e) => {if(!(e.target instanceof Element&&e.target.closest("input,textarea,select,[contenteditable=true]")))this.keys.add(e.key.toLowerCase());});
     window.addEventListener("keyup", (e) => this.keys.delete(e.key.toLowerCase()));
-    window.addEventListener("blur", () => this.keys.clear());
+    window.addEventListener("blur", () => {this.keys.clear();this.vx=this.vz=this.rotationSpeed=0;});
     window.addEventListener("mousemove", (e) => { this.mouse.x = e.clientX; this.mouse.y = e.clientY; });
     document.addEventListener("mouseleave", () => { this.mouse.x = this.mouse.y = -1; });
     el.addEventListener("wheel", (e) => {
@@ -30,6 +34,7 @@ export class RtsCamera {
   jumpTo(x: number, z: number): void {
     this.x = clamp(x, -MAP_SIZE/2+15, MAP_SIZE/2-15);
     this.z = clamp(z, -MAP_SIZE/2+15, MAP_SIZE/2-15);
+    this.vx=this.vz=0;this.groundY=this.heightAt(this.x,this.z);
   }
 
   update(dt: number): void {
@@ -39,24 +44,22 @@ export class RtsCamera {
     if (k.has("s") || k.has("arrowdown") || m.y > innerHeight - 4) f--;
     if (k.has("d") || k.has("arrowright") || m.x > innerWidth - 4) r++;
     if (k.has("a") || k.has("arrowleft") || (m.x >= 0 && m.x < 4)) r--;
-    if (k.has("q")) this.yaw -= 1.6 * dt;
-    if (k.has("e")) this.yaw += 1.6 * dt;
-
-    const sp = (40 + this.dist * 0.9) * dt, s = Math.sin(this.yaw), c = Math.cos(this.yaw);
-    this.x = clamp(this.x + (-s * f + c * r) * sp, -MAP_SIZE/2+15, MAP_SIZE/2-15);
-    this.z = clamp(this.z + (-c * f - s * r) * sp, -MAP_SIZE/2+15, MAP_SIZE/2-15);
-    this.dist += (this.targetDist - this.dist) * Math.min(1, dt * 8);
-
-    this.groundY = this.heightAt(this.x, this.z);
+    const response=1-Math.exp(-mobility.presentation.cameraResponse*dt);
+    this.rotationSpeed+=((Number(k.has("e"))-Number(k.has("q")))*1.6-this.rotationSpeed)*response;
+    this.yaw+=this.rotationSpeed*dt;
+    const speed=40+this.dist*.9,s=Math.sin(this.yaw),c=Math.cos(this.yaw),length=Math.max(1,Math.hypot(f,r));
+    this.vx+=((-s*f+c*r)*speed/length-this.vx)*response;
+    this.vz+=((-c*f-s*r)*speed/length-this.vz)*response;
+    this.x=clamp(this.x+this.vx*dt,-MAP_SIZE/2+15,MAP_SIZE/2-15);
+    this.z=clamp(this.z+this.vz*dt,-MAP_SIZE/2+15,MAP_SIZE/2-15);
+    this.dist+=(this.targetDist-this.dist)*(1-Math.exp(-mobility.presentation.cameraZoomResponse*dt));
+    this.groundY+=(this.heightAt(this.x,this.z)-this.groundY)*(1-Math.exp(-mobility.presentation.cameraHeightResponse*dt));
     const cp = Math.cos(this.pitch), sp2 = Math.sin(this.pitch);
     this.camera.position.set(this.x + s * cp * this.dist, this.groundY + sp2 * this.dist, this.z + c * cp * this.dist);
     this.camera.lookAt(this.x, this.groundY, this.z);
 
-    // Quantized shadow anchor keeps the cached static shadow stable while panning.
-    const sx=Math.round(this.x/4)*4,sz=Math.round(this.z/4)*4,sy=this.heightAt(sx,sz);
-    this.sun.position.set(sx + 70, sy + 95, sz + 45);
-    this.sun.target.position.set(sx, sy, sz);
-    this.sun.target.updateMatrixWorld();
+    // Renderer moves the light only when it also refreshes the cached shadow texture.
+    this.shadowFocus.set(this.x,this.groundY,this.z);
   }
 }
 
