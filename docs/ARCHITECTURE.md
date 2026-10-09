@@ -240,3 +240,13 @@ Taktikaliste siltide canvas piirab DPR-i 1.25-ni, kasutab taaskasutatavat arvuli
 RtsCamera kasutab andmepõhist eksponentsiaalset sisendkiiruse/zoom/kõrguse silumist ja normaliseeritud diagonaalliikumist. JumpTo taastab kohe fookuse/kõrguse ning tühistab triivi. Kaamera edastab shadowFocus'i, mitte ei liiguta valgust iga kaadriga. Renderer liigutab valgust ja varjukaarti koos: katvuse sisepiiri ületamisel, zoomi katvuse muutusel või geomeetria sunnitud invalidatsioonil. See eemaldab vana varjutekstuuri ja uue valgusmaatriksi lahknemise ning vähendab panningu ajal suuri varjupasse.
 
 Metsadel on üks opaque SphereGeometry-võra puu kohta lähivaates ja üks 20 kolmnurgaga IcosahedronGeometry-võra kaugvaates, jagatud materjalid ja 64 m instantsirühmade LOD. Võrakuju on ruumiline ja ümardatud, toon/suurus/pöörang varieeruvad. Near geomeetria kolmnurkade arv on suurem kui lehepindadel, kuid alpha-overdraw ja metsade varjupassid eemaldatud. Põleng kasutab sama forestPoints/forestCrownCount=1 olekut ning charred skaala/tooni ühendust. FPS-i mõõdetud tulemust ei ole; lühikesed kontrollid katavad camera smoothing'u ja instantsirühmade struktuuri.
+
+## V1: ajastus, mõõdikud ja maailma nähtavus
+
+GameLoop piirab ühe kaadri tööd kolme fikseeritud sim-sammuga, kuid säilitab aktiivse kaadri ajavõla. Mahajäämuse ajal alpha piiratakse 1-ni; renderduse dt on endiselt kuni 0.1 s. Peidetud brauseritab ei kogu uut kohalikku sim-ajavõlga; taustapaus mõõdetakse eraldi. Võrgupakette see mehhanism ei kustuta. Update võib tagastada false, kui mäng seisab või lockstep ootab paketti; mõõdikud ei loe seda sim-sammuks.
+
+PerformancePanel on lülitatav F8 või Seaded → Jõudluse mõõdikud. Mõõtmine on tavaliselt väljas. Lubatuna hoitakse kuni 600 kaadriaega ja 180 poole sekundi väljavõtet; JSON eksport sisaldab resolutsiooni/kvaliteeti, mediaani/p95/p99, CPU kulu, joonistuskäske, kolmnurki, maailmaaega ja ajavõlga. GPU aeg jääb mõõtmata.
+
+Scene juur ei arvuta oma muutumatut maatriksit iga kaadri järel. Terrain külmutab staatilised lokaalsed maatriksid; kahjustatud maja kutsub updateMatrix, mis uuendab ka selle alamobjekte. Garrisoni feature lookup säilib kuni kaardiandmete viide muutub.
+
+FogOfWar lisab olemasolevatele maastiku StandardMaterial-idele maailma koordinaatidega tekstuuripäringu. Kaks väikest RGBA DataTexture-it loevad Vision.copyStates kaudu sama 4 m nähtavusruudustikku: nähtav, uuritud ja uurimata. Vision.revision on tuletatud render-invalideerimine ega kuulu save/hash'i. Kaamera liikumine ei laadi tekstuuri uuesti ega joonista 2D-udukanvast. Uus ruudustik seguneb eelmise kuvatud olekuga 0.12 s jooksul; rewind/meeskonnavahetus rakendub kohe. Täpne üksuse detection/recon jääb sensors süsteemile; ruudustik ei asenda combat-LOS-i.

@@ -11,6 +11,8 @@ Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on j�
 
 ## Teostatud alused ja seniste pakettide seis
 
+- [x] V1 käitus- ja renderdusalus: F8 mõõtevaade/JSON-väljavõte, tegeliku kaadriajaga FPS, säiliv aktiivne sim-ajavõlg, eraldi taustapaus, staatilise maastiku maatriksite kordustöö eemaldamine, madal kvaliteet 0.75 renderdusresolutsiooniga; ekraaniringide asemel tegelikust Vision-ruudustikust maailma koordinaatides maastikuudu ja sujuv üleminek. Build + 15 sihitud kontrolli. Cloud-brauser ei pääsenud kohaliku arendusserveri juurde (connection refused); päris FPS/visuaali värav jääb avatuks.
+
 - [x] Koodipõhine uus kvaliteediülevaatus pärast PR #13 ja DEVELOPMENT-PLAN.md uuendamine: tehtud aluste eristus, kuus lõpetatavat tervikut, mõõdetav sujuvuse siht ning Real Wari majanduse säilitamine. See PR muudab plaani, mitte mängu käitumist.
 
 - [x] Panningu ja metsakoormuse parandus: sujuv kaamera kiirendus/pidurdus/pööre, eksponentsiaalne zoom ja maastikukõrgus; valgus ja varjukaart liiguvad koos alles katvuse piiril või geomeetriamuutusel. Läbipaistvad ristvõrad asendatud ühe instantsitud ümara ruumilise võraga, kaug-LOD 20 kolmnurka; metsavarjude alpha-passid eemaldatud, põlengu/burnt ühendus säilitatud. Build + 12 lühikest render/input kontrolli; päris brauseri FPS/visuaal endiselt mõõtmata.

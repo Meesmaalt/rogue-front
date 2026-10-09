@@ -1,6 +1,7 @@
 import {maxHitPoints} from "./sim/unitStats";
 import "./style.css";
 import * as THREE from "three";
+import { PerformancePanel } from "./ui/PerformancePanel";
 import { GameLoop } from "./core/GameLoop";
 import { SIM_STEP } from "./sim/constants";
 import type { FactionId } from "./sim/factions";
@@ -82,7 +83,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const audio = new AudioManager();
   let visualQuality=loadSettings().quality;
   let intelAcc=0, terrainAcc=.2, hoverAcc=0;
-  const settingsPanel = new SettingsPanel((settings) => { audio.setSettings(settings);visualQuality=settings.quality; ctx.setQuality(settings.quality); });
+  const settingsPanel = new SettingsPanel((settings) => { audio.setSettings(settings);visualQuality=settings.quality; ctx.setQuality(settings.quality); performancePanel.setEnabled(settings.performanceOverlay??false); });
   let paused = false;
   const originalIssue = world.issue.bind(world);
   world.issue = (command) => {
@@ -119,9 +120,10 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
 
   const glCanvas = document.getElementById("game") as HTMLCanvasElement;
   const topCanvas = document.getElementById("overlay") as HTMLCanvasElement;
-  const fogCanvas = document.getElementById("fog") as HTMLCanvasElement;
+  (document.getElementById("fog") as HTMLCanvasElement).style.display="none";
   const ctx = createRenderContext(glCanvas, mission.map.theme === "temperate");
   ctx.setQuality(visualQuality);
+  const performancePanel=new PerformancePanel(loadSettings().performanceOverlay??false);
   const terrainView=createTerrain(mission.map.theme, world.mapFeatures, mission.map.bases);ctx.scene.add(terrainView);
 
   const cam = new RtsCamera(ctx.camera, heightAt, ctx.sun, topCanvas);
@@ -130,7 +132,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const ranges=new RangeOverlay(ctx.scene);
   const fx = new Fx(ctx.scene,ctx.camera);
   const resourceSites=new ResourceSites(ctx.scene,world);
-  const fog = new FogOfWar(fogCanvas);
+  const fog = new FogOfWar(terrainView,world);
   const picker = new Picker(ctx.camera, world);
   const selection = new SelectionController(topCanvas, world, picker);
   const commands = new CommandController(topCanvas, world, picker, selection);
@@ -238,7 +240,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   addEventListener("keydown", (e) => {
     if(e.repeat||(e.target instanceof Element&&e.target.closest("input,textarea,select,[contenteditable=true]")))return;
     if (!e.defaultPrevented && e.key.toLowerCase() === loadSettings().keys.pause && running) togglePause();
-    if (!running || paused) return;
+    if (!running || paused) return false;
     const k = e.key.toLowerCase();
     if(["f1","f2","f3","f4"].includes(k))e.preventDefault();
     // Quick filters (Wargame-style selection aids)
@@ -248,14 +250,15 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     if (k === "f4") selection.selectFilter(u => ["artillery","mortar","mlrs","aa","spaa","manpad","logiTruck"].includes(u.kind));
   });
 
-  let frames = 0, fpsAcc = 0, hudAcc = 1;
+  let hudAcc = 1;
+  let fpsFrames=0,fpsStarted=performance.now();
   const loop = new GameLoop(
     SIM_STEP,
     (dt) => {
-      if (!running || paused) return;
+      if (!running || paused) return false;
       if (net) {
         const packet = networkPackets.shift();
-        if (!packet) return;
+        if (!packet) return false;
         applyingNetwork = true;
         for (const command of packet.commands) world.issue(command);
         applyingNetwork = false;
@@ -283,8 +286,10 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
         hud.showResult(world.status, world.time, (skirmish ? (world.matchController?.label()??modeController.label()) : mission.name)+(persistenceFailed?" · Edenemise või replay salvestamine ebaõnnestus; brauseri salvestusruum võib olla täis.":""), next?.missionId);
         if(persistenceFailed)hud.setWarning("Lahing lõppes, kuid edenemise või replay salvestamine ebaõnnestus. Brauseri salvestusruum võib olla täis.");
       }
+      return true;
     },
     (alpha, frameDt) => {
+      performancePanel.begin();
       cam.update(frameDt);
       selection.prune();
       const events = world.drainEvents();
@@ -312,11 +317,14 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       fx.update(frameDt);
       const animateWater = ctx.water.material as THREE.ShaderMaterial;
       if (animateWater.uniforms?.time) animateWater.uniforms.time.value += frameDt;
+      performancePanel.mark("vaated");
+      fog.sync(world,visualAlpha);
+      performancePanel.mark("udu");
       ctx.post.render();
-      fog.draw(world, picker,visualAlpha);
+      performancePanel.mark("3D");
       overlay.draw(world, picker, selection, { point: commands.buildPoint, kind: commands.buildMode, rotation: commands.buildRotation, valid: commands.buildValid },commands);
       minimap.draw(frameDt);
-      hudAcc += frameDt; frames++; fpsAcc += frameDt;
+      hudAcc += frameDt; fpsFrames++;
       if (hudAcc > 0.2) {
         hudAcc = 0;
         hud.setSaveAvailability(hasSave(),running&&!multiplayer);
@@ -324,8 +332,12 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       }
       const ownHq = world.hq[world.playerTeam];
       if (ownHq && ownHq.hp < maxHitPoints(ownHq) * .35 && world.status === "running") hud.setWarning("HOIATUS: baas on tugeva tule all");
-      if (fpsAcc >= 0.5) { hud.setFps(Math.round(frames / fpsAcc)); frames = 0; fpsAcc = 0; }
+      const fpsNow=performance.now(),fpsElapsed=fpsNow-fpsStarted;
+      if(fpsElapsed>=500){hud.setFps(Math.round(fpsFrames*1000/fpsElapsed));fpsFrames=0;fpsStarted=fpsNow;}
+      performancePanel.mark("HUD");
     },
+    metrics=>performancePanel.record(metrics,{calls:ctx.renderer.info.render.calls,triangles:ctx.renderer.info.render.triangles,units:world.entities.length,worldTime:world.time,quality:visualQuality,width:glCanvas.width,height:glCanvas.height}),
+    ()=>performancePanel.enabled,
   );
   loop.start();
 }

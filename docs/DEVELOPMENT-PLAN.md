@@ -1,6 +1,6 @@
 # Rogue Front: viimistlusplaan kasutatava alpha ja beta jaoks
 
-Uuendatud 09.10.2026, alus `main` pärast PR #13. See on aktiivne viimistlusjärjekord, mitte uute funktsioonide loend. PR #3–13 muudatused on ühendatud; nende brauseritunnetus ja FPS pole siin mõõdetuks märgitud. Viimane kasutaja tagasiside: kaamera panning ei olnud veel sujuv, nähtavuskiht ja käsutähised häirisid. Viimased parandused vajavad sama stseeni uut vaatlust.
+Uuendatud 09.10.2026, alus `main` pärast PR #14 ning järgmine V1 käitus-/renderduspakett. See on aktiivne viimistlusjärjekord, mitte uute funktsioonide loend. PR #3–13 muudatused on ühendatud; nende brauseritunnetus ja FPS pole siin mõõdetuks märgitud. Viimane kasutaja tagasiside: kaamera panning ei olnud veel sujuv, nähtavuskiht ja käsutähised häirisid. Viimased parandused vajavad sama stseeni uut vaatlust.
 
 ## Eesmärk ja hetkeseis
 
@@ -16,9 +16,9 @@ Töö alus on praeguse lähtekoodi ülevaatus ja kasutaja nähtud vead. Live-dep
 
 | Valdkond | Praegu olemas | Puudujääk või risk | Järgmine konkreetne töö |
 |---|---|---|---|
-| Jõudlus | LOD, instantsitud metsad, ruumilised päringud, piiratud HUD, väiksem udupuhver | CPU/GPU/UI ja GC osakaal teadmata; `GameLoop` kustutab kolme sammu järel ülejäänud ajavõla; low/medium renderprofiilid on sisuliselt samad | Kaadriaja/mänguaja mõõtmine, päris kallima kihi parandus, eristatavad kvaliteedieelarved |
+| Jõudlus | LOD, instantsitud metsad, ruumilised päringud, piiratud HUD, väiksem udupuhver | CPU/GPU/UI ja GC osakaal päris brauseris teadmata; F8 mõõdikud lisatud, aktiivne sim-ajavõlg säilib ning low renderdab 0.75 resolutsiooniga | Kaadriaja/mänguaja mõõtmine, päris kallima kihi parandus, eristatavad kvaliteedieelarved |
 | Juhtimine | Paremklõps, vahepunktid, suunatud rühmapaigutus, laskepositsioonid | Suure rühma sild/tee/mets ja manöövri stabiilsus pole mängus lõpuni kinnitatud | Üks 12–24 üksuse marsruut ja lahing; kohalejõudmine, suund, vähe ümberplaneerimist, selge tõrge |
-| Luure ja lahing | LOS, stealth, armor/AP, facing, suppression, moon, relvarollid | Ekraaniudu on pehme vaatleja illustratsioon, mitte täpne maastiku-LOS kaart; ulatus/hit feedback ja kontakti kadumine peavad olema kooskõlas | Nähtavuse esituse sidumine tegeliku nähtavuse andmetega, vana kontakti selge eristus; ühtne lasu/tabamuse tagasiside |
+| Luure ja lahing | LOS, stealth, armor/AP, facing, suppression, moon, relvarollid | Maastikuudu loeb nüüd Vision-ruudustikku shader-is; selle visuaal vajab brauseri vaatlust. Ruudustiku ligikaudne punktinähtavus ja sihtmärgi täpsem tuvastus pole sama asi; ulatus/hit feedback ja kontakti kadumine peavad olema kooskõlas | Nähtavuse esituse sidumine tegeliku nähtavuse andmetega, vana kontakti selge eristus; ühtne lasu/tabamuse tagasiside |
 | Kaart ja art | Roheoru jõgi/külad/metsad; fraktsioonipõhised GLB-d; ümardatud võrad | Mudeli olemasolu ei taga siluetti, mõõtkava ega materjalikvaliteeti; hooned/jalavägi kasutavad koodigeomeetriat | Ühe kaardi art direction, mõõtkava, siluetid, fassaadid ja läbivad animatsioonid koos eelarvega |
 | Majandus ja AI | Päris ressursivedu, ladu, FOB, moon/kütus/remont, tootmine ja AI | Pika matši hinnad, tarnetempo, taastumine ja vastase surve pole häälestatud tervikuna | Üks baasist võidu/kaotuseni ulatuv matš; tühi ladu, katkestus, taastumine ja reserv |
 | Väljalase | Menüü, deck, õpetus, save/load, tulemused; mere-/võrgumängu alus | Alpha värav lahti; kogu menüü valik pole ühtlase küpsusega | Toetatud põhivalik, juhised, lõpetatav matš ja salvestusest jätkamine; beta teemad seejärel |
@@ -34,7 +34,7 @@ Järjekord allpool täpsustab V1–V5. Iga tervik saab lõpuotsuse nähtava käi
 5. **Real Wari selgroog ja vastane (V3).** Häälesta olemasolev kogumine, tootmine ja füüsiline varustus sama matši temposse. Ladu peab ütlema, kas puudub allikas, vedu või sihtvaru; FOB-i katkestus on mõjutatav taktikaline sündmus. Õhuvägi tõuseb baasist, teeb läbimise ja vajab teenindust. AI kasutab eesmärke, luuret, reserve ja logistika kaitset; raskus tuleb otsustest ja tempost, mitte teadmata vastase pidevast live-asukohast. Lõpp: majandus ja lahing töötavad 15–30 min jooksul ning taastuvad ka ühest olulisest tarnekaotusest.
 6. **Kasutatav alpha, seejärel beta (V5/B1/B2).** Alles nüüd üks lõpetav läbimäng õpetusest tulemuse/save-load'ini. Toetatud menüüvalik on selge, eksperimentaalne sisu eristatud. Beta juurde kuuluvad Murdlaine, kahe kliendi matš, režiimid ja üks kampaaniatee. Wargame'i üldine visuaalne sisuulatus vajab pikemat mudelite/kaartide tööd; alpha ei tähenda selle täielikku võrdsust.
 
-**Järgmine PR peab olema V1 mõõtmise ja tuvastatud kitsaskoha paranduse tervik.** Kaamerasilumine ja viimane metsamuutus on juba koodis. Neid ei kirjutata uuesti ega märgita automaatselt sujuvaks. Kui stseenis takistab mõõtmist konkreetne juhtimisviga, parandatakse see samas töös. Suur testimaraton pole vajalik: üks lühike profiler/stseenivõrdlus ning muutusega seotud kontrollid.
+**V1 käitus-/renderdusalus on teostatud; järgmine V1 samm on sama brauseristseeni mõõtmine ja selle suurima kitsaskoha parandus.** F8 näitab kaadriaega, sim-/esituse CPU kulu, maastikuudu/UI kulu, draw call'e ja sim-ajavõlga ning salvestab kuni 90 sekundi väljavõtted. CPU 3D-esitus ei ole GPU ajamõõtmine. Kohalik arendusserver käivitus, kuid Cloud-brauser ei saanud selle localhost-ile ühendust; seetõttu ei märgita FPS-väravat lõpetatuks. Kaamerasilumine ja viimane metsamuutus on juba koodis. Neid ei kirjutata uuesti ega märgita automaatselt sujuvaks. Kui stseenis takistab mõõtmist konkreetne juhtimisviga, parandatakse see samas töös. Suur testimaraton pole vajalik: üks lühike profiler/stseenivõrdlus ning muutusega seotud kontrollid.
 
 ## Tööjärjekord
 

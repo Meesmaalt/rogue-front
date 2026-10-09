@@ -1,4 +1,5 @@
 export interface GameSettings {
+  performanceOverlay?: boolean;
   masterVolume: number;
   musicVolume: number;
   sfxVolume: number;
@@ -39,6 +40,7 @@ export class SettingsPanel {
       <label>Muusika <input data-k="musicVolume" type="range" min="0" max="1" step=".05" value="${s.musicVolume}"></label>
       <label>Efektid <input data-k="sfxVolume" type="range" min="0" max="1" step=".05" value="${s.sfxVolume}"></label>
       <label>Graafika <select data-k="quality"><option value="low">Madal</option><option value="medium">Keskmine</option><option value="high">Kõrge</option></select></label>
+      <label>Jõudluse mõõdikud (F8) <input data-performance type="checkbox" ${s.performanceOverlay?"checked":""}></label>
       <h3>Klahvid</h3><div class="key-grid">
         <label>Ründeliikumine <input data-key="attackMove" value="${s.keys.attackMove}"></label>
         <label>Hoia <input data-key="hold" value="${s.keys.hold}"></label>
@@ -49,6 +51,7 @@ export class SettingsPanel {
     (this.root.querySelector("select") as HTMLSelectElement).value = s.quality;
     this.root.querySelector('[data-action="close"]')!.addEventListener("click", () => this.close());
     this.root.querySelectorAll<HTMLInputElement>("input[data-k]").forEach((input) => input.addEventListener("input", () => this.apply(s)));
+    this.root.querySelector("input[data-performance]")!.addEventListener("change", () => this.apply(s));
     this.root.querySelector("select")!.addEventListener("change", () => this.apply(s));
     this.root.querySelectorAll<HTMLInputElement>("input[data-key]").forEach((input) => input.addEventListener("change", () => this.apply(s)));
     this.root.hidden = false;
@@ -58,6 +61,7 @@ export class SettingsPanel {
     s.masterVolume = val("masterVolume"); s.musicVolume = val("musicVolume"); s.sfxVolume = val("sfxVolume");
     s.quality = (this.root.querySelector("select") as HTMLSelectElement).value as GameSettings["quality"];
     this.root.querySelectorAll<HTMLInputElement>("input[data-key]").forEach((input) => { s.keys[input.dataset.key as keyof GameSettings["keys"]] = input.value.toLowerCase(); });
+    s.performanceOverlay=(this.root.querySelector("input[data-performance]") as HTMLInputElement).checked;
     saveSettings(s); this.onChange(s);
   }
   close(): void { this.root.hidden = true; }

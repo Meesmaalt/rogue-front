@@ -26,6 +26,8 @@ export function createRenderContext(canvas: HTMLCanvasElement, temperate = false
   configureColorManagement(renderer);
 
   const scene = new THREE.Scene();
+  // The scene root never moves. Avoid forcing every static world matrix each frame.
+  scene.updateMatrix();scene.matrixAutoUpdate=false;
   // Real War desert haze – warm sand, not muddy grey
   const haze = new THREE.Color(temperate ? 0xb7c6cc : 0xd4c49a);
   scene.background = haze;
