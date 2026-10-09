@@ -53,11 +53,11 @@ export function weaponMuzzle(u:Entity,spec:WeaponSpec,index:number):{x:number;y:
 }
 export function weaponCanTarget(spec:WeaponSpec,t:Pick<Entity,"def">):boolean {
   const air=t.def.armor==="air";
-  return spec.targets==="naval"?t.def.domain==="sea":spec.targets==="air"?air:spec.targets==="armor"?!air&&t.def.speed>0&&t.def.category!=="infantry"&&t.def.domain!=="sea":spec.targets==="all"?true:!air;
+  return spec.targets==="naval"?t.def.domain==="sea":spec.targets==="air"?air:spec.targets==="armor"?!air&&t.def.speed>0&&t.def.category!=="infantry"&&t.def.domain!=="sea":spec.targets==="all"?true:!air||!!spec.targetHelicopters&&t.def.category==="heli";
 }
 export function selectWeapon(u:Entity,t:Entity,ready=false):number {
   if(t.dead||t.loadedIntoId!=null||t.team===u.team)return -1;
-  let best=-1,score=-Infinity;const distance=Math.hypot(t.x-u.x,t.z-u.z);
+  let best=-1,score=-Infinity,bestReach=-Infinity,bestInRange=false;const distance=Math.hypot(t.x-u.x,t.z-u.z);
   for(let i=0;i<(u.def.weapons?.length??1);i++){
     const spec=weaponSpec(u,i);if(!weaponCanTarget(spec,t)||!garrisonWeaponAllowed(u,spec,t,ready)||spec.damage<=0)continue;
     if(ready&&(u.motionSpeed??0)>mobility.combat.weaponMotionThreshold&&spec.fireOnMove===false)continue;
@@ -71,7 +71,12 @@ export function selectWeapon(u:Entity,t:Entity,ready=false):number {
     if(spec.targets==="armor")value*=2.4;
     if(distance<spec.minimumRange)value*=.15;
     else if(distance<=weaponRange(u,spec))value*=1.25;
-    if(value>score){score=value;best=i;}
+    // Never close on a short-range high-DPS slot while another loaded slot can fire here.
+    // Outside all reaches, approach using the longest suitable weapon, not the highest DPS.
+    const reach=weaponRange(u,spec),inRange=distance-t.def.radius<=reach&&distance>=spec.minimumRange;
+    if(best<0||inRange&&!bestInRange||inRange===bestInRange&&(inRange?value>score:reach>bestReach||reach===bestReach&&value>score)){
+      score=value;best=i;bestReach=reach;bestInRange=inRange;
+    }
   }return best;
 }
 export function canEngage(u:Entity,t:Entity):boolean {return selectWeapon(u,t)>=0;}

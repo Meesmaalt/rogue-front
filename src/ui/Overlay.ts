@@ -15,6 +15,8 @@ export interface BuildPreview { point: {x:number;z:number} | null; kind: Buildab
 
 export class Overlay {
   private ctx: CanvasRenderingContext2D;
+  private readonly occupants=new Map<string,{own:number;seen:boolean}>();
+  private occupantStamp=-1;
   private readonly visible:Entity[]=[];
   private readonly ordinary:Entity[]=[];
   private readonly nameWidths=new Map<string,number>();
@@ -74,11 +76,14 @@ export class Overlay {
         for(const t of fleet.slice(0,12)){if(t.dest)line([t,...t.kind==="logiTruck"?t.navPath.slice(t.navPathIndex,t.navPathIndex+10):[],t.dest],t.cargo>0?"#b6d985":"rgba(195,203,186,.5)",true);const p=picker.toScreen(t.x,t.y+t.def.height+2,t.z);c.font="bold 11px sans-serif";c.fillStyle="#d5e7b5";if(p.z<=1)c.fillText(convoyStatus(t),p.x+8,p.y);}
       }
     }
-    const occupants=new Map<string,{own:number;seen:boolean}>();
+    const occupants=this.occupants,occupantStamp=Math.floor(world.time*5);
+    if(occupantStamp!==this.occupantStamp){
+    this.occupantStamp=occupantStamp;occupants.clear();
     for(const u of world.entities){
       if(u.dead||u.loadedIntoId!=null||!u.garrisonId)continue;
       let count=occupants.get(u.garrisonId);if(!count){count={own:0,seen:false};occupants.set(u.garrisonId,count);}
       if(u.team===world.playerTeam)count.own++;else if(world.isSpottedByTeam(u,world.playerTeam))count.seen=true;
+    }
     }
     for(const f of world.mapFeatures){
       if(!isGarrisonBuilding(f))continue;
@@ -129,6 +134,11 @@ export class Overlay {
         if(selectedUnit)c.strokeRect(left+.5,y+.5,width-1,17);
         c.fillStyle=c.strokeStyle;drawClassIcon(c,tacticalClass(u.kind),left+12,y+9);
         if(full)c.fillText(name,left+25,y+13);
+        if(u.team===world.playerTeam&&(selectedUnit||distant)){
+          const lowAmmo=(u.maxAmmo??0)>0&&(u.ammo??0)/(u.maxAmmo??1)<.2;
+          const lowFuel=(u.maxFuel??0)>0&&(u.fuel??0)/(u.maxFuel??1)<.2;
+          if(lowAmmo||lowFuel){for(const key of slots(left,y+18,width))occupied.add(key);c.fillStyle="#e8ae67";c.fillRect(left,y+18,width,2);if(full){c.font="600 10px Segoe UI,sans-serif";c.fillStyle="#17242bee";c.fillRect(left,y+20,width,13);c.fillStyle="#e8ae67";c.fillText(lowAmmo&&lowFuel?"MOON / KÜTUS":lowAmmo?"MOON MADAL":"KÜTUS MADAL",left+3,y+30);}}
+        }
         markers.push({id:u.id,x:left,y,width,height:18});
       }
       if(sel.selected.has(u.id)||world.time-u.lastCombatTime<5){

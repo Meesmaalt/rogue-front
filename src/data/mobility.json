@@ -134,7 +134,7 @@
     "clearShotPreference": 36,
     "blockedShotPenalty": 48,
     "reconsiderTicks": 15,
-    "stoppingRange": 0.92,
+    "stoppingRange": 1,
     "helicopterStandoff": 0.78,
     "helicopterRetreatRatio": 0.68,
     "retreatRallyGap": 12,

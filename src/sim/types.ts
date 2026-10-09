@@ -29,6 +29,7 @@ export interface WeaponSpec {
   launch?:"vertical";boostTime?:number;cruiseAltitude?:number;
   stabilizer?:Stabilizer;fireOnMove?:boolean;muzzleSide?:number;
   profile:string;name:string;model?:string;weapon:"bullet"|"cannon"|"missile";visual:string;flight:ProjectileFlight;guidance:Guidance;
+  targetHelicopters?:boolean;
   warhead:"kinetic"|"heat"|"he";targets:"ground"|"armor"|"air"|"all"|"naval";
   range:number;minimumRange:number;damage:number;cooldown:number;penetration:number;accuracy:number;splash:number;
   ammoCapacity:number;ammoUsePerShot:number;suppressionPower:number;

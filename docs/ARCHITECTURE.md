@@ -216,3 +216,9 @@ Murdlaine layout 3 kasutab sama veeribade geomeetriat kõrgusväljas, laevade na
 ### Valitud varustusahela loetavus
 
 `tacticalSupplyDepot` valib simulatsiooni ja HUD-i jaoks sama kohaliku lao, eelistades üksuse puuduva moona/kütuse jaoks sobivat varu. Katkenud upstream ei kustuta FOB-i kohalikku füüsilist varu. Overlay loeb ainult oma üksusi: valitud lao ümber tegelik teenindusraadius, kuni 12 kohaliku üksuse seosed ning kuni 12 konvoi marsruudid/olekud. Ressursivedu ja pealaost FOB-i vedu on eristatud; need jooned on kavandatud marsruut, mitte tasuta ülekanne. Õhu teenindus jääb missiooni/baasi HUD-i, mereteenindus kasutab olemasolevat sadama-lao valikut. Kaardi visuaalne ülevaatus ja FPS vajavad brauseris hindamist.
+
+### Ründekäsu relvaulatus ja visuaalse kihi töö
+
+Relvavalik eelistab sobivat laetud relva, mille tegelik ulatus/minimum juba katab sihtmärgi. Kui ükski relv ei ulatu, kasutatakse lähenemisel pikimat sobivat relva. Esmane peatumispiir vastab nüüd samale efektiivsele ulatusele kui lasu kontroll, mitte 92% piirile. Relvade `targetHelicopters` laiendab ainult vastava maarelva kopterisihtmärke; hävitajaid see ei luba. Faction heli kahur kasutab seda koos CAP toetuse/moonaarvestusega, ATGM ja raketipakett jäävad maarelvadeks.
+
+HUD säilitab sama valiku kaardil DOM-elemendid ja details-oleku, muutes näite kohapeal. Uus valik taastab kaardi struktuuri. Salvestuse olemasolu loetakse lahingu algul, õnnestunud salvestamisel ja teise akna storage-sündmusel, mitte igal HUD-värskendusel. Kaameraga liikuv staatiline varjukaart värskendub kuni 8 Hz, ehitus-/geomeetriamuutus kohe; garnisoni hõiveloend 5 Hz. Need vähendavad korduvat tööd, kuid mõõdetud brauseri FPS-i tulemust veel ei ole.

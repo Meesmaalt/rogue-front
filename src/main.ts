@@ -200,8 +200,12 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   hud.onCancelProduce = (producerId) => { if (running && !paused) world.issue({ type: "cancel-produce", producerId }); };
   const saveKey = SAVE_PREFIX + mission.id + (mission.id==="roheorg"?".layout13":mission.id==="operation-tidebreaker"?".coast3":mission.id==="tutorial-logistics"?".training13":"") + "." + (skirmish ? activeMode : "campaign") + "." + faction;
   const sessionContext=JSON.stringify({mission:mission.id,seed:mission.seed,heightmap:mission.map.heightmap,terrain:mission.map.terrainProfile,maxHeight:mission.map.maxHeight,mode:skirmish?activeMode:"campaign",faction});
-  const hasSave = () => {try{return !multiplayer&&localStorage.getItem(saveKey)!==null;}catch{return false;}};
-  const saveGame = () => {localStorage.setItem(saveKey,JSON.stringify({format:"rogue-front-session",context:sessionContext,savedAt:new Date().toISOString(),world:saveWorld(world)}));};
+  // Avoid reading/copying a potentially multi-megabyte snapshot five times a second.
+  const readSaveAvailability=()=>{try{return !multiplayer&&localStorage.getItem(saveKey)!==null;}catch{return false;}};
+  let saveAvailable=readSaveAvailability();
+  const hasSave=()=>saveAvailable;
+  window.addEventListener("storage",e=>{if(e.key===saveKey||e.key===null)saveAvailable=readSaveAvailability();});
+  const saveGame = () => {localStorage.setItem(saveKey,JSON.stringify({format:"rogue-front-session",context:sessionContext,savedAt:new Date().toISOString(),world:saveWorld(world)}));saveAvailable=true;};
   const loadGame = () => {
     if(multiplayer)return;
     try{

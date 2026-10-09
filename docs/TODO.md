@@ -11,6 +11,8 @@ Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on j�
 
 ## Teostatud alused ja seniste pakettide seis
 
+- [x] Visuaalse loetavuse ja teatatud lahinguvigade pakett: ründekäsk peatub tegelikus relvaulatuses, sobiv ulatuv relv eelistatud lühikese DPS-relva jälitamisele; kopteri automaatkahur saab lasta koptereid koos CAP/moona/HUD-iga. Madala moona/kütuse kaugmärgid, HUD-i elementide säilitamine, salvestuse olemasolu vahemälu, 8 Hz kaameravarju ja 5 Hz garnisoniloendi värskendus. Build + 21 sihitud lahingu/õhu/replay kontrolli; brauseri FPS, visuaal ja alpha tervikläbipääs ootel.
+
 - [x] Füüsilise logistika loetavus: simi/HUD-i ühine varudest sõltuv kohalik laovalik, valitud lao varustusala ja piiratud üksuseseosed, ressursi-/FOB-vedude eristus ning katkenud ühenduse/pealao reservi põhjused. Build + 10 lühikest kontrolli; brauseri kaardipildi/FPS ja pika logistikalise matši ülevaatus ootel.
 
 - [x] Õhuoperatsioonide ühendusviimistlus: andmepõhine ülesandeala/rolliga sihtotsing, kadunud kontakti järel ülesande taastamine, puhas missioonivahetus, lisarelvade õhutõrjeulatus ja transpordikopteri ajutine vältimismanööver, eraldi ohust tingitud RTB/save olek. Build + 15 lühikest kontrolli; brauseri lennutunnetus/FPS ja pikk õhu-maaväe matš ootel.
