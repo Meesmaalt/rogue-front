@@ -45,6 +45,11 @@ export function logisticsStatus(w:World,u:Entity):string {
  if(u.logisticsSourceIndex!=null){const source=w.resourcePoints[u.logisticsSourceIndex];if(u.cargo<=0&&(!source||source.controlledBy!==u.team||!source.active||(source.disabledUntil??0)>w.time))return 'Allikas katkestatud · ootab taastumist';}
  if(u.navWaiting)return 'Marsruut takistatud · otsib läbipääsu';
  if(u.logisticsSourceIndex!=null&&u.cargo<=0&&(w.resourcePoints[u.logisticsSourceIndex]?.amount??0)<1)return 'Rajatis kogub varu · koorma ootel';
+ if(u.logisticsSourceIndex==null&&u.cargo<=0){
+  const main=w.primarySupplyDepot(u.team);
+  if(!w.connectedSupplyNodes(u.team).some(n=>n.id===depot.id))return 'FOB ühendus katkenud · uut koormat ei väljastata';
+  if(main&&main!==depot&&STOCK_KEYS.every(k=>(main[`${k}Stock`]??0)<=rules.convoyReserve))return 'Pealao varu reservis · ootab kogumistarneid';
+ }
  if(u.cargo>0)return `Tarne laosse · koorem ${Math.floor(u.cargo)}`;
  if(u.kind==='logiTruck'&&!u.navPath.length&&u.dest)return 'Marsruudi või laadimise ootel';
  return u.logisticsTarget?'Ressursi või varude kogumine':'Ootab töötavat allikat';

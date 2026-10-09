@@ -54,6 +54,30 @@ export function isTacticallySupplied(w: World, e: Entity, supplyNodes?:readonly 
   return false;
 }
 
+/** The same stock-aware local source is used by simulation and tactical readouts. */
+export function tacticalSupplyDepot(w:World,e:Entity,nodes:readonly Entity[]=tacticalSupplyNodes(w,e.team)):Entity|null {
+ if(e.def.domain==="sea")return navalServiceDepot(w,e);
+ let depot:Entity|null=null,best=Infinity;
+ const needsFuel=(e.fuel??0)<(e.maxFuel??0),needsAmmo=(e.ammo??0)<(e.maxAmmo??0)||!!e.secondaryAmmo?.some((_,i)=>i>0&&weaponAmmo(e,i)<weaponSpec(e,i).ammoCapacity);
+ for(const n of nodes){
+  if(n.dead||n.underConstruction||(n.disabledUntil??0)>w.time||n.team!==e.team)continue;
+  const distance=Math.hypot(n.x-e.x,n.z-e.z),available=(!needsFuel&&!needsAmmo)||needsFuel&&(n.fuelStock??0)>0||needsAmmo&&(n.ammoStock??0)>0;
+  const score=distance+(available?0:1000);
+  if(distance<=supplyRadiusFor(n,w)&&score<best){best=score;depot=n;}
+ }
+ return depot;
+}
+export function tacticalSupplyStatus(w:World,e:Entity,depot=tacticalSupplyDepot(w,e)):string {
+ if(e.loadedIntoId!=null)return 'Pardal · välju varustamiseks';
+ if(e.def.armor==='air'&&(e.y-heightAt(e.x,e.z)>3||(e.motionSpeed??0)>.5))return 'Õhus · teenindamine pärast maandumist';
+ if(!depot)return e.def.domain==='sea'?'Väljaspool töötava sadama teenindusala':'Väljaspool lao varustusala';
+ const name=depot.kind==='hq'?'Peakorter':w.isFOB(depot)?'FOB':'Ladu';
+ const missing:string[]=[];
+ if((depot.ammoStock??0)<=0)missing.push('moon');
+ if((depot.fuelStock??0)<=0)missing.push('kütus');
+ return `${name} #${depot.id} · ${missing.length?'otsas: '+missing.join(', '):'moon ja kütus saadaval'}`;
+}
+
 function defaultMaxAmmo(kind: string): number {
   // Legacy fallback for old saved games; Phase 58 normally gets this from UnitDef.
   if (kind === "tank") return 40;
@@ -96,10 +120,8 @@ export function updateTacticalSupply(w: World, dt: number): void {
     if((e.maxAmmo??0)===0&&(e.maxFuel??0)===0) ensureLogisticsPools(e);
     const fac = e.team === w.playerTeam ? w.playerFaction : w.enemyFaction;
     const eff = FACTIONS[fac].bonuses.supplyEfficiency ?? 1;
-    let depot:Entity|null=null,best=Infinity;
-    const needsFuel=(e.fuel??0)<(e.maxFuel??0),needsAmmo=(e.ammo??0)<(e.maxAmmo??0)||!!e.secondaryAmmo?.some((_,i)=>i>0&&weaponAmmo(e,i)<weaponSpec(e,i).ammoCapacity);
-    for(const n of depots){if(n.team!==e.team)continue;const distance=Math.hypot(n.x-e.x,n.z-e.z);const available=(!needsFuel&&!needsAmmo)||needsFuel&&(n.fuelStock??0)>0||needsAmmo&&(n.ammoStock??0)>0;const score=distance+(available?0:1000);if(distance<=supplyRadiusFor(n,w)&&score<best){best=score;depot=n;}}
-    const portDepot=navalServiceDepot(w,e);if(e.def.domain==="sea")depot=portDepot;
+    const needsFuel=(e.fuel??0)<(e.maxFuel??0);
+    const depot=tacticalSupplyDepot(w,e,depots),portDepot=e.def.domain==="sea"?depot:null;
     if(portDepot&&(portDepot.repairStock??0)>0&&(e.hp<maxHitPoints(e)||Math.max(0,...Object.values(e.components??{}))>0)){const hp=Math.min(Math.max(maxHitPoints(e)-e.hp,Math.max(0,...Object.values(e.components??{}))),logisticsRules.naval.repairPerSecond*eff*dt,(portDepot.repairStock??0)*logisticsRules.naval.repairPerStock);e.hp=Math.min(maxHitPoints(e),e.hp+hp);portDepot.repairStock=(portDepot.repairStock??0)-hp/logisticsRules.naval.repairPerStock;if(e.components)for(const key of ["engine","tracks","turret","weapon","crew","ammo"] as const)e.components[key]=Math.max(0,e.components[key]-hp);}
     const inRadius=!!depot && (e.def.armor!=="air" || e.kind==="transport" && e.y-depot.y<3 && (e.motionSpeed??0)<.5);
     const home=w.byId.get(e.airMissionHomeId??-1);

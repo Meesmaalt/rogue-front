@@ -1,3 +1,5 @@
+import {supplyRadiusFor,tacticalSupplyNodes,tacticalSupplyDepot} from "../sim/systems/tacticalSupply";
+import {logisticsStatus} from "../sim/stockLogistics";
 import {isGarrisonBuilding,garrisonCapacity,buildingCondition} from "../sim/garrison";
 import {maxHitPoints} from "../sim/unitStats";
 import {drawClassIcon,tacticalClass} from "./TacticalClass";
@@ -16,6 +18,7 @@ export class Overlay {
   private readonly visible:Entity[]=[];
   private readonly ordinary:Entity[]=[];
   private readonly nameWidths=new Map<string,number>();
+  private readonly supplyLabels=new Map<number,{stamp:number;text:string}>();
   private readonly targetLines=new Map<number,{stamp:number;target:number;clear:boolean}>();
 
   constructor(private readonly canvas: HTMLCanvasElement) {
@@ -39,7 +42,13 @@ export class Overlay {
       for(const q of points){const p=picker.toScreen(q.x,q.y??heightAt(q.x,q.z)+.3,q.z);if(p.z>1){started=false;continue;}if(!started){c.moveTo(p.x,p.y);started=true;}else c.lineTo(p.x,p.y);}c.stroke();c.setLineDash([]);
     };
     const selected=world.entities.filter(u=>!u.dead&&sel.selected.has(u.id)&&u.team===world.playerTeam);
+    const supplyNodes=selected.length?tacticalSupplyNodes(world,world.playerTeam):[];
+    const convoyStatus=(u:Entity)=>{const stamp=Math.floor(world.time*5),cached=this.supplyLabels.get(u.id);if(cached?.stamp===stamp)return cached.text;const text=logisticsStatus(world,u);this.supplyLabels.set(u.id,{stamp,text});return text;};
+    const usable=(u:Entity)=>!u.underConstruction&&(u.disabledUntil??0)<=world.time&&((u.ammoStock??0)>0||(u.fuelStock??0)>0);
+    const label=(u:Entity,text:string,color:string)=>{const p=picker.toScreen(u.x,u.y+u.def.height+3,u.z);if(p.z>1||p.x<0||p.x>w||p.y<0||p.y>h)return;c.font="600 11px sans-serif";const width=c.measureText(text).width;c.fillStyle="#15252ce8";c.fillRect(p.x+7,p.y-13,width+10,18);c.fillStyle=color;c.fillText(text,p.x+12,p.y);};
     for(const u of selected){
+      if(u.def.speed>0&&u.loadedIntoId==null&&u.def.armor!=="air"&&selected.indexOf(u)<12){const depot=tacticalSupplyDepot(world,u,supplyNodes);if(depot)line([depot,u],usable(depot)?"#8fcaa0":"#eaa475");}
+      if(u.kind==="logiTruck"||u.kind==="transport"&&u.supplyDepotId!=null){const depot=world.byId.get(u.supplyDepotId??-1);if(depot&&!depot.dead)line([u,depot],u.cargo>0?"#b6d985":"#a9b7c1",true);label(u,convoyStatus(u),"#d5e7b5");}
       if(u.def.damage>0&&selected.indexOf(u)<4){
         if(u.target&&!u.target.dead&&world.isSpottedByTeam(u.target,u.team)){
           const stamp=Math.floor(world.time*10),cached=this.targetLines.get(u.id);
@@ -50,11 +59,19 @@ export class Overlay {
         }
       }
       if(u.dest)line([u,...u.navPath.slice(u.navPathIndex,u.navPathIndex+12),u.dest,...u.moveQueue??[]],u.mode==="amove"?"rgba(242,181,91,.8)":"rgba(143,203,224,.7)",true);
-      if(u.kind==="supply"){
+      if(u.kind==="supply"&&selected.indexOf(u)<4){
+        const radius=supplyRadiusFor(u,world),circle=[];
+        for(let i=0;i<=64;i++){const a=i*Math.PI*2/64;circle.push({x:u.x+Math.sin(a)*radius,z:u.z+Math.cos(a)*radius});}
+        line(circle,usable(u)?"rgba(143,202,160,.65)":"#eaa475");
+        let clients=0;
+        for(const e of world.entities){if(e.dead||e.loadedIntoId!=null||e.team!==u.team||e.def.speed===0||e.def.armor==="air"||e.def.domain==="sea"||Math.hypot(e.x-u.x,e.z-u.z)>radius)continue;if(tacticalSupplyDepot(world,e,supplyNodes)!==u)continue;line([u,e],usable(u)?"rgba(143,202,160,.5)":"#eaa475");if(++clients>=12)break;}
+
         const fleet=world.entities.filter(t=>!t.dead&&t.supplyDepotId===u.id&&t.team===world.playerTeam);
         const sources=u.preferredResourceIndex!=null?[world.resourcePoints[u.preferredResourceIndex]]:fleet.map(t=>t.logisticsSourceIndex==null?null:world.resourcePoints[t.logisticsSourceIndex]);
-        for(const rp of sources)if(rp&&rp.controlledBy===world.playerTeam)line([u,...u.logisticsWaypoints??[],rp],u.logisticsPaused?"#d07961":"rgba(177,215,121,.75)",true);
-        for(const t of fleet){if(t.dest)line([t,...t.kind==="logiTruck"?t.navPath.slice(t.navPathIndex,t.navPathIndex+10):[],t.dest],t.cargo>0?"#b6d985":"rgba(195,203,186,.5)",true);const p=picker.toScreen(t.x,t.y+t.def.height+2,t.z);c.font="bold 11px sans-serif";c.fillStyle="#d5e7b5";if(p.z<=1)c.fillText(t.cargo>0?`Koorem ${Math.floor(t.cargo)}`:"Kogumisele",p.x+8,p.y);}
+        for(const rp of new Set(sources))if(rp&&rp.controlledBy===world.playerTeam)line([u,...u.logisticsWaypoints??[],rp],u.logisticsPaused?"#d07961":"rgba(177,215,121,.75)",true);
+        const main=world.primarySupplyDepot(u.team);
+        if(main&&main!==u&&fleet.some(t=>t.logisticsSourceIndex==null))line([main,...u.logisticsWaypoints??[],u],world.connectedSupplyNodes(u.team).some(n=>n.id===u.id)?"#b6d985":"#ee9479",true);
+        for(const t of fleet.slice(0,12)){if(t.dest)line([t,...t.kind==="logiTruck"?t.navPath.slice(t.navPathIndex,t.navPathIndex+10):[],t.dest],t.cargo>0?"#b6d985":"rgba(195,203,186,.5)",true);const p=picker.toScreen(t.x,t.y+t.def.height+2,t.z);c.font="bold 11px sans-serif";c.fillStyle="#d5e7b5";if(p.z<=1)c.fillText(convoyStatus(t),p.x+8,p.y);}
       }
     }
     const occupants=new Map<string,{own:number;seen:boolean}>();
@@ -123,6 +140,7 @@ export class Overlay {
 
     }
     picker.setUnitMarkers(markers);
+    if(this.supplyLabels.size>256)this.supplyLabels.clear();
     if(this.targetLines.size>256)this.targetLines.clear();
     if (preview?.point && preview.kind) {
       const p = picker.toScreen(preview.point.x, heightAt(preview.point.x, preview.point.z) + 0.4, preview.point.z);
