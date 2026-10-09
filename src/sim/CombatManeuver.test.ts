@@ -2,9 +2,9 @@ import {afterEach,expect,it} from 'vitest';
 import {World} from './World';
 import {setMapSize,setBases,resetHeightmap,heightAt} from './heightmap';
 import {SIM_STEP} from './constants';
-import {effectiveWeaponRange} from './systems/combat';
+import {effectiveWeaponRange,weaponSpec} from './systems/combat';
 import {applyCommands} from './systems/commands';
-import {airParkingPoint} from './systems/airDoctrine';
+import {airParkingPoint,aaThreatRadius,aaThreatAt,assignAirMission,updateAirDoctrine,airMissionAllowsTarget} from './systems/airDoctrine';
 import {saveWorld,loadWorld} from './SaveState';
 import {worldHash} from './Replay';
 afterEach(resetHeightmap);
@@ -47,4 +47,23 @@ it('helicopter stop carries momentum and converges to a stable hover destination
  let maximum=0;
  for(let i=0;i<900;i++){w.tick(SIM_STEP);maximum=Math.max(maximum,u.motionSpeed??0);if(!u.dest&&i>100)break;}
  expect(maximum).toBeGreaterThan(14);expect(u.dest).toBeNull();expect(Math.hypot(u.x-goal.x,u.z-goal.z)).toBeLessThan(2);
+});
+
+it('air missions clear stale patrol/fire orders and retain their designated operation area',()=>{
+ const w=world(),u=w.spawn('attackAircraft',0,-80,-120),near=w.spawn('generator',1,0,-120),far=w.spawn('generator',1,200,100);
+ u.standingOrder='holdfire';u.patrolPoints=[{x:200,z:100}];u.dest={x:200,z:100};u.airState='airborne';near.spottedUntil[0]=far.spottedUntil[0]=100;
+ assignAirMission(u,'strike',{x:0,z:-120});expect(u.standingOrder).toBeNull();expect(u.patrolPoints).toEqual([]);
+ expect(airMissionAllowsTarget(u,near)).toBe(true);expect(airMissionAllowsTarget(u,far)).toBe(false);
+ updateAirDoctrine(w,u,SIM_STEP);expect(u.target).toBe(near);
+ near.dead=true;u.target=null;updateAirDoctrine(w,u,SIM_STEP);expect(u.target).toBeNull();expect(u.dest).toEqual({x:0,z:-120});expect(u.mode).toBe('amove');
+ const fighter=w.spawn('fighter',0,-80,-120);fighter.dest={x:100,z:100};fighter.patrolPoints=[{x:100,z:100}];assignAirMission(fighter,'cap',null);expect(fighter.patrolPoints).toEqual([]);expect(fighter.dest).toBeNull();
+});
+it('secondary SAM reach drives helicopter avoidance without deleting its original mission',()=>{
+ const w=world(),u=w.spawn('transport',0,-80,-120),aa=w.spawn('spaa',1,0,-120);u.airState='airborne';u.y=heightAt(u.x,u.z)+30;aa.spottedUntil[0]=100;
+ const r=aaThreatRadius(aa);expect(r).toBeGreaterThan(weaponSpec(aa,0).range);u.x=aa.x-r*.35;
+ const anchor={x:110,z:-120};u.airMission='ground';u.airMissionPoint=anchor;u.mode='move';u.dest={...anchor};
+ expect(aaThreatAt(w,0,u.x,u.z)).toBeGreaterThan(.55);updateAirDoctrine(w,u,SIM_STEP);
+ expect(u.flightAttackExit).toBeDefined();expect(u.flightAttackExit!.x).toBeLessThan(u.x);expect(u.airMissionPoint).toEqual(anchor);expect(u.dest).toEqual(anchor);expect(u.airState).toBe('airborne');
+ const copy=world();loadWorld(copy,JSON.parse(JSON.stringify(saveWorld(w))));expect(worldHash(copy)).toBe(worldHash(w));
+ u.x=aa.x-r*.1;updateAirDoctrine(w,u,SIM_STEP);expect(u.airState).toBe('returning');expect(u.airReturnReason).toBe('threat');expect(u.flightAttackExit).toBeUndefined();
 });

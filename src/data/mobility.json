@@ -154,7 +154,12 @@
     "holdingRange": 1,
     "weaponMotionThreshold": 0.5,
     "turretAimTolerance": 0.14,
-    "hullAimTolerance": 0.2
+    "hullAimTolerance": 0.2,
+    "airMissionRadius": 140,
+    "aaRetreatThreat": 0.78,
+    "helicopterAvoidThreat": 0.55,
+    "helicopterAvoidDistance": 28,
+    "helicopterAvoidTime": 3
   },
   "naval": {
     "acceleration": 1.5,

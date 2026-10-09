@@ -1,7 +1,7 @@
 import type { World } from "../World";
 import mobility from "../../data/mobility.json";
 import {heightAt} from "../heightmap";
-import {canEngage,weaponAmmo,weaponSpec} from "./combat";
+import {canEngage,weaponAmmo,weaponSpec,weaponRange} from "./combat";
 import type { Entity, Point, Team,AirMission } from "../types";
 
 /** The same facility-local points drive production, taxi, landing and the model. */
@@ -52,18 +52,30 @@ export function airOperationStatus(w:World,u:Entity):string {
   if(u.airState==="taxi")return u.def.category==="heli"?"Kopteriplatsilt õhkutõus":u.airTaxiPhase==="runway"?"Stardirada · hoovõtt":"Ruleerib · ootab vaba rada";
   if(u.airState==="landing")return "Maandunud · ruleerib parkimiskohale";
   if(u.airState==="rearming")return "Baasis · laskemoona, kütuse ja remondi ootel";
-  if(u.airState==="returning")return "Naaseb baasi · "+({fuel:"kütus",ammo:"laskemoon",damage:"kahjustus / õhutõrje",manual:"mängija käsk",base:"baas kadunud või rada suletud"}[u.airReturnReason??"manual"])+(pad&&!pad.dead?"":" · lennurajatis puudub");
-  if(u.flightAttackExit)return "Lennul · eemaldub pärast ründeläbimist";
+  if(u.airState==="returning")return "Naaseb baasi · "+({fuel:"kütus",ammo:"laskemoon",damage:"kahjustus",threat:"tugev õhutõrjeoht",manual:"mängija käsk",base:"baas kadunud või rada suletud"}[u.airReturnReason??"manual"])+(pad&&!pad.dead?"":" · lennurajatis puudub");
+  if(u.flightAttackExit)return u.def.category==="heli"?"Lennul · eemaldub õhutõrjeohust":"Lennul · eemaldub pärast ründeläbimist";
   return "Lennul · "+({cap:"õhukaitse",strike:"baasirünnak",sead:"õhutõrje rünnak",ground:"maaväe toetus"}[u.airMission??"ground"]);
 }
 
-/** Approximate AA threat radius by kind. */
-export function aaThreatRadius(e: Entity): number {
-  if (e.kind === "aa") return Math.max(38, e.def.range * 0.95);
-  if (e.kind === "spaa" || e.kind === "manpad") return e.def.range;
-  if (e.kind === "destroyer") return Math.max(40, e.def.range * 0.85);
-  if (e.kind === "fighter" || e.kind === "interceptor") return e.def.range * 0.7;
-  return 0;
+/** Threat reach follows the actual anti-air slots, including secondary missiles. */
+export function aaThreatRadius(e:Entity):number {
+  if(e.loadedIntoId!=null||e.def.armor==="air"&&e.airState!=="airborne")return 0;
+  let reach=0;
+  for(let i=0;i<(e.def.weapons?.length??1);i++){
+    const spec=weaponSpec(e,i);
+    if(spec.damage>0&&(spec.targets==="air"||spec.targets==="all"))reach=Math.max(reach,weaponRange(e,spec));
+  }
+  return reach;
+}
+/** Automatic acquisition stays within the designated operation area and role. */
+export function airMissionAllowsTarget(u:Entity,t:Entity):boolean {
+  if(!u.airMission)return true;
+  if(u.airMissionPoint&&Math.hypot(t.x-u.airMissionPoint.x,t.z-u.airMissionPoint.z)>mobility.combat.airMissionRadius)return false;
+  if(u.airMission==="cap")return t.def.armor==="air";
+  if(t.def.armor==="air")return false;
+  if(u.airMission==="sead")return aaThreatRadius(t)>0;
+  if(u.airMission==="strike")return t.def.building===true;
+  return true;
 }
 
 /** Strongest enemy AA threat near a point (0 = safe). */
@@ -86,11 +98,12 @@ export function assignAirMission(
 ): void {
   if(!supportsAirMission(u,mission))return;
   u.target=null;u.moveQueue=[];u.transportQueue=[];u.transportTargetId=null;u.unloadPoint=null;u.flightAttackExit=undefined;u.flightAttackExitUntil=undefined;
-  u.holdPosition=false;u.flightOrbitCenter=undefined;
+  u.holdPosition=false;u.standingOrder=null;u.priorityFocus=null;u.patrolPoints=[];u.patrolIndex=0;u.flightOrbitCenter=undefined;
   u.airMission = mission;
   u.airMissionPoint = point ? { x: point.x, z: point.z } : null;
   if (mission === "cap") {
     u.mode = "patrol";
+    u.dest=point?{...point}:null;
     if (point) {
       u.patrolPoints = [
         { x: point.x + 18, z: point.z },
@@ -114,6 +127,12 @@ export function assignAirMission(
 export function updateAirDoctrine(w: World, u: Entity, dt: number): void {
   if (u.def.armor !== "air" && u.def.category !== "heli") return;
   if (u.dead || u.airState === "returning" || u.airState === "rearming" || u.airState === "grounded" || u.airState === "taxi" || u.airState === "landing") return;
+  if(u.flightAttackExit&&w.time>=(u.flightAttackExitUntil??0)){u.flightAttackExit=undefined;u.flightAttackExitUntil=undefined;}
+  if(u.target&&(u.target.dead||!w.isSpottedByTeam(u.target,u.team)||!airMissionAllowsTarget(u,u.target)))u.target=null;
+  if(u.airMission&&!u.target&&u.mode==="attack"){
+    u.mode=u.airMission==="cap"?"patrol":"amove";
+    u.dest=u.airMission==="cap"?(u.patrolPoints[u.patrolIndex]??u.airMissionPoint??null):u.airMissionPoint??null;
+  }
   u.airSortieCount = u.airSortieCount ?? 0;
   u.airThreat = u.airThreat ?? 0;
   u.airWeaponCooldown = Math.max(0, (u.airWeaponCooldown ?? 0) - dt);
@@ -121,19 +140,21 @@ export function updateAirDoctrine(w: World, u: Entity, dt: number): void {
   const mission = u.airMission ?? (u.kind === "fighter" || u.kind === "interceptor" ? "cap" : "ground");
   const threat = aaThreatAt(w, u.team, u.x, u.z);
   u.airThreat = threat;
-  if (threat > 0.78 && mission !== "sead" && u.airState === "airborne") {
+  if (threat > mobility.combat.aaRetreatThreat && mission !== "sead" && u.airState === "airborne") {
     u.airState = "returning";
-    u.airReturnReason = "damage";
+    u.airReturnReason = "threat";
+    u.target=null;u.flightAttackExit=undefined;u.flightAttackExitUntil=undefined;u.airLandingPhase="approach";
     const home = u.airMissionHomeId ? w.byId.get(u.airMissionHomeId) : null;
     if (home) { u.dest = {x: home.x, z: home.z}; u.mode = "move"; }
+    return;
   }
 
   // SEAD: actively hunt AA
-  if (mission === "sead" && (!u.target || u.target.dead || !["aa","spaa","manpad"].includes(u.target.kind))) {
+  if (mission === "sead" && (!u.target || u.target.dead || aaThreatRadius(u.target)<=0)) {
     let best: Entity | null = null;
     let bestD = 1e9;
     for (const e of w.entities) {
-      if (e.dead || e.team === u.team || !w.isSpottedByTeam(e,u.team) || !["aa","spaa","manpad"].includes(e.kind)||!canEngage(u,e)) continue;
+      if (e.dead || e.team === u.team || !w.isSpottedByTeam(e,u.team) || !airMissionAllowsTarget(u,e)||!canEngage(u,e)) continue;
       const d = Math.hypot(e.x - u.x, e.z - u.z);
       if (d < bestD) { bestD = d; best = e; }
     }
@@ -150,7 +171,7 @@ export function updateAirDoctrine(w: World, u: Entity, dt: number): void {
     let best: Entity | null = null;
     let bestScore = 1e9;
     for (const e of w.entities) {
-      if (e.dead || e.team === u.team || !w.isSpottedByTeam(e,u.team) || e.def.speed > 0||!canEngage(u,e)) continue;
+      if (e.dead || e.team === u.team || !w.isSpottedByTeam(e,u.team) || !airMissionAllowsTarget(u,e)||e.def.speed > 0||!canEngage(u,e)) continue;
       const pi = prio.indexOf(e.kind);
       if (pi < 0) continue;
       const d = Math.hypot(e.x - u.x, e.z - u.z);
@@ -173,7 +194,7 @@ export function updateAirDoctrine(w: World, u: Entity, dt: number): void {
       let best: Entity | null = null;
       let bestD = 1e9;
       for (const e of w.entities) {
-        if (e.dead || e.team === u.team || !w.isSpottedByTeam(e,u.team)) continue;
+        if (e.dead || e.team === u.team || !w.isSpottedByTeam(e,u.team)||!airMissionAllowsTarget(u,e)) continue;
         if (e.def.armor !== "air" && e.def.category !== "heli" || !canEngage(u,e)) continue;
         const d = Math.hypot(e.x - u.x, e.z - u.z);
         if (d < Math.max(u.aggro, u.def.range + 20) && d < bestD) {
@@ -189,25 +210,18 @@ export function updateAirDoctrine(w: World, u: Entity, dt: number): void {
 
   if(mission==="cap"&&!u.target&&u.mode==="attack"){u.mode="patrol";u.dest=u.patrolPoints[u.patrolIndex]??u.airMissionPoint??null;}
 
-  // Soft AA avoidance for non-SEAD helis (steer away)
-  if (mission !== "sead" && (u.kind === "heli" || u.kind === "gunship" || u.kind === "transport")) {
-    const threat = aaThreatAt(w, u.team, u.x, u.z);
-    if (threat > 0.55 && u.airState !== "returning") {
-      // Nudge destination away from nearest AA
-      let nx = 0, nz = 0;
-      for (const e of w.entities) {
-        if (e.dead || e.team === u.team || !w.isSpottedByTeam(e,u.team) || !["aa","spaa","manpad"].includes(e.kind)||!canEngage(u,e)) continue;
-        const d = Math.hypot(e.x - u.x, e.z - u.z) || 1;
-        if (d < aaThreatRadius(e)) {
-          nx += (u.x - e.x) / d;
-          nz += (u.z - e.z) / d;
-        }
-      }
-      if (nx || nz) {
-        const m = Math.hypot(nx, nz) || 1;
-        u.dest = { x: u.x + (nx / m) * 28, z: u.z + (nz / m) * 28 };
-        u.mode = "move";
-      }
+  // Temporary avoidance preserves the mission anchor and works for unarmed transports too.
+  if(mission!=="sead"&&u.def.category==="heli"&&threat>mobility.combat.helicopterAvoidThreat){
+    let nx=0,nz=0;
+    for(const e of w.entities){
+      if(e.dead||e.team===u.team||e.underConstruction||!w.isSpottedByTeam(e,u.team))continue;
+      const r=aaThreatRadius(e),d=Math.hypot(e.x-u.x,e.z-u.z)||1;
+      if(r>0&&d<r){nx+=(u.x-e.x)/d;nz+=(u.z-e.z)/d;}
+    }
+    if(nx||nz){
+      const m=Math.hypot(nx,nz),edge=w.mapSize/2-20,span=mobility.combat.helicopterAvoidDistance;
+      u.flightAttackExit={x:Math.max(-edge,Math.min(edge,u.x+nx/m*span)),z:Math.max(-edge,Math.min(edge,u.z+nz/m*span))};
+      u.flightAttackExitUntil=w.time+mobility.combat.helicopterAvoidTime;
     }
   }
 }
