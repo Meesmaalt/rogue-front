@@ -1,15 +1,17 @@
-# Aktiivne viimistlusjärjekord — 08.10.2026
+# Aktiivne viimistlusjärjekord — 09.10.2026
 
 Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on järgmise arenduse alus; hilisemad vanad etapid ja märkeruudud jäävad ajalooliseks loendiks. Pakett loetakse tehtuks põhiplaani lõpetamistingimuste järgi, mitte funktsiooni nime olemasolu järgi.
 
 - [x] Kasutatava alpha ulatuse, viie viimistluspaketi ja alpha/beta lõpetamiskriteeriumide uuendamine (08.10.2026).
-- [ ] V1: käivitus/deploy, brauseri jõudluse alusmõõtmine ja suurima kitsaskoha parandus.
+- [ ] V1 (järgmine): kaadriaja/sim-aja kerged mõõdikud, sama Roheoru 60–90 s stseeni võrdlus ning suurima tõendatud kitsaskoha parandus; GameLoop ajavõla ja kvaliteedieelarvete ülevaatus.
 - [ ] V2: grupijuhtimise, maa-/õhuliikumise ja lahingu tunnetuse lõpetamine.
 - [ ] V3: majanduse, füüsilise logistika ja AI matšitempo lõpetamine.
 - [ ] V4: selge HUD ja Roheoru ühtne visuaalne viimistlus.
 - [ ] V5: õpetuse/save-load läbipääs ning DEVELOPMENT-PLAN.md alpha värav; seejärel A6 lõpetatuks.
 
 ## Teostatud alused ja seniste pakettide seis
+
+- [x] Koodipõhine uus kvaliteediülevaatus pärast PR #13 ja DEVELOPMENT-PLAN.md uuendamine: tehtud aluste eristus, kuus lõpetatavat tervikut, mõõdetav sujuvuse siht ning Real Wari majanduse säilitamine. See PR muudab plaani, mitte mängu käitumist.
 
 - [x] Panningu ja metsakoormuse parandus: sujuv kaamera kiirendus/pidurdus/pööre, eksponentsiaalne zoom ja maastikukõrgus; valgus ja varjukaart liiguvad koos alles katvuse piiril või geomeetriamuutusel. Läbipaistvad ristvõrad asendatud ühe instantsitud ümara ruumilise võraga, kaug-LOD 20 kolmnurka; metsavarjude alpha-passid eemaldatud, põlengu/burnt ühendus säilitatud. Build + 12 lühikest render/input kontrolli; päris brauseri FPS/visuaal endiselt mõõtmata.
 
