@@ -67,7 +67,13 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
   else group.add(createForest(features));
   if(theme!=="temperate")group.add(createDecals(rnd));
   group.add(batchStaticScene(createMapFeatures(features,theme==="temperate")));
+  freezeTerrainTransforms(group);
   return group;
+}
+
+/** Static terrain keeps its matrices; damage changes explicitly invalidate a house. */
+export function freezeTerrainTransforms(group:THREE.Group):void {
+  group.traverse(o=>{o.updateMatrix();o.matrixAutoUpdate=false;});
 }
 
 function riverTexture():THREE.CanvasTexture {
@@ -488,7 +494,9 @@ export function syncGarrisonTerrain(group:THREE.Group,world:World):boolean {
   if(!houses){houses=[];group.traverse(o=>{if(o.userData.structureId)houses!.push(o);});group.userData.garrisonHouses=houses;}
   const ownGarrisons=new Set<string>();
   for(const u of world.entities)if(!u.dead&&u.team===world.playerTeam&&u.garrisonId)ownGarrisons.add(u.garrisonId);
-  const features=new Map(world.mapFeatures.map(f=>[f.id,f]));
+  let featureCache=group.userData.garrisonFeatures as {source:World["mapFeatures"];lookup:Map<string,MapFeatureDef>}|undefined;
+  if(!featureCache||featureCache.source!==world.mapFeatures){featureCache={source:world.mapFeatures,lookup:new Map(world.mapFeatures.map(f=>[f.id,f]))};group.userData.garrisonFeatures=featureCache;}
+  const features=featureCache.lookup;
   const rewind=world.time<(group.userData.garrisonTime as number??0);group.userData.garrisonTime=world.time;let changed=false;
   for(const house of houses){
     const id=house.userData.structureId as string,f=features.get(id);if(!f||!isGarrisonBuilding(f))continue;
@@ -496,9 +504,9 @@ export function syncGarrisonTerrain(group:THREE.Group,world:World):boolean {
     const damage=known?world.infrastructureDamage.get(id)??0:rewind?0:house.userData.structureDamage as number??0;
     const stage=damage>=1?2:damage>.35?1:0;if(stage===house.userData.structureStage&&!rewind)continue;
     house.userData.structureStage=stage;house.userData.structureDamage=damage;
-    house.scale.y=stage===2?GARRISON_RULES.rubbleHeight/(f.height??3):1;
+    house.scale.y=stage===2?GARRISON_RULES.rubbleHeight/(f.height??3):1;house.updateMatrix();
     house.traverse(o=>{if(!(o instanceof THREE.Mesh)||!(o.material instanceof THREE.MeshStandardMaterial))return;
-      if(!o.userData.garrisonMaterial&&stage){const original=o.material;o.material=original.clone();o.material.userData.sharedArt=false;o.userData.garrisonMaterial=true;o.userData.originalColor=original.color.clone();}
+      if(!o.userData.garrisonMaterial&&stage){const original=o.material;o.material=original.clone();o.material.onBeforeCompile=original.onBeforeCompile;o.material.customProgramCacheKey=original.customProgramCacheKey;o.material.userData.sharedArt=false;o.userData.garrisonMaterial=true;o.userData.originalColor=original.color.clone();}
       if(o.userData.garrisonMaterial){o.material.color.copy(o.userData.originalColor as THREE.Color);if(stage)o.material.color.multiplyScalar(stage===2?.42:.7);}
     });changed=true;
   }

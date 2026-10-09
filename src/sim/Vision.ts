@@ -11,6 +11,8 @@ export type VisibilityState = 0 | 1 | 2;
 /** Fog of war with terrain/structure line-of-sight. Heavily optimised for 30 Hz. */
 export class Vision {
   forestObscuration?: (a:Entity,b:Entity)=>number;
+  /** Derived invalidation token for render consumers; not simulation state. */
+  revision = 0;
   readonly cellSize = VISION_CELL_SIZE;
   readonly width = Math.ceil(MAP_SIZE/VISION_CELL_SIZE);
   readonly height = this.width;
@@ -46,15 +48,21 @@ export class Vision {
         }
     }
   }
+  copyStates(team:Team,destination:Uint8Array):void {
+    if(destination.length!==this.states[team].length)throw new Error("Visibility buffer size mismatch");
+    destination.set(this.states[team]);
+  }
   snapshot(): { states: [number[],number[]]; tickCounter: number } {
     return {states:[Array.from(this.states[0]),Array.from(this.states[1])],tickCounter:this.tickCounter};
   }
   restore(s: ReturnType<Vision["snapshot"]>, entities: readonly Entity[]): void {
     if(s.states[0].length!==this.states[0].length){this.reset();this.tickCounter=0;this.update(entities);return;}
+    this.revision++;
     this.states[0].set(s.states[0]); this.states[1].set(s.states[1]); this.tickCounter=s.tickCounter;
     this.buildings=entities.filter(e=>!e.dead&&e.def.speed===0);
   }
   reset(): void {
+    this.revision++;
     this.states[0].fill(0);
     this.states[1].fill(0);
   }
@@ -157,6 +165,7 @@ export class Vision {
   update(entities: readonly Entity[]): void {
     this.tickCounter++;
     if (this.tickCounter > 1 && this.tickCounter % 3 !== 0) return;
+    this.revision++;
     for (const team of [0, 1] as const) {
       const c = this.states[team];
       for (let i = 0; i < c.length; i++) if (c[i] === 2) c[i] = 1;

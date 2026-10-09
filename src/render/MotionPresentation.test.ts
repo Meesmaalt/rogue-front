@@ -16,25 +16,10 @@ it('motion fading agrees across frame rates and freezes on pause without oversho
 });
 
 // Presentation-only regression: fog must never wait for a 100 ms timer after a camera move.
-import {FogOfWar} from './FogOfWar';
 import {Picker} from '../input/Picker';
 import {PerspectiveCamera} from 'three';
 import type {World} from '../sim/World';
 afterEach(()=>vi.unstubAllGlobals());
-it('fog tracks every camera change and interpolates observers in a quarter-pixel layer',()=>{
- const ctx={setTransform:vi.fn(),clearRect:vi.fn(),fillRect:vi.fn(),drawImage:vi.fn(),save:vi.fn(),restore:vi.fn(),createRadialGradient:()=>({addColorStop:vi.fn()})};
- const canvas={width:0,height:0,style:{},getContext:()=>ctx} as unknown as HTMLCanvasElement;
- vi.stubGlobal('innerWidth',1000);vi.stubGlobal('innerHeight',600);vi.stubGlobal('addEventListener',vi.fn());
- vi.stubGlobal('document',{createElement:()=>({width:0,height:0,getContext:()=>ctx})});
- const fog=new FogOfWar(canvas),observer={dead:false,loadedIntoId:null,underConstruction:false,team:0,px:0,x:20,py:2,y:2,pz:0,z:0,kind:'inf',def:{opticsRange:40}};
- const w={time:1,playerTeam:0,entities:[observer]} as unknown as World;
- const picker={viewVersion:1,toScreen:vi.fn(()=>({x:500,y:300,z:0})),pxPerUnit:()=>1};
- fog.draw(w,picker as unknown as Picker,.25);expect(canvas.width*canvas.height).toBe(1000*600/4);expect(picker.toScreen).toHaveBeenLastCalledWith(5,2.5,0);
- const calls=ctx.drawImage.mock.calls.length;fog.draw(w,picker as unknown as Picker,.25);expect(ctx.drawImage).toHaveBeenCalledTimes(calls);
- picker.viewVersion++;fog.draw(w,picker as unknown as Picker,.25);expect(ctx.drawImage).toHaveBeenCalledTimes(calls+1);
- fog.draw(w,picker as unknown as Picker,.75);expect(picker.toScreen).toHaveBeenLastCalledWith(15,2.5,0);
- fog.setMode('off');const clear=ctx.clearRect.mock.calls.length;fog.draw(w,picker as unknown as Picker);fog.draw(w,picker as unknown as Picker);expect(ctx.clearRect).toHaveBeenCalledTimes(clear+1);
-});
 it('view versions detect pan, zoom and rotation but remain stable without camera changes',()=>{
  const camera=new PerspectiveCamera(42,1,1,1400),picker=new Picker(camera,{} as World);
  const first=picker.viewVersion;expect(picker.viewVersion).toBe(first);camera.position.x=10;expect(picker.viewVersion).toBeGreaterThan(first);

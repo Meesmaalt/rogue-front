@@ -1,0 +1,28 @@
+import {afterEach,expect,it} from "vitest";
+import {Group,Mesh,MeshStandardMaterial,PlaneGeometry,ShaderLib,type WebGLRenderer,type DataTexture} from "three";
+import {World} from "../sim/World";
+import {resetHeightmap} from "../sim/heightmap";
+import {FogOfWar} from "./FogOfWar";
+afterEach(resetHeightmap);
+it("uses the simulation visibility grid, retains GPU buffers, and handles team changes and restored state",()=>{
+ const world=new World(71,false,[],[],[],false),material=new MeshStandardMaterial(),terrain=new Group();
+ terrain.add(new Mesh(new PlaneGeometry(10,10),material));
+ const observer=world.spawn("reconInf",0,-100,-100);world.vision.update(world.entities);
+ const fog=new FogOfWar(terrain,world);
+ const shader={vertexShader:ShaderLib.standard.vertexShader,fragmentShader:ShaderLib.standard.fragmentShader,uniforms:{}} as Parameters<typeof material.onBeforeCompile>[0];
+ material.onBeforeCompile(shader,{} as WebGLRenderer);
+ const uniforms=shader.uniforms as Record<string,{value:unknown}>,current=uniforms.rfFogCurrent.value as DataTexture;
+ const data=current.image.data as Uint8Array;
+ const at=(x:number,z:number)=>{const p=world.vision.worldToCell(x,z);return data[world.vision.index(p.x,p.z)*4];};
+ expect(at(observer.x,observer.z)).toBe(0);expect(at(200,200)).toBe(87);
+ const version=current.version;fog.sync(world,1);fog.sync(world,.25);expect(current.version).toBe(version);
+ expect(shader.vertexShader).toContain("instanceMatrix * rfFogPosition");expect(shader.vertexShader).toContain("modelMatrix * rfFogPosition");
+ expect(shader.fragmentShader).toContain("texture2D(rfFogCurrent, rfFogUV)");
+ world.playerTeam=1;fog.sync(world,1);expect(at(observer.x,observer.z)).toBe(87);
+ world.playerTeam=0;observer.x=100;observer.z=100;world.vision.update(world.entities);world.vision.update(world.entities);world.time=1;fog.sync(world,1);
+ expect(at(-100,-100)).toBe(48);expect(at(100,100)).toBe(0);
+ world.vision.reset();world.time=0;fog.sync(world,1);expect(at(100,100)).toBe(87);expect(uniforms.rfFogBlend.value).toBe(1);
+ fog.setMode("off");expect(uniforms.rfFogStrength.value).toBe(0);fog.setMode("reduced");expect(uniforms.rfFogStrength.value).toBe(.55);
+ material.dispose();terrain.children.forEach(o=>{if(o instanceof Mesh)o.geometry.dispose();});
+ (uniforms.rfFogPrevious.value as DataTexture).dispose();current.dispose();
+});
