@@ -11,6 +11,8 @@ Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on j�
 
 ## Teostatud alused ja seniste pakettide seis
 
+- [x] Füüsilise logistika loetavus: simi/HUD-i ühine varudest sõltuv kohalik laovalik, valitud lao varustusala ja piiratud üksuseseosed, ressursi-/FOB-vedude eristus ning katkenud ühenduse/pealao reservi põhjused. Build + 10 lühikest kontrolli; brauseri kaardipildi/FPS ja pika logistikalise matši ülevaatus ootel.
+
 - [x] Õhuoperatsioonide ühendusviimistlus: andmepõhine ülesandeala/rolliga sihtotsing, kadunud kontakti järel ülesande taastamine, puhas missioonivahetus, lisarelvade õhutõrjeulatus ja transpordikopteri ajutine vältimismanööver, eraldi ohust tingitud RTB/save olek. Build + 15 lühikest kontrolli; brauseri lennutunnetus/FPS ja pikk õhu-maaväe matš ootel.
 
 - [x] Lahinguinfo ja maastiku loetavus: kompaktsed relvarollid/ulatus/moon/lasu põhjus, avatavad AP/tabamuse detailid, tegelik garnisoni/relva laskesektor, hoones kasutamatute relvade ringi peitmine ning simi katte-/liikumiskordajate HUD. Build + 13 lühikest kontrolli; brauseri visuaal/FPS ja kaardi taktikalise kompositsiooni edasine viimistlus ootel.

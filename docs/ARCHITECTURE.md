@@ -212,3 +212,7 @@ Roheoru autoritud layout13 pärineb scripts/maps/finish-road-network.py-st. Tee 
 ## Ranniku ühine geomeetria ja indeks
 
 Murdlaine layout 3 kasutab sama veeribade geomeetriat kõrgusväljas, laevade navigatsioonis, minikaardil ja mere renderduses. `mapFeatures.MapFeatureIndex` säilitab allikajärjekorra ja annab pööratud/polsterdatud AABB alusel kohaliku kandidaatide hulga pinnase- ning veokipäringutele ja puude paigutamisele. Täpsed jäljekontrollid jäävad tarbijatesse. WaterNavGrid kasutab rasterdamiseks kitsamat pööratud AABB-d. Ülevaade ja kontrollid: [COAST-MAP-PERFORMANCE.md](COAST-MAP-PERFORMANCE.md).
+
+### Valitud varustusahela loetavus
+
+`tacticalSupplyDepot` valib simulatsiooni ja HUD-i jaoks sama kohaliku lao, eelistades üksuse puuduva moona/kütuse jaoks sobivat varu. Katkenud upstream ei kustuta FOB-i kohalikku füüsilist varu. Overlay loeb ainult oma üksusi: valitud lao ümber tegelik teenindusraadius, kuni 12 kohaliku üksuse seosed ning kuni 12 konvoi marsruudid/olekud. Ressursivedu ja pealaost FOB-i vedu on eristatud; need jooned on kavandatud marsruut, mitte tasuta ülekanne. Õhu teenindus jääb missiooni/baasi HUD-i, mereteenindus kasutab olemasolevat sadama-lao valikut. Kaardi visuaalne ülevaatus ja FPS vajavad brauseris hindamist.
