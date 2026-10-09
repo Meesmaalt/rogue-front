@@ -9,6 +9,14 @@ export interface UnitMarkerRect {id:number;x:number;y:number;width:number;height
 
 /** Ekraani ↔ maailma teisendused: üksuse valik hiirega ja maapinna leidmine. */
 export class Picker {
+  private readonly lastView=new Float64Array(32).fill(NaN);
+  private version=0;
+  /** Cheap change detection without per-frame strings or matrix allocations. */
+  get viewVersion():number {
+    this.camera.updateMatrixWorld();let changed=false;
+    for(let i=0;i<32;i++){const value=i<16?this.camera.matrixWorld.elements[i]:this.camera.projectionMatrix.elements[i-16];if(value!==this.lastView[i]){this.lastView[i]=value;changed=true;}}
+    if(changed)this.version++;return this.version;
+  }
   private markers:readonly UnitMarkerRect[]=[];
   setUnitMarkers(markers:readonly UnitMarkerRect[]):void {this.markers=markers;}
   private ray = new THREE.Raycaster();

@@ -5,7 +5,6 @@ import {maxHitPoints} from "../sim/unitStats";
 import type { World } from "../sim/World";
 import type { Picker } from "./Picker";
 import type { SelectionController } from "./SelectionController";
-import type { Fx } from "../render/Fx";
 import { BUILDINGS } from "../sim/buildings";
 import type { BuildableKind } from "../sim/buildings";
 import { loadSettings } from "../ui/Settings";
@@ -17,7 +16,7 @@ export class CommandController {
   private markers:Array<{x:number;z:number;color:string;label:string;until:number}>=[];
   get orderMarkers(){return this.markers.filter(m=>m.until>performance.now());}
   get formationPreview(){const d=this.rightDrag;if(!d||!this.pointer||Math.hypot(this.pointer.x-d.x,this.pointer.y-d.y)<8)return null;const facing=Math.atan2(d.end.x-d.point.x,d.end.z-d.point.z),units=d.ids.map(id=>this.world.byId.get(id)).filter((u):u is Entity=>!!u&&!u.dead);return {point:d.point,end:d.end,facing,points:formationPoints(units,d.point,this.world.teamFormations[this.world.playerTeam],facing)};}
-  private ack(x:number,z:number,color:number,caption?:string):void {const attack=color===0xe0553f||color===0xff7a33;const label=caption??(attack?"RÜNDA":color===0x9bc98d?"SISENE":color===0x66d9a0?"REMONDI":color===0x9b7cff?"JÄRJEKORD":color===0x79c9ff?"PATRULL":color===0x55b7ff?"ÕHK / TRANSPORT":color===0xa4d57c?"TARNE":"LIIGU");this.markers=this.orderMarkers.slice(-7);this.markers.push({x,z,color:attack?"#ff6857":"#"+color.toString(16).padStart(6,"0"),label,until:performance.now()+1500});this.fx.ping(x,z,color);}
+  private ack(x:number,z:number,color:number,caption?:string):void {const attack=color===0xe0553f||color===0xff7a33;const label=caption??(attack?"RÜNDA":color===0x9bc98d?"SISENE":color===0x66d9a0?"REMONDI":color===0x9b7cff?"JÄRJEKORD":color===0x79c9ff?"PATRULL":color===0x55b7ff?"ÕHK / TRANSPORT":color===0xa4d57c?"TARNE":"LIIGU");this.markers=this.orderMarkers.slice(-2);this.markers.push({x,z,color:attack?"#ff6857":"#"+color.toString(16).padStart(6,"0"),label,until:performance.now()+850});}
   moveMode=false;
   patrolMode=false;
   pointer:{x:number;y:number}|null=null;
@@ -61,7 +60,6 @@ export class CommandController {
     private readonly world: World,
     private readonly picker: Picker,
     private readonly selection: SelectionController,
-    private readonly fx: Fx,
   ) {
     el.addEventListener("contextmenu", (e) => e.preventDefault());
     el.addEventListener("mousemove", (e) => {

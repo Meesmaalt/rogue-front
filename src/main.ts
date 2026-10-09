@@ -133,7 +133,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const fog = new FogOfWar(fogCanvas);
   const picker = new Picker(ctx.camera, world);
   const selection = new SelectionController(topCanvas, world, picker);
-  const commands = new CommandController(topCanvas, world, picker, selection, fx);
+  const commands = new CommandController(topCanvas, world, picker, selection);
   const overlay = new Overlay(topCanvas);
   const minimap = new Minimap(hud.minimapCanvas, world, picker);
 
@@ -313,7 +313,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       const animateWater = ctx.water.material as THREE.ShaderMaterial;
       if (animateWater.uniforms?.time) animateWater.uniforms.time.value += frameDt;
       ctx.post.render();
-      fog.draw(world, picker);
+      fog.draw(world, picker,visualAlpha);
       overlay.draw(world, picker, selection, { point: commands.buildPoint, kind: commands.buildMode, rotation: commands.buildRotation, valid: commands.buildValid },commands);
       minimap.draw(frameDt);
       hudAcc += frameDt; frames++; fpsAcc += frameDt;
