@@ -103,8 +103,8 @@ export interface Entity {
   aggro: number; dead: boolean;
   navPath: Point[]; navPathIndex: number; flowField: FlowField | null; stuckTime: number; stuckX: number; stuckZ: number;
   garrisonLookPoint?:Point; garrisonId?:string; garrisonSlot?:number; garrisonFacing?:number; garrisonOrderId?:string; garrisonEntryPoint?:Point; garrisonOrderDeadline?:number; garrisonShiftAt?:number; garrisonExitPoint?:Point; garrisonExitRetryAt?:number; garrisonCollapseSeen?:boolean;
-  fastMove?: boolean; moveAxis?:Point; moveGroup?: number[]; moveQueueStyles?: Array<"move"|"amove"|"fast-move">; transportQueue?: number[]; transportPickupDeadline?: number; transportPickupPoint?:Point; transportExitRetryAt?:number;
-  moveQueue?: Point[]; queuedMoveType?: "move" | "amove";
+  moveFacing?:number; fastMove?: boolean; moveAxis?:Point; moveGroup?: number[]; moveQueueStyles?: Array<"move"|"amove"|"fast-move">; transportQueue?: number[]; transportPickupDeadline?: number; transportPickupPoint?:Point; transportExitRetryAt?:number;
+  moveQueue?: Array<Point & {facing?:number}>; queuedMoveType?: "move" | "amove";
   preferredResourceIndex?: number | null; logisticsPaused?: boolean; routeWaypointIndex?: number; routeLeg?: string;
   xp: number; veteran: number;
   /** Game-time until which each team has this unit spotted (Wargame contact). */
@@ -184,8 +184,8 @@ export interface Projectile {
 }
 
 export type Command = ({type:"face-building";ids:number[];x:number;z:number} | {type:"enter-building";ids:number[];featureId:string} | {type:"leave-building";ids:number[];x?:number;z?:number} | {
-  type: "move"; ids: number[]; x: number; z: number; append?: boolean
-} | { type: "fast-move"; ids: number[]; x: number; z: number; append?: boolean } | { type: "amove"; ids: number[]; x: number; z: number; append?: boolean } | { type: "attack"; ids: number[]; targetId: number } |
+  type: "move"; ids: number[]; x: number; z: number; append?: boolean; facing?:number
+} | { type: "fast-move"; ids: number[]; x: number; z: number; append?: boolean; facing?:number } | { type: "amove"; ids: number[]; x: number; z: number; append?: boolean; facing?:number } | { type: "attack"; ids: number[]; targetId: number } |
   { type: "formation"; kind: "box" | "line" | "wedge" | "column" } | { type: "stop"; ids: number[] } | { type: "repair"; ids: number[]; targetId: number } | { type: "rally"; ids: number[]; x: number; z: number } | { type: "patrol"; ids: number[]; x: number; z: number } | { type: "hold"; ids: number[] } |
   { type: "build"; ids: number[]; kind: "hq" | "bunker" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase" | "supply" | "radar" | "generator" | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer" | "landStrategy" | "airStrategy" | "seaStrategy"; x: number; z: number; rotation?: number } |
   { type: "upgrade"; ids: number[]; upgrade: "armor" | "weapon" | "range" | "supply-depot" | "producer" | "fob" } |

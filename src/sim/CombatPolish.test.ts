@@ -104,3 +104,12 @@ it('Apache fires its cannon at helicopters while Hellfire and rockets remain gro
  expect(w.events.some(e=>e.type==='fire'&&e.sourceId===u.id&&e.weaponIndex===1)).toBe(true);
  expect(w.projectiles.some(p=>p.sourceId===u.id&&p.weapon==='cannon')).toBe(true);
 });
+
+it('oriented group destinations keep their heading through save/load and turn after arrival',()=>{
+ const w=fixture(),a=w.spawn('inf',0,-30,-10),b=w.spawn('inf',0,-30,10);
+ w.issue({type:'move',ids:[a.id,b.id],x:0,z:0,facing:Math.PI/2});applyCommands(w);
+ expect(a.dest!.x).toBeCloseTo(b.dest!.x);expect(Math.abs(a.dest!.z-b.dest!.z)).toBeGreaterThan(5);
+ const copy=fixture();loadWorld(copy,JSON.parse(JSON.stringify(saveWorld(w))));expect(worldHash(copy)).toBe(worldHash(w));
+ step(w,400);expect(a.mode).toBe('idle');expect(b.mode).toBe('idle');expect(a.heading).toBeCloseTo(Math.PI/2);expect(b.heading).toBeCloseTo(Math.PI/2);
+ w.issue({type:'move',ids:[a.id],x:10,z:0});applyCommands(w);expect(a.moveFacing).toBeUndefined();
+});

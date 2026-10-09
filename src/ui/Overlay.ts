@@ -36,7 +36,7 @@ export class Overlay {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  draw(world: World, picker: Picker, sel: SelectionController, preview: BuildPreview | null = null,orders?:{pointer:{x:number;y:number}|null;hint:string;feedbackText:string}): void {
+  draw(world: World, picker: Picker, sel: SelectionController, preview: BuildPreview | null = null,orders?:{pointer:{x:number;y:number}|null;hint:string;feedbackText:string;orderMarkers?:readonly {x:number;z:number;color:string;label:string;until:number}[];formationPreview?:{point:{x:number;z:number};end:{x:number;z:number};facing:number;points:{x:number;z:number}[]}|null}): void {
     const c = this.ctx, w = innerWidth, h = innerHeight;
     c.clearRect(0, 0, w, h);
     const line=(points:readonly {x:number;y?:number;z:number}[],color:string,dashed=false)=>{
@@ -49,18 +49,18 @@ export class Overlay {
     const usable=(u:Entity)=>!u.underConstruction&&(u.disabledUntil??0)<=world.time&&((u.ammoStock??0)>0||(u.fuelStock??0)>0);
     const label=(u:Entity,text:string,color:string)=>{const p=picker.toScreen(u.x,u.y+u.def.height+3,u.z);if(p.z>1||p.x<0||p.x>w||p.y<0||p.y>h)return;c.font="600 11px sans-serif";const width=c.measureText(text).width;c.fillStyle="#15252ce8";c.fillRect(p.x+7,p.y-13,width+10,18);c.fillStyle=color;c.fillText(text,p.x+12,p.y);};
     for(const u of selected){
-      if(u.def.speed>0&&u.loadedIntoId==null&&u.def.armor!=="air"&&selected.indexOf(u)<12){const depot=tacticalSupplyDepot(world,u,supplyNodes);if(depot)line([depot,u],usable(depot)?"#8fcaa0":"#eaa475");}
+
       if(u.kind==="logiTruck"||u.kind==="transport"&&u.supplyDepotId!=null){const depot=world.byId.get(u.supplyDepotId??-1);if(depot&&!depot.dead)line([u,depot],u.cargo>0?"#b6d985":"#a9b7c1",true);label(u,convoyStatus(u),"#d5e7b5");}
       if(u.def.damage>0&&selected.indexOf(u)<4){
         if(u.target&&!u.target.dead&&world.isSpottedByTeam(u.target,u.team)){
           const stamp=Math.floor(world.time*10),cached=this.targetLines.get(u.id);
           const clear=cached?.stamp===stamp&&cached.target===u.target.id?cached.clear:["artillery","mortar","mlrs"].includes(u.kind)||world.vision.hasLineOfSight(u,u.target);
           this.targetLines.set(u.id,{stamp,target:u.target.id,clear});
-          line([{x:u.x,y:u.y+u.def.height*.6,z:u.z},{x:u.target.x,y:u.target.y+u.target.def.height*.5,z:u.target.z}],clear?"#efb56b":"#ee735d",!clear);
+
           if(!clear){const p=picker.toScreen(u.x,u.y+u.def.height+4,u.z);c.fillStyle="#ffad94";c.font="bold 11px sans-serif";c.fillText("Tulejoon blokeeritud",p.x+10,p.y);}
         }
       }
-      if(u.dest)line([u,...u.navPath.slice(u.navPathIndex,u.navPathIndex+12),u.dest,...u.moveQueue??[]],u.mode==="amove"?"rgba(242,181,91,.8)":"rgba(143,203,224,.7)",true);
+
       if(u.kind==="supply"&&selected.indexOf(u)<4){
         const radius=supplyRadiusFor(u,world),circle=[];
         for(let i=0;i<=64;i++){const a=i*Math.PI*2/64;circle.push({x:u.x+Math.sin(a)*radius,z:u.z+Math.cos(a)*radius});}
@@ -75,6 +75,21 @@ export class Overlay {
         if(main&&main!==u&&fleet.some(t=>t.logisticsSourceIndex==null))line([main,...u.logisticsWaypoints??[],u],world.connectedSupplyNodes(u.team).some(n=>n.id===u.id)?"#b6d985":"#ee9479",true);
         for(const t of fleet.slice(0,12)){if(t.dest)line([t,...t.kind==="logiTruck"?t.navPath.slice(t.navPathIndex,t.navPathIndex+10):[],t.dest],t.cargo>0?"#b6d985":"rgba(195,203,186,.5)",true);const p=picker.toScreen(t.x,t.y+t.def.height+2,t.z);c.font="bold 11px sans-serif";c.fillStyle="#d5e7b5";if(p.z<=1)c.fillText(convoyStatus(t),p.x+8,p.y);}
       }
+    }
+    for(const marker of orders?.orderMarkers??[]){
+      const p=picker.toScreen(marker.x,heightAt(marker.x,marker.z)+.5,marker.z);if(p.z>1)continue;
+      const remaining=Math.max(0,Math.min(1,(marker.until-performance.now())/1500)),radius=18+(1-remaining)*10;
+      c.save();c.globalAlpha=remaining;c.strokeStyle=marker.color;c.fillStyle=marker.color;c.lineWidth=3;c.beginPath();c.arc(p.x,p.y,radius,0,Math.PI*2);c.stroke();
+      c.beginPath();if(marker.label==="RÜNDA"){for(const [dx,dy] of [[-1,-1],[1,1],[-1,1],[1,-1]]){c.moveTo(p.x+dx*8,p.y+dy*8);c.lineTo(p.x+dx*15,p.y+dy*15);}}else {c.moveTo(p.x-7,p.y);c.lineTo(p.x-1,p.y+6);c.lineTo(p.x+9,p.y-7);}c.stroke();
+      c.font="bold 12px Segoe UI,sans-serif";c.textAlign="center";c.fillText(marker.label,p.x,p.y-radius-7);c.restore();
+    }
+    const placement=orders?.formationPreview;
+    if(placement){
+      line([placement.point,placement.end],"#80e3b3");
+      const start=picker.toScreen(placement.point.x,heightAt(placement.point.x,placement.point.z)+.4,placement.point.z),end=picker.toScreen(placement.end.x,heightAt(placement.end.x,placement.end.z)+.4,placement.end.z);
+      const angle=Math.atan2(end.y-start.y,end.x-start.x);c.strokeStyle="#80e3b3";c.lineWidth=3;c.beginPath();c.moveTo(end.x-Math.cos(angle-.5)*12,end.y-Math.sin(angle-.5)*12);c.lineTo(end.x,end.y);c.lineTo(end.x-Math.cos(angle+.5)*12,end.y-Math.sin(angle+.5)*12);c.stroke();
+      for(const q of placement.points.slice(0,64)){const p=picker.toScreen(q.x,heightAt(q.x,q.z)+.4,q.z);if(p.z>1)continue;c.beginPath();c.arc(p.x,p.y,6,0,Math.PI*2);c.stroke();}
+      c.font="bold 12px Segoe UI,sans-serif";c.fillStyle="#baf0d6";c.fillText("Vabasta paremklahv · rühma asetus ja suund",start.x+12,start.y-20);
     }
     const occupants=this.occupants,occupantStamp=Math.floor(world.time*5);
     if(occupantStamp!==this.occupantStamp){

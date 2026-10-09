@@ -30,7 +30,7 @@ function replaceTask(w:World,u:Entity):void {
   u.transportQueue=[];u.transportTargetId=null;u.transportPickupPoint=undefined;u.unloadPoint=null;
   u.garrisonOrderId=undefined;u.garrisonEntryPoint=undefined;
   u.combatPosition=undefined;u.combatPositionTarget=undefined;u.combatPositionAnchor=undefined;u.combatPositionRetryAt=undefined;
-  u.moveQueue=[];u.moveQueueStyles=[];u.moveGroup=undefined;u.fastMove=false;u.patrolPoints=[];
+  u.moveFacing=undefined;u.moveQueue=[];u.moveQueueStyles=[];u.moveGroup=undefined;u.fastMove=false;u.patrolPoints=[];
   u.navPath=[];u.navPathIndex=0;u.roadPathGoal=undefined;u.roadPathRetryAt=undefined;u.taskApproachIndex=0;u.flowField=null;u.avoidanceSide=undefined;u.avoidanceUntil=undefined;u.navWaiting=false;
 }
 
@@ -64,6 +64,11 @@ function formation(n: number, x: number, z: number, kind: FormationKind = "box",
   }
   return out;
 }
+/** Shared nominal placement for the drag preview and actual navigation-safe command. */
+export function formationPoints(units:readonly Entity[],point:Point,kind:FormationKind,facing:number):Point[]{
+ const cos=Math.cos(facing),sin=Math.sin(facing);
+ return formation(units.length,point.x,point.z,kind,Math.max(6.5,...units.map(u=>u.def.radius*2+2))).map(p=>({x:point.x+(p.x-point.x)*cos+(p.z-point.z)*sin,z:point.z-(p.x-point.x)*sin+(p.z-point.z)*cos}));
+}
 function rowsSafe(cols: number, n: number): number { return Math.ceil(n / cols); }
 
 export function applyCommands(w: World): void {
@@ -87,8 +92,9 @@ function apply(w: World, c: Command): void {
     case "amove": {
       const us = mobile(w,c.ids,c.team);
       const center=us.reduce((p,u)=>({x:p.x+u.x/Math.max(1,us.length),z:p.z+u.z/Math.max(1,us.length)}),{x:0,z:0});
-      const angle=Math.atan2(c.x-center.x,c.z-center.z),cos=Math.cos(angle),sin=Math.sin(angle);
-      const pts=formation(us.length,c.x,c.z,w.teamFormations[c.team??w.playerTeam],Math.max(6.5,...us.map(u=>u.def.radius*2+2))).map(p=>({x:c.x+(p.x-c.x)*cos+(p.z-c.z)*sin,z:c.z-(p.x-c.x)*sin+(p.z-c.z)*cos}));
+      const travelAngle=Math.atan2(c.x-center.x,c.z-center.z),facing=Number.isFinite(c.facing)?c.facing:undefined;
+      const angle=facing??travelAngle,cos=Math.cos(angle),sin=Math.sin(angle);
+      const pts=formationPoints(us,{x:c.x,z:c.z},w.teamFormations[c.team??w.playerTeam],angle);
       const lateral=(p:Point)=>p.x*cos-p.z*sin;
       us.sort((a,b)=>lateral(a)-lateral(b)||a.id-b.id);pts.sort((a,b)=>lateral(a)-lateral(b));
       const assigned: Array<Point & {radius:number}>=[];
@@ -117,11 +123,11 @@ function apply(w: World, c: Command): void {
         if(u.def.domain!=="air"&&!path.length){w.events.push({type:"order-rejected",team:u.team,unitId:u.id,x:point.x,z:point.z,message:"Sihtpunktini pole läbitavat teed; kontrolli silda või vali teine kaldapool"});return;}
         if(u.garrisonId&&!leaveGarrison(w,u)){requestGarrisonExit(w,u,point);return;}u.garrisonOrderId=undefined;
         if (append && u.dest && ["move","amove","patrol"].includes(u.mode)) {
-          u.moveQueue??=[];u.moveQueue.push({...point});u.moveQueueStyles??=[];u.moveQueueStyles.push(c.type);
+          u.moveQueue??=[];u.moveQueue.push({...point,facing});u.moveQueueStyles??=[];u.moveQueueStyles.push(c.type);
         } else {
           replaceTask(w,u);
           u.mode = c.type === "amove" ? "amove" : "move";
-          u.fastMove=c.type==="fast-move";u.moveAxis={x:sin,z:cos};u.moveGroup=marchGroup;
+          u.moveFacing=facing;u.fastMove=c.type==="fast-move";u.moveAxis={x:Math.sin(travelAngle),z:Math.cos(travelAngle)};u.moveGroup=marchGroup;
           u.dest = point;u.moveQueue=[];u.moveQueueStyles=[];u.queuedMoveType=u.mode;u.transportQueue=[];
           u.patrolPoints = [];
           u.patrolIndex = 0;

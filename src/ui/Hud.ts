@@ -266,7 +266,7 @@ export class Hud {
                 <div class="tree-hint" data-r="treeHint">Vali HQ või juhtimiskeskus — avab haru.</div>
 
                 <div class="depot-control-bar" data-r="depotControlBar" hidden>
-                  <span class="pre-label">Tarnejuhtimine:</span><button data-logistics-edit="source">Vali rajatis</button><button data-logistics-edit="route">Lisa vahepunkt</button><button data-logistics-edit="clear">Otsetee</button><button data-logistics-edit="auto">Automaatne</button><button data-logistics-edit="pause">Peata / jätka</button><small>Vali rajatis või vahepunkt nupuga, seejärel klõps kaardil. L = otsetee.</small><span class="pre-label">FOB prioriteet:</span>
+                  <span class="pre-label">Tarnejuhtimine:</span><button data-logistics-edit="source">Vali rajatis</button><button data-logistics-edit="route">Lisa vahepunkt</button><button data-logistics-edit="clear">Otsetee</button><button data-logistics-edit="auto">Automaatne</button><button data-logistics-edit="pause">Peata / jätka</button><small>Vali rajatis või vahepunkt nupuga, seejärel paremklõps kaardil. L = otsetee.</small><span class="pre-label">FOB prioriteet:</span>
                   <button data-depot-priority="balanced">Tasakaal</button><button data-depot-priority="ammo">Moon</button><button data-depot-priority="fuel">Kütus</button><button data-depot-priority="repair">Remont</button>
                 </div>
                 <div class="build-buttons" data-r="buildButtons"></div>
@@ -559,7 +559,7 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
       this.setSelectedMarkup(`<button data-close-inspector>↩ Tagasi valiku juurde</button><div class="role-summary">${def.ability??def.roleLabel??""} · Hind ${def.cost} · Baastootmistöö ${def.buildTime} s · Hoone Lv${world.unitRequiredBuildingLevel(kind)}</div><small>${def.squadSize?`Mehi ${def.squadSize} · `:""}HP ${def.hp} · Soomus ${def.armorFront}/${def.armorSide}/${def.armorRear} · Optika ${def.optics} ${Math.round(def.opticsRange??0)} m · Kiirus ${def.speed.toFixed(1)} m/s · Kütus ${def.fuelCapacity??0} · Kulu ${def.fuelUsePerSec??0}/s</small>${weaponCards(world,view)}`);
     }else if (!sel.length) {
       this.el.selT.textContent = "Üksusi pole valitud";
-      this.setSelectedMarkup(`<div class="empty-selection">${icon("focus")}<b>Vali üksus või rühm</b><span>Klõpsa üksusel või tõmba valikukast.</span><span>Parem klõps annab liikumis-, ründe- või sisenemiskäsu.</span><span>Shift lisab järgmise käsu. Esc tühistab sihtkäsu.</span></div>`);
+      this.setSelectedMarkup(`<div class="empty-selection">${icon("focus")}<b>Vali üksus või rühm</b><span>Klõpsa üksusel või tõmba valikukast.</span><span>Parem klõps annab liikumis-, ründe- või sisenemiskäsu.</span><span>Paremklahv + lohistamine määrab rühma asetuse ja suuna. Shift lisab vahepunkti. Esc tühistab.</span></div>`);
     } else if (sel.length === 1) {
       const u = sel[0]!;
       this.el.selT.textContent = world.unitDisplayName(u.kind, u.team);
