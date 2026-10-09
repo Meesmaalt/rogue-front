@@ -421,7 +421,8 @@
           "stabilizer": "full",
           "muzzle": 2.6,
           "muzzleHeight": 0.66,
-          "muzzleSide": 0
+          "muzzleSide": 0,
+          "targetHelicopters": true
         },
         {
           "name": "Hydra 70",
@@ -432,7 +433,7 @@
           "muzzleSide": 1.25
         }
       ],
-      "ability": "Ründekopter: kaug-tankitõrje vajab laskuri kontakti; kahur ja raketid lähitoetuseks, AA vastu habras"
+      "ability": "Ründekopter: kaug-tankitõrje; automaatkahur maa- ja kopterisihtmärkidele, AA vastu habras"
     },
     "gunship": {
       "weapons": [
@@ -1054,7 +1055,8 @@
           "stabilizer": "full",
           "muzzle": 2.6,
           "muzzleHeight": 0.66,
-          "muzzleSide": 0
+          "muzzleSide": 0,
+          "targetHelicopters": true
         },
         {
           "name": "S-8 80 mm",
@@ -1065,7 +1067,7 @@
           "muzzleSide": 1.25
         }
       ],
-      "ability": "Ründekopter: kaug-tankitõrje vajab laskuri kontakti; kahur ja raketid lähitoetuseks, AA vastu habras"
+      "ability": "Ründekopter: kaug-tankitõrje; automaatkahur maa- ja kopterisihtmärkidele, AA vastu habras"
     },
     "gunship": {
       "weapons": [
@@ -1687,7 +1689,8 @@
           "stabilizer": "full",
           "muzzle": 2.6,
           "muzzleHeight": 0.66,
-          "muzzleSide": 0
+          "muzzleSide": 0,
+          "targetHelicopters": true
         },
         {
           "name": "90 mm raketid",
@@ -1698,7 +1701,7 @@
           "muzzleSide": 1.25
         }
       ],
-      "ability": "Ründekopter: kaug-tankitõrje vajab laskuri kontakti; kahur ja raketid lähitoetuseks, AA vastu habras"
+      "ability": "Ründekopter: kaug-tankitõrje; automaatkahur maa- ja kopterisihtmärkidele, AA vastu habras"
     },
     "gunship": {
       "weapons": [

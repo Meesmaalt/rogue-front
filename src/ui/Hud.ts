@@ -38,7 +38,7 @@ function weaponCards(world:World,u:Pick<Entity,"def"|"team"|"activeWeapon"|"ammo
   const team=u.team===0?1:0,tank=world.unitDefinition("tank",team),inf=world.unitDefinition("inf",team),ifv=world.unitDefinition("ifv",team),heli=world.unitDefinition("heli",team);
   const value=(n:number)=>n<.05?"0":n<1?n.toFixed(1):n.toFixed(0);
   return (u.def.weapons??[]).map((s,i)=>{
-    const role=s.targets==="naval"?"Laevatõrje":s.targets==="air"?"Õhutõrje":s.targets==="armor"?"Tankitõrje":s.flight==="ballistic"?"Kaudtuli":s.weapon==="bullet"?"Jalaväetuli":"Tuletoetus";
+    const role=s.targetHelicopters?"Maa- ja kopteritõrje":s.targets==="naval"?"Laevatõrje":s.targets==="air"?"Õhutõrje":s.targets==="armor"?"Tankitõrje":s.flight==="ballistic"?"Kaudtuli":s.weapon==="bullet"?"Jalaväetuli":"Tuletoetus";
     const symbol=s.targets==="naval"?"naval":s.targets==="air"?"aa":s.targets==="armor"?"tank":s.flight==="ballistic"?"artillery":s.weapon==="bullet"?"infantry":"attack";
     const own=!!live&&live.team===world.playerTeam,range=Math.round(live?weaponRange(live,s):s.range);
     const target=own&&live.target&&!live.target.dead&&world.isSpottedByTeam(live.target,live.team)?live.target:null;
@@ -363,10 +363,27 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
   private setSelectedMarkup(markup:string):void {
     if(this.el.selP.dataset.markup===markup)return;
     const context=this.selectedIds.join(",")+"|"+(this.inspectedKind??this.inspectedBuildingId??"");
-    const states=new Map(context===this.selectedMarkupContext?[...this.el.selP.querySelectorAll("details")].map((d,i)=>[d.dataset.detailKey??String(i),{open:d.open,scroll:d.scrollTop}] as const):[]);
+    const sameContext=context===this.selectedMarkupContext;
+    const states=new Map(sameContext?[...this.el.selP.querySelectorAll("details")].map((d,i)=>[d.dataset.detailKey??String(i),{open:d.open,scroll:d.scrollTop}] as const):[]);
     const scroll=this.el.selP.scrollTop;
     this.selectedMarkupContext=context;
-    this.el.selP.dataset.markup=markup;this.el.selP.innerHTML=markup;
+    this.el.selP.dataset.markup=markup;
+    const template=document.createElement("template");template.innerHTML=markup;
+    // Retain existing image/buttons/details while counters change: no whole-card teardown.
+    const patch=(parent:Node,next:Node):void=>{
+      for(let i=0;i<next.childNodes.length;i++){
+        const fresh=next.childNodes[i],old=parent.childNodes[i];
+        if(!old){parent.appendChild(fresh.cloneNode(true));continue;}
+        if(old.nodeType!==fresh.nodeType||old.nodeName!==fresh.nodeName){parent.replaceChild(fresh.cloneNode(true),old);continue;}
+        if(old instanceof Element&&fresh instanceof Element){
+          for(const attr of [...old.attributes])if(!fresh.hasAttribute(attr.name)&&!(old instanceof HTMLDetailsElement&&attr.name==="open"))old.removeAttribute(attr.name);
+          for(const attr of [...fresh.attributes])if(old.getAttribute(attr.name)!==attr.value)old.setAttribute(attr.name,attr.value);
+          patch(old,fresh);
+        }else if(old.nodeValue!==fresh.nodeValue)old.nodeValue=fresh.nodeValue;
+      }
+      while(parent.childNodes.length>next.childNodes.length)parent.removeChild(parent.lastChild!);
+    };
+    if(sameContext)patch(this.el.selP,template.content);else this.el.selP.replaceChildren(template.content);
     this.el.selP.querySelectorAll("details").forEach((d,i)=>{const state=states.get(d.dataset.detailKey??String(i));if(state){d.open=state.open;d.scrollTop=state.scroll;}});
     this.el.selP.scrollTop=scroll;
   }

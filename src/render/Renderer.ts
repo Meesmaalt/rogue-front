@@ -75,11 +75,14 @@ export function createRenderContext(canvas: HTMLCanvasElement, temperate = false
   resize();
 
   const lastShadow=new THREE.Vector3(Infinity,Infinity,Infinity);
+  let nextShadowRefresh=0;
   const updateShadows=(force:boolean)=>{
     if(!profile.shadows)return;
     const extent=Math.max(90,Math.min(230,Math.ceil(camera.position.distanceTo(sun.target.position)*.58/16)*16));
     if(sc.right!==extent){sc.left=-extent;sc.right=extent;sc.top=extent;sc.bottom=-extent;sc.updateProjectionMatrix();force=true;}
-    if(force||sun.position.distanceToSquared(lastShadow)>1){lastShadow.copy(sun.position);renderer.shadowMap.needsUpdate=true;}
+    const now=performance.now();
+    // Camera movement must not redraw the complete static map shadow every frame.
+    if(force||now>=nextShadowRefresh&&sun.position.distanceToSquared(lastShadow)>1){lastShadow.copy(sun.position);renderer.shadowMap.needsUpdate=true;nextShadowRefresh=now+125;}
   };
   return { renderer, scene, camera, sun, post, water, resize, setQuality, updateShadows };
 }

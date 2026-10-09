@@ -2,7 +2,7 @@ import {it,expect,afterEach,vi} from 'vitest';
 import {World} from './World';
 import {resetHeightmap,setBases} from './heightmap';
 import type {MapFeatureDef} from './mapFeatures';
-import {effectiveWeaponRange,weaponSpec,weaponRange,weaponFireBlocker} from './systems/combat';
+import {effectiveWeaponRange,weaponSpec,weaponRange,weaponFireBlocker,selectWeapon,weaponCanTarget} from './systems/combat';
 import {updateUnits,nearestEnemy,combatStatus} from './systems/units';
 import {applyCommands} from './systems/commands';
 import {updateArtillery} from './systems/artillery';
@@ -84,4 +84,23 @@ it('an attacking group chooses separated firing positions around the same target
  w.issue({type:'attack',ids:[a.id,b.id],targetId:t.id});applyCommands(w);step(w,1);
  expect(a.combatPosition).toBeDefined();expect(b.combatPosition).toBeDefined();
  expect(Math.hypot(a.combatPosition!.x-b.combatPosition!.x,a.combatPosition!.z-b.combatPosition!.z)).toBeGreaterThan(a.def.radius+b.def.radius+2);
+});
+
+it('an explicit attack at weapon reach holds position instead of chasing into a shorter gun range',()=>{
+ const w=fixture(),u=w.spawn('ifv',0,-100,0),t=w.spawn('tank',1,0,0);
+ t.standingOrder='holdfire';t.mode='hold';t.holdPosition=true;t.spottedUntil[0]=100;u.heading=Math.PI/2;
+ const range=weaponRange(u,weaponSpec(u,1));t.x=u.x+range*.98+t.def.radius;
+ expect(selectWeapon(u,t)).toBe(1);w.issue({type:'attack',ids:[u.id],targetId:t.id});applyCommands(w);
+ const start=u.x;step(w,60);expect(u.x).toBeCloseTo(start);expect(u.combatHoldingTarget).toBe(t.id);
+ expect(w.events.some(e=>e.type==='fire'&&e.sourceId===u.id&&e.weaponIndex===1)).toBe(true);
+ t.x=u.x+range*1.3+t.def.radius;expect(effectiveWeaponRange(u,t)).toBe(range);
+});
+it('Apache fires its cannon at helicopters while Hellfire and rockets remain ground weapons',()=>{
+ const w=fixture(),u=w.spawn('heli',0,-50,0),t=w.spawn('heli',1,-15,0),jet=w.spawn('fighter',1,-15,30);
+ u.airState=t.airState='airborne';u.y=t.y=28;u.heading=Math.PI/2;t.spottedUntil[0]=100;t.standingOrder='holdfire';t.mode='hold';t.holdPosition=true;
+ expect(weaponCanTarget(weaponSpec(u,1),t)).toBe(true);expect(weaponCanTarget(weaponSpec(u,1),jet)).toBe(false);
+ expect(weaponCanTarget(weaponSpec(u,0),t)).toBe(false);expect(weaponCanTarget(weaponSpec(u,2),t)).toBe(false);
+ w.issue({type:'attack',ids:[u.id],targetId:t.id});applyCommands(w);expect(u.airMission).toBe('cap');step(w,15);
+ expect(w.events.some(e=>e.type==='fire'&&e.sourceId===u.id&&e.weaponIndex===1)).toBe(true);
+ expect(w.projectiles.some(p=>p.sourceId===u.id&&p.weapon==='cannon')).toBe(true);
 });
