@@ -294,7 +294,7 @@ function finishMoveWaypoint(u:Entity):void {
   const next=u.moveQueue?.shift(),style=u.moveQueueStyles?.shift();
   u.fastMove=style==="fast-move";u.mode=next?(style==="amove"?"amove":style?"move":u.queuedMoveType??"move"):"idle";
   u.dest=next??null;u.navPath=[];u.navPathIndex=0;u.flowField=null;
-  if(next){const length=Math.hypot(next.x-u.x,next.z-u.z)||1;u.moveAxis={x:(next.x-u.x)/length,z:(next.z-u.z)/length};}
+  if(next){u.moveFacing=next.facing;const length=Math.hypot(next.x-u.x,next.z-u.z)||1;u.moveAxis={x:(next.x-u.x)/length,z:(next.z-u.z)/length};}
 }
 
 function moveAirTo(u: Entity, target: Point, dt: number, w: World, cruise=false): boolean {
@@ -779,6 +779,8 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       u.roadPathRetryAt=w.time+mobility.navigation.blockedRetry;u.stuckTime=0;u.stuckX=u.x;u.stuckZ=u.z;
     }
   }
+
+  if(!goal&&!target&&u.moveFacing!=null&&u.def.domain==="land"&&!u.garrisonId)u.heading=turnToward(u.heading,u.moveFacing,d.turnRate*dt);
 
   if((u.motionSpeed??0)>mobility.combat.weaponMotionThreshold)u.stationaryFireReadyAt=w.time+mobility.combat.weaponSettleTime;
 
