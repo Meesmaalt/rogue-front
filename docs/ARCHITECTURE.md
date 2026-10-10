@@ -53,6 +53,8 @@ Ressursirajatis käivitatakse inseneriga. Füüsiline kogumistransport annab tar
 
 Formation on meeskonna `Command`, mitte mooduli globaalne UI-olek. v20 salvestus lisab kaardi geomeetria signatuuri, reeglistiku tunnuse ja taastamise vea korral rollback'i. Kohalik salvestusümbris kontrollib missiooni, kõrgusallikat, fraktsiooni ja režiimi. Salvestus sisaldab entiteetide täisolekut, sihtviiteid, mürske, ootel käske, varusid, RNG-d, nägemisvõrku, AI ajastust, decki ja kontrollerite progressi. v2 replay alustab salvestatud algolekust; replay peab kasutama sama kaardi/kõrgusvälja seadistust. Laadimine taastab simulatsiooni ja tühjendab renderdusvaated.
 
+AI operatiivne kaart uuendatakse 8 s otsustusintervallil, mitte igal simulatsioonisammul. Ressursi sihtvalik kasutab tegelikku avalikku omanikku ning kontakte ainult oma luurest. Conquesti ja Breakthrough' ründelained kasutavad sama operatiivset sihti. `knowledge.issueGroundObjective` jätab sama eesmärgi marsi ja nähtava lahingukontakti puutumata; kontrollib ka ootel käske ning laseb baasi kaitsel rünnaku üle võtta. Reservivalik eelistab baasi lähedal valmis üksusi. Taastumispaus kasutab olemasolevat salvestatavat operatiivplaani; TacticalAI teeb tegelikud varustus-/remondikäsud ja taastunud üksused naasevad ründejõusse. Uut eraldi AI olekumälu pole lisatud.
+
 Frondijoon on olukorrainfo. Operatiivne/taktikaline AI käsutab üksnes vastast ja on võrgumängus välja lülitatud. Decki kasutamisel tulevad üksused ainult tootmisjärjekorrast ning nende saadavust piiravad decki kaardid.
 
 ## Ühendatud 3D-tehnika

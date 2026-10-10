@@ -1,4 +1,4 @@
-import {knownContacts,availableCombat,fieldCombat,needsRecovery,componentDamage,AI_RULES} from "./knowledge";
+import {knownContacts,availableCombat,fieldCombat,needsRecovery,componentDamage,issueGroundObjective,offensiveForce,AI_RULES} from "./knowledge";
 import {researchStatus,unitUpgradeStatus} from "../unitStats";
 import {MAP_SIZE} from "../heightmap";
 import type { World } from "../World";
@@ -282,7 +282,8 @@ export class WaveAI {
       ).slice(0, 5);
       for (const u of qrf) {
         if(w.time<(u.aiDecisionAt??0))continue;u.aiDecisionAt=w.time+AI_RULES.decisionInterval;
-        u.aiIntent="defend";w.issue(u.def.armor==="air"?{type:"air-mission",ids:[u.id],mission:"ground",x:threat.x,z:threat.z,team:1}:{type:"amove",ids:[u.id],x:threat.x,z:threat.z,team:1});
+        if(u.def.armor==="air"){u.aiIntent="defend";w.issue({type:"air-mission",ids:[u.id],mission:"ground",x:threat.x,z:threat.z,team:1});}
+        else issueGroundObjective(w,u,threat,"defend");
       }
     }
     // Guard depots that are forward / under-supplied
@@ -436,27 +437,29 @@ export class WaveAI {
       e.loadedIntoId === null && availableCombat(e)
     );
     for (const u of defenders.slice(0, 10)) {
-      u.aiIntent="defend";w.issue(u.def.armor==="air"?{type:"air-mission",ids:[u.id],mission:"ground",x:threat.x,z:threat.z,team:1}:{type:"amove",ids:[u.id],x:threat.x,z:threat.z,team:1});
+      if(u.def.armor==="air"){u.aiIntent="defend";w.issue({type:"air-mission",ids:[u.id],mission:"ground",x:threat.x,z:threat.z,team:1});}
+      else issueGroundObjective(w,u,threat,"defend");
     }
   }
 
   private counterAttack(w: World): void {
-    if (this.phase === "bootstrap") return;
+    if (this.phase === "bootstrap"||["defend","withdraw"].includes(w.operationalCommander.plans[1].objective)) return;
     const threatened = w.resourcePoints
       .filter(r => w.vision.isVisible(1,r.x,r.z) && r.controlledBy === 0 && r.amount > 0)
       .map(r => ({ r, d: Math.hypot(r.x - w.bases[1].x, r.z - w.bases[1].z) }))
       .sort((a, b) => a.d - b.d)[0];
     if (!threatened) return;
     const candidates=w.entities.filter(e=>e.team===1&&availableCombat(e)&&!needsRecovery(e)&&["tank","inf","artillery","special","ifv"].includes(e.kind));
-    const army=candidates.slice(Math.max(1,Math.floor(candidates.length*AI_RULES.reserveRatio)));
+    const army=offensiveForce(w,1,candidates);
     if (army.length < 4) return;
     army.filter(e => e.kind !== "artillery").forEach((u, i) => {
-      u.aiIntent='attack';w.issue({type:'amove',ids:[u.id],x:threatened.r.x+(i%3-1)*8,z:threatened.r.z+(i%2)*6,team:1});
+      issueGroundObjective(w,u,{x:threatened.r.x+(i%3-1)*8,z:threatened.r.z+(i%2)*6},'attack');
     });
     army.filter(e=>e.kind==='artillery').forEach(u=>w.issue({type:'fire-mission',ids:[u.id],x:threatened.r.x,z:threatened.r.z,team:1}));
   }
 
   private launchAttack(w: World): void {
+    if(["defend","withdraw"].includes(w.operationalCommander.plans[1].objective))return;
     const army = w.entities.filter(e =>
       !e.dead && e.team === 1 && e.def.domain!=="sea" && e.def.speed > 0 &&
       !["engineer", "transport"].includes(e.kind) && e.loadedIntoId === null && availableCombat(e) && !needsRecovery(e)
@@ -466,14 +469,15 @@ export class WaveAI {
 
     // Prefer logistics targets (Wargame)
     const targets=knownContacts(w,1).filter(c=>['supply','generator','refinery','factory','barracks','helipad','airbase','hq'].includes(c.kind)).sort((a,b)=>this.attackValue(b.kind)-this.attackValue(a.kind));
-    const target=targets[0]??{...w.bases[0],kind:'hq' as const};
+    const sector=(w.matchController?.mode==='conquest'||w.matchController?.mode==='breakthrough')?w.operationalMap.nearestObjective(1,w.operationalCommander.plans[1].sectorId):null;
+    if(w.matchController?.mode==='conquest'&&!sector)return;
+    const target=sector?.center??targets[0]??{...w.bases[0],kind:'hq' as const};
     // Only commit units that are in supply (don't overextend dry)
     const committed=army.filter(u=>(u.supply??100)>=AI_RULES.recoveredSupply);
-    const reserve=Math.max(1,Math.floor(committed.length*AI_RULES.reserveRatio));
-    const force=committed.slice(reserve);if(force.length<minArmy)return;
+    const force=offensiveForce(w,1,committed);if(force.length<minArmy)return;
 
     for (const u of force.filter(e => !["artillery","mortar","mlrs"].includes(e.kind) && e.def.armor !== "air")) {
-      u.aiIntent='attack';w.issue({type:'amove',ids:[u.id],x:target.x+(this.rngPick(w)-.5)*16,z:target.z+(this.rngPick(w)-.5)*16,team:1});
+      issueGroundObjective(w,u,sector?w.operationalMap.objectivePosition(sector,u.id):{x:target.x+(this.rngPick(w)-.5)*16,z:target.z+(this.rngPick(w)-.5)*16},'attack');
     }
     const fresh=knownContacts(w,1).some(c=>c.x===target.x&&c.z===target.z);
     for(const u of force.filter(e=>['artillery','mortar','mlrs'].includes(e.kind)))if(fresh)w.issue({type:'fire-mission',ids:[u.id],x:target.x,z:target.z,team:1});
