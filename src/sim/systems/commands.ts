@@ -67,7 +67,7 @@ function formation(n: number, x: number, z: number, kind: FormationKind = "box",
 /** Shared nominal placement for the drag preview and actual navigation-safe command. */
 export function formationPoints(units:readonly Entity[],point:Point,kind:FormationKind,facing:number):Point[]{
  const cos=Math.cos(facing),sin=Math.sin(facing);
- return formation(units.length,point.x,point.z,kind,Math.max(6.5,...units.map(u=>u.def.radius*2+2))).map(p=>({x:point.x+(p.x-point.x)*cos+(p.z-point.z)*sin,z:point.z-(p.x-point.x)*sin+(p.z-point.z)*cos}));
+ return formation(units.length,point.x,point.z,kind,Math.max(mobility.navigation.formationMinimumSpacing,...units.map(u=>u.def.radius*4+mobility.navigation.formationPassingGap))).map(p=>({x:point.x+(p.x-point.x)*cos+(p.z-point.z)*sin,z:point.z-(p.x-point.x)*sin+(p.z-point.z)*cos}));
 }
 function rowsSafe(cols: number, n: number): number { return Math.ceil(n / cols); }
 

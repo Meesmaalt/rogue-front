@@ -1,15 +1,17 @@
-# Aktiivne viimistlusjärjekord — 09.10.2026
+# Aktiivne viimistlusjärjekord — 10.10.2026
 
 Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on järgmise arenduse alus; hilisemad vanad etapid ja märkeruudud jäävad ajalooliseks loendiks. Pakett loetakse tehtuks põhiplaani lõpetamistingimuste järgi, mitte funktsiooni nime olemasolu järgi.
 
 - [x] Kasutatava alpha ulatuse, viie viimistluspaketi ja alpha/beta lõpetamiskriteeriumide uuendamine (08.10.2026).
-- [ ] V1 (järgmine): kaadriaja/sim-aja kerged mõõdikud, sama Roheoru 60–90 s stseeni võrdlus ning suurima tõendatud kitsaskoha parandus; GameLoop ajavõla ja kvaliteedieelarvete ülevaatus.
+- [ ] V1 brauserivärav: PR #15 mõõdikutega sama Roheoru 60–90 s stseeni võrdlus ja suurima mõõdetud kitsaskoha parandus; päris FPS/visuaal endiselt kinnitamata.
 - [ ] V2: grupijuhtimise, maa-/õhuliikumise ja lahingu tunnetuse lõpetamine.
 - [ ] V3: majanduse, füüsilise logistika ja AI matšitempo lõpetamine.
 - [ ] V4: selge HUD ja Roheoru ühtne visuaalne viimistlus.
 - [ ] V5: õpetuse/save-load läbipääs ning DEVELOPMENT-PLAN.md alpha värav; seejärel A6 lõpetatuks.
 
 ## Teostatud alused ja seniste pakettide seis
+
+- [x] V2 grupi saabumise ja läbipääsu parandus: tehnikale läbipääsu lubav lõppformatsioon (sama paremlohistuse eelvaade), kohapeal pidurdamine katkisel marsruudil ja automaatne uus katse, lõppsuund alles pärast saabumist/pidurdamist, kohene lähivahepunkti teeuuendus, nullpikkuse sihi kaitse, pööramise/jam-taimeri eristus; parkimiskokkupõrke ühine raadiustegur ning vaba täpse sihtkoha jaoks sobiv lõpurakk; kolonnis sortimiseta elav eelkäijaotsing, sama sõidurea ootevahe ning seisma jäänud liikujatest möödumine. Build + 24 sihitud kontrolli, sh 12 tanki sillaületus ja paigutumine. Päris brauseri juhtimistunnetus ja kogu V2 marsruudivärav jäävad avatuks.
 
 - [x] V1 käitus- ja renderdusalus: F8 mõõtevaade/JSON-väljavõte, tegeliku kaadriajaga FPS, säiliv aktiivne sim-ajavõlg, eraldi taustapaus, staatilise maastiku maatriksite kordustöö eemaldamine, madal kvaliteet 0.75 renderdusresolutsiooniga; ekraaniringide asemel tegelikust Vision-ruudustikust maailma koordinaatides maastikuudu ja sujuv üleminek. Build + 15 sihitud kontrolli. Cloud-brauser ei pääsenud kohaliku arendusserveri juurde (connection refused); päris FPS/visuaali värav jääb avatuks.
 
