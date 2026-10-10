@@ -9,6 +9,13 @@ export interface UnitMarkerRect {id:number;x:number;y:number;width:number;height
 
 /** Ekraani ↔ maailma teisendused: üksuse valik hiirega ja maapinna leidmine. */
 export class Picker {
+  private presentation:((id:number)=>Readonly<{x:number;y:number;z:number}>|null)|null=null;
+  /** Use the last rendered pose for mouse hits and canvas markers. */
+  setPresentation(provider:(id:number)=>Readonly<{x:number;y:number;z:number}>|null):void {this.presentation=provider;}
+  entityPosition(e:Entity):Readonly<{x:number;y:number;z:number}> {return this.presentation?.(e.id)??e;}
+  entityScreen(e:Entity,height=0):{x:number;y:number;z:number} {
+    const p=this.entityPosition(e);return this.toScreen(p.x,p.y+height,p.z);
+  }
   private readonly lastView=new Float64Array(32).fill(NaN);
   private version=0;
   /** Cheap change detection without per-frame strings or matrix allocations. */
@@ -45,9 +52,9 @@ export class Picker {
     for (const e of this.world.entities) {
       if (e.dead || e.loadedIntoId!=null || e.team !== team) continue;
       if (team !== this.world.playerTeam && !this.world.isSpottedByTeam(e, this.world.playerTeam)) continue;
-      const cy = e.y + e.def.height * 0.5, p = this.toScreen(e.x, cy, e.z);
+      const pose=this.entityPosition(e),cy=pose.y+e.def.height*.5,p=this.toScreen(pose.x,cy,pose.z);
       if (p.z > 1) continue;
-      const lim = 12 + e.def.radius * this.pxPerUnit(e.x, cy, e.z), d = Math.hypot(p.x - mx, p.y - my);
+      const lim = 12 + e.def.radius * this.pxPerUnit(pose.x, cy, pose.z), d = Math.hypot(p.x - mx, p.y - my);
       if (d < lim && (best === null || d - lim < bs)) { best = e; bs = d - lim; }
     }
     return best;

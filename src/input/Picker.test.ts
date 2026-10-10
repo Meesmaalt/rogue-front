@@ -1,0 +1,20 @@
+import {afterEach,expect,it,vi} from "vitest";
+import {PerspectiveCamera} from "three";
+import {Picker} from "./Picker";
+import {World} from "../sim/World";
+import {resetHeightmap} from "../sim/heightmap";
+afterEach(()=>{resetHeightmap();vi.unstubAllGlobals();});
+it("picks the rendered pose while preserving fog, loaded-unit and stale-marker gates",()=>{
+ vi.stubGlobal("innerWidth",1000);vi.stubGlobal("innerHeight",700);
+ const world=new World(71,false,[],[],[],false),unit=world.spawn("tank",0,-100,0),enemy=world.spawn("tank",1,100,0);
+ const camera=new PerspectiveCamera(50,1000/700,.1,2000);camera.position.set(0,120,180);camera.lookAt(0,0,0);camera.updateMatrixWorld();
+ const picker=new Picker(camera,world),pose={x:0,y:0,z:0};picker.setPresentation(id=>id===unit.id?pose:null);
+ const screen=picker.entityScreen(unit,unit.def.height*.5);
+ expect(picker.pickEntity(screen.x,screen.y,0)?.id).toBe(unit.id);
+ expect(unit.x).toBe(-100);expect(picker.entityPosition(unit)).toBe(pose);
+ picker.setUnitMarkers([{id:enemy.id,x:0,y:0,width:40,height:20}]);
+ expect(picker.pickEntity(20,10,1)).toBeNull();
+ picker.setUnitMarkers([{id:unit.id,x:0,y:0,width:40,height:20}]);unit.loadedIntoId=99;
+ expect(picker.pickEntity(20,10,0)).toBeNull();
+ unit.loadedIntoId=null;picker.setPresentation(()=>null);expect(picker.entityPosition(unit)).toBe(unit);
+});

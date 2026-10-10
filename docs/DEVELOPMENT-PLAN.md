@@ -50,6 +50,8 @@ V3 funktsionaalne arendusetapp on lõpetatud (10.10.2026): 15 minuti Roheoru sim
 
 V4 arendus (10.10.2026): HUD toob valitud üksuse relvad, ulatuse ja laskmise põhjuse enne avatavat maastiku-/varustusinfot; soomus/optika on lühikaardil. Mängumenüü vähendab ülariba nuppe ja ehitusvaade mahutab tarnejuhtimise. Roheoru tsiviilhooned kasutavad mõlemas LOD-is sama fassaadiatlast; aknageomeetria vähendatud, sissepääs/korsten säilivad kaugvaates. Õuesillutis väldib tee-/veealasid, sillakate kasutab tee maailma-UV skaalat, avatud piirded koondatakse staatilistesse partiidesse. Build ja viis sihitud geomeetria/fog/ulatuse kontrolli läbisid. See ei kinnita brauseri visuaalset loetavust ega FPS-võitu: V4 lõpetamistingimus jääb avatuks kuni tegeliku vaatluse ja V1 võrdluseni.
 
+V4 kaugvaate ühendus: mudeli renderdatud positsioon juhib ka nimesilte ja hiire-/kastivalikut, eemaldades nende vahel tickipõhise positsioonierinevuse. Siltide hõiveruudustik arvestab paneelide ja varuhoiatustega, säilitab suhtelist rida ning korduvkasutab puhvreid. Viimati nähtud kontakt saab katkendliku raami ja vanuse ilma elava sihtmärgi valikupinnata. Build ja kaheksa sihitud sisendi/paigutuse kontrolli läbisid; brauseri sujuvuse/FPS/loetavuse värav endiselt avatud.
+
 V1 alustab lühikese tegeliku vaatluse ja mõõtmisega, mitte uue optimeerimiskihi kirjutamisega. Kui nähtav juhtimisviga takistab mõõtestseeni või mängimist, parandatakse see kohe. V4 väiksemad UI/visuaaliparandused tehakse ka V1–V3 sees, kui need aitavad sama probleemi lahendada. Uut suurt teemat enne käimasoleva paketi lõpetamist ei alustata.
 
 ## Alpha väljalaske värav
