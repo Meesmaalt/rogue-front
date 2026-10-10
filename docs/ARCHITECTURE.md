@@ -258,3 +258,13 @@ formationPoints kasutab mobility.navigation vaheandmeid: jalaväe minimaalne vah
 Kui vastuvõetud marsruut katkeb, jääb eesmärk alles: üksus pidurdab paigal, näitab katkist teed ja proovib olemasoleva retry-timeri järgi uuesti. Vaba koha peal pööramist ei loeta seismajäämiseks; kokkupõrkes kinni pööramine säilitab ummiku tuvastuse; jam-time lisandub ühe korra sammus. Lõppsuund rakendub alles idle/null-dest olekus ja väikese kiirusega, mitte kolonni ootamise või pidurduskaare ajal. Vahepunkti lõpetamine kustutab vana teesihtkoha ja retry-timeri ka alla 5 m järgmise sammu jaoks.
 
 Pathfinder-i pargitud üksuste vältimine ja bodyClear kasutavad sama data-põhist raadiustegurit/vahet. Kui läbitav täpne eesmärk ümardub pargitud üksuse rakku, otsitakse väiksest lõpuraku naabrusest vaba kandidaat ja kontrollitakse viimast lõiku täpse eesmärgini; käsku ei muudeta läbimatuks pelgalt ruudustiku ümardamise tõttu. Uusi salvestatavaid entiteedivälju ei lisatud; fikseeritud samm ja külvatud sim säilivad.
+
+## V3: füüsiline tarne ja AI taastumine
+
+stockLogistics.withdrawPayload laadib olemasoleva lao-FOB veoki sihtlao puudujääkide ja logisticsPriority järgi. Kaalud tulevad logistics.json-ist; kasutamata osad jaotatakse teiste vajalike varude vahel, järgides pealao convoyReserve-i ja veoki kogumahutavust. Laos kulutatakse ainult päriselt pardale pandud varu; transport/depositPayload ei tekita raha. Ühe varuliigi puudusel võib veok selle liigi jaoks kasutada kogu vaba mahutavuse.
+
+nearestSupplyDepot jätab kahjustatud laod välja ja piirab productionStock valiku logistics.depot.productionRadius-ega. Tootmise gate ning tegelik materjalikulu kasutavad sama kohalikku valikut; kaugem täis ladu ei varja kohaliku lao tühjust ega tarnepuuduse põhjust.
+
+WaveAI ootel ehitus-, research-, upgrade- ja tootmiskäsud kasutavad sama ühe update'i eelarvet. Tuletatud pendingProduction/pendingUnits väldivad sama otsustusringi järjekorra ületäitmist; need nullitakse iga AI update'i algul ega vaja save/hash välju. Tavakulutused hoiavad economyReserve-i; põhitaristu ja inseneride taastamine võivad reservi kasutada. engineerReserve kehtib igas doktriinifaasis ning puuduvate inseneride tootmisvõime taastamine eelistab vajadusel strateegiakeskust ja barracksi taset. Aktiveeritud rajatise töötaja vabastatakse; üks allesjäänud insener võib pärast lao rajamist tööstuse käivitada. Edasilao asukoht otsitakse läbitava ehituskoha ning olemasoleva tarne-/command-ühenduse järgi, mitte lihtsalt kaardi keskpunkti.
+
+Kontrollitud on koorma jäävus/prioriteet, kohaliku lao katkestus/taastumine, inseneride asendamine pressure-faasis ning ootel ostude eelarve/järjekorrad. Pika matši tempo, kogu tarnekaotuse taastumisahel ja brauseritunnetus pole selle paketiga kinnitatud.

@@ -1,4 +1,4 @@
-import {collectionSource,depositPayload,stockCapacity} from "../stockLogistics";
+import {collectionSource,depositPayload,withdrawPayload} from "../stockLogistics";
 import {garrisonFaces} from "../garrison";
 import {prepareTransport,transportCapacity} from "../transport";
 import {travelPathCost} from "../unitStats";
@@ -233,13 +233,7 @@ function updateRoadTruck(w: World, u: Entity, dt: number): void {
     if(!w.connectedSupplyNodes(u.team).some(n=>n.id===depot.id))return;
     u.logisticsLoadProgress=(u.logisticsLoadProgress??0)+dt;
     if(u.logisticsLoadProgress<3)return;
-    const payload={ammo:0,fuel:0,repair:0};
-    const keys=["ammo","fuel","repair"] as const;
-    for(const key of keys){const stockKey=key==="ammo"?"ammoStock":key==="fuel"?"fuelStock":"repairStock";
-      const request=Math.min(cap/3,Math.max(0,stockCapacity(w,depot)[key]-(depot[stockKey]??0)));
-      const take=Math.min(request,Math.max(0,(main[stockKey]??0)-logisticsConfig.convoyReserve));
-      main[stockKey]=(main[stockKey]??0)-take;payload[key]=take;
-    }
+    const payload=withdrawPayload(w,main,depot,cap);
     u.cargo=payload.ammo+payload.fuel+payload.repair;u.logisticsPayload=payload;u.logisticsLoadProgress=0;
     u.logisticsPhase="loading";
     if(u.cargo<=0){u.mode="idle";return;}

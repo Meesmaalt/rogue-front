@@ -14,6 +14,9 @@
   "localThreatRadius": 70,
   "outnumberedRatio": 1.6,
   "economyReserve": 120,
+  "engineerReserve": 2,
+  "forwardDepotStep": 72,
+  "productionQueueTarget": 2,
   "raidValues": {
     "supply": 140,
     "generator": 130,

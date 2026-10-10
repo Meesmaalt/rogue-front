@@ -12,6 +12,7 @@
     "maxFleet": 3
   },
   "depot": {
+    "productionRadius": 80,
     "ammoCapacity": 1200,
     "fuelCapacity": 1600,
     "repairCapacity": 600,
