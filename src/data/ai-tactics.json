@@ -33,5 +33,14 @@
   "readyComponentDamage": 25,
   "repairDispatchRadius": 160,
   "recoveryPathCandidates": 3,
-  "servicePadding": 6
+  "servicePadding": 6,
+  "operationalInterval": 8,
+  "operationalOrdersPerDecision": 4,
+  "orderGoalTolerance": 26,
+  "objectiveDistanceScale": 100,
+  "objectiveContinuityBonus": 0.6,
+  "objectiveSpacing": 10,
+  "objectiveSpread": 13,
+  "capturePositionFraction": 0.65,
+  "orderArrivalTolerance": 6
 }

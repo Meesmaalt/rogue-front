@@ -1,4 +1,4 @@
-import {knownContacts,visibleEnemies,availableCombat,fieldCombat,needsRecovery,AI_RULES} from "./ai/knowledge";
+import {knownContacts,visibleEnemies,availableCombat,fieldCombat,needsRecovery,issueGroundObjective,offensiveForce,AI_RULES} from "./ai/knowledge";
 import {stockTotal,stockCapacity} from "./stockLogistics";
 import type { World } from "./World";
 import type { Entity, Point, Team } from "./types";
@@ -46,14 +46,25 @@ export class OperationalMap {
     const d = this.world.nearestSupplyDepot(team, p, true); if (!d) return 0;
     const dist = Math.hypot(d.x-p.x,d.z-p.z); return Math.max(0, 1-dist/180);
   }
-  nearestObjective(team: Team): OperationalSector | null {
+  objectiveSecured(team:Team,s:OperationalSector):boolean {
+    if(!s.id.startsWith('resource-'))return false;
+    return this.world.resourcePoints[Number(s.id.slice(9))]?.controlledBy===team;
+  }
+  nearestObjective(team: Team, preferredId?:string|null): OperationalSector | null {
     const contacts=knownContacts(this.world,team),base=this.world.bases[team];
-    const conquest=this.world.matchController?.mode==='conquest';
-    const candidates=this.sectors.filter(s=>s.id!==`base-${team}`&&(!conquest||s.id.startsWith('resource-')));
-    return candidates.sort((a,b)=>{
-      const score=(s:OperationalSector)=>s.value-Math.hypot(s.center.x-base.x,s.center.z-base.z)/100-(s.control[team]>0?2:0)+contacts.filter(c=>Math.hypot(c.x-s.center.x,c.z-s.center.z)<s.radius).length*.2;
-      return score(b)-score(a);
-    })[0]??null;
+    const mode=this.world.matchController?.mode;
+    if(mode==='breakthrough')return this.sectors.find(s=>s.id===`base-${team===0?1:0}`)??null;
+    const candidates=this.sectors.filter(s=>s.id!==`base-${team}`&&
+      (mode!=='conquest'||s.id.startsWith('resource-'))&&!this.objectiveSecured(team,s));
+    const score=(s:OperationalSector)=>s.value-Math.hypot(s.center.x-base.x,s.center.z-base.z)/AI_RULES.objectiveDistanceScale+
+      (s.id===preferredId?AI_RULES.objectiveContinuityBonus:0)+contacts.filter(c=>Math.hypot(c.x-s.center.x,c.z-s.center.z)<s.radius).length*.2;
+    return candidates.sort((a,b)=>score(b)-score(a)||(a.id<b.id?-1:a.id>b.id?1:0))[0]??null;
+  }
+  objectivePosition(s:OperationalSector,seed:number):Point {
+    const resource=s.id.startsWith('resource-')?this.world.resourcePoints[Number(s.id.slice(9))]:null;
+    const a=(seed%17)/17*Math.PI*2;
+    const r=resource?resource.radius*AI_RULES.capturePositionFraction:AI_RULES.objectiveSpacing+seed%AI_RULES.objectiveSpread;
+    return {x:s.center.x+Math.cos(a)*r,z:s.center.z+Math.sin(a)*r};
   }
 
   sectorForPoint(p: Point): OperationalSector | null { return this.sectors.filter(s => Math.hypot(s.center.x-p.x,s.center.z-p.z)<=s.radius).sort((a,b)=>b.value-a.value)[0] ?? null; }
@@ -67,34 +78,38 @@ export class OperationalCommander {
   ];
   constructor(readonly map: OperationalMap, private readonly world: World) {}
   tick(dt: number): void {
-    if (dt <= 0 || this.world.time < 8 || Math.floor(this.world.time * 2) % 2 !== 0) return;
+    if (this.world.networkMode || dt <= 0 || this.world.time < AI_RULES.operationalInterval) return;
+    const team=this.world.playerTeam===0?1:0;
+    if(this.world.time-this.plans[team].lastDecision<AI_RULES.operationalInterval)return;
     this.map.tick();
-    if (!this.world.networkMode) this.commandTeam(this.world.playerTeam === 0 ? 1 : 0);
+    if (!this.world.networkMode) this.commandTeam(team);
   }
   private commandTeam(team: Team): void {
     const p = this.plans[team];
-    if (this.world.time - p.lastDecision < 8) return;
-    const combat=this.world.entities.filter(e=>e.team===team&&fieldCombat(e)&&e.def.armor!=='air');
+    if (this.world.time - p.lastDecision < AI_RULES.operationalInterval) return;
+    const combat=this.world.entities.filter(e=>e.team===team&&fieldCombat(e)&&e.def.armor!=='air'&&e.def.domain!=='sea');
     const damaged=combat.filter(needsRecovery),contacts=knownContacts(this.world,team),threat=visibleEnemies(this.world,team);
     const base=this.world.bases[team];
     const nearBase=threat.filter(e=>Math.hypot(e.x-base.x,e.z-base.z)<AI_RULES.defenseRadius);
-    let objective=this.map.nearestObjective(team);
-    if(damaged.length>Math.max(2,combat.length*.3))p.objective='withdraw';
-    else if(nearBase.length){p.objective='defend';objective=this.map.sectors.find(s=>s.id===`base-${team}`)??objective;}
+    let objective=this.map.nearestObjective(team,p.sectorId);
+    if(nearBase.length){p.objective='defend';objective=this.map.sectors.find(s=>s.id===`base-${team}`)??objective;}
+    else if(damaged.length>Math.max(2,combat.length*.3))p.objective='withdraw';
     else p.objective=contacts.some(c=>objective&&Math.hypot(c.x-objective.center.x,c.z-objective.center.z)<objective.radius)?'attack':'secure';
     p.sectorId=objective?.id??null;p.lastDecision=this.world.time;p.committed=0;
     if(!objective||p.objective==='withdraw')return;
     const available=combat.filter(e=>availableCombat(e)&&!needsRecovery(e)&&!['artillery','mortar','mlrs'].includes(e.kind)).sort((a,b)=>a.id-b.id);
     const reserve=Math.max(1,Math.floor(available.length*p.reserveRatio));
-    const force=p.objective==='defend'?available.slice(0,Math.max(reserve,nearBase.length*2)):available.slice(reserve);
-    for(const e of force.slice(0,4)){
-      if(e.mode!=='idle'&&e.aiIntent!=='defend'&&e.aiIntent!=='attack')continue;
-      const point=this.offsetObjective(p.objective==='defend'&&nearBase[0]?nearBase[0]:objective.center,e.id);
-      e.aiIntent=p.objective==='defend'?'defend':'attack';this.world.issue({type:'amove',ids:[e.id],...point,team});p.committed++;
+    const force=p.objective==='defend'?available.slice(0,Math.max(reserve,nearBase.length*2)):offensiveForce(this.world,team,available,p.reserveRatio);
+    let issued=0;
+    for(const e of force){
+      if(e.mode!=='idle'&&e.mode!=='hold'&&e.aiIntent!=='defend'&&e.aiIntent!=='attack')continue;
+      const point=p.objective==='defend'&&nearBase[0]?nearBase[0]:this.map.objectivePosition(objective,e.id);
+      if(issueGroundObjective(this.world,e,point,p.objective==='defend'?'defend':'attack'))issued++;
+      if(issued>=AI_RULES.operationalOrdersPerDecision)break;
     }
+    p.committed=force.filter(e=>e.aiIntent==='attack'||e.aiIntent==='defend').length;
   }
 
-  private offsetObjective(p: Point, seed: number): Point { const a=(seed%17)/17*Math.PI*2, r=10+(seed%13); return {x:p.x+Math.cos(a)*r,z:p.z+Math.sin(a)*r}; }
 }
 
 /** Phase 85: FOB/deployment manager. FOBs create forward operational staging areas. */
