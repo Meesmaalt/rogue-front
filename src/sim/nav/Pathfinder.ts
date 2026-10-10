@@ -1,5 +1,6 @@
 import type { Point } from "../types";
 import { NavGrid } from "./NavGrid";
+import mobility from "../../data/mobility.json";
 
 interface Node { id: number; f: number; g: number }
 
@@ -37,10 +38,26 @@ function workspaceFor(grid:NavGrid):SearchWorkspace {
   return cache;
 }
 export function findPath(grid: NavGrid, from: Point, to: Point, radius = 0, cost?:PathCost,avoid:readonly (Point&{radius:number})[]=[]): Point[] {
-  const blocked=(x:number,z:number)=>{if(grid.isBlocked(x,z,radius))return true;if(!avoid.length)return false;const p=grid.cellToWorld(x,z);return avoid.some(o=>{const distance=Math.hypot(p.x-o.x,p.z-o.z);return distance<o.radius+radius+.3&&distance<Math.hypot(from.x-o.x,from.z-o.z)-.01;});};
+  const blocked=(x:number,z:number)=>{if(grid.isBlocked(x,z,radius))return true;if(!avoid.length)return false;const p=grid.cellToWorld(x,z);return avoid.some(o=>{const distance=Math.hypot(p.x-o.x,p.z-o.z);return distance<(o.radius+radius)*mobility.navigation.bodyRadiusFactor+mobility.navigation.bodyClearance&&distance<Math.hypot(from.x-o.x,from.z-o.z)-.01;});};
   const s = grid.nearestWalkable(from, radius), g = grid.nearestWalkable(to, radius);
   if (!s || !g) return [];
-  const sc = grid.worldToCell(s.x, s.z), gc = grid.worldToCell(g.x, g.z);
+  const sc = grid.worldToCell(s.x, s.z);let gc = grid.worldToCell(g.x, g.z);
+  // A valid exact destination can round into a parked unit's cell. Choose a
+  // nearby clear cell with a safe final segment, rather than rejecting the order.
+  if(avoid.length&&blocked(gc.x,gc.z)){
+    const candidates:Array<{x:number;z:number;distance:number}>=[],extent=mobility.navigation.pathEndpointSearchCells;
+    for(let dz=-extent;dz<=extent;dz++)for(let dx=-extent;dx<=extent;dx++){
+      const x=gc.x+dx,z=gc.z+dz;if(!grid.inBounds(x,z)||blocked(x,z))continue;
+      const p=grid.cellToWorld(x,z),distance=Math.hypot(p.x-to.x,p.z-to.z),steps=Math.max(1,Math.ceil(distance));let clear=true;
+      for(let i=1;i<=steps;i++){
+        const px=p.x+(to.x-p.x)*i/steps,pz=p.z+(to.z-p.z)*i/steps;
+        if(!grid.isWalkableWorld(px,pz,radius)||avoid.some(o=>Math.hypot(px-o.x,pz-o.z)<(o.radius+radius)*mobility.navigation.bodyRadiusFactor+mobility.navigation.bodyClearance&&Math.hypot(px-o.x,pz-o.z)<Math.hypot(from.x-o.x,from.z-o.z)-.01)){clear=false;break;}
+      }
+      if(clear)candidates.push({x,z,distance});
+    }
+    candidates.sort((a,b)=>a.distance-b.distance||grid.index(a.x,a.z)-grid.index(b.x,b.z));
+    if(!candidates.length)return [];gc=candidates[0];
+  }
   const {gs,parent,closed,seen,generation}=workspaceFor(grid);
   const sid=grid.index(sc.x,sc.z),gid=grid.index(gc.x,gc.z),heap=new MinHeap();
   gs[sid]=0;parent[sid]=-1;seen[sid]=generation;

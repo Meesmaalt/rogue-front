@@ -88,12 +88,15 @@
     "lookAhead": 7,
     "arrival": 1.2,
     "bodyClearance": 0.15,
+    "bodyRadiusFactor": 0.9,
     "sidestep": 0.8,
     "destinationSearch": 28,
     "firingDistance": 0.8,
     "firingPositionRetry": 1.5,
     "firingTargetMove": 8,
     "coverPreference": 18,
+    "formationMinimumSpacing": 6.5,
+    "formationPassingGap": 2,
     "groupReformDistance": 24,
     "groupJoinDistance": 40,
     "columnWidth": 6,
@@ -105,6 +108,7 @@
     "blockedRetry": 1.8,
     "jamDelay": 1.2,
     "parkedSearchRadius": 36,
+    "rerouteStoppedSpeed": 0.3,
     "vehicleFiringFactors": [
       1,
       0.95
@@ -114,6 +118,8 @@
       0.65,
       0.4
     ],
+    "turningProgressAngle": 0.35,
+    "pathEndpointSearchCells": 2,
     "cornerLookAhead": 12,
     "cornerSpeedFloor": 0.3,
     "queuePassDistance": 2,

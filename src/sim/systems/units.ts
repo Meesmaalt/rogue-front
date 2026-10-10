@@ -74,7 +74,7 @@ function bodyClear(w:World,u:Entity,p:Point):boolean {
   let clear=true;
   w.spatial.queryRadius(p.x,p.z,u.def.radius+8,o=>{
     if(o===u||o.dead||o.garrisonId||o.loadedIntoId!=null||o.def.speed===0||o.def.domain!=="land")return;
-    const old=dist2d(u,o),next=dist2d(p,o),min=(u.def.radius+o.def.radius)*.9+mobility.navigation.bodyClearance;
+    const old=dist2d(u,o),next=dist2d(p,o),min=(u.def.radius+o.def.radius)*mobility.navigation.bodyRadiusFactor+mobility.navigation.bodyClearance;
     if(next<min&&next<old-.001)clear=false;
   });return clear;
 }
@@ -293,7 +293,7 @@ function runwayOccupied(w:World,u:Entity,pad:Entity):boolean {
 function finishMoveWaypoint(u:Entity):void {
   const next=u.moveQueue?.shift(),style=u.moveQueueStyles?.shift();
   u.fastMove=style==="fast-move";u.mode=next?(style==="amove"?"amove":style?"move":u.queuedMoveType??"move"):"idle";
-  u.dest=next??null;u.navPath=[];u.navPathIndex=0;u.flowField=null;
+  u.dest=next??null;u.navPath=[];u.navPathIndex=0;u.flowField=null;u.roadPathGoal=undefined;u.roadPathRetryAt=undefined;
   if(next){u.moveFacing=next.facing;const length=Math.hypot(next.x-u.x,next.z-u.z)||1;u.moveAxis={x:(next.x-u.x)/length,z:(next.z-u.z)/length};}
 }
 
@@ -660,12 +660,18 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
   if(u.garrisonId){goal=null;u.motionSpeed=0;u.holdPosition=true;}
   if(goal&&!target&&u.moveGroup&&u.moveAxis&&["move","amove"].includes(u.mode)&&d.domain!=="air"&&d.domain!=="sea"&&dist2d(u,goal)>mobility.navigation.groupReformDistance){
     const axis=u.moveAxis;
-    const members=(groups.get(groupKey(u))??[]).filter(e=>["move","amove"].includes(e.mode)).sort((a,b)=>(b.x-a.x)*axis.x+(b.z-a.z)*axis.z||a.id-b.id);
-    const rank=members.indexOf(u),front=members[rank-1];
+    // Find the closest predecessor in live march order without copying/sorting the group per unit.
+    let front:Entity|undefined,frontProgress=Infinity;
+    for(const member of groups.get(groupKey(u))??[]){
+      if(member===u||!["move","amove"].includes(member.mode))continue;
+      const progress=(member.x-u.x)*axis.x+(member.z-u.z)*axis.z;
+      if((progress>0||progress===0&&member.id<u.id)&&(progress<frontProgress||progress===frontProgress&&member.id>(front?.id??-Infinity))){front=member;frontProgress=progress;}
+    }
     if(front&&front.dest&&dist2d(u,front)<mobility.navigation.groupJoinDistance){
       const width=Math.max(mobility.navigation.columnWidth,d.radius*mobility.navigation.columnRadiusFactor);
       const narrow=!w.nav.isWalkableWorld(front.x-axis.z*width,front.z+axis.x*width,d.radius)||!w.nav.isWalkableWorld(front.x+axis.z*width,front.z-axis.x*width,d.radius);
-      if(narrow){const gap=u.def.radius+front.def.radius+mobility.navigation.columnGap;goal=dist2d(u,front)<=gap+1?null:{x:front.x-axis.x*gap,z:front.z-axis.z*gap};}
+      // A neighbouring lane is not a predecessor: waiting for it can deadlock the merge.
+      if(narrow&&Math.abs((front.x-u.x)*axis.z-(front.z-u.z)*axis.x)<Math.min(u.def.radius,front.def.radius)){const gap=u.def.radius+front.def.radius+mobility.navigation.columnGap;if(dist2d(u,front)<=gap+1)u.navWaiting=true;goal=dist2d(u,front)<=gap+1?null:{x:front.x-axis.x*gap,z:front.z-axis.z*gap};}
     }
   }
   if(goal && d.armor!=="air" && d.domain!=="sea" && (!u.roadPathGoal || Math.hypot(u.roadPathGoal.x-goal.x,u.roadPathGoal.z-goal.z)>5 || !u.navPath.length && w.time>=(u.roadPathRetryAt??0))) {
@@ -706,13 +712,15 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
         sx += (ox / dd) * k; sz += (oz / dd) * k;
       }
     });
-    let dx = 0, dz = 0, moving = false;
-    if (goal) {
+    let dx = 0, dz = 0, moving = false, aligning = false;
+    const routeBlocked=!!goal&&!isAir&&d.domain!=="sea"&&!u.navPath.length;
+    if(routeBlocked)u.navWaiting=true;
+    if (goal&&!routeBlocked) {
       const gx = goal.x - u.x, gz = goal.z - u.z, gd = Math.hypot(gx, gz);
       if (u.def.domain!=="sea" && goal === u.dest && gd < (!isAir&&u.moveQueue?.length&&!u.target?mobility.navigation.queuePassDistance:mobility.navigation.arrival) && (!isAir||d.category!=="heli"||(u.motionSpeed??0)<mobility.helicopter.hoverArrivalSpeed) && u.mode!=="patrol"&&u.mode!=="enter-building"&&!transporting) {
         finishMoveWaypoint(u);
       }
-      else { dx = gx / gd; dz = gz / gd; moving = true; }
+      else if(gd>.001&&(isAir||goal===u.dest||gd>=mobility.navigation.arrival)){dx = gx / gd; dz = gz / gd; moving = true;}
     }
     if (moving && !isAir && u.def.domain!=="sea") {
       let navDx = dx, navDz = dz;
@@ -730,6 +738,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       const want = Math.atan2(reverse?-ex:ex, reverse?-ez:ez);
       u.heading = turnToward(u.heading, want, d.turnRate * dt);
       const diff = Math.abs(wrapAngle(want - u.heading));
+      aligning=d.category!=="infantry"&&diff>mobility.navigation.turningProgressAngle;
       const slope = (heightAt(u.x + ex * 2, u.z + ez * 2) - u.y) / 2;
       const terrainMod=groundTerrainFactor(w,u);
       const supplyMove = (u.supply ?? 100) > 10 ? 1 : 0.78;
@@ -756,12 +765,12 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       if(isAir || u.navPath.length && w.nav.isWalkableWorld(nx,nz,d.radius) && bodyClear(w,u,{x:nx,z:nz})) {u.x=nx;u.z=nz;}
       else if(!isAir){const px=u.x+navDx*travel,pz=u.z+navDz*travel;if(u.navPath.length&&w.nav.isWalkableWorld(px,pz,d.radius)&&bodyClear(w,u,{x:px,z:pz})){u.x=px;u.z=pz;}else {
         const avoided=groundSidestep(w,u,navDx,navDz,travel);
-        if(!avoided){u.navWaiting=true;u.motionSpeed=Math.max(0,(u.motionSpeed??0)-profile.braking*dt);u.stuckTime+=dt;}
+        if(!avoided){u.navWaiting=true;u.motionSpeed=Math.max(0,(u.motionSpeed??0)-profile.braking*dt);}
       }}
     }
-    if(!goal&&!isAir&&d.domain!=="sea"){
+    if(!moving&&!isAir&&d.domain!=="sea"){
       u.motionSpeed=Math.max(0,(u.motionSpeed??0)-mobilityProfile(u).braking*dt);
-      if((u.motionSpeed??0)>.25){const nx=u.x+Math.sin(u.heading)*u.motionSpeed!*dt,nz=u.z+Math.cos(u.heading)*u.motionSpeed!*dt;if(w.nav.isWalkableWorld(nx,nz,d.radius)&&bodyClear(w,u,{x:nx,z:nz})){u.x=nx;u.z=nz;}else u.motionSpeed=0;}
+      if(!routeBlocked&&(u.motionSpeed??0)>.25){const nx=u.x+Math.sin(u.heading)*u.motionSpeed!*dt,nz=u.z+Math.cos(u.heading)*u.motionSpeed!*dt;if(w.nav.isWalkableWorld(nx,nz,d.radius)&&bodyClear(w,u,{x:nx,z:nz})){u.x=nx;u.z=nz;}else u.motionSpeed=0;}
     }
     const limit=MAP_SIZE/2-10;u.x=Math.max(-limit,Math.min(limit,u.x));u.z=Math.max(-limit,Math.min(limit,u.z));
     if(!isAir&&d.domain!=="sea"&&!u.garrisonId)u.y=heightAt(u.x,u.z);
@@ -769,18 +778,18 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     // actual route progress, not any displacement, before clearing the jam timer.
     const progressGoal=u.navPath[u.navPathIndex]??goal;
     const progress=progressGoal?Math.hypot(u.stuckX-progressGoal.x,u.stuckZ-progressGoal.z)-dist2d(u,progressGoal):0;
-    if(moving&&progress<.5)u.stuckTime+=dt;
+    if(moving&&(!aligning||u.navWaiting)&&progress<.5)u.stuckTime+=dt;
     else {u.stuckTime=0;u.stuckX=u.x;u.stuckZ=u.z;}
     if(u.stuckTime>mobility.navigation.jamDelay&&goal&&!isAir&&d.domain!=="sea"&&w.time>=(u.roadPathRetryAt??0)){
       const parked:Array<Point&{radius:number}>=[];
-      w.spatial.queryRadius(u.x,u.z,mobility.navigation.parkedSearchRadius,e=>{if(e!==u&&!e.dead&&e.loadedIntoId==null&&!e.garrisonId&&e.def.speed>0&&e.def.domain==="land"&&(!e.dest||e.mode==="hold"))parked.push({x:e.x,z:e.z,radius:e.def.radius});});
+      w.spatial.queryRadius(u.x,u.z,mobility.navigation.parkedSearchRadius,e=>{if(e!==u&&!e.dead&&e.loadedIntoId==null&&!e.garrisonId&&e.def.speed>0&&e.def.domain==="land"&&(!e.dest||e.mode==="hold"||(e.motionSpeed??0)<mobility.navigation.rerouteStoppedSpeed))parked.push({x:e.x,z:e.z,radius:e.def.radius});});
       const path=findPath(w.nav,u,goal,u.def.radius,u.fastMove&&u.mode==="move"?travelPathCost(w,u):undefined,parked);
       if(path.length){u.navPath=path;u.navPathIndex=0;u.roadPathGoal={...goal};}
       u.roadPathRetryAt=w.time+mobility.navigation.blockedRetry;u.stuckTime=0;u.stuckX=u.x;u.stuckZ=u.z;
     }
   }
 
-  if(!goal&&!target&&u.moveFacing!=null&&u.def.domain==="land"&&!u.garrisonId)u.heading=turnToward(u.heading,u.moveFacing,d.turnRate*dt);
+  if(!goal&&!u.dest&&u.mode==="idle"&&!target&&u.moveFacing!=null&&u.def.domain==="land"&&!u.garrisonId&&(u.motionSpeed??0)<=mobility.combat.weaponMotionThreshold)u.heading=turnToward(u.heading,u.moveFacing,d.turnRate*dt);
 
   if((u.motionSpeed??0)>mobility.combat.weaponMotionThreshold)u.stationaryFireReadyAt=w.time+mobility.combat.weaponSettleTime;
 
@@ -825,7 +834,7 @@ export function combatStatus(w:World,u:Entity):string {
   if(u.loadedIntoId!=null){const carrier=w.byId.get(u.loadedIntoId);return "Transpordis · "+(carrier?w.unitDisplayName(carrier.kind,carrier.team):"pardal");}
   if(u.mode==="transport-load")return "Kogub jalaväge · kohad broneeritud";
   if(u.mode==="transport-unload")return "Viib väljumiskohta · ootab vaba väljapääsu";
-  if(u.navWaiting)return "Ootab vaba läbipääsu · otsib möödumisteed";
+  if(u.navWaiting)return u.roadPathGoal&&!u.navPath.length?"Marsruut katkenud · ootab läbitavat teed":"Ootab vaba läbipääsu · hoiab üksuste vahet";
   if(u.mode==="move"&&u.fastMove)return "Kiirliikumine · eeldatava sõiduaja järgi";
   if((u.disabledUntil??0)>w.time)return "Relvasüsteem häiritud";
   if(u.standingOrder==="holdfire")return "Tuli keelatud";
