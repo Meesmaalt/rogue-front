@@ -8,12 +8,21 @@ export function stockCapacity(w:World,depot:Entity):StockPayload {
  return {ammo:rules.depot.ammoCapacity*factor,fuel:rules.depot.fuelCapacity*factor,repair:rules.depot.repairCapacity*factor};
 }
 export function stockTotal(depot:Entity):number {return (depot.ammoStock??0)+(depot.fuelStock??0)+(depot.repairStock??0);}
+/** Normal servicing leaves a small production reserve; fuel priority releases it. */
+export function serviceFuelAvailable(depot:Entity):number {
+ return Math.max(0,(depot.fuelStock??0)-(depot.kind==='supply'&&depot.logisticsPriority!=='fuel'?rules.depot.serviceFuelReserve:0));
+}
 /** Transfer only what fits. The caller retains the unaccepted payload. No income is created. */
 export function depositPayload(w:World,depot:Entity,payload:StockPayload):number {
  if(depot.dead||depot.underConstruction)return 0;
  const cap=stockCapacity(w,depot);let accepted=0;
  for(const key of STOCK_KEYS){const field=`${key}Stock` as const,take=Math.max(0,Math.min(payload[key],cap[key]-(depot[field]??0)));depot[field]=(depot[field]??0)+take;payload[key]-=take;accepted+=take;}
  depot.logisticsStorage=stockTotal(depot);depot.logisticsMaxStorage=cap.ammo+cap.fuel+cap.repair;return accepted;
+}
+/** Recover a starved trunk from a connected forward warehouse's real surplus. */
+export function needsBackhaul(main:Entity,forward:Entity):boolean {
+ return (main.fuelStock??0)<rules.convoyReserve&&(forward.fuelStock??0)>rules.convoyReserve||
+        (main.ammoStock??0)<rules.convoyReserve&&(forward.ammoStock??0)>rules.convoyReserve;
 }
 /** Load a finite convoy by destination deficits and priority; redistribute unused capacity. */
 export function withdrawPayload(w:World,source:Entity,destination:Entity,capacity:number):StockPayload {
@@ -48,14 +57,15 @@ export function collectionSource(w:World,depot:Entity,from:Entity):number|null {
  return best;
 }
 export function logisticsStatus(w:World,u:Entity):string {
- const depot=w.byId.get(u.supplyDepotId??-1),cap=depot?stockCapacity(w,depot):null;
+ const depot=w.byId.get(u.supplyDepotId??-1),backhaul=u.logisticsSourceIndex==null&&u.logisticsPhase==='unloading',destination=backhaul?w.primarySupplyDepot(u.team):depot,cap=destination?stockCapacity(w,destination):null;
  if(!depot||depot.dead)return 'Tarne katkestatud · ladu puudub';
  if((u.fuel??0)<=.5)return 'Kütus otsas · vajab lähedal ladu või kütusekoormaga konvoid';
- if(u.cargo>0&&cap&&STOCK_KEYS.every(k=>(depot[`${k}Stock`]??0)>=cap[k]))return 'Sihtladu täis · koorem jääb pardale';
+ if(u.cargo>0&&cap&&STOCK_KEYS.every(k=>(destination?.[`${k}Stock`]??0)>=cap[k]))return 'Sihtladu täis · koorem jääb pardale';
  if(depot.logisticsPaused&&u.cargo<=0)return 'Veod peatatud · naaseb või ootab laos';
  if(u.logisticsSourceIndex!=null){const source=w.resourcePoints[u.logisticsSourceIndex];if(u.cargo<=0&&(!source||source.controlledBy!==u.team||!source.active||(source.disabledUntil??0)>w.time))return 'Allikas katkestatud · ootab taastumist';}
  if(u.navWaiting)return 'Marsruut takistatud · otsib läbipääsu';
  if(u.logisticsSourceIndex!=null&&u.cargo<=0&&(w.resourcePoints[u.logisticsSourceIndex]?.amount??0)<1)return 'Rajatis kogub varu · koorma ootel';
+ if(backhaul)return 'Tagasitarne · edasiladu → pealadu';
  if(u.logisticsSourceIndex==null&&u.cargo<=0){
   const main=w.primarySupplyDepot(u.team);
   if(!w.connectedSupplyNodes(u.team).some(n=>n.id===depot.id))return 'FOB ühendus katkenud · uut koormat ei väljastata';

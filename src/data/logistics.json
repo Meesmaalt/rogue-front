@@ -16,7 +16,8 @@
     "ammoCapacity": 1200,
     "fuelCapacity": 1600,
     "repairCapacity": 600,
-    "capacityPerLevel": 0.35
+    "capacityPerLevel": 0.35,
+    "serviceFuelReserve": 40
   },
   "fob": {
     "upgradeCost": 300,

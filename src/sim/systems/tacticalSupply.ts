@@ -1,3 +1,4 @@
+import {serviceFuelAvailable} from "../stockLogistics";
 import logisticsRules from "../../data/logistics.json";
 import {maxHitPoints} from "../unitStats";
 import {weaponSpec,weaponAmmo} from "./combat";
@@ -61,7 +62,7 @@ export function tacticalSupplyDepot(w:World,e:Entity,nodes:readonly Entity[]=tac
  const needsFuel=(e.fuel??0)<(e.maxFuel??0),needsAmmo=(e.ammo??0)<(e.maxAmmo??0)||!!e.secondaryAmmo?.some((_,i)=>i>0&&weaponAmmo(e,i)<weaponSpec(e,i).ammoCapacity);
  for(const n of nodes){
   if(n.dead||n.underConstruction||(n.disabledUntil??0)>w.time||n.team!==e.team)continue;
-  const distance=Math.hypot(n.x-e.x,n.z-e.z),available=(!needsFuel&&!needsAmmo)||needsFuel&&(n.fuelStock??0)>0||needsAmmo&&(n.ammoStock??0)>0;
+  const distance=Math.hypot(n.x-e.x,n.z-e.z),available=(!needsFuel&&!needsAmmo)||needsFuel&&serviceFuelAvailable(n)>0||needsAmmo&&(n.ammoStock??0)>0;
   const score=distance+(available?0:1000);
   if(distance<=supplyRadiusFor(n,w)&&score<best){best=score;depot=n;}
  }
@@ -75,7 +76,8 @@ export function tacticalSupplyStatus(w:World,e:Entity,depot=tacticalSupplyDepot(
  const missing:string[]=[];
  if((depot.ammoStock??0)<=0)missing.push('moon');
  if((depot.fuelStock??0)<=0)missing.push('kütus');
- return `${name} #${depot.id} · ${missing.length?'otsas: '+missing.join(', '):'moon ja kütus saadaval'}`;
+ const reserve=(depot.fuelStock??0)>0&&serviceFuelAvailable(depot)<=0?' · kütus tootmisreservis (Kütuseprioriteet vabastab)':'';
+ return `${name} #${depot.id} · ${missing.length?'otsas: '+missing.join(', '):reserve?'moon saadaval':'moon ja kütus saadaval'}${reserve}`;
 }
 
 function defaultMaxAmmo(kind: string): number {
@@ -137,11 +139,11 @@ export function updateTacticalSupply(w: World, dt: number): void {
       if (moving && (e.fuel??0)>0) e.fuel=Math.max(0,(e.fuel??0)-(e.def.fuelUsePerSec??1)*dt);
       if (inRadius && depot && (depot.fuelStock??0)>0 && (e.fuel??0)<(e.maxFuel??0)) {
         const need=Math.min((e.maxFuel??0)-(e.fuel??0),(e.def.resupplyRate??1)*18*eff*dt);
-        const take=Math.min(need,depot.fuelStock??0); depot.fuelStock=(depot.fuelStock??0)-take; e.fuel=(e.fuel??0)+take;
+        const take=Math.min(need,serviceFuelAvailable(depot)); depot.fuelStock=(depot.fuelStock??0)-take; e.fuel=(e.fuel??0)+take;
       }
     }
     // A stranded ground vehicle can be rescued by a nearby physical fuel convoy.
-    if(e.def.domain==="land"&&needsFuel&&(!inRadius||!depot||(depot.fuelStock??0)<=0)){
+    if(e.def.domain==="land"&&needsFuel&&(!inRadius||!depot||serviceFuelAvailable(depot)<=0)){
       const donor=fuelConvoys[e.team].find(n=>n!==e&&!n.dead&&n.team===e.team&&n.kind==="logiTruck"&&(n.logisticsPayload?.fuel??0)>0&&Math.hypot(n.x-e.x,n.z-e.z)<=logisticsRules.mobileRefuelRadius);
       if(donor?.logisticsPayload){const take=Math.max(0,Math.min((e.maxFuel??0)-(e.fuel??0),donor.logisticsPayload.fuel,logisticsRules.mobileRefuelRate*eff*dt));donor.logisticsPayload.fuel-=take;donor.cargo=Math.max(0,donor.cargo-take);e.fuel=(e.fuel??0)+take;}
     }

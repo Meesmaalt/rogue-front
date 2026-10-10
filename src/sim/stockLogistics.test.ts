@@ -107,3 +107,32 @@ it('forward resupply is dispatched before collector expansion and a lost convoy 
  for(let i=0;i<900;i++)w.tick(1/30);const replacement=w.entities.find(e=>!e.dead&&e.kind==='logiTruck')!;expect(replacement).toBeDefined();expect(replacement.logisticsSourceIndex).toBeNull();expect(replacement.supplyDepotId).toBe(forward.id);
  expect(main.ammoStock).toBeLessThan(420);expect(replacement.logisticsPayload?.ammo).toBeGreaterThan(0);
 });
+
+it('collector dispatch feeds a starved trunk warehouse before the nearer full forward depot',()=>{
+ const w=fixture(),main=w.spawn('supply',0,0,0),forward=w.spawn('supply',0,55,0),cap=stockCapacity(w,forward);
+ main.ammoStock=100;main.fuelStock=0;forward.ammoStock=cap.ammo;forward.fuelStock=cap.fuel;forward.repairStock=cap.repair;
+ Object.assign(w.resourcePoints[0],{x:55,z:55,radius:8,controlledBy:0,active:true,amount:200});
+ w.tick(1/30);const collector=w.entities.find(e=>e.kind==='logiTruck'&&e.logisticsSourceIndex===0)!;
+ expect(collector).toBeDefined();expect(collector.supplyDepotId).toBe(main.id);
+});
+
+
+it('tank servicing preserves fuel for queued production; explicit fuel priority releases the reserve',()=>{
+ const w=fixture(),depot=w.spawn('supply',0,0,0),tank=w.spawn('tank',0,10,0),factory=w.spawn('factory',0,-10,-20);w.spawn('landCommand',0,-25,-25);
+ depot.fuelStock=50;tank.fuel=0;factory.productionQueue=['tank'];
+ for(let i=0;i<60;i++)updateTacticalSupply(w,1/30);
+ expect(depot.fuelStock).toBeCloseTo(40);expect(tank.fuel).toBeCloseTo(10);
+ updateProduction(w,1/30);expect(factory.productionProgress).toBeGreaterThan(0);
+ const before=tank.fuel!;depot.logisticsPriority='fuel';updateTacticalSupply(w,1/30);expect(tank.fuel).toBeGreaterThan(before);
+});
+
+
+it('a warehouse convoy brings forward surplus back to a starved trunk using finite saved cargo',()=>{
+ const w=fixture(),main=w.spawn('supply',0,0,0),forward=w.spawn('supply',0,55,0),truck=w.spawn('logiTruck',0,41,0);
+ main.ammoStock=main.repairStock=0;main.fuelStock=40;forward.ammoStock=forward.repairStock=100;forward.fuelStock=650;
+ truck.supplyDepotId=forward.id;truck.logisticsSourceIndex=null;truck.logisticsCargoCapacity=150;truck.logisticsLoadProgress=3;
+ const money=w.teamCredits[0],stocks=stockTotal(main)+stockTotal(forward);steps(w,1);
+ expect(truck.logisticsPhase).toBe('unloading');expect(truck.logisticsPayload?.fuel).toBe(150);expect(stockTotal(main)+stockTotal(forward)+truck.cargo).toBe(stocks);
+ const copy=fixture();loadWorld(copy,JSON.parse(JSON.stringify(saveWorld(w))));expect(worldHash(copy)).toBe(worldHash(w));
+ steps(w,600);expect(main.fuelStock).toBeGreaterThan(40);expect(w.teamCredits[0]).toBe(money);expect(stockTotal(main)+stockTotal(forward)+truck.cargo).toBeCloseTo(stocks);
+});

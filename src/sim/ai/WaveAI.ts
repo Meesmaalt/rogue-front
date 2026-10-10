@@ -1,4 +1,5 @@
 import {knownContacts,availableCombat,fieldCombat,needsRecovery,componentDamage,issueGroundObjective,offensiveForce,AI_RULES} from "./knowledge";
+import logisticsRules from "../../data/logistics.json";
 import {researchStatus,unitUpgradeStatus} from "../unitStats";
 import {MAP_SIZE} from "../heightmap";
 import type { World } from "../World";
@@ -241,11 +242,15 @@ export class WaveAI {
     const base=w.bases[1];
     const engineers=w.entities.filter(e=>!e.dead&&e.team===1&&e.kind==="engineer"&&e.loadedIntoId==null&&!e.garrisonId);
     for(const e of engineers)if(e.aiIntent==="recon"&&w.resourcePoints.some(r=>r.active&&r.controlledBy===1&&(Math.hypot(r.x-e.x,r.z-e.z)<=r.radius+3||e.dest&&Math.hypot(r.x-e.dest.x,r.z-e.dest.z)<=r.radius)))e.aiIntent=null;
-    const point=[...w.resourcePoints].sort((a,b)=>Math.hypot(a.x-base.x,a.z-base.z)-Math.hypot(b.x-base.x,b.z-base.z))[0];
+    const depots=w.entities.filter(e=>!e.dead&&e.team===1&&e.kind==='supply');
+    const localDepotMissing=w.entities.some(e=>!e.dead&&!e.underConstruction&&e.team===1&&['barracks','factory','helipad','airbase'].includes(e.kind)&&Math.hypot(e.x-base.x,e.z-base.z)<AI_RULES.defenseRadius&&!depots.some(d=>Math.hypot(d.x-e.x,d.z-e.z)<=logisticsRules.depot.productionRadius));
+    const home=[...w.resourcePoints].sort((a,b)=>Math.hypot(a.x-base.x,a.z-base.z)-Math.hypot(b.x-base.x,b.z-base.z))[0];
+    // Restart the home economy first, then activate industry secured by the field army.
+    const point=home&&(!home.active||home.controlledBy!==1)?home:w.resourcePoints.filter(r=>r.controlledBy===1&&!r.active&&(r.disabledUntil??0)<=w.time).sort((a,b)=>Math.hypot(a.x-base.x,a.z-base.z)-Math.hypot(b.x-base.x,b.z-base.z))[0];
     // One engineer is assigned to restart industry, the other builds the base.
-    if(point && (!point.active||point.controlledBy!==1) && (engineers.length>1||this.has(w,1,"supply"))){
+    if(point && (!point.active||point.controlledBy!==1) && (engineers.length>1||this.has(w,1,"supply")&&!localDepotMissing)){
       const scout=engineers.find(e=>e.aiIntent==="recon")??engineers[1]??engineers[0];if(scout&&scout.mode!=="build"&&scout.mode!=="repair"){
-        w.issue({type:"move",ids:[scout.id],x:point.x,z:point.z,team:1});scout.aiIntent="recon";
+        if(!scout.dest||Math.hypot(scout.dest.x-point.x,scout.dest.z-point.z)>3)w.issue({type:"move",ids:[scout.id],x:point.x,z:point.z,team:1});scout.aiIntent="recon";
       }
     }
     const eng=engineers.find(e=>e.aiIntent!=="recon"&&e.mode!=="build"&&e.mode!=="repair");
@@ -253,15 +258,16 @@ export class WaveAI {
     const count=(kind:UnitKind)=>w.entities.filter(e=>!e.dead&&e.team===1&&e.kind===kind).length;
     const plans:BuildableKind[]=["generator","supply","landCommand","barracks","factory","landStrategy","radar","aa","airCommand","helipad","airStrategy","airbase","combatEngineer","bunker"];
     if(engineers.length<AI_RULES.engineerReserve&&!this.has(w,1,"landStrategy"))plans.unshift("landStrategy");
+    if(localDepotMissing)plans.unshift("supply");
     if(w.powerStatus(1).ratio<.9&&count("generator")<4)plans.unshift("generator");
     for(const kind of plans){
-      const max=kind==="generator"?(w.powerStatus(1).ratio<.9?4:1):kind==="bunker"?2:kind==="aa"?2:1;
+      const max=kind==="generator"?(w.powerStatus(1).ratio<.9?4:1):kind==="bunker"?2:kind==="aa"?2:kind==="supply"&&localDepotMissing?depots.length+1:1;
       if(kind!=="generator"&&this.has(w,1,"factory")&&this.count(w,"tank")<2&&!["supply","landCommand","barracks","factory"].includes(kind)&&!(kind==="landStrategy"&&engineers.length<AI_RULES.engineerReserve))continue;
       const reserve=["generator","supply","landCommand","barracks"].includes(kind)||kind==="landStrategy"&&engineers.length<AI_RULES.engineerReserve?0:AI_RULES.economyReserve;
       if(count(kind)>=max||!w.canBuildKind(1,kind)||!this.canSpend(w,BUILDINGS[kind].cost,reserve))continue;
       for(const radius of [22,38,54,70])for(let i=0;i<16;i++){
         const angle=i*Math.PI/8;const x=base.x+Math.cos(angle)*radius,z=base.z+Math.sin(angle)*radius;
-        if(Math.abs(x)>MAP_SIZE/2-22||Math.abs(z)>MAP_SIZE/2-22||!w.canPlaceBuilding(1,kind,x,z))continue;
+        if(Math.abs(x)>MAP_SIZE/2-22||Math.abs(z)>MAP_SIZE/2-22||!w.canPlaceBuilding(1,kind,x,z)||w.entities.some(e=>!e.dead&&e.def.speed===0&&Math.hypot(e.x-x,e.z-z)<BUILDINGS[kind].footprint+e.def.radius+AI_RULES.baseBuildingClearance))continue;
         w.issue({type:"build",ids:[eng.id],kind,x,z,team:1});this.pendingBudgetUsed+=BUILDINGS[kind].cost;return;
       }
     }

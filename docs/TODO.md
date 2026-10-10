@@ -5,11 +5,13 @@ Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on j�
 - [x] Kasutatava alpha ulatuse, viie viimistluspaketi ja alpha/beta lõpetamiskriteeriumide uuendamine (08.10.2026).
 - [ ] V1 brauserivärav: PR #15 mõõdikutega sama Roheoru 60–90 s stseeni võrdlus ja suurima mõõdetud kitsaskoha parandus; päris FPS/visuaal endiselt kinnitamata.
 - [ ] V2: grupijuhtimise, maa-/õhuliikumise ja lahingu tunnetuse lõpetamine.
-- [ ] V3: majanduse, füüsilise logistika ja AI matšitempo lõpetamine.
+- [x] V3: majanduse, füüsilise logistika ja AI taastumistsükli funktsionaalne lõpetamine — 15 min Roheoru simulatsioon läbis pealao/veokite kaotuse, tootmise hilise jätkumise ja eesmärkide vallutamise. Mängija vaates raskus/tasakaal ja lõpetatav tervikmatš jäävad V5 alpha väravasse.
 - [ ] V4: selge HUD ja Roheoru ühtne visuaalne viimistlus.
 - [ ] V5: õpetuse/save-load läbipääs ning DEVELOPMENT-PLAN.md alpha värav; seejärel A6 lõpetatuks.
 
 ## Teostatud alused ja seniste pakettide seis
+
+- [x] V3 lõpetav tarne- ja taastumisühendus: AI taastab kohaliku tootmislao ka säilinud edasilao korral, käivitab armeega hõivatud tööstuse ega lähtesta inseneri sama marsruuti. Uued AI hooned jätavad läbipääsuruumi. Kogumispargi piir kehtib lao, mitte iga ressursipunkti kohta; varupuuduses pealadu eelistatakse ja tühjad automaatkogujad saab ümber siduda (koorem/käsitsi marsruut säilib). Laokonvoi toob ühendatud edasilao päris ülejääki tagasi pealattu; suund säilib olemasolevas save/replay faasis ning HUD näitab õiget allikat/sihtladu. Tavaline tankimine jätab 40 kütuseühikut tootmiseks; Kütuseprioriteet vabastab reservi ning AI valib tegelikult teenindava lao. Veokite/inseneride teeleid kasutab pargitud maaüksustest möödumise reeglit. 15 min Roheoru simulatsioon: pealadu ja kõik kogumisveokid kaotatud 4. minutil, seejärel 7039 ühikut tarnet, 25 uut lahinguüksust, 4 hõivatud ressursiala, tootmine jätkus ka 13.–15. minutil. Build ning sihitud logistika/AI/replay kontrollid; brauseri FPS ja mängija raskushinnang pole sellest tõendatud.
 
 - [x] V3 AI eesmärgi- ja käsujätku viimistlus: Conquest jätab hõivatud ressursid ründesihtide hulgast välja; operatiivne ja doktriini-AI jagavad režiimi eesmärke, Breakthrough suundub tagalasektorisse. Hõivepositsioonid jäävad ressursiala sisse. Korduvad/pending käsud ei lähtesta marsi ega nähtava kontakti laskepositsiooni; baasi kaitse saab rünnaku katkestada. Ootel käsud väldivad samal tickil topeltjuhtimist, uued/taastunud üksused tugevdavad rinnet esimese nelja ID korduskäsutamise asemel. Reserv eelistab baasi lähedal valmis üksusi; operatiivne taastumispaus peatab ka ründelaine. Sektorite täisarvutus toimub otsustusintervallil, võrgumängus AI seda ei käivita. Build + 12 sihitud AI/replay kontrolli läbisid. Päris 15–30 min Roheoru matši tempo, raskus ja brauserivärav jäävad avatuks.
 

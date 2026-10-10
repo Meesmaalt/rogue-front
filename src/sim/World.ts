@@ -1,4 +1,4 @@
-import {receiveResourceCargo,stockCapacity,stockTotal,STOCK_KEYS} from "./stockLogistics";
+import {receiveResourceCargo,stockCapacity,stockTotal,STOCK_KEYS,needsBackhaul} from "./stockLogistics";
 import {updateGarrisons} from "./garrison";
 import {damage as damageUnit} from "./systems/combat";
 import {freeAirSlot,airFacilityCapacity} from "./systems/airDoctrine";
@@ -715,7 +715,7 @@ export class World {
         if(depot===main||depot.logisticsPaused||!connected.has(depot.id))continue;
         if(this.entities.some(t=>!t.dead&&t.team===team&&t.kind==="logiTruck"&&t.supplyDepotId===depot.id&&t.logisticsSourceIndex==null))continue;
         const cap=stockCapacity(this,depot);
-        if(!STOCK_KEYS.some(key=>(main[`${key}Stock`]??0)>logisticsConfig.convoyReserve&&(depot[`${key}Stock`]??0)<cap[key]))continue;
+        if(!needsBackhaul(main,depot)&&!STOCK_KEYS.some(key=>(main[`${key}Stock`]??0)>logisticsConfig.convoyReserve&&(depot[`${key}Stock`]??0)<cap[key]))continue;
         const exit=this.convoyExit(main,depot);if(!exit)continue;
         const tr=this.spawn("logiTruck",team,exit.x,exit.z);
         tr.supplyDepotId=depot.id;tr.logisticsSourceIndex=null;tr.logisticsHome={x:main.x,z:main.z};
@@ -726,9 +726,12 @@ export class World {
       for(let i=0;i<this.resourcePoints.length&&!dispatched;i++){
         const rp=this.resourcePoints[i];
         if(rp.controlledBy!==team||!rp.active||(rp.disabledUntil??0)>this.time||rp.amount<=0)continue;
-        const candidates=depots.filter(e=>!e.logisticsPaused&&(e.preferredResourceIndex==null||e.preferredResourceIndex===i)).sort((a,b)=>Math.hypot(a.x-rp.x,a.z-rp.z)-Math.hypot(b.x-rp.x,b.z-rp.z)||a.id-b.id);
+        // The closest forward warehouse must not monopolize collection while
+        // the trunk warehouse's production/air service is starved of fuel or ammo.
+        const trunkNeedsCollection=(main.ammoStock??0)<logisticsConfig.convoyReserve||(main.fuelStock??0)<logisticsConfig.convoyReserve;
+        const candidates=depots.filter(e=>!e.logisticsPaused&&(e.preferredResourceIndex==null||e.preferredResourceIndex===i)).sort((a,b)=>(trunkNeedsCollection?Number(b===main)-Number(a===main):0)||Math.hypot(a.x-rp.x,a.z-rp.z)-Math.hypot(b.x-rp.x,b.z-rp.z)||a.id-b.id);
         for(const depot of candidates){
-          const active=this.entities.filter(t=>!t.dead&&t.team===team&&t.kind==="logiTruck"&&t.supplyDepotId===depot.id&&t.logisticsSourceIndex===i).length;
+          const active=this.entities.filter(t=>!t.dead&&t.team===team&&t.kind==="logiTruck"&&t.supplyDepotId===depot.id&&t.logisticsSourceIndex!=null).length;
           if(active>=ROAD_TRUCK_MAX_PER_DEPOT+this.supplyDepotLevel(depot))continue;
           const exit=this.convoyExit(depot,rp);if(!exit)continue;
           const t=this.spawn("logiTruck",team,exit.x,exit.z);
