@@ -230,7 +230,7 @@ export class World {
     const power = this.powerStatus(producer.team).ratio >= 0.25;
     const depot = this.nearestSupplyDepot(producer.team, { x: producer.x, z: producer.z }, true, true);
     const logistics = producer.kind === "barracks" || producer.kind === "factory" || producer.kind === "helipad" || producer.kind === "airbase" || producer.kind === "shipyard"
-      ? !!depot && depot.kind === "supply" && Math.hypot(depot.x-producer.x,depot.z-producer.z) <= 80 && (depot.ammoStock ?? 0) > 0 && (depot.fuelStock ?? 0) > 0
+      ? !!depot && depot.kind === "supply" && Math.hypot(depot.x-producer.x,depot.z-producer.z) <= logisticsConfig.depot.productionRadius && (depot.ammoStock ?? 0) > 0 && (depot.fuelStock ?? 0) > 0
       : true;
     const requiredLevel = kind ? this.unitRequiredBuildingLevel(kind) : 1;
     const strategy = requiredLevel < 2 || this.hasStrategyForProducer(producer.team, producer.kind);
@@ -241,7 +241,7 @@ export class World {
     if (!water) reason="Sadam vajab kõrval läbitavat vett";
     else if (!command) reason = "Puudub command-link";
     else if (!power) reason = "Energiapuudus";
-    else if (!logistics) reason = !depot || Math.hypot(depot.x-producer.x,depot.z-producer.z)>80 ? "Lähedal puudub toimiv varustusladu" : (depot.ammoStock??0)<=0 ? "Tootmine peatunud · laos pole laskemoona" : "Tootmine peatunud · laos pole kütust";
+    else if (!logistics) reason = !depot || depot.kind!=="supply" || Math.hypot(depot.x-producer.x,depot.z-producer.z)>logisticsConfig.depot.productionRadius ? "Lähedal puudub toimiv varustusladu" : (depot.ammoStock??0)<=0 ? "Tootmine peatunud · laos pole laskemoona" : "Tootmine peatunud · laos pole kütust";
     else if (!strategy) reason = "Vajab vastava haru strateegiakeskust";
     else if(!parking)reason="Lennurajatise parkimiskohad on täis";
     else if ((producer.disabledUntil ?? 0) > this.time) reason = "Rajatis on kahjustatud";
@@ -383,7 +383,7 @@ export class World {
   }
 
   nearestSupplyDepot(team: Team, p: {x:number;z:number}, connectedOnly = false, productionStock = false): Entity | null {
-    const nodes = this.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === "supply");
+    const nodes = this.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === "supply" && (e.disabledUntil??0)<=this.time && (!productionStock||Math.hypot(e.x-p.x,e.z-p.z)<=logisticsConfig.depot.productionRadius));
     const allowed = connectedOnly ? nodes.filter(n => this.connectedSupplyNodes(team).some(c => c.id === n.id)) : nodes;
     const stocked=allowed.filter(n=>productionStock?(n.ammoStock??0)>0&&(n.fuelStock??0)>0:stockTotal(n)>0);
     return (stocked.length?stocked:allowed).sort((a,b) => Math.hypot(a.x-p.x,a.z-p.z)-Math.hypot(b.x-p.x,b.z-p.z))[0] ?? this.hq[team];

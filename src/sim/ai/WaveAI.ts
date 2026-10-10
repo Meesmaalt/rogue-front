@@ -24,7 +24,9 @@ export type DoctrinePhase =
  * Reageerib: heli-mass → AA; ladude rünnak → QRF; puhas tank → ATGM/flank/õhk.
  */
 export class WaveAI {
-  private productionBudgetUsed=0;
+  private pendingBudgetUsed=0;
+  private pendingProduction=new Map<number,number>();
+  private pendingUnits:Partial<Record<UnitKind,number>>={};
   buildTimer = 3.5;
   attackTimer = 22;
   scoutTimer = 5;
@@ -44,7 +46,7 @@ export class WaveAI {
   }
 
   update(w: World, dt: number): void {
-    this.productionBudgetUsed=0;
+    this.pendingBudgetUsed=0;this.pendingProduction.clear();this.pendingUnits={};
     const hq = w.hq[1];
     if (!hq || hq.dead) return;
 
@@ -71,9 +73,10 @@ export class WaveAI {
       this.buildTimer = this.personality === "economic" ? 5.5 : 4.2;
       this.developBase(w);
       this.developUnits(w);
-      if (!w.hasTech(1, "air") && w.teamResources[1] >= 240 && w.teamCredits[1] >= 240 &&
+      const airResearch=researchStatus(w,1,"air");
+      if (airResearch.allowed&&this.canSpend(w,airResearch.cost)&&
           (w.hasBuilding(1, "helipad") || w.hasBuilding(1, "airbase"))) {
-        w.issue({type:"research",tech:"air",team:1});
+        w.issue({type:"research",tech:"air",team:1});this.pendingBudgetUsed+=airResearch.cost;
       }
     }
 
@@ -181,14 +184,14 @@ export class WaveAI {
   }
 
   private queueDefense(w: World, kind: BuildableKind): void {
-    const eng = w.entities.find(e => !e.dead && e.team === 1 && e.kind === "engineer" && e.mode !== "build");
+    const eng = w.entities.find(e => !e.dead && e.team === 1 && e.kind === "engineer" && e.mode !== "build" && e.mode!=="repair" && e.aiIntent!=="recon" && e.loadedIntoId==null);
     if (!eng) return;
     const gate = w.baseGate(1);
     const x = gate.x + (this.rngPick(w) - 0.5) * 20;
     const z = gate.z + (this.rngPick(w) - 0.5) * 20;
-    if (!w.canBuildKind(1, kind)) return;
-    if (w.teamResources[1] < 160 || w.teamCredits[1] < 160) return;
-    w.issue({ type: "build", ids: [eng.id], kind, x, z, team: 1 });
+    if (!w.canBuildKind(1, kind)||!w.canPlaceBuilding(1,kind,x,z)) return;
+    if (!this.canSpend(w,BUILDINGS[kind].cost)) return;
+    w.issue({ type: "build", ids: [eng.id], kind, x, z, team: 1 });this.pendingBudgetUsed+=BUILDINGS[kind].cost;
   }
 
   private taskAir(w: World): void {
@@ -236,11 +239,12 @@ export class WaveAI {
 
   private developBase(w: World): void {
     const base=w.bases[1];
-    const engineers=w.entities.filter(e=>!e.dead&&e.team===1&&e.kind==="engineer");
+    const engineers=w.entities.filter(e=>!e.dead&&e.team===1&&e.kind==="engineer"&&e.loadedIntoId==null&&!e.garrisonId);
+    for(const e of engineers)if(e.aiIntent==="recon"&&w.resourcePoints.some(r=>r.active&&r.controlledBy===1&&(Math.hypot(r.x-e.x,r.z-e.z)<=r.radius+3||e.dest&&Math.hypot(r.x-e.dest.x,r.z-e.dest.z)<=r.radius)))e.aiIntent=null;
     const point=[...w.resourcePoints].sort((a,b)=>Math.hypot(a.x-base.x,a.z-base.z)-Math.hypot(b.x-base.x,b.z-base.z))[0];
     // One engineer is assigned to restart industry, the other builds the base.
-    if(point && (!point.active||point.controlledBy!==1) && engineers.length>1){
-      const scout=engineers[1];if(scout.mode!=="build"&&scout.mode!=="repair"){
+    if(point && (!point.active||point.controlledBy!==1) && (engineers.length>1||this.has(w,1,"supply"))){
+      const scout=engineers.find(e=>e.aiIntent==="recon")??engineers[1]??engineers[0];if(scout&&scout.mode!=="build"&&scout.mode!=="repair"){
         w.issue({type:"move",ids:[scout.id],x:point.x,z:point.z,team:1});scout.aiIntent="recon";
       }
     }
@@ -248,15 +252,17 @@ export class WaveAI {
     if(!eng)return;
     const count=(kind:UnitKind)=>w.entities.filter(e=>!e.dead&&e.team===1&&e.kind===kind).length;
     const plans:BuildableKind[]=["generator","supply","landCommand","barracks","factory","landStrategy","radar","aa","airCommand","helipad","airStrategy","airbase","combatEngineer","bunker"];
+    if(engineers.length<AI_RULES.engineerReserve&&!this.has(w,1,"landStrategy"))plans.unshift("landStrategy");
     if(w.powerStatus(1).ratio<.9&&count("generator")<4)plans.unshift("generator");
     for(const kind of plans){
       const max=kind==="generator"?(w.powerStatus(1).ratio<.9?4:1):kind==="bunker"?2:kind==="aa"?2:1;
-      if(kind!=="generator"&&this.has(w,1,"factory")&&this.count(w,"tank")<2&&!["supply","landCommand","barracks","factory"].includes(kind))continue;
-      if(count(kind)>=max||!w.canBuildKind(1,kind)||w.teamCredits[1]<BUILDINGS[kind].cost||w.teamResources[1]<BUILDINGS[kind].cost)continue;
+      if(kind!=="generator"&&this.has(w,1,"factory")&&this.count(w,"tank")<2&&!["supply","landCommand","barracks","factory"].includes(kind)&&!(kind==="landStrategy"&&engineers.length<AI_RULES.engineerReserve))continue;
+      const reserve=["generator","supply","landCommand","barracks"].includes(kind)||kind==="landStrategy"&&engineers.length<AI_RULES.engineerReserve?0:AI_RULES.economyReserve;
+      if(count(kind)>=max||!w.canBuildKind(1,kind)||!this.canSpend(w,BUILDINGS[kind].cost,reserve))continue;
       for(const radius of [22,38,54,70])for(let i=0;i<16;i++){
         const angle=i*Math.PI/8;const x=base.x+Math.cos(angle)*radius,z=base.z+Math.sin(angle)*radius;
         if(Math.abs(x)>MAP_SIZE/2-22||Math.abs(z)>MAP_SIZE/2-22||!w.canPlaceBuilding(1,kind,x,z))continue;
-        w.issue({type:"build",ids:[eng.id],kind,x,z,team:1});return;
+        w.issue({type:"build",ids:[eng.id],kind,x,z,team:1});this.pendingBudgetUsed+=BUILDINGS[kind].cost;return;
       }
     }
   }
@@ -299,43 +305,55 @@ export class WaveAI {
     if (this.expansionTimer > 0) return;
     this.expansionTimer = this.difficulty === "hard" ? 14 : 20;
     if (this.phase === "bootstrap") return;
-    const engineer = w.entities.find(e => !e.dead && e.team === 1 && e.kind === "engineer" && e.mode !== "build");
+    const engineer = w.entities.find(e => !e.dead && e.team === 1 && e.kind === "engineer" && e.mode !== "build" && e.mode!=="repair" && e.aiIntent!=="recon" && e.loadedIntoId==null);
     if (!engineer) return;
     // Forward depot toward map center / player
-    const target = {
+    const objective = {
       x: (w.bases[0].x + w.bases[1].x) / 2 + (w.bases[1].x - w.bases[0].x) * 0.1,
       z: (w.bases[0].z + w.bases[1].z) / 2 + (w.bases[1].z - w.bases[0].z) * 0.1,
     };
+    const anchor=w.connectedSupplyNodes(1).filter(e=>!e.dead&&!e.underConstruction&&w.productionOperational(e).operational).sort((a,b)=>Math.hypot(a.x-objective.x,a.z-objective.z)-Math.hypot(b.x-objective.x,b.z-objective.z)||a.id-b.id)[0];
+    if(!anchor)return;
+    const distance=Math.hypot(objective.x-anchor.x,objective.z-anchor.z)||1,step=Math.min(distance,AI_RULES.forwardDepotStep);
+    const target={x:anchor.x+(objective.x-anchor.x)/distance*step,z:anchor.z+(objective.z-anchor.z)/distance*step};
     if (this.count(w, "supply") >= 3) return;
-    if (w.teamResources[1] < 130 || !w.canBuildKind(1, "supply")) return;
-    w.issue({ type: "build", ids: [engineer.id], kind: "supply", x: target.x, z: target.z, team: 1 });
+    if (!this.canSpend(w,BUILDINGS.supply.cost) || !w.canBuildKind(1, "supply")) return;
+    for(const radius of [0,16,32,48])for(let i=0;i<(radius?16:1);i++){
+      const a=i*Math.PI/8,x=target.x+Math.sin(a)*radius,z=target.z+Math.cos(a)*radius;
+      if(!w.canPlaceBuilding(1,"supply",x,z)||!w.hasCommandLinkToPoint(1,{x,z})||!w.logisticsConnectionOpen(anchor,{...anchor,x,z}))continue;
+      w.issue({type:"build",ids:[engineer.id],kind:"supply",x,z,team:1});this.pendingBudgetUsed+=BUILDINGS.supply.cost;return;
+    }
   }
 
   private developUnits(w:World):void {
     // Small reserve-only retrofit budget; purchases use the player's command rules.
     if(w.teamResources[1]<1000||w.teamCredits[1]<1000)return;
-    if(researchStatus(w,1,"advanced-armor").allowed){w.issue({type:"research",tech:"advanced-armor",team:1});return;}
+    const research=researchStatus(w,1,"advanced-armor");
+    if(research.allowed&&this.canSpend(w,research.cost)){w.issue({type:"research",tech:"advanced-armor",team:1});this.pendingBudgetUsed+=research.cost;return;}
     for(const u of w.entities.filter(e=>!e.dead&&e.team===1&&e.def.category==="armor")){
-      for(const upgrade of ["armor","weapon","range"] as const)if(unitUpgradeStatus(w,u,upgrade).allowed){w.issue({type:"upgrade",ids:[u.id],upgrade,team:1});return;}
+      for(const upgrade of ["armor","weapon","range"] as const){const status=unitUpgradeStatus(w,u,upgrade);if(status.allowed&&this.canSpend(w,status.cost)){w.issue({type:"upgrade",ids:[u.id],upgrade,team:1});this.pendingBudgetUsed+=status.cost;return;}}
     }
   }
 
   private upgradeProducers(w: World): void {
-    if(this.has(w,1,"factory")&&this.count(w,"tank")<2)return;
+    const recovery=this.count(w,"engineer")<AI_RULES.engineerReserve;
     const candidates = w.entities.filter(e =>
       !e.dead && !e.underConstruction && e.team === 1 &&
       ["barracks", "factory", "helipad", "airbase", "shipyard"].includes(e.kind) &&
       w.producerLevel(e)<3 && !e.upgrading
     );
-    if (!candidates.length || w.teamResources[1] < 260) return;
-    if (!w.canUpgradeProducer(candidates[0])) return;
-    w.issue({ type: "upgrade", ids: [candidates[0].id], upgrade: "producer", team: 1 });
+    const emergency=recovery&&this.has(w,1,"landStrategy")?candidates.find(e=>e.kind==="barracks"&&w.producerLevel(e)<w.unitRequiredBuildingLevel("engineer")):undefined;
+    if(!emergency&&this.has(w,1,"factory")&&this.count(w,"tank")<2)return;
+    const target=emergency??candidates[0];if(!target)return;
+    const cost=w.producerUpgradeCost(w.producerLevel(target));
+    if(!this.canSpend(w,cost,emergency?0:AI_RULES.economyReserve)||!w.canUpgradeProducer(target))return;
+    w.issue({type:"upgrade",ids:[target.id],upgrade:"producer",team:1});this.pendingBudgetUsed+=cost;
   }
 
   private taskNavy(w:World):void {
     const ports=w.entities.filter(e=>!e.dead&&!e.underConstruction&&e.team===1&&e.kind==="shipyard"),ships=w.entities.filter(e=>!e.dead&&e.team===1&&e.def.domain==="sea"&&e.kind!=="landingcraft");
     const port=ports[0];if(!port)return;
-    if(ships.length<4&&port.productionQueue.length<2&&w.teamResources[1]>=w.unitDefinition("missileBoat",1).cost&&w.productionOperational(port,"missileBoat").operational)w.issue({type:"produce",kind:"missileBoat",producerId:port.id,team:1});
+    if(ships.length<4&&port.productionQueue.length<2)this.buy(w,"missileBoat","shipyard");
     for(const ship of ships){
       const recovering=componentDamage(ship)>AI_RULES.retreatComponentDamage||ship.hp<ship.def.hp*.5||(ship.fuel??0)<(ship.maxFuel??1)*.2||(ship.def.weapons??[]).every((spec,i)=>(i===0?(ship.ammo??0):(ship.secondaryAmmo?.[i]??0))<spec.ammoUsePerShot);
       if(recovering){const p=w.waterNav.nearestWater(port,ship.def.radius,64);if(p)w.issue({type:"move",ids:[ship.id],x:p.x,z:p.z,team:1});continue;}
@@ -346,6 +364,7 @@ export class WaveAI {
   }
   private produceArmy(w: World): void {
     if (!this.has(w, 1, "barracks") && !this.has(w, 1, "factory")) return;
+    if(this.count(w,"engineer")<AI_RULES.engineerReserve&&this.buy(w,"engineer","barracks",0))return;
 
     // Doctrine-shaped composition
     const need: Array<[UnitKind, UnitKind, number]> = [];
@@ -473,17 +492,23 @@ export class WaveAI {
 
   private rngPick(w: World): number { return w.rng(); }
 
-  private buy(w: World, kind: UnitKind, producer: UnitKind): void {
-    const def = w.entities.find(e =>
-      !e.dead && !e.underConstruction && e.team === 1 && e.kind === producer
-    );
-    if (!def||!w.canProduceAtLevel(def,kind)||!w.productionOperational(def,kind).operational||w.teamCredits[1]-this.productionBudgetUsed-w.unitDefinition(kind,1).cost<AI_RULES.economyReserve||w.teamResources[1]-this.productionBudgetUsed-w.unitDefinition(kind,1).cost<AI_RULES.economyReserve) return;
-    w.issue({ type: "produce", kind, producerId: def.id, team: 1 });
-    this.productionBudgetUsed+=w.unitDefinition(kind,1).cost;
+  /** Pending commands share one budget until the next simulation command pass. */
+  private canSpend(w:World,cost:number,reserve=AI_RULES.economyReserve):boolean {
+    return Math.min(w.teamCredits[1],w.teamResources[1])-this.pendingBudgetUsed-cost>=reserve;
+  }
+  private buy(w: World, kind: UnitKind, producer: UnitKind, reserve=AI_RULES.economyReserve): boolean {
+    const def = w.entities.filter(e =>
+      !e.dead && !e.underConstruction && e.team === 1 && e.kind === producer &&
+      e.productionQueue.length+(this.pendingProduction.get(e.id)??0)<AI_RULES.productionQueueTarget&&w.canProduceAtLevel(e,kind)&&w.productionOperational(e,kind).operational
+    ).sort((a,b)=>a.productionQueue.length-b.productionQueue.length||a.id-b.id)[0];
+    const cost=w.unitDefinition(kind,1).cost;
+    if (!def||!this.canSpend(w,cost,reserve))return false;
+    w.issue({type:"produce",kind,producerId:def.id,team:1});this.pendingBudgetUsed+=cost;
+    this.pendingProduction.set(def.id,(this.pendingProduction.get(def.id)??0)+1);this.pendingUnits[kind]=(this.pendingUnits[kind]??0)+1;return true;
   }
 
   private count(w: World, kind: UnitKind): number {
-    return w.entities.filter(e => !e.dead && e.team === 1 && e.kind === kind).length + w.entities.filter(e=>!e.dead&&e.team===1).reduce((n,e)=>n+e.productionQueue.filter(k=>k===kind).length,0);
+    return (this.pendingUnits[kind]??0)+w.entities.filter(e => !e.dead && e.team === 1 && e.kind === kind).length + w.entities.filter(e=>!e.dead&&e.team===1).reduce((n,e)=>n+e.productionQueue.filter(k=>k===kind).length,0);
   }
 
   private has(w: World, team: 1, kind: UnitKind): boolean {

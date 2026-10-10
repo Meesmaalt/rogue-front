@@ -15,6 +15,17 @@ export function depositPayload(w:World,depot:Entity,payload:StockPayload):number
  for(const key of STOCK_KEYS){const field=`${key}Stock` as const,take=Math.max(0,Math.min(payload[key],cap[key]-(depot[field]??0)));depot[field]=(depot[field]??0)+take;payload[key]-=take;accepted+=take;}
  depot.logisticsStorage=stockTotal(depot);depot.logisticsMaxStorage=cap.ammo+cap.fuel+cap.repair;return accepted;
 }
+/** Load a finite convoy by destination deficits and priority; redistribute unused capacity. */
+export function withdrawPayload(w:World,source:Entity,destination:Entity,capacity:number):StockPayload {
+ const cap=stockCapacity(w,destination),weights=rules.resourceAllocation[destination.logisticsPriority??'balanced'];
+ const payload:StockPayload={ammo:0,fuel:0,repair:0},available:StockPayload={ammo:0,fuel:0,repair:0};
+ for(const key of STOCK_KEYS)available[key]=Math.max(0,Math.min(cap[key]-(destination[`${key}Stock`]??0),(source[`${key}Stock`]??0)-rules.convoyReserve));
+ let remaining=Math.max(0,capacity);
+ for(const key of STOCK_KEYS){const take=Math.min(available[key],capacity*weights[key]);payload[key]=take;remaining-=take;}
+ for(const key of STOCK_KEYS){const take=Math.min(available[key]-payload[key],remaining);payload[key]+=take;remaining-=take;}
+ for(const key of STOCK_KEYS)source[`${key}Stock`]=Math.max(0,(source[`${key}Stock`]??0)-payload[key]);
+ source.logisticsStorage=stockTotal(source);return payload;
+}
 /** Resource cargo is converted only at a warehouse. Spill allocation avoids a full ammo bin blocking fuel. */
 export function receiveResourceCargo(w:World,depot:Entity,amount:number):number {
  if(amount<=0||depot.dead||depot.underConstruction)return 0;

@@ -70,3 +70,22 @@ it('resource trucks recover automatically while preserving explicit source choic
  depot.preferredResourceIndex=1;truck.cargo=50;truck.logisticsPhase='loading';steps(w,1);
  expect(truck.logisticsSourceIndex).toBe(0);expect(truck.cargo).toBe(50);
 });
+
+it('a convoy fills its available capacity for the missing stock and honours destination priority without creating income',()=>{
+ const w=fixture(),main=w.spawn('supply',0,-40,0),fob=w.spawn('supply',0,35,0),cap=stockCapacity(w,fob);
+ fob.ammoStock=0;fob.fuelStock=cap.fuel;fob.repairStock=cap.repair;
+ const truck=w.spawn('logiTruck',0,-54,0);truck.supplyDepotId=fob.id;truck.logisticsHome={x:main.x,z:main.z};truck.logisticsSourceIndex=null;truck.logisticsCargoCapacity=150;truck.logisticsLoadProgress=3;
+ const before=stockTotal(main),money=w.teamCredits[0];steps(w,1);
+ expect(truck.cargo).toBe(150);expect(truck.logisticsPayload).toEqual({ammo:150,fuel:0,repair:0});expect(stockTotal(main)+truck.cargo).toBeCloseTo(before);expect(w.teamCredits[0]).toBe(money);
+ const other=w.spawn('logiTruck',0,-54,0);other.supplyDepotId=fob.id;other.logisticsCargoCapacity=150;other.logisticsLoadProgress=3;other.logisticsSourceIndex=null;
+ fob.fuelStock=fob.repairStock=0;fob.logisticsPriority='fuel';steps(w,1);
+ expect(other.logisticsPayload).toEqual({ammo:37.5,fuel:97.5,repair:15});expect(other.cargo).toBe(150);
+});
+it('production ignores disabled warehouses and selects a real local alternative, then stops and recovers with it',()=>{
+ const w=fixture(),near=w.spawn('supply',0,0,0),local=w.spawn('supply',0,45,0),factory=w.spawn('factory',0,-10,-20);w.spawn('landCommand',0,-25,-25);
+ near.disabledUntil=30;factory.productionQueue=['tank'];const nearAmmo=near.ammoStock!,localAmmo=local.ammoStock!;
+ updateProduction(w,1/30);expect(factory.productionProgress).toBeGreaterThan(0);expect(near.ammoStock).toBe(nearAmmo);expect(local.ammoStock).toBeLessThan(localAmmo);
+ local.ammoStock=0;const progress=factory.productionProgress;updateProduction(w,1/30);expect(factory.productionProgress).toBe(progress);expect(productionStatus(w,factory)).toContain('laskemoona');
+ w.receiveSupply(local,100);updateProduction(w,1/30);expect(factory.productionProgress).toBeGreaterThan(progress);
+ const copy=fixture();loadWorld(copy,JSON.parse(JSON.stringify(saveWorld(w))));expect(worldHash(copy)).toBe(worldHash(w));
+});
