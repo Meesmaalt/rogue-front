@@ -45,7 +45,7 @@ export class SelectionController {
   }
 
   private onScreen(e: Entity): boolean {
-    const p = this.picker.toScreen(e.x, e.y + 1, e.z);
+    const p = this.picker.entityScreen(e,1);
     return p.z < 1 && p.x > 0 && p.x < innerWidth && p.y > 0 && p.y < innerHeight;
   }
 
@@ -65,7 +65,7 @@ export class SelectionController {
     const x0 = Math.min(d.x0, d.x1), x1 = Math.max(d.x0, d.x1), y0 = Math.min(d.y0, d.y1), y1 = Math.max(d.y0, d.y1);
     this.set(this.world.entities.filter((u) => {
       if (u.dead || u.loadedIntoId!=null || u.team !== this.world.playerTeam || u.def.speed === 0) return false;
-      const p = this.picker.toScreen(u.x, u.y + u.def.height * 0.5, u.z);
+      const p = this.picker.entityScreen(u,u.def.height*.5);
       return p.z < 1 && p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1;
     }), add);
   }

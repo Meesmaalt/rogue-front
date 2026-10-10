@@ -97,6 +97,8 @@ Roheoru hooned, õued, teed ja metsad pärinevad kaardiandmetest. `terrain.json`
 
 HUD-i valikuinfo on korrektne div-konteiner, mille incremental patch säilitab avatavad detailid. Relvade tegelikud laskegate'id/ulatuse nupud jäävad lühivaatesse; kontekstuaalne maastik/varustusinfo avaneb eraldi. Kaardi tsiviilhoonete lähimudel ja LOD jagavad fassaadiatlast; aknad ei tekita eraldi geomeetriat. Sillad on hävitamise ID-ga säilitatud staatilised partiid, teekate jagab tee maailma-UV-skaalat; majade õuesillutise kolmnurgad lõigatakse tee-/silla-/veealast eemale. Need muudatused ei muuda simi ega nav-geomeetriat.
 
+`Picker.setPresentation` saab `UnitRenderer.positionFor`-ilt ainult nähtava mudeli viimase renderdatud juurpositsiooni. Overlay ja hiire-/kastivalik kasutavad seda ühiselt; fallback on simi positsioon ning vaenlase nähtavuse/pardaloleku kontroll säilib. `MarkerLayout` on ainult UI hõiveruudustik: püsivad suhtelised sildiridad, piiratud ajalugu ning HUD-/hoiatusala reserv. Intelimärgid kasutavad üksnes salvestatud kontaktikoordinaate ja tüüpi, näitavad vanust ning ei kuulu Picker-i tabamusristkülikutesse. Save/load ja algoleku vahetus lähtestavad esitusvahemälud.
+
 ## 3D-kvaliteet ja renderduskoormus
 
 `ArtModels` jagab fraktsioonikamo, karedus-/normaalikaarte ja meeskonnamaterjale ning laadib mõlemad GLB detailid. `UnitRenderer` vahetab neid kaamerakauguse/kvaliteedi järgi hüstereesiga. Vaateväljakontroll piirab liikuvate üksuste animatsioone; animatsioonisõlmede viited kogutakse loomisel. Rootorite ja recoil'i renderdus kasutab kaadri dt-d, simulatsioon endiselt fikseeritud sammu.

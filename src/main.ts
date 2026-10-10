@@ -134,9 +134,10 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const resourceSites=new ResourceSites(ctx.scene,world);
   const fog = new FogOfWar(terrainView,world);
   const picker = new Picker(ctx.camera, world);
+  picker.setPresentation(id=>units.positionFor(id));
   const selection = new SelectionController(topCanvas, world, picker);
   const commands = new CommandController(topCanvas, world, picker, selection);
-  const overlay = new Overlay(topCanvas);
+  const overlay = new Overlay(topCanvas,document.getElementById("ui"));
   const minimap = new Minimap(hud.minimapCanvas, world, picker);
 
   if (net) {
@@ -151,7 +152,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
           world.playerFaction = members[team]!.faction;
           world.enemyFaction = members[1-team]!.faction;
           world.setNetworkDecks([members[0]!.deck,members[1]!.deck]);
-          createSkirmish(world); replayRecorder.reset(world); units.reset();ranges.reset();
+          createSkirmish(world); replayRecorder.reset(world); units.reset();ranges.reset();overlay.reset();picker.setUnitMarkers([]);
           cam.jumpTo(world.bases[team].x,world.bases[team].z);
         }
         if (rules) { world.setMatchRules(rules); fog.setMode(rules.fog || "wargame"); } hud.setNetworkStatus(`1v1 · meeskond ${team + 1}`); },
@@ -215,7 +216,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       const saved=JSON.parse(raw) as {format?:string;context?:string;world?:WorldSave}&WorldSave;
       if(saved.format&&saved.context!==sessionContext)throw new Error("Salvestuse kaart, fraktsioon või režiim ei vasta sellele lahingule");
       loadWorld(world,saved.format?saved.world!:saved);
-      units.reset();ranges.reset();fx.reset();commands.reset();selection.selected.clear();replayRecorder.reset(world);
+      units.reset();ranges.reset();overlay.reset();picker.setUnitMarkers([]);fx.reset();commands.reset();selection.selected.clear();replayRecorder.reset(world);
       hud.hideScreen();running=world.status==="running";paused=false;hud.setPaused(false);setEnabled(running);audio.unlock();if(running)audio.startMusic();else audio.stopMusic();
       const hq=world.hq[world.playerTeam];if(hq)cam.jumpTo(hq.x,hq.z);
       if(!running)hud.showResult(world.status as "won"|"lost",world.time,"Laaditud lõpetatud lahing");

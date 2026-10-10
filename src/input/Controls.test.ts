@@ -10,7 +10,7 @@ function fixture(){
  const root=new EventTarget(),el=new Surface();vi.stubGlobal('Element',Surface);vi.stubGlobal('addEventListener',root.addEventListener.bind(root));vi.stubGlobal('innerWidth',800);vi.stubGlobal('innerHeight',600);
  const w=new World(21,false,[],[],[{x:0,z:0,r:180},{x:250,z:250,r:20}],false);w.networkMode=true;const a=w.spawn('inf',0,-30,0),b=w.spawn('inf',0,-20,0);
  let picked=a;
- const picker={groundAt:()=>({x:60,z:45}),pickEntity:(_x:number,_y:number,team:number)=>team===0?picked:null,pickGarrisonBuilding:()=>null,toScreen:()=>({x:100,y:100,z:0})} as unknown as Picker;
+ const picker={groundAt:()=>({x:60,z:45}),pickEntity:(_x:number,_y:number,team:number)=>team===0?picked:null,pickGarrisonBuilding:()=>null,toScreen:()=>({x:100,y:100,z:0}),entityScreen:()=>({x:100,y:100,z:0})} as unknown as Picker;
  const proxy={selected:new Set<number>(),selectedIds(){return [...this.selected];}};
  const commands=new CommandController(el as unknown as HTMLElement,w,picker,proxy as unknown as SelectionController);commands.enabled=true;
  const selection=new SelectionController(el as unknown as HTMLElement,w,picker);selection.enabled=true;selection.selected.add(a.id);proxy.selected=selection.selected;

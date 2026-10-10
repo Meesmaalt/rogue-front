@@ -106,6 +106,10 @@ export class UnitRenderer {
   private inverse=new THREE.Quaternion();
   private seen=new Set<number>();
   shadowDirty=true;
+  /** Expose only a rendered, visible model pose; no new sampling or allocation. */
+  positionFor(id:number):Readonly<{x:number;y:number;z:number}>|null {
+    const view=this.views.get(id);return view?.group.visible?view.group.position:null;
+  }
   private lastConstructionShadow=0;
 
   reset():void {
