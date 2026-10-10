@@ -95,6 +95,8 @@ HUD-i tarnejuhtimine väljastab `logistics-source` ja `logistics-route` käsud C
 
 Roheoru hooned, õued, teed ja metsad pärinevad kaardiandmetest. `terrain.json` farmland-kõrgendikud rakenduvad `heightmap.ts` kaudu ühiselt simulatsioonile ja renderdusele.
 
+HUD-i valikuinfo on korrektne div-konteiner, mille incremental patch säilitab avatavad detailid. Relvade tegelikud laskegate'id/ulatuse nupud jäävad lühivaatesse; kontekstuaalne maastik/varustusinfo avaneb eraldi. Kaardi tsiviilhoonete lähimudel ja LOD jagavad fassaadiatlast; aknad ei tekita eraldi geomeetriat. Sillad on hävitamise ID-ga säilitatud staatilised partiid, teekate jagab tee maailma-UV-skaalat; majade õuesillutise kolmnurgad lõigatakse tee-/silla-/veealast eemale. Need muudatused ei muuda simi ega nav-geomeetriat.
+
 ## 3D-kvaliteet ja renderduskoormus
 
 `ArtModels` jagab fraktsioonikamo, karedus-/normaalikaarte ja meeskonnamaterjale ning laadib mõlemad GLB detailid. `UnitRenderer` vahetab neid kaamerakauguse/kvaliteedi järgi hüstereesiga. Vaateväljakontroll piirab liikuvate üksuste animatsioone; animatsioonisõlmede viited kogutakse loomisel. Rootorite ja recoil'i renderdus kasutab kaadri dt-d, simulatsioon endiselt fikseeritud sammu.
