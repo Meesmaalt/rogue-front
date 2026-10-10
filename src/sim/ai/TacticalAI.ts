@@ -1,3 +1,4 @@
+import {serviceFuelAvailable} from "../stockLogistics";
 import {weaponSpec,weaponRange,canEngage} from '../systems/combat';
 import {aaThreatAt} from '../systems/airDoctrine';
 import {findPath} from '../nav/Pathfinder';
@@ -47,7 +48,7 @@ export function updateTacticalAI(w:World,team:Team,dt:number):void {
  function recover(u:Entity):void {
   const needAmmo=ammunitionFraction(u)<.5,needFuel=(u.maxFuel??0)>0&&(u.fuel??0)<(u.maxFuel??0)*.5;
   const needRepair=u.hp<maxHitPoints(u)*AI_RULES.readyHealth||componentDamage(u)>AI_RULES.readyComponentDamage,needSupply=(u.supply??100)<AI_RULES.recoveredSupply;
-  const ranked=nodes.map(n=>({node:n,score:Math.hypot(n.x-u.x,n.z-u.z)+((needAmmo&&(n.ammoStock??0)<=0||needFuel&&(n.fuelStock??0)<=0||needRepair&&(n.repairStock??0)<=0||needSupply&&(n.ammoStock??0)+(n.fuelStock??0)<=0)?1000:0)+enemies.filter(e=>e.def.damage>0&&Math.hypot(e.x-n.x,e.z-n.z)<AI_RULES.localThreatRadius).length*AI_RULES.defenseRadius})).sort((a,b)=>a.score-b.score||a.node.id-b.node.id);
+  const ranked=nodes.map(n=>({node:n,score:Math.hypot(n.x-u.x,n.z-u.z)+((needAmmo&&(n.ammoStock??0)<=0||needFuel&&serviceFuelAvailable(n)<=0||needRepair&&(n.repairStock??0)<=0||needSupply&&(n.ammoStock??0)+(n.fuelStock??0)<=0)?1000:0)+enemies.filter(e=>e.def.damage>0&&Math.hypot(e.x-n.x,e.z-n.z)<AI_RULES.localThreatRadius).length*AI_RULES.defenseRadius})).sort((a,b)=>a.score-b.score||a.node.id-b.node.id);
   let depot:Entity|undefined,point:{x:number;z:number}|undefined;
   for(const {node:n} of ranked.slice(0,AI_RULES.recoveryPathCandidates)){
    if(Math.hypot(n.x-u.x,n.z-u.z)<=supplyRadiusFor(n,w)*.75){depot=n;break;}

@@ -42,5 +42,6 @@
   "objectiveSpacing": 10,
   "objectiveSpread": 13,
   "capturePositionFraction": 0.65,
-  "orderArrivalTolerance": 6
+  "orderArrivalTolerance": 6,
+  "baseBuildingClearance": 6
 }
