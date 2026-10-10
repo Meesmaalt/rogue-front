@@ -89,3 +89,21 @@ it('production ignores disabled warehouses and selects a real local alternative,
  w.receiveSupply(local,100);updateProduction(w,1/30);expect(factory.productionProgress).toBeGreaterThan(progress);
  const copy=fixture();loadWorld(copy,JSON.parse(JSON.stringify(saveWorld(w))));expect(worldHash(copy)).toBe(worldHash(w));
 });
+
+it('a blocked collection route cannot steal a dispatch slot from a reachable source, and dispatch searches are throttled',()=>{
+ const w=fixture(),depot=w.spawn('supply',0,0,0);depot.fuelStock=0;
+ Object.assign(w.resourcePoints[0],{x:0,z:60,radius:8,controlledBy:0,active:true,amount:200});Object.assign(w.resourcePoints[1],{x:55,z:0,radius:8,controlledBy:0,active:true,amount:200});
+ // An impassable strip separates only the first source.
+ for(let z=0;z<w.nav.height;z++)for(let x=0;x<w.nav.width;x++){const p=w.nav.cellToWorld(x,z);if(p.z>25&&p.z<35)w.nav.blocked[w.nav.index(x,z)]=1;}
+ w.tick(1/30);const collectors=w.entities.filter(e=>e.kind==='logiTruck');expect(collectors).toHaveLength(1);expect(collectors[0].logisticsSourceIndex).toBe(1);
+ const timer=w.captureRuntime().roadTruckLastSpawn[0];for(let i=0;i<60;i++)w.tick(1/30);expect(w.captureRuntime().roadTruckLastSpawn[0]).toBe(timer);expect(w.entities.filter(e=>e.kind==='logiTruck')).toHaveLength(1);
+});
+it('forward resupply is dispatched before collector expansion and a lost convoy is replaced with real warehouse stock',()=>{
+ const w=fixture(),main=w.spawn('supply',0,0,0),forward=w.spawn('supply',0,55,0);w.spawn('landCommand',0,40,30);main.fuelStock=forward.fuelStock=0;forward.ammoStock=forward.repairStock=0;
+ Object.assign(w.resourcePoints[0],{x:0,z:60,radius:8,controlledBy:0,active:true,amount:200});
+ w.tick(1/30);const first=w.entities.find(e=>e.kind==='logiTruck')!;expect(first.supplyDepotId).toBe(forward.id);expect(first.logisticsSourceIndex).toBeNull();
+ // Replacement has to wait for the real dispatch interval, not appear on the loss tick.
+ first.dead=true;w.tick(1/30);expect(w.entities.filter(e=>!e.dead&&e.kind==='logiTruck')).toHaveLength(0);
+ for(let i=0;i<900;i++)w.tick(1/30);const replacement=w.entities.find(e=>!e.dead&&e.kind==='logiTruck')!;expect(replacement).toBeDefined();expect(replacement.logisticsSourceIndex).toBeNull();expect(replacement.supplyDepotId).toBe(forward.id);
+ expect(main.ammoStock).toBeLessThan(420);expect(replacement.logisticsPayload?.ammo).toBeGreaterThan(0);
+});

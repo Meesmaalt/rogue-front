@@ -18,6 +18,10 @@
     "repairCapacity": 600,
     "capacityPerLevel": 0.35
   },
+  "fob": {
+    "upgradeCost": 300,
+    "upgradeCostPerLevel": 220
+  },
   "refineryProductionPerLevel": 0.3,
   "resourceStockFraction": 0.4,
   "resourceIncomeFraction": 0.6,

@@ -41,3 +41,9 @@ it('AI shares pending purchase budget and queue limits across its production dec
  expect(commands.some(c=>c.type==='upgrade')).toBe(false);expect(commands.some(c=>c.type==='produce')).toBe(true);expect(barracks.productionQueue.length).toBeLessThanOrEqual(AI_RULES.productionQueueTarget);expect(factory.productionQueue.length).toBeLessThanOrEqual(AI_RULES.productionQueueTarget);
  expect(w.teamCredits[1]).toBeGreaterThanOrEqual(AI_RULES.economyReserve);expect(w.teamResources[1]).toBe(w.teamCredits[1]);
 });
+
+it('AI promotes a connected forward depot to a paid FOB before extending the network',()=>{
+ const {w}=recoveryWorld();const forward=w.spawn('supply',1,30,30);w.ai.expansionTimer=0;
+ w.teamResources[1]=w.teamCredits[1]=600;const cost=w.fobUpgradeCost(0);w.ai.update(w,SIM_STEP);applyCommands(w);
+ expect(forward.fobLevel).toBe(1);expect(w.teamCredits[1]).toBeLessThanOrEqual(600-cost);expect(w.hasCommandLinkToPoint(1,{x:forward.x+80,z:forward.z})).toBe(true);
+});

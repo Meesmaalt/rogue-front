@@ -305,6 +305,9 @@ export class WaveAI {
     if (this.expansionTimer > 0) return;
     this.expansionTimer = this.difficulty === "hard" ? 14 : 20;
     if (this.phase === "bootstrap") return;
+    const connected=w.connectedSupplyNodes(1);
+    const forward=connected.filter(e=>e.kind==="supply"&&!w.isFOB(e)&&w.productionOperational(e).operational&&Math.hypot(e.x-w.bases[1].x,e.z-w.bases[1].z)>=AI_RULES.forwardDepotStep*.5).sort((a,b)=>Math.hypot(b.x-w.bases[1].x,b.z-w.bases[1].z)-Math.hypot(a.x-w.bases[1].x,a.z-w.bases[1].z)||a.id-b.id)[0];
+    if(forward){const cost=w.fobUpgradeCost(forward.fobLevel??0);if(this.canSpend(w,cost)){w.issue({type:"upgrade",ids:[forward.id],upgrade:"fob",team:1});this.pendingBudgetUsed+=cost;return;}}
     const engineer = w.entities.find(e => !e.dead && e.team === 1 && e.kind === "engineer" && e.mode !== "build" && e.mode!=="repair" && e.aiIntent!=="recon" && e.loadedIntoId==null);
     if (!engineer) return;
     // Forward depot toward map center / player
@@ -312,7 +315,7 @@ export class WaveAI {
       x: (w.bases[0].x + w.bases[1].x) / 2 + (w.bases[1].x - w.bases[0].x) * 0.1,
       z: (w.bases[0].z + w.bases[1].z) / 2 + (w.bases[1].z - w.bases[0].z) * 0.1,
     };
-    const anchor=w.connectedSupplyNodes(1).filter(e=>!e.dead&&!e.underConstruction&&w.productionOperational(e).operational).sort((a,b)=>Math.hypot(a.x-objective.x,a.z-objective.z)-Math.hypot(b.x-objective.x,b.z-objective.z)||a.id-b.id)[0];
+    const anchor=connected.filter(e=>!e.dead&&!e.underConstruction&&w.productionOperational(e).operational).sort((a,b)=>Math.hypot(a.x-objective.x,a.z-objective.z)-Math.hypot(b.x-objective.x,b.z-objective.z)||a.id-b.id)[0];
     if(!anchor)return;
     const distance=Math.hypot(objective.x-anchor.x,objective.z-anchor.z)||1,step=Math.min(distance,AI_RULES.forwardDepotStep);
     const target={x:anchor.x+(objective.x-anchor.x)/distance*step,z:anchor.z+(objective.z-anchor.z)/distance*step};
