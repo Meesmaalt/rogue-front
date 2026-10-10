@@ -255,9 +255,13 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
         const mesh=new THREE.Mesh(new THREE.BoxGeometry(f.width,.7,f.depth),new THREE.MeshStandardMaterial({color:0x8a8980,roughness:.9}));
         mesh.position.set(f.x,(f.surfaceHeight??y)-.29,f.z);mesh.rotation.y=f.rotation??0;mesh.receiveShadow=true;
         const bridge=new THREE.Group();bridge.userData.bridgeId=f.id;bridge.add(mesh);
-        const surface=new THREE.Mesh(new THREE.PlaneGeometry(f.width-.8,f.depth).rotateX(-Math.PI/2),roadMat);surface.position.set(f.x,(f.surfaceHeight??y)+.075,f.z);surface.rotation.y=f.rotation??0;surface.receiveShadow=true;bridge.add(surface);
+        const surface=new THREE.Mesh(new THREE.PlaneGeometry(f.width-.8,f.depth).rotateX(-Math.PI/2),roadMat);surface.position.set(f.x,(f.surfaceHeight??y)+.075,f.z);surface.rotation.y=f.rotation??0;
+        // Continuous world-space asphalt scale, including rotated bridge decks.
+        const deckPos=surface.geometry.attributes.position,deckUv=surface.geometry.attributes.uv,a=f.rotation??0;
+        for(let i=0;i<deckPos.count;i++)deckUv.setXY(i,(f.x+deckPos.getX(i)*Math.cos(a)+deckPos.getZ(i)*Math.sin(a))*.18,(f.z-deckPos.getX(i)*Math.sin(a)+deckPos.getZ(i)*Math.cos(a))*.18);
+        surface.receiveShadow=true;bridge.add(surface);
         for(const side of [-1,1]){const a=f.rotation??0,offset=f.depth/2*side;const support=new THREE.Mesh(new THREE.BoxGeometry(f.width+1,1.8,2.2),mesh.material);support.position.set(f.x+Math.sin(a)*offset,(f.surfaceHeight??y)-1.3,f.z+Math.cos(a)*offset);support.rotation.y=a;bridge.add(support);}
-        addBridgeRails(bridge,f,f.surfaceHeight??y);group.add(bridge);
+        addBridgeRails(bridge,f,f.surfaceHeight??y);group.add(batchStaticScene(bridge));
       }
       continue;
     }
@@ -300,7 +304,7 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
       mesh.receiveShadow = true;
       if(f.appearance === "farmhouse") {
         // Small paving/apron grounds the facade without covering neighbouring roads.
-        group.add(drapedStrip({...f,kind:"cover",appearance:"yard",depth:f.depth+3},f.width+3,0x8f9181,.025));
+        group.add(drapedStrip({...f,kind:"cover",appearance:"yard",depth:f.depth+3},f.width+3,0x8f9181,.025,undefined,features));
         const variant=Number(f.id.split("-").at(-1))||0,house=new THREE.LOD();
         house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant),0);
         house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,true),235, .15);
@@ -362,8 +366,12 @@ function addBridgeRails(group:THREE.Group,f:MapFeatureDef,y:number):void {
   const mat=new THREE.MeshStandardMaterial({color:0x62665e,roughness:.8});
   for(const side of [-1,1]){
     const offset=side*(f.width/2-.3);
-    const rail=new THREE.Mesh(new THREE.BoxGeometry(.22,.8,f.depth),mat);
-    rail.position.set(f.x+offset*c,y+.6,f.z-offset*s);rail.rotation.y=f.rotation??0;group.add(rail);
+    for(const level of [.48,.92]){
+      const rail=new THREE.Mesh(new THREE.BoxGeometry(.13,.13,f.depth),mat);
+      rail.position.set(f.x+offset*c,y+level,f.z-offset*s);rail.rotation.y=f.rotation??0;group.add(rail);
+    }
+    const curb=new THREE.Mesh(new THREE.BoxGeometry(.42,.18,f.depth),mat);
+    curb.position.set(f.x+offset*c,y+.12,f.z-offset*s);curb.rotation.y=f.rotation??0;group.add(curb);
     for(let z=-f.depth/2+2;z<f.depth/2;z+=8){
       const post=new THREE.Mesh(new THREE.BoxGeometry(.35,1,.35),mat);
       post.position.set(f.x+offset*c+z*s,y+.5,f.z-offset*s+z*c);post.rotation.y=f.rotation??0;group.add(post);
@@ -372,9 +380,19 @@ function addBridgeRails(group:THREE.Group,f:MapFeatureDef,y:number):void {
 }
 
 /** Road geometry samples the same height field as navigation; no floating slabs. */
-function drapedStrip(f:MapFeatureDef,width:number,color:number,lift:number,sharedMaterial?:THREE.MeshStandardMaterial):THREE.Mesh {
-  const geo=new THREE.PlaneGeometry(width,f.depth,2,Math.max(1,Math.ceil(f.depth/3)));geo.rotateX(-Math.PI/2);const p=geo.attributes.position,c=Math.cos(f.rotation??0),s=Math.sin(f.rotation??0);
+function drapedStrip(f:MapFeatureDef,width:number,color:number,lift:number,sharedMaterial?:THREE.MeshStandardMaterial,exclude:readonly MapFeatureDef[]=[]):THREE.Mesh {
+  const geo=new THREE.PlaneGeometry(width,f.depth,exclude.length?Math.ceil(width/1.5):2,Math.max(1,Math.ceil(f.depth/(exclude.length?1.5:3))));geo.rotateX(-Math.PI/2);const p=geo.attributes.position,c=Math.cos(f.rotation??0),s=Math.sin(f.rotation??0);
   for(let i=0;i<p.count;i++){const lx=p.getX(i),lz=p.getZ(i),x=f.x+lx*c+lz*s,z=f.z-lx*s+lz*c;p.setXYZ(i,x,heightAt(x,z)+lift,z);}geo.computeVertexNormals();
+  if(exclude.length){
+    const blockers=exclude.filter(o=>(o.kind==="road"||o.kind==="bridge"||o.kind==="water")&&Math.hypot(o.x-f.x,o.z-f.z)<Math.hypot(o.width,o.depth)/2+Math.hypot(width,f.depth)/2+2);
+    const index=geo.index!,kept:number[]=[];
+    for(let i=0;i<index.count;i+=3){
+      const ids=[index.getX(i),index.getX(i+1),index.getX(i+2)];
+      if(ids.some(id=>blockers.some(o=>pointInFeature(p.getX(id),p.getZ(id),o,.5))))continue;
+      kept.push(...ids);
+    }
+    geo.setIndex(kept);
+  }
   const paved=f.kind==="road"||f.appearance==="yard";
   if(paved){const uv=geo.attributes.uv;for(let i=0;i<p.count;i++)uv.setXY(i,p.getX(i)*.18,p.getZ(i)*.18);}
   const map=paved?asphaltTexture():null;

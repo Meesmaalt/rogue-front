@@ -79,3 +79,44 @@
 
 /* Immediate weapon facts; deeper calculations stay behind per-slot details. */
 .compact-weapon{padding:6px;margin:5px 0}.weapon-heading{display:flex;align-items:center;gap:5px}.weapon-heading b{flex:1;min-width:0}.weapon-heading strong{font-size:10px;white-space:nowrap}.weapon-role-icon svg{width:21px;height:21px;color:var(--weapon-color)}.weapon-essential{display:flex;align-items:center;gap:7px;font-size:10px;margin:3px 0}.weapon-essential>b{color:var(--weapon-color);white-space:nowrap}.weapon-essential button{margin-left:auto;padding:2px 5px;font-size:9px;cursor:pointer}.weapon-essential button[aria-pressed=true]{background:#496658;border-color:#afc49a}.weapon-state{display:block;color:#e6be93!important;line-height:1.35}.weapon-state.ready{color:#b5dca0!important}.weapon-analysis{margin-top:4px}.weapon-analysis>summary{font-size:10px;color:#adbdc8;cursor:pointer}.weapon-analysis>span{display:block;font-size:10px;margin-top:5px}.terrain-summary{display:grid;grid-template-columns:1fr auto;gap:3px;font-size:10px;padding:5px;margin:5px 0;background:#263b36;border-left:3px solid #99b37b}.terrain-summary>small{grid-column:1/-1;color:#bbcbbb}.terrain-summary.danger{background:#4a3026;border-color:#edab6f}
+
+/* V4: core battle facts first, contextual information disclosed on demand. */
+.selection-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;font-size:11px;line-height:1.35;color:#b9c9c6}
+.bottom .sel{flex-basis:352px;max-height:min(360px,calc(100dvh - 70px));overflow:hidden}
+.sel:has(details[open]){max-height:min(570px,calc(100dvh - 70px))}
+.sel .section-heading{font-size:9px;margin-bottom:0;color:#8fa8aa}
+.sel h3{font-size:15px;line-height:1.2;padding-bottom:4px;border-bottom:1px solid #52696b55}
+.sel .selected-summary{gap:7px;margin:3px 0}
+.unit-meter{grid-template-columns:42px 56px 1fr;gap:5px;font-variant-numeric:tabular-nums}
+.unit-meter b{text-align:right;color:#d3ddd5}
+.unit-meter>i{min-width:20px}
+.unit-status{padding:4px 6px;background:#263a37;border-left:2px solid #bcbd8d;color:#e0dcc1;line-height:1.4}
+.armor-strip{font-size:10px;color:#a8bab8;font-variant-numeric:tabular-nums;margin:3px 0}
+.armor-strip b{color:#dde4d2}
+.selection-context,.unit-details,.unit-development{margin:5px 0;padding:4px 6px;border:1px solid #425b60;background:#1b2e33;max-height:none}
+.selection-context>summary,.unit-details>summary,.unit-development>summary{cursor:pointer;color:#c3d3d0;font-size:11px;line-height:1.6}
+.selection-context .garrison-card{padding:4px;margin:3px 0;font-size:10px}
+.range-controls{margin:5px 0;gap:3px}.range-controls>button{font-size:10px;padding:4px;cursor:pointer}
+.compact-weapon{margin:4px 0;padding:5px 6px}.weapon-essential{gap:5px}.weapon-heading b{font-size:11px}
+.weapon-analysis>summary{padding:2px 0}.role-summary{font-size:10px;line-height:1.4}
+.sel .order-bar{position:static;flex-shrink:0}.sel .stance-bar{flex-shrink:0}
+
+/* Match actions stay accessible; save/settings do not crowd the battle strip. */
+.game-menu{position:relative;pointer-events:auto;font-size:10px}
+.game-menu>summary{list-style:none;cursor:pointer;padding:5px 8px;border:1px solid #4b6269;background:#293b42;color:#d2dfda;min-height:26px;box-sizing:border-box}
+.game-menu>div{position:absolute;right:0;top:32px;display:grid;gap:4px;padding:6px;width:160px;background:#14252bf5;border:1px solid #647b7c;z-index:25;box-shadow:0 5px 18px #0006}
+.game-menu>div button{justify-content:flex-start;text-align:left;min-height:30px}
+.top .obj{min-width:0;overflow:visible}.top .obj [data-r=objectiveList]{overflow:hidden;text-overflow:ellipsis}
+.top .obj .warning:not(:empty){position:absolute;top:48px;left:50%;transform:translateX(-50%);max-width:min(560px,80vw);padding:6px 10px;border:1px solid #ad795c;background:#382d23ee;color:#f0d4b1;z-index:6}
+.top .stat.resources{gap:10px}.top .stat.resources b{font-size:13px;font-variant-numeric:tabular-nums}.top .stat.resources .res-label{font-size:8px}
+.economy-details>div{max-width:calc(100vw - 30px);box-sizing:border-box;box-shadow:0 5px 18px #0006}
+
+/* The construction tab also contains real logistics controls: let it grow. */
+.build.tactical:has([data-panel=builds].active){height:auto;max-height:min(380px,60dvh)}
+.build.tactical:has([data-panel=builds].active) .tab-panels{overflow-y:auto}
+.tab-panel[data-panel=builds].active{display:block;width:100%;min-width:0}
+.tab-panel[data-panel=builds] .build-sub{overflow:visible}
+.tab-panel[data-panel=builds] .build-buttons{flex-wrap:wrap}
+.tab-panel[data-panel=builds] .depot-control-bar{margin-bottom:5px}
+@media(max-width:1000px){.top .stat.resources .res-label{display:block}.top .stat.resources .logistics-row{display:none}.bottom .sel{flex-basis:320px}.brand{min-width:85px}.top .controls button{font-size:10px}}
+@media(max-width:700px){.top .stat.resources{gap:7px}.top .stat.resources .res-label{display:none}.bottom .sel{flex-basis:calc(100vw - 140px);max-width:352px;max-height:min(340px,calc(100dvh - 88px))}.sel:has(details[open]){max-height:calc(100dvh - 88px)}.selected-picture{display:none}.game-menu>summary{font-size:9px;padding:5px}.top .obj .warning:not(:empty){top:68px}}

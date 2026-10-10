@@ -23,7 +23,7 @@ function surface(kind:"plaster"|"brick"|"metal"|"roof"|"concrete"|"facade1"|"fac
     for(let floor=0;floor<floors;floor++)for(const x of [43,111,179]){
       const y=floors===2?44+floor*99:75;c.fillStyle="#b4b5a8";c.fillRect(x-3,y-3,39,54);c.fillStyle="#4b5b5c";c.fillRect(x,y,33,47);c.fillStyle="#969d96";c.fillRect(x+15,y,2,47);c.fillRect(x,y+23,33,2);
     }
-    c.fillStyle="#797c72";c.fillRect(0,238,256,18);c.fillStyle="#777768";c.fillRect(112,174,34,64);
+    c.fillStyle="#797c72";c.fillRect(0,238,256,18);
   }
   const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(kind.startsWith("facade")?1:2,kind.startsWith("facade")?1:2);texture.anisotropy=8;textures.set(kind,texture);return texture;
 }
@@ -57,15 +57,19 @@ function facade(g:THREE.Group,w:number,d:number,h:number,floors:number,wall:THRE
 }
 /** Original civilian models: gable roof, facade, sill, rain pipes, chimney and annex. */
 export function createCivilianBuilding(width:number,depth:number,height:number,variant=0,tactical=false):THREE.Group {
-  const g=new THREE.Group(),wall=material([0xb9b4a3,0xa39f91,0xc5bba7,0x9a9d8e][variant%4],tactical?(height>6?"facade2":"facade1"):variant%3===1?"brick":"plaster"),concrete=material(0x8c8e83,"concrete"),tiles=material([0x706259,0x565f61,0x8a7060][variant%3],"roof");
+  const g=new THREE.Group(),wall=material([0xb9b4a3,0xa39f91,0xc5bba7,0x9a9d8e][variant%4],height>6?"facade2":"facade1"),concrete=material(0x8c8e83,"concrete"),tiles=material([0x706259,0x565f61,0x8a7060][variant%3],"roof");
   // Height describes the whole house, rather than a wall plus an extra tall roof.
   const rise=Math.min(1.25,height*.22),wallHeight=height-rise-.2;
   box(g,width+.3,.2,depth+.3,0,.1,0,concrete);
   box(g,width,wallHeight,depth,0,wallHeight/2+.2,0,wall);
   roof(g,width+.35,depth+.35,wallHeight+.2,rise,tiles);
+  box(g,1.15,1.95,.10,0,1.18,depth/2+.06,material(0x514f43,"metal"));
+  box(g,1.65,.14,.85,0,.12,depth/2+.35,concrete);
+  box(g,.42,.85,.45,width*.25,height-.05,-depth*.2,material(0x8a786b,"brick"));
   if(!tactical){
-    facade(g,width,depth,wallHeight,wallHeight>4.8?2:1,concrete);
-    box(g,.42,.85,.45,width*.25,height-.05,-depth*.2,material(0x8a786b,"brick"));
+    // Windows are baked into the shared facade atlas in both LODs.
+    // Keep small close-view rain pipes, rather than hundreds of window boxes.
+    for(const x of [-width/2+.12,width/2-.12])box(g,.07,wallHeight,.09,x,wallHeight/2+.2,depth/2+.12,concrete);
     box(g,.55,.1,.6,width*.25,height+.42,-depth*.2,concrete);
     // Alternate a porch and a small storefront; avoid giant overlapping annexes.
     if(variant%3===0){box(g,2,.12,1.2,0,.15,depth/2+.55,concrete);box(g,2.2,.12,1.4,0,2.35,depth/2+.6,tiles);}
@@ -141,6 +145,6 @@ export function batchStaticScene(source:THREE.Group,cellSize=64):THREE.Group {
     if(!geometry)continue;geometry.computeBoundingSphere();
     const mesh=new THREE.Mesh(geometry,b.material);mesh.castShadow=b.cast;mesh.receiveShadow=b.receive;mesh.matrixAutoUpdate=false;source.add(mesh);
   }
-  source.add(...retained);
+  if(retained.length)source.add(...retained);
   return source;
 }

@@ -48,6 +48,8 @@ Järjekord allpool täpsustab V1–V5. Iga tervik saab lõpuotsuse nähtava käi
 
 V3 funktsionaalne arendusetapp on lõpetatud (10.10.2026): 15 minuti Roheoru simulatsioonis eemaldati 4. minutil AI pealadu ja kogumisveokid. AI taastas kohaliku lao, füüsilised tarned, tootmise ja operatiivse surve; tootmise edenemist nõuti eraldi ka viimase kahe minuti jooksul. Kontroll sisaldas 25 uut lahinguüksust pärast katkestust ja nelja hõivatud ressursiala. See oli simulatsioon valmis algbaasi ja passiivse mängija algvägedega, mitte brauseris inimvastasega läbimängitud tasakaaluhinnang ega FPS-kontroll. Viimane mängija vaates võidu/kaotuseni läbipääs jääb allolevasse V5 alpha väravasse; järgmine arendusetapp on V4.
 
+V4 arendus (10.10.2026): HUD toob valitud üksuse relvad, ulatuse ja laskmise põhjuse enne avatavat maastiku-/varustusinfot; soomus/optika on lühikaardil. Mängumenüü vähendab ülariba nuppe ja ehitusvaade mahutab tarnejuhtimise. Roheoru tsiviilhooned kasutavad mõlemas LOD-is sama fassaadiatlast; aknageomeetria vähendatud, sissepääs/korsten säilivad kaugvaates. Õuesillutis väldib tee-/veealasid, sillakate kasutab tee maailma-UV skaalat, avatud piirded koondatakse staatilistesse partiidesse. Build ja viis sihitud geomeetria/fog/ulatuse kontrolli läbisid. See ei kinnita brauseri visuaalset loetavust ega FPS-võitu: V4 lõpetamistingimus jääb avatuks kuni tegeliku vaatluse ja V1 võrdluseni.
+
 V1 alustab lühikese tegeliku vaatluse ja mõõtmisega, mitte uue optimeerimiskihi kirjutamisega. Kui nähtav juhtimisviga takistab mõõtestseeni või mängimist, parandatakse see kohe. V4 väiksemad UI/visuaaliparandused tehakse ka V1–V3 sees, kui need aitavad sama probleemi lahendada. Uut suurt teemat enne käimasoleva paketi lõpetamist ei alustata.
 
 ## Alpha väljalaske värav
