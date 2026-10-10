@@ -540,7 +540,7 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     const supplyButton = rootButton(this, "button[data-upgrade-supply]");
     if (supplyButton) { const st=world.supplyDepotStatus(world.playerTeam); supplyButton.hidden=!supplyDepot; supplyButton.textContent=st.level>=2 ? "Varustusladu MAX" : `Uuenda varustusladu (${180 + st.level*120}) · tase ${st.level+1}/3`; supplyButton.disabled=!running||!supplyDepot||st.level>=2||world.resources<(180+st.level*120)||world.credits<(180+st.level*120); }
     const fobButton = rootButton(this, "button[data-upgrade-fob]");
-    if (fobButton) { const lvl=supplyDepot?.fobLevel ?? 0; const cost=300+lvl*220; fobButton.hidden=!supplyDepot; fobButton.textContent=lvl>=2 ? "FOB MAX · juhtimisvõrk" : `Ehita FOB (${cost}) · tase ${lvl+1}/2`; fobButton.disabled=!running||!supplyDepot||lvl>=2||world.resources<cost||world.credits<cost; }
+    if (fobButton) { const lvl=supplyDepot?.fobLevel ?? 0; const cost=world.fobUpgradeCost(lvl); fobButton.hidden=!supplyDepot; fobButton.textContent=lvl>=2 ? "FOB MAX · juhtimisvõrk" : `Ehita FOB (${cost}) · tase ${lvl+1}/2`; fobButton.disabled=!running||!supplyDepot||lvl>=2||world.resources<cost||world.credits<cost; }
     const depotControl = this.el.depotControlBar as HTMLElement | undefined; if (depotControl) depotControl.hidden=!supplyDepot;
 
     const sel = [...selection].map((id) => world.byId.get(id)).filter((e) => e && !e.dead);

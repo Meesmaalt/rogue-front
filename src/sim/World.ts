@@ -1,4 +1,4 @@
-import {receiveResourceCargo,stockCapacity,stockTotal} from "./stockLogistics";
+import {receiveResourceCargo,stockCapacity,stockTotal,STOCK_KEYS} from "./stockLogistics";
 import {updateGarrisons} from "./garrison";
 import {damage as damageUnit} from "./systems/combat";
 import {freeAirSlot,airFacilityCapacity} from "./systems/airDoctrine";
@@ -489,12 +489,13 @@ export class World {
     return { nodes: nodes.length, fobs, linked, coverage };
   }
 
+  fobUpgradeCost(level:number):number {return logisticsConfig.fob.upgradeCost+level*logisticsConfig.fob.upgradeCostPerLevel;}
   upgradeFOB(team: Team, depotId: number): boolean {
     const depot = this.byId.get(depotId);
     if (!depot || depot.dead || depot.underConstruction || depot.team !== team || depot.kind !== "supply") return false;
     if ((depot.fobLevel ?? 0) >= 2) return false;
     const level = depot.fobLevel ?? 0;
-    const cost = 300 + level * 220;
+    const cost = this.fobUpgradeCost(level);
     if (this.teamResources[team] < cost || this.teamCredits[team] < cost) return false;
     this.teamResources[team] -= cost; this.teamCredits[team] -= cost;
     depot.fobLevel = level + 1;
@@ -701,40 +702,40 @@ export class World {
   }
   private updateRoadConvoys(_dt: number): void {
     for (const team of [0,1] as const) {
-      const depots = this.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === "supply" && this.productionOperational(e).operational);
-      if (!depots.length) continue;
-      const main = this.primarySupplyDepot(team);
-      if (!main) continue;
-
-      // Collect stock from captured industrial sites into the nearest forward depot.
-      for (let i=0; i<this.resourcePoints.length; i++) {
-        const rp = this.resourcePoints[i];
-        if (rp.controlledBy !== team || !rp.active || (rp.disabledUntil ?? 0) > this.time || (rp.amount ?? 0) <= 0) continue;
-        const depot = this.nearestResourceDepot(team, rp.x, rp.z);
-        if (!depot || depot.logisticsPaused || depot.preferredResourceIndex!=null&&depot.preferredResourceIndex!==i) continue;
-        const activeTrucks = this.entities.filter(t => !t.dead && t.team === team && t.kind === "logiTruck" && t.supplyDepotId === depot.id && t.logisticsSourceIndex === i);
-        const max = ROAD_TRUCK_MAX_PER_DEPOT + this.supplyDepotLevel(depot);
-        if (activeTrucks.length >= max) continue;
-        if (this.time - this.roadTruckLastSpawn[team] < ROAD_TRUCK_INTERVAL / Math.max(1, 1 + this.supplyDepotLevel(depot)*0.35)) continue;
-        this.roadTruckLastSpawn[team]=this.time;
-        const exit=this.convoyExit(depot,rp);if(!exit)continue;
-        const t = this.spawn("logiTruck", team, exit.x, exit.z);
-        t.supplyDepotId = depot.id; t.logisticsSourceIndex = i; t.logisticsHome = {x: depot.x, z: depot.z}; t.logisticsTarget = {x: rp.x, z: rp.z};
-        t.logisticsPhase = "idle"; t.logisticsRoute = "road"; t.logisticsCargoCapacity = ROAD_TRUCK_CARGO + this.supplyDepotLevel(depot)*45 + (this.isFOB(depot) ? 60 : 0); t.logisticsLoadProgress = 0; t.mode = "move"; t.dest = t.logisticsTarget; t.patrolPoints = (depot.logisticsWaypoints ?? []).map(p => ({...p})); t.patrolIndex = 0;
-        this.roadTruckLastSpawn[team] = this.time;
-      }
-
-      // Supply the forward network with physical trucks. No teleporting depot refill.
-      for (const depot of depots) {
-        if(depot.logisticsPaused || depot===main || !this.connectedSupplyNodes(team).some(n=>n.id===depot.id)) continue;
-        if(this.entities.some(t=>!t.dead&&t.team===team&&t.kind==="logiTruck"&&t.supplyDepotId===depot.id&&t.logisticsSourceIndex==null)) continue;
-        if(this.time-this.roadTruckLastSpawn[team]<ROAD_TRUCK_INTERVAL)continue;
-        this.roadTruckLastSpawn[team]=this.time;
+      const depots=this.entities.filter(e=>!e.dead&&!e.underConstruction&&e.team===team&&e.kind==="supply"&&this.productionOperational(e).operational);
+      const main=this.primarySupplyDepot(team);if(!depots.length||!main)continue;
+      const level=Math.max(...depots.map(e=>this.supplyDepotLevel(e)));
+      const interval=ROAD_TRUCK_INTERVAL/Math.max(1,1+level*.35);
+      if(this.time-this.roadTruckLastSpawn[team]<interval)continue;
+      // One bounded dispatch pass: a failed route cannot consume another route's slot,
+      // and fully blocked sites do not cause A* searches on every simulation tick.
+      this.roadTruckLastSpawn[team]=this.time;
+      const connected=new Set(this.connectedSupplyNodes(team).map(e=>e.id));let dispatched=false;
+      if(this.productionOperational(main).operational)for(const depot of depots){
+        if(depot===main||depot.logisticsPaused||!connected.has(depot.id))continue;
+        if(this.entities.some(t=>!t.dead&&t.team===team&&t.kind==="logiTruck"&&t.supplyDepotId===depot.id&&t.logisticsSourceIndex==null))continue;
+        const cap=stockCapacity(this,depot);
+        if(!STOCK_KEYS.some(key=>(main[`${key}Stock`]??0)>logisticsConfig.convoyReserve&&(depot[`${key}Stock`]??0)<cap[key]))continue;
         const exit=this.convoyExit(main,depot);if(!exit)continue;
         const tr=this.spawn("logiTruck",team,exit.x,exit.z);
         tr.supplyDepotId=depot.id;tr.logisticsSourceIndex=null;tr.logisticsHome={x:main.x,z:main.z};
         tr.logisticsTarget={x:depot.x,z:depot.z};tr.logisticsPhase="idle";tr.logisticsCargoCapacity=ROAD_TRUCK_CARGO;
-        tr.mode="move";tr.dest=tr.logisticsHome;
+        tr.mode="move";tr.dest=tr.logisticsHome;dispatched=true;break;
+      }
+      if(dispatched)continue;
+      for(let i=0;i<this.resourcePoints.length&&!dispatched;i++){
+        const rp=this.resourcePoints[i];
+        if(rp.controlledBy!==team||!rp.active||(rp.disabledUntil??0)>this.time||rp.amount<=0)continue;
+        const candidates=depots.filter(e=>!e.logisticsPaused&&(e.preferredResourceIndex==null||e.preferredResourceIndex===i)).sort((a,b)=>Math.hypot(a.x-rp.x,a.z-rp.z)-Math.hypot(b.x-rp.x,b.z-rp.z)||a.id-b.id);
+        for(const depot of candidates){
+          const active=this.entities.filter(t=>!t.dead&&t.team===team&&t.kind==="logiTruck"&&t.supplyDepotId===depot.id&&t.logisticsSourceIndex===i).length;
+          if(active>=ROAD_TRUCK_MAX_PER_DEPOT+this.supplyDepotLevel(depot))continue;
+          const exit=this.convoyExit(depot,rp);if(!exit)continue;
+          const t=this.spawn("logiTruck",team,exit.x,exit.z);
+          t.supplyDepotId=depot.id;t.logisticsSourceIndex=i;t.logisticsHome={x:depot.x,z:depot.z};t.logisticsTarget={x:rp.x,z:rp.z};
+          t.logisticsPhase="idle";t.logisticsRoute="road";t.logisticsCargoCapacity=ROAD_TRUCK_CARGO+this.supplyDepotLevel(depot)*45+(this.isFOB(depot)?60:0);
+          t.logisticsLoadProgress=0;t.mode="move";t.dest=t.logisticsTarget;t.patrolPoints=(depot.logisticsWaypoints??[]).map(p=>({...p}));t.patrolIndex=0;dispatched=true;break;
+        }
       }
     }
   }
