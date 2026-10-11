@@ -11,6 +11,9 @@ Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on j�
 
 ## Teostatud alused ja seniste pakettide seis
 
+- [x] V5 lõpuekraani ja taasalustuse ühendus: salvestusest tulnud kordusmäng eemaldab resume-võtme ega laadi sama checkpointi uuesti; säilitab lahingu tegeliku fraktsiooni, seadistuse ja Worldi decki. Kampaaniavõidu lõpuekraan võimaldab nii järgmist operatsiooni kui kordusmängu. Värske tulemus ja laaditud lõpetatud salvestus kasutavad sama edenemis-/järgmise missiooni loogikat; laadimine ei kirjuta tühja replayga varasemat üle. Preemia on ühekordne ning lukus operatsiooni otseaadress ei ava kampaaniajärjekorda. Vigane edenemisfail normaliseeritakse; salvestustõrge jätab tulemuse ja tegevused alles. Lõpetatud võrgumängu ei käivitata uuesti vana ruumiaadressiga. Jätkamisel algab ka muusika; Paus ei muuda lõpetatud matši olekut. Build + 11 sihitud save/navigation/campaign kontrolli; brauseri lõpuekraani ja kogu alpha läbipääsu värav jääb avatuks.
+
+
 - [x] V5 peamenüüst salvestatud lahingu jätkamine: kaheksa viimase salvestuse väike indeks näitab kaarti/operatsiooni, fraktsiooni, režiimi, aega ja salvestuskuupäeva; suur simulatsioonisnapshot jääb ühte eksemplari. Jätkamine käivitab sobiva kaardi/režiimi ja taastab olemasoleva loadWorld kaudu tegeliku seisu pausil, koos salvestatud decki ja AI profiiliga. Varasema teise lahingu decki ei rakendata. Puuduv/vigane salvestus annab teate; indeksi kirjutamise tõrge ei kaota juba kirjutatud snapshoti. Vanad salvestused on jätkuvalt laetavad sobiva lahingu menüüst ja ilmuvad loendisse uuesti salvestamisel. Build + 6 sihitud indeksi/save-load kontrolli, sealhulgas laadimisjärgse sim-jätku hash-võrdlus. Brauseri jätkamistee, inimvaates õpetus ja alpha tervikvärav jäävad kinnitamata.
 
 

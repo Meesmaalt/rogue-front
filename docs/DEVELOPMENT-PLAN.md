@@ -90,3 +90,7 @@ Oleku märgendid: **teostatud** = ühendatud kood; **kontrollitud** = vastav kon
 ### V5 jätkamistee ühendus — 11.10.2026
 
 Peamenüü salvestuste loend ja tegeliku lahingu taastamine pausil on teostatud; olemasolev snapshot säilitab tootmise, logistika, õhumissioonid ning decki/AI seisu. Väike metadata indeks väldib iga menüü- või HUD-uuenduse ajal tervete salvestuste parsimist. Build ja 6 sihitud indeksi/save-load kontrolli läbisid, sh jätkuvate tickide seisundi vastavus. Brauseri menüü → taastamine → Jätka läbipääs ning täielik õpetus/alpha matš on veel värava osa; V5 ei märgita tervikuna lõpetatuks.
+
+### V5 lõpuekraani ja taasalustuse ühendus — 11.10.2026
+
+Salvestusest jätkatud lahingu kordusmäng ei laadi enam sama resume-aadressi: algab värske matš tegeliku fraktsiooni/decki ja säilitatud seadetega. Kampaania järgmine operatsioon ning kordusmäng on eraldi tegevused; sama tulemuse taastamine kasutab ühekordse preemia ja tegelike eeltingimuste loogikat. Vigased progressiandmed ja salvestustõrked ei peida tulemuse tegevusi. Build ja 11 sihitud save/navigation/campaign kontrolli läbisid. V3 funktsionaalne ühendus on lõpetatud; V1, V2, V4 ja V5 alused on teostatud osaliselt, kuid nende brauseri tunnetuse/FPS/tervikmatši lõpetamistingimusi ei ole tõendatud. Projekti ei märgita veel kasutatavaks alphaks.

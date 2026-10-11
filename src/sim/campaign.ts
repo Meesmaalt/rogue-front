@@ -20,7 +20,20 @@ export const CAMPAIGN: readonly CampaignNode[] = [
 
 export interface CampaignState { completed: string[]; commandXP: number; doctrines: string[]; difficulty: "normal" | "hard"; }
 export function loadCampaign(): CampaignState {
-  try { const v = JSON.parse(localStorage.getItem(KEY) || "null") as Partial<CampaignState> | null; if (v) return { completed: v.completed ?? [], commandXP: v.commandXP ?? 0, doctrines: v.doctrines ?? [], difficulty: v.difficulty === "hard" ? "hard" : "normal" }; } catch { /* ignore */ }
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(KEY) || "null");
+    if (value && typeof value === "object") {
+      const v=value as Partial<CampaignState>;
+      const strings=(items:unknown,known:readonly string[])=>Array.isArray(items)
+        ? [...new Set(items.filter((x):x is string=>typeof x==="string"&&known.includes(x)))] : [];
+      return {
+        completed:strings(v.completed,CAMPAIGN.map(n=>n.id)),
+        commandXP:typeof v.commandXP==="number"&&Number.isFinite(v.commandXP)?Math.max(0,Math.floor(v.commandXP)):0,
+        doctrines:strings(v.doctrines,CAMPAIGN.flatMap(n=>n.reward.doctrine?[n.reward.doctrine]:[])),
+        difficulty:v.difficulty==="hard"?"hard":"normal",
+      };
+    }
+  } catch { /* Missing/invalid browser storage must not block the menu. */ }
   return { completed: [], commandXP: 0, doctrines: [], difficulty: "normal" };
 }
 export function saveCampaign(s: CampaignState): void { localStorage.setItem(KEY, JSON.stringify(s)); }
@@ -29,9 +42,16 @@ export function isUnlocked(node: CampaignNode, state = loadCampaign()): boolean 
 export function availableCampaignNodes(state = loadCampaign()): CampaignNode[] { return CAMPAIGN.filter(n => isUnlocked(n,state)); }
 export function completeCampaignMission(mission: MissionDef): CampaignState {
   const state = loadCampaign(); const node = nodeForMission(mission.id); if (!node) return state;
-  if (state.completed.includes(node.id)) return state;
+  if (state.completed.includes(node.id)||!isUnlocked(node,state)) return state;
   state.completed.push(node.id);
   state.commandXP += node.reward.commandXP;
   if (node.reward.doctrine && !state.doctrines.includes(node.reward.doctrine)) state.doctrines.push(node.reward.doctrine);
   saveCampaign(state); return state;
+}
+
+/** Continue forward from this operation, using one consistent progress snapshot. */
+export function nextCampaignMission(missionId:string,state=loadCampaign()):CampaignNode|undefined {
+  const index=CAMPAIGN.findIndex(n=>n.missionId===missionId);
+  if(index<0||!state.completed.includes(CAMPAIGN[index].id))return undefined;
+  return CAMPAIGN.slice(index+1).find(n=>!state.completed.includes(n.id)&&isUnlocked(n,state));
 }
