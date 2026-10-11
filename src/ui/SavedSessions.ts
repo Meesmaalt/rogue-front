@@ -73,3 +73,14 @@ export function readSessionWorld(raw: string, context: string): WorldSave {
   }
   return saved as WorldSave;
 }
+
+/** A retry is a fresh offline battle, never another resume or a stale network-room join. */
+export function restartBattleUrl(currentUrl: string): string {
+  const url = new URL(currentUrl), previous = new URLSearchParams(url.search);
+  url.search = ""; url.hash = "";
+  if (["multiplayer", "spectator"].includes(previous.get("mode") ?? "")) return url.toString();
+  for (const key of ["mission", "faction", "mode", "gameMode", "difficulty", "deployment"]) {
+    const value = previous.get(key); if (value !== null) url.searchParams.set(key, value);
+  }
+  return url.toString();
+}

@@ -34,12 +34,12 @@ import type { MissionDef } from "./sim/types";
 import { LockstepClient } from "./net/LockstepClient";
 import { worldHash } from "./sim/Replay";
 import { OnlineShell } from "./ui/OnlineShell";
-import { SAVE_PREFIX, writeSavedSession, readSessionWorld } from "./ui/SavedSessions";
+import { SAVE_PREFIX, writeSavedSession, readSessionWorld, restartBattleUrl } from "./ui/SavedSessions";
 import { getAuthToken } from "./net/Api";
 import { createSkirmish } from "./sim/scenario";
 import { getPlayableMap } from "./sim/proceduralMap";
 import { MatchModeController, MODE_RULES, type MatchMode } from "./sim/gameModes";
-import { completeCampaignMission, CAMPAIGN, loadCampaign, isUnlocked } from "./sim/campaign";
+import { completeCampaignMission, nextCampaignMission, loadCampaign } from "./sim/campaign";
 
 const queryParams = new URLSearchParams(location.search);
 const queryMission = queryParams.get("mission");
@@ -218,6 +218,21 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     saveAvailable=true;
     return indexed;
   };
+  const showBattleResult = (restored=false) => {
+    const status=world.status;if(status==="running")return;
+    let persistenceFailed=false;
+    let campaign=loadCampaign();
+    if(status==="won"&&!skirmish&&!multiplayer){
+      try{campaign=completeCampaignMission(mission);}catch{persistenceFailed=true;}
+      try{MissionController.markCompleted(mission.id);}catch{persistenceFailed=true;}
+    }
+    // Loading an ended snapshot must not overwrite its replay with an empty recorder.
+    if(!restored){try{localStorage.setItem("rogue-front.replay.v1."+mission.id,JSON.stringify(replayRecorder.file()));}catch{persistenceFailed=true;}}
+    const next=status==="won"&&!skirmish&&!multiplayer?nextCampaignMission(mission.id,campaign):undefined;
+    const reason=(restored?"Taastatud tulemus · ":"")+(skirmish?(world.matchController?.label()??modeController.label()):mission.name);
+    hud.showResult(status,world.time,reason+(persistenceFailed?" · Edenemise või replay salvestamine ebaõnnestus":""),next?.missionId,!multiplayer);
+    if(persistenceFailed)hud.setWarning("Tulemus säilib ekraanil, kuid brauseri salvestusruum ei võimaldanud kõiki andmeid salvestada.");
+  };
   const loadGame = (resumePaused=false) => {
     if(multiplayer)return;
     try{
@@ -226,16 +241,24 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       units.reset();ranges.reset();overlay.reset();picker.setUnitMarkers([]);fx.reset();commands.reset();selection.selected.clear();replayRecorder.reset(world);
       hud.hideScreen();running=world.status==="running";paused=running&&resumePaused;hud.setPaused(paused);setEnabled(running&&!paused);if(running&&!paused){audio.unlock();audio.startMusic();}else{audio.stopMusic();audio.pause();}
       const hq=world.hq[world.playerTeam];if(hq)cam.jumpTo(hq.x,hq.z);
-      if(!running)hud.showResult(world.status as "won"|"lost",world.time,"Laaditud lõpetatud lahing");
       hud.setWarning("Salvestus taastatud · "+Math.floor(world.time/60)+" min"+(paused?" · vajuta Jätka":""));
+      if(!running)showBattleResult(true);
     }catch(err){hud.setWarning(err instanceof Error?err.message:"Salvestuse laadimine ebaõnnestus");}
   };
   hud.onGuideTarget=p=>{cam.jumpTo(p.x,p.z);fx.ping(p.x,p.z,0x77ba9e);};
   hud.onGuideFocus=ids=>{commands.reset();selection.selected.clear();for(const id of ids)selection.selected.add(id);const u=world.byId.get(ids[0]);if(u)cam.jumpTo(u.x,u.z);};
   hud.setSaveAvailability(hasSave(),false);
-  const togglePause = () => { if(multiplayer){hud.setWarning("Võrgumäng peatub ühenduse katkemisel automaatselt.");return;} paused = !paused; setEnabled(running && !paused); hud.setPaused(paused); if (paused) audio.pause(); else { audio.unlock(); audio.resume(); } };
+  const togglePause = () => { if(!running)return; if(multiplayer){hud.setWarning("Võrgumäng peatub ühenduse katkemisel automaatselt.");return;} paused = !paused; setEnabled(running && !paused); hud.setPaused(paused); if (paused) audio.pause(); else { audio.unlock(); audio.resume(); audio.startMusic(); } };
   hud.onPause = togglePause;
   hud.onSettings = () => settingsPanel.open();
+  hud.onRestart = () => {
+    try{
+      if(skirmish&&world.activeDeck)sessionStorage.setItem("rogue-front.activeDeck",JSON.stringify(world.activeDeck));
+      else sessionStorage.removeItem("rogue-front.activeDeck");
+      const url=new URL(restartBattleUrl(location.href));url.searchParams.set("faction",world.playerFaction);
+      location.href=url.toString();
+    }catch{hud.setWarning("Taasalustamine ebaõnnestus: brauser ei võimalda lahingukoosseisu taastada.");}
+  };
   hud.onSave = () => { if (running && !multiplayer) {try{const indexed=saveGame();hud.setWarning(indexed?"Mäng salvestatud":"Mäng salvestatud; menüüloend ei uuenenud — laadi selle lahingu menüüst");}catch{hud.setWarning("Salvestamine ebaõnnestus: brauseri salvestusruum on täis");}} };
   hud.onLoad = () => {if(!multiplayer)loadGame();};
   hud.onSkirmish = (m, difficulty, mode) => { const url = new URL(location.href); url.search = ""; url.searchParams.set("mission", m.id); url.searchParams.set("mode", "skirmish"); url.searchParams.set("difficulty", difficulty); url.searchParams.set("gameMode", mode ?? "skirmish"); url.searchParams.set("faction", hud.selectedFaction); location.href = url.toString(); };
@@ -287,12 +310,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
           const result = world.status === "won" ? "win" : world.status === "lost" ? "loss" : "draw";
           void import("./net/Api").then(({ api }) => api.matchResult(multiplayerRoom, result).catch(() => {}));
         }
-        let persistenceFailed=false;
-        if(world.status==="won"&&!skirmish&&!multiplayer){try{completeCampaignMission(mission);MissionController.markCompleted(mission.id);}catch{persistenceFailed=true;}}
-        try{localStorage.setItem("rogue-front.replay.v1."+mission.id,JSON.stringify(replayRecorder.file()));}catch{persistenceFailed=true;}
-        const next = !skirmish && !multiplayer && world.status === "won" ? CAMPAIGN.find(n=>!loadCampaign().completed.includes(n.id)&&isUnlocked(n)) : undefined;
-        hud.showResult(world.status, world.time, (skirmish ? (world.matchController?.label()??modeController.label()) : mission.name)+(persistenceFailed?" · Edenemise või replay salvestamine ebaõnnestus; brauseri salvestusruum võib olla täis.":""), next?.missionId);
-        if(persistenceFailed)hud.setWarning("Lahing lõppes, kuid edenemise või replay salvestamine ebaõnnestus. Brauseri salvestusruum võib olla täis.");
+        showBattleResult();
       }
       return true;
     },

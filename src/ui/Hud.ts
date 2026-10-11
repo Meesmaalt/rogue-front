@@ -1,3 +1,4 @@
+import { restartBattleUrl } from "./SavedSessions";
 import {tutorialGuide} from "./TutorialGuide";
 import {tacticalSupplyStatus} from "../sim/systems/tacticalSupply";
 import {productionStatus} from "../sim/systems/production";
@@ -141,6 +142,7 @@ export class Hud {
   onSelect: (ids:number[])=>void = ()=>{};
   onProduce: (kind: UnitKind, producerId?: number) => void = () => {};
   onPause: () => void = () => {};
+  onRestart: () => void = () => { location.href=restartBattleUrl(location.href); };
   onSettings: () => void = () => {};
   onGuideFocus:(ids:number[])=>void=()=>{};
   onGuideTarget:(point:{x:number;z:number})=>void=()=>{};
@@ -739,11 +741,18 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     }
   }
 
-  showResult(status: "won" | "lost", time: number, reason = "Lahing lõppenud", nextMission?: string): void {
-    this.screen(status === "won" ? "Võit" : "Kaotus",
-      reason + " · Aeg: " + fmt(time) + ".",
-      nextMission ? "Järgmine operatsioon" : "Mängi uuesti", () => { if(nextMission) location.href=`${location.pathname}?mission=${encodeURIComponent(nextMission)}&faction=${this.selectedFaction}`; else location.reload(); });
-    const menu=document.createElement("button");menu.className="secondary";menu.textContent="Peamenüü";menu.onclick=()=>{location.href=location.pathname;};this.el.scrB.parentElement?.appendChild(menu);
+  showResult(status: "won" | "lost", time: number, reason = "Lahing lõppenud", nextMission?: string, allowRetry=true): void {
+    const next=()=>{location.href=`${location.pathname}?mission=${encodeURIComponent(nextMission!)}&faction=${this.selectedFaction}`;};
+    const retry=()=>{this.el.screen.hidden=false;this.onRestart();};
+    const menu=()=>{location.href=location.pathname;};
+    this.screen(status === "won" ? "Võit" : "Kaotus", reason + " · Aeg: " + fmt(time) + ".",
+      nextMission ? "Järgmine operatsioon" : allowRetry ? "Mängi uuesti" : "Peamenüü", nextMission?next:allowRetry?retry:menu);
+    const addAction=(label:string,action:()=>void)=>{
+      const button=document.createElement("button");button.className="secondary";button.textContent=label;
+      button.onclick=action;this.el.scrB.parentElement?.appendChild(button);
+    };
+    if(nextMission&&allowRetry)addAction("Mängi uuesti",retry);
+    if(nextMission||allowRetry)addAction("Peamenüü",menu);
   }
 
   private screen(title: string, text: string, button: string, onClick: () => void): void {

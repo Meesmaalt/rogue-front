@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { World } from "../sim/World";
 import { saveWorld } from "../sim/SaveState";
-import { readSavedSessions, readSessionWorld, savedSessionQuery, writeSavedSession, SAVE_PREFIX, type SavedSession } from "./SavedSessions";
+import { readSavedSessions, readSessionWorld, savedSessionQuery, writeSavedSession, SAVE_PREFIX, restartBattleUrl, type SavedSession } from "./SavedSessions";
 
 function memoryStorage() {
   const values = new Map<string, string>();
@@ -46,4 +46,12 @@ describe("saved battle menu", () => {
     expect(() => readSessionWorld('{"format":"rogue-front-session","context":"map"}', "map")).toThrow(/simulatsioon/);
     storage.setItem(index, "broken-json"); expect(readSavedSessions(storage)).toEqual([]);
   });
+});
+
+it("retries a resumed battle with its setup but without resume or network credentials", () => {
+  const url=new URL(restartBattleUrl("https://example.test/game/?mission=roheorg&faction=usa&mode=skirmish&gameMode=conquest&difficulty=hard&deployment=base&resume=old-save&room=old-room&spectateToken=secret#old"));
+  expect(url.pathname).toBe("/game/");expect(url.hash).toBe("");
+  expect(Object.fromEntries(url.searchParams)).toEqual({mission:"roheorg",faction:"usa",mode:"skirmish",gameMode:"conquest",difficulty:"hard",deployment:"base"});
+  expect(new URL(restartBattleUrl("https://example.test/game/?mode=multiplayer&room=ended&mission=roheorg")).search).toBe("");
+  expect(new URL(restartBattleUrl("https://example.test/game/?mode=spectator&spectateToken=secret")).search).toBe("");
 });
