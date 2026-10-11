@@ -11,6 +11,8 @@ Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on j�
 
 ## Teostatud alused ja seniste pakettide seis
 
+- [x] Alpha kandidaadi ühendus: õpetuse kõigi AI planeerimiskihtide ettevalmistus, 16 päris eesmärgi läbipääs, pooleli ehituse jätkamine/limiit ja käsutõrke tagasiside; kaamera A/E konflikt eemaldatud; peamenüü seaded, keskmine esmakvaliteet ja käivitustõrke teade. Build + 46 sihitud kontrolli. Täielik õpetus, brauseri FPS/juhtimistunnetus ja tervikmatš jäävad alpha väravasse; vaja töötavat mängu URL-i.
+
 - [x] V5 lõpuekraani ja taasalustuse ühendus: salvestusest tulnud kordusmäng eemaldab resume-võtme ega laadi sama checkpointi uuesti; säilitab lahingu tegeliku fraktsiooni, seadistuse ja Worldi decki. Kampaaniavõidu lõpuekraan võimaldab nii järgmist operatsiooni kui kordusmängu. Värske tulemus ja laaditud lõpetatud salvestus kasutavad sama edenemis-/järgmise missiooni loogikat; laadimine ei kirjuta tühja replayga varasemat üle. Preemia on ühekordne ning lukus operatsiooni otseaadress ei ava kampaaniajärjekorda. Vigane edenemisfail normaliseeritakse; salvestustõrge jätab tulemuse ja tegevused alles. Lõpetatud võrgumängu ei käivitata uuesti vana ruumiaadressiga. Jätkamisel algab ka muusika; Paus ei muuda lõpetatud matši olekut. Build + 11 sihitud save/navigation/campaign kontrolli; brauseri lõpuekraani ja kogu alpha läbipääsu värav jääb avatuks.
 
 

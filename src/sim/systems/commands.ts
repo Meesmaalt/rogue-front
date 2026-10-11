@@ -169,10 +169,10 @@ function apply(w: World, c: Command): void {
     }
     case "repair": {
       const target = w.byId.get(c.targetId);
-      if (!target || target.dead || target.team !== (c.team ?? w.playerTeam) || (target.hp >= maxHitPoints(target) && !Object.values(target.components ?? {}).some(v => v > 0))) break;
+      if (!target || target.dead || target.team !== (c.team ?? w.playerTeam) || (!target.underConstruction && target.hp >= maxHitPoints(target) && !Object.values(target.components ?? {}).some(v => v > 0))) break;
       const engineers = mobile(w, c.ids, c.team).filter(u => u.kind === "engineer" && (!u.garrisonId || leaveGarrison(w,u)));
       if (!engineers.length) break;
-      for (const u of engineers.slice(0, 2)) { replaceTask(w,u);u.mode = "repair"; u.target = target; u.dest = { x: target.x, z: target.z }; }
+      for (const u of engineers.slice(0, 2)) { replaceTask(w,u);u.mode = target.underConstruction?"build":"repair"; u.holdPosition=false;u.target = target; u.dest = { x: target.x, z: target.z }; }
       target.builderIds = engineers.slice(0, 2).map(u => u.id);
       break;
     }
@@ -195,13 +195,14 @@ function apply(w: World, c: Command): void {
         if (nearest) builders = [nearest];
       }
       const builder = builders[0];
-      if (!builder || !isBuildable(c.kind)) break;
+      const reject=(message:string)=>w.events.push({type:"order-rejected",team,unitId:builder?.id??c.ids[0]??0,x:c.x,z:c.z,message});
+      if (!builder || !isBuildable(c.kind)) {reject("Ehitamiseks on vaja vaba, pardalt väljunud inseneri");break;}
       const spec = BUILDINGS[c.kind];
       const walletCredits = w.teamCredits[team], walletResources = w.teamResources[team];
-      if (walletResources < spec.cost || walletCredits < spec.cost) break;
-      if (!w.canBuildKind(team, c.kind)) break;
+      if (walletResources < spec.cost || walletCredits < spec.cost) {reject("Ehitus peatatud: raha või ressursse ei jätku");break;}
+      if (!w.canBuildKind(team, c.kind)) {reject("Ehitus pole lubatud: eeltingimus, energia või hoonete arvu piir");break;}
       // No range gate – foundation is placed and engineer walks to it (Real War style)
-      if (!w.canPlaceBuilding(team, c.kind, c.x, c.z)) break;
+      if (!w.canPlaceBuilding(team, c.kind, c.x, c.z)) {reject("Siin ei saa ehitada: vali vaba, läbitav plats");break;}
       w.teamCredits[team] -= spec.cost; w.teamResources[team] -= spec.cost;
       if (team === w.playerTeam) { w.credits = w.teamCredits[team]; w.resources = w.teamResources[team]; }
       const b = w.spawn(c.kind, team, c.x, c.z);
@@ -238,7 +239,10 @@ function apply(w: World, c: Command): void {
         const currentLevel = target ? w.producerLevel(target) : 3;
         const nextLevel = currentLevel + 1;
         const cost = target ? w.producerUpgradeCost(currentLevel) : 9999;
-        if (!target || nextLevel > 3 || w.teamResources[team] < cost || w.teamCredits[team] < cost) break;
+        if (!target || nextLevel > 3 || w.teamResources[team] < cost || w.teamCredits[team] < cost) {
+          const building=target??w.byId.get(c.ids[0]);
+          w.events.push({type:"order-rejected",team,unitId:building?.id??0,x:building?.x??0,z:building?.z??0,message:target?"Uuenduseks ei jätku raha või ressursse":"Hoone pole uuendamiseks valmis või on maksimaalsel tasemel"});break;
+        }
         if (target.upgrading) break;
         w.teamResources[team] -= cost; w.teamCredits[team] -= cost;
         target.upgrading = true;

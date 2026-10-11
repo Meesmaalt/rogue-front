@@ -117,7 +117,8 @@ export class CommandController {
           const hq = this.world.hq[this.world.playerTeam];
           const engineer = selectedEngineer ?? this.world.entities.filter(u=>u.team===this.world.playerTeam && u.kind==="engineer" && !u.dead).sort((a,b)=>Math.hypot((a.x-(hq?.x ?? 0)),(a.z-(hq?.z ?? 0)))-Math.hypot((b.x-(hq?.x ?? 0)),(b.z-(hq?.z ?? 0))))[0];
           if (engineer) { this.world.issue({type:"build",ids:[engineer.id],kind:this.buildMode,x:this.buildPoint.x,z:this.buildPoint.z,rotation:this.buildRotation}); this.ack(this.buildPoint.x,this.buildPoint.z,0xf2a33a,"EHITA");this.cancelBuild(this.el); }
-        }
+          else this.notify("Ehitamiseks on vaja inseneri");
+        }else this.notify("Siin ei saa ehitada — vali vaba plats ja kontrolli hoone eeltingimusi");
         return;
       }
       if(e.button!==2)return;
@@ -154,9 +155,9 @@ export class CommandController {
       }
       if(friendly&&transportCapacity(friendly)>0&&this.ids().some(id=>{const p=this.world.byId.get(id);return !!p&&isPassenger(p);})){this.world.issue({type:"load",ids:this.ids(),targetId:friendly.id});this.ack(friendly.x,friendly.z,0x55b7ff);return;}
       const engineers = this.selection.selectedIds().filter(id => { const u=this.world.byId.get(id); return !!u && !u.dead && u.team===this.world.playerTeam && u.kind==="engineer"; });
-      if (friendly && (friendly.hp < maxHitPoints(friendly) || (friendly.components && Object.values(friendly.components).some(v=>v>0))) && engineers.length) {
+      if (friendly && (friendly.underConstruction || friendly.hp < maxHitPoints(friendly) || (friendly.components && Object.values(friendly.components).some(v=>v>0))) && engineers.length) {
         this.world.issue({ type: "repair", ids: engineers, targetId: friendly.id });
-        this.ack(friendly.x, friendly.z, 0x66d9a0);
+        this.ack(friendly.x, friendly.z, 0x66d9a0,friendly.underConstruction?"JÄTKA EHITUST":undefined);
         return;
       }
       const enemy = this.picker.pickEntity(e.clientX, e.clientY, this.world.playerTeam === 0 ? 1 : 0);

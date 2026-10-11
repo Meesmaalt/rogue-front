@@ -2,9 +2,10 @@ import mobility from "../data/mobility.json";
 import * as THREE from "three";
 import {MAP_SIZE} from "../sim/heightmap";
 
-/** RTS-kaamera: WASD/nooled/serv liigutavad, Q/E pöörab, rull suumib. */
+/** RTS-kaamera: nooled/serv liigutavad, Alt+Q/E pöörab, rull suumib. */
 export class RtsCamera {
   // Tactical overview: unit identity comes from class markers at distance.
+  enabled=true;
   x = -105; z = 105; yaw = -Math.PI / 4;
   dist = 280; targetDist = 280; pitch = 0.83;
   groundY = 0;
@@ -20,13 +21,14 @@ export class RtsCamera {
     el: HTMLElement,
   ) {
     this.sun.userData.shadowFocus=this.shadowFocus;
-    window.addEventListener("keydown", (e) => {if(!(e.target instanceof Element&&e.target.closest("input,textarea,select,[contenteditable=true]")))this.keys.add(e.key.toLowerCase());});
-    window.addEventListener("keyup", (e) => this.keys.delete(e.key.toLowerCase()));
+    window.addEventListener("keydown", (e) => {if(!(e.target instanceof Element&&e.target.closest("input,textarea,select,[contenteditable=true]")))this.keys.add((e.altKey?"alt+":"")+e.key.toLowerCase());});
+    window.addEventListener("keyup", (e) => {this.keys.delete(e.key.toLowerCase());this.keys.delete("alt+"+e.key.toLowerCase());});
     window.addEventListener("blur", () => {this.keys.clear();this.vx=this.vz=this.rotationSpeed=0;});
     window.addEventListener("mousemove", (e) => { this.mouse.x = e.clientX; this.mouse.y = e.clientY; });
     document.addEventListener("mouseleave", () => { this.mouse.x = this.mouse.y = -1; });
     el.addEventListener("wheel", (e) => {
       e.preventDefault();
+      if(!this.enabled)return;
       this.targetDist = Math.max(58, Math.min(MAP_SIZE*.62, this.targetDist * (1 + Math.sign(e.deltaY) * 0.11)));
     }, { passive: false });
   }
@@ -38,14 +40,15 @@ export class RtsCamera {
   }
 
   update(dt: number): void {
+    if(!this.enabled){this.keys.clear();this.vx=this.vz=this.rotationSpeed=0;return;}
     const k = this.keys, m = this.mouse;
     let f = 0, r = 0;
-    if (k.has("w") || k.has("arrowup") || (m.y >= 0 && m.y < 4)) f++;
-    if (k.has("s") || k.has("arrowdown") || m.y > innerHeight - 4) f--;
-    if (k.has("d") || k.has("arrowright") || m.x > innerWidth - 4) r++;
-    if (k.has("a") || k.has("arrowleft") || (m.x >= 0 && m.x < 4)) r--;
+    if (k.has("arrowup") || (m.y >= 0 && m.y < 4)) f++;
+    if (k.has("arrowdown") || m.y > innerHeight - 4) f--;
+    if (k.has("arrowright") || m.x > innerWidth - 4) r++;
+    if (k.has("arrowleft") || (m.x >= 0 && m.x < 4)) r--;
     const response=1-Math.exp(-mobility.presentation.cameraResponse*dt);
-    this.rotationSpeed+=((Number(k.has("e"))-Number(k.has("q")))*1.6-this.rotationSpeed)*response;
+    this.rotationSpeed+=((Number(k.has("alt+e"))-Number(k.has("alt+q")))*1.6-this.rotationSpeed)*response;
     this.yaw+=this.rotationSpeed*dt;
     const speed=40+this.dist*.9,s=Math.sin(this.yaw),c=Math.cos(this.yaw),length=Math.max(1,Math.hypot(f,r));
     this.vx+=((-s*f+c*r)*speed/length-this.vx)*response;

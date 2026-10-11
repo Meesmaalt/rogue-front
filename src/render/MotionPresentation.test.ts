@@ -34,7 +34,7 @@ it('camera eases input and terrain height instead of jumping; explicit focus res
  const events=new EventTarget(),surface=new EventTarget();vi.stubGlobal('window',events);vi.stubGlobal('document',new EventTarget());vi.stubGlobal('Element',class {});vi.stubGlobal('innerWidth',1000);vi.stubGlobal('innerHeight',600);
  const camera=new PerspectiveCamera(),sun=new DirectionalLight(),view=new RtsCamera(camera,()=>30,sun,surface as unknown as HTMLElement);
  const light=sun.position.clone();view.update(1/60);expect(view.groundY).toBeGreaterThan(0);expect(view.groundY).toBeLessThan(5);expect(sun.position.equals(light)).toBe(true);
- events.dispatchEvent(Object.assign(new Event('keydown'),{key:'w'}));const start=view.x;view.update(1/60);const first=Math.abs(view.x-start);view.update(1/60);expect(Math.abs(view.x-start)-first).toBeGreaterThan(first);
+ events.dispatchEvent(Object.assign(new Event('keydown'),{key:'ArrowUp'}));const start=view.x;view.update(1/60);const first=Math.abs(view.x-start);view.update(1/60);expect(Math.abs(view.x-start)-first).toBeGreaterThan(first);
  view.jumpTo(0,0);expect(view.groundY).toBe(30);expect(view.x).toBe(0);
 });
 it('rounded forest batches use one opaque crown per tree and no forest shadow casters',()=>{
@@ -42,4 +42,14 @@ it('rounded forest batches use one opaque crown per tree and no forest shadow ca
  const batches:InstancedMesh[]=[];forest.traverse(o=>{if(o instanceof InstancedMesh)batches.push(o);});expect(batches.length).toBeGreaterThan(0);
  let crowns=0;for(const b of batches){expect(b.castShadow).toBe(false);if(!b.userData.forestTrunks){crowns++;expect(b.count).toBe(b.userData.forestPoints.length);expect(b.userData.forestCrownCount).toBe(1);expect((b.material as MeshStandardMaterial).alphaTest).toBe(0);expect(b.geometry.getAttribute('position').count).toBeGreaterThan(4);}}
  expect(crowns).toBeGreaterThan(0);expect(forest.children.every(o=>o instanceof LOD)).toBe(true);
+});
+
+it('attack and evacuation keys do not pan or rotate the camera',()=>{
+ const events=new EventTarget();vi.stubGlobal('window',events);vi.stubGlobal('document',new EventTarget());vi.stubGlobal('Element',class {});vi.stubGlobal('innerWidth',1000);vi.stubGlobal('innerHeight',600);
+ const view=new RtsCamera(new PerspectiveCamera(),()=>0,new DirectionalLight(),new EventTarget() as unknown as HTMLElement);
+ view.jumpTo(0,0);const yaw=view.yaw;
+ for(const key of ['a','e'])events.dispatchEvent(Object.assign(new Event('keydown'),{key}));
+ view.update(.1);expect(view.x).toBe(0);expect(view.z).toBe(0);expect(view.yaw).toBe(yaw);
+ events.dispatchEvent(Object.assign(new Event('keydown'),{key:'e',altKey:true}));view.update(.1);expect(view.yaw).toBeGreaterThan(yaw);
+ view.enabled=false;const stopped=view.yaw;view.update(.1);expect(view.yaw).toBe(stopped);
 });

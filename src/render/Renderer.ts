@@ -16,8 +16,8 @@ export interface RenderContext {
   setQuality(quality: GameSettings["quality"]): void;
 }
 
-export function createRenderContext(canvas: HTMLCanvasElement, temperate = false): RenderContext {
-  let profile = chooseVisualProfile();
+export function createRenderContext(canvas: HTMLCanvasElement, temperate = false, quality:GameSettings["quality"]="medium"): RenderContext {
+  let profile = chooseVisualProfile(quality);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
   renderer.setPixelRatio(profile.pixelRatio);
   renderer.shadowMap.enabled = profile.shadows;

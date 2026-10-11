@@ -1,7 +1,8 @@
 {
   "id": "tutorial-logistics",
   "name": "Õpetus: Roheoru ühendatud lahing",
-  "briefing": "Õpi samal Roheoru kaardil: ehitus → päris ressursivedu → tootmine ja uuendus → luure → transport → majalahing → varustus → vastase baas. Ekraani vasakus servas kuvatakse jooksva sammu juhis. Vastase esimene suur rünnak on õpetuses edasi lükatud. Parem hiir annab sihtkäsu, A ründeliikumise, G teeliikumise ning U väljumise. Salvestada ja jätkata saab igal ajal.",
+  "briefing": "Õpi samal Roheoru kaardil: ehitus → päris ressursivedu → tootmine ja uuendus → luure → transport → majalahing → varustus → vastase baas. Ekraani vasakus servas kuvatakse jooksva sammu juhis. Vastase AI alustab arendust ja rünnakuplaneerimist alles pärast jalaväe majja paigutamise sammu. Seni saad ehituse, tarne, luure ja transpordi omas tempos selgeks. Parem hiir annab sihtkäsu, A ründeliikumise, G teeliikumise ning U väljumise. Salvestada ja jätkata saab igal ajal.",
+  "preparationUntil": "urban",
   "seed": 20261004,
   "map": {
     "name": "Roheorg · õpetus",
