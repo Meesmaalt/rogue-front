@@ -86,3 +86,7 @@ Iga pakett annab mängus nähtava muudatuse, väikese PR-i ja lühikese ülevaat
 Üks lõpetav päris matš tehakse alpha väraval, mitte iga paranduse järel. Koodi lugemisega ei saa kinnitada juhtimise tunnetust ega brauseri FPS-i; seetõttu on see väike tegelik kontroll kasutatavuse osa. Kuupäevalist lubadust ei anta enne esimest jõudlus- ja mänguvoo vaatlust: kitsaskohad ja välise deploy valmisolek määravad töömahu.
 
 Oleku märgendid: **teostatud** = ühendatud kood; **kontrollitud** = vastav konkreetne juhtum läbitud; **väljalaskekõlblik** = kogu värav täidetud. Varasemaid funktsioone ei pakuta uuesti puuduvana ilma uue vea tõendita.
+
+### V5 jätkamistee ühendus — 11.10.2026
+
+Peamenüü salvestuste loend ja tegeliku lahingu taastamine pausil on teostatud; olemasolev snapshot säilitab tootmise, logistika, õhumissioonid ning decki/AI seisu. Väike metadata indeks väldib iga menüü- või HUD-uuenduse ajal tervete salvestuste parsimist. Build ja 6 sihitud indeksi/save-load kontrolli läbisid, sh jätkuvate tickide seisundi vastavus. Brauseri menüü → taastamine → Jätka läbipääs ning täielik õpetus/alpha matš on veel värava osa; V5 ei märgita tervikuna lõpetatuks.
