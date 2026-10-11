@@ -47,6 +47,10 @@ export class MissionController {
   }
 
   get activeObjective(){return this.objectives.find(o=>!o.complete&&(!o.def.requires?.length||o.def.requires.every(id=>this.objectiveComplete(id))))?.def;}
+  get preparing():boolean {
+    const until=this.mission.preparationUntil;
+    return !!until&&this.objectives.some(o=>o.def.id===until&&!o.complete);
+  }
   get completedObjectives():number{return this.objectives.filter(o=>o.complete).length;}
   get messageText(): string { return this.messageTimer > 0 ? this.message : ""; }
 

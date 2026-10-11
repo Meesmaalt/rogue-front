@@ -259,6 +259,8 @@ export interface MissionMapDef {
 }
 export interface MissionDef {
   mapRef?:"roheorg";
+  /** Scripted learning starts enemy planning only after this objective is complete. */
+  preparationUntil?:string;
   id: string;
   name: string;
   briefing: string;

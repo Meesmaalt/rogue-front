@@ -23,3 +23,12 @@ it("uses the loaded carrier and does not reveal hidden building damage or occupa
  w.infrastructureDamage.set("house",1);const enemy=w.spawn("inf",1,30,20);enemy.garrisonId="house";
  const hidden=tutorialGuide(w,step("garrison","inf"));expect(hidden.point).toEqual(before.point);expect(hidden.ids).toEqual(before.ids);
 });
+
+it("resumes a paused foundation and explains the actual placement mouse button",()=>{
+ const w=new World(71,false,[],[],[],false);w.spawn("hq",0,0,0);w.spawn("landCommand",0,20,0);const engineer=w.spawn("engineer",0,0,20);
+ expect(tutorialGuide(w,step("build")).hint).toContain("vasakklõps");
+ const foundation=w.spawn("factory",0,30,30);foundation.underConstruction=true;
+ const paused=tutorialGuide(w,step("produce","tank"));expect(paused.ids).toEqual([engineer.id]);expect(paused.point).toEqual({x:30,z:30});expect(paused.hint).toContain("Ehitus seisab");
+ engineer.target=foundation;engineer.mode="build";expect(tutorialGuide(w,step("build")).hint).toContain("Oota");
+ engineer.dead=true;expect(tutorialGuide(w,step("build")).highlight).toBe('[data-kind="engineer"]');
+});

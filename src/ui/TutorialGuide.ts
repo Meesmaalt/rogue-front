@@ -15,17 +15,22 @@ export function tutorialGuide(world:World,step:MissionObjectiveDef):TutorialGuid
   if(step.kind==="build"){
     const kind=step.target?.kind;
     const constructing=units.find(e=>e.kind===kind&&e.underConstruction);
-    if(constructing)return {ids:[constructing.id,...engineer?[engineer.id]:[]],point:null,panel:null,highlight:null,hint:"Hoone on ehitamisel. Oota inseneri töö lõppu; ära telli sama rajatist uuesti."};
+    if(constructing){
+      const assigned=units.some(e=>e.kind==="engineer"&&e.loadedIntoId==null&&e.target===constructing&&(e.mode==="build"||e.mode==="repair"));
+      if(assigned||constructing.upgrading)return {ids:[constructing.id],point:null,panel:null,highlight:null,hint:"Hoone on ehitamisel. Oota inseneri töö lõppu; ära telli sama rajatist uuesti."};
+      if(!engineer){const hq=ready("hq");return {ids:hq?[hq.id]:[],point:null,panel:"land",highlight:'[data-kind="engineer"]',hint:"Ehitus seisab: insener puudub. Tooda HQ-st insener ja paremklõpsa temaga vundamendile."};}
+      return {ids:[engineer.id],point:{x:constructing.x,z:constructing.z},panel:null,highlight:null,hint:"Ehitus seisab: vali insener ja paremklõpsa vundamendile, et tööd jätkata."};
+    }
     const branch:UnitKind=["factory","barracks","landStrategy","combatEngineer"].includes(kind??"")?"landCommand":["helipad","airbase","airStrategy"].includes(kind??"")?"airCommand":kind==="shipyard"||kind==="seaStrategy"?"seaCommand":"hq";
     candidate=ready(branch);panel="builds";highlight=kind?`[data-build="${kind}"]`:null;
     if(engineer)ids.push(engineer.id);
-    hint=!engineer?"Insener puudub: vali peakorter ja tooda uus insener.":!candidate?"Vajalik juhtimiskeskus puudub või pole valmis. Taasta see enne järgmise hoone ehitamist.":"Vali haru ja insener → Ava ehitus → esiletõstetud hoone → paremklõps vabale platsile. R pöörab hoonet; Esc tühistab.";
+    hint=!engineer?"Insener puudub: vali peakorter ja tooda uus insener.":!candidate?"Vajalik juhtimiskeskus puudub või pole valmis. Taasta see enne järgmise hoone ehitamist.":"Vali haru ja insener → Ava ehitus → esiletõstetud hoone → vasakklõps vabale platsile. R pöörab hoonet; Esc tühistab.";
     candidate??=ready("hq");
     if(!engineer){candidate=ready("hq");panel="land";highlight='[data-kind="engineer"]';}
   }else if(step.kind==="produce"||step.kind==="upgrade"){
     const producer=step.kind==="upgrade"?step.target?.kind:step.unitKind==="tank"||step.unitKind==="apc"?"factory":"barracks";
     const constructing=units.find(e=>e.kind===producer&&e.underConstruction);
-    if(constructing)return {ids:[constructing.id],point:null,panel:null,highlight:null,hint:"Tootja on ehitamisel. Oota töö lõppu, seejärel ava tootmine."};
+    if(constructing)return tutorialGuide(world,{...step,kind:"build",target:{kind:producer,count:1}});
     candidate=producer?ready(producer):undefined;panel="land";
     if(!candidate&&producer)return {...tutorialGuide(world,{...step,kind:"build",target:{kind:producer,count:1}}),hint:"Tootja puudub või pole valmis. Taasta see ehitusharust; oota ehituse lõppu."};
     highlight=step.kind==="produce"?`[data-kind="${step.unitKind}"]`:"[data-upgrade-producer]";

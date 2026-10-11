@@ -8,7 +8,7 @@ import { dist2d } from "../math";
 function buildersFor(w: World, target: Entity): Entity[] {
   return target.builderIds
     .map(id => w.byId.get(id))
-    .filter((e): e is Entity => !!e && !e.dead && e.team === target.team && e.kind === "engineer");
+    .filter((e): e is Entity => !!e && !e.dead && e.team === target.team && e.kind === "engineer" && e.loadedIntoId==null && e.target===target && (e.mode==="build"||e.mode==="repair"));
 }
 
 export function updateConstruction(w: World, dt: number): void {

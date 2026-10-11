@@ -294,3 +294,9 @@ WaveAI.expandForward uuendab piisava eelarvega ühendatud operatiivse edasilao e
 ## Lahingu lõpust jätkamine
 
 `main.showBattleResult` ühendab värske võidu/kaotuse ja lõpetatud snapshoti laadimise sama kampaania edenemise ning tulemuse UI-ga. `campaign.nextCampaignMission` kasutab üht progressi snapshoti ja otsib lõpetatud operatsioonist edasi päriselt avatud, veel lõpetamata missiooni. Preemiad on idempotentsed ning arvestavad eeltingimusi; brauseri vigase progressi normaliseerimine ei puuduta deterministlikku lahingusimulatsiooni. Laaditud tulemuse puhul replay'd ei kirjutata uuesti. `Hud.onRestart` käivitab värske offline lahingu: `restartBattleUrl` säilitab ainult mängu seadistuse, main lisab tegeliku fraktsiooni ja kirjutab Worldi aktiivse decki sessionStorage'isse. Resume/ruumi/tokeni parameetreid ei säilitata. Võrgumängu lõpuekraan suunab menüüsse; sama lõpetatud ruumi reload-rematchi ei pakuta.
+
+## Õpetuse ettevalmistus ja ehituse taastamine
+
+MissionDef.preparationUntil viitab olemasolevale eesmärgi ID-le. MissionController.preparing tuletab ettevalmistuse lõpetamata eesmärgist; World jätab selle ajal vahele operatiivse, strateegilise ja taktikalise AI planeerimise. Füüsilist maailma ei pausita. Missiooni definitsioon/eesmärgid salvestatakse olemasoleva runtime'i kaudu; tundmatu eesmärk ei sulge AI-d lõputult. Uut save-versiooni pole vaja.
+
+Ehituskorralduse limiit loeb ka pooleliolevaid vundamente. Construction süsteem tunnustab ainult tegelikult sellele hoonele build/repair režiimis määratud inseneri. Olemasolev repair-käsk võtab poolelioleva ehituse uuesti build-režiimis üle; UI ja õpetus kasutavad sama käsku. Tõrked kasutavad olemasolevat order-rejected sündmust.

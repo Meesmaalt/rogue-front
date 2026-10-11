@@ -83,7 +83,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const audio = new AudioManager();
   let visualQuality=loadSettings().quality;
   let intelAcc=0, terrainAcc=.2, hoverAcc=0;
-  const settingsPanel = new SettingsPanel((settings) => { audio.setSettings(settings);visualQuality=settings.quality; ctx.setQuality(settings.quality); performancePanel.setEnabled(settings.performanceOverlay??false); });
+  const settingsPanel = new SettingsPanel((settings) => { audio.setSettings(settings);visualQuality=settings.quality; ctx.setQuality(settings.quality); performancePanel.setEnabled(settings.performanceOverlay??false); },()=>{cam.enabled=true;setEnabled(running&&!paused);});
   let paused = false;
   const originalIssue = world.issue.bind(world);
   world.issue = (command) => {
@@ -106,7 +106,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     const raw = sessionStorage.getItem("rogue-front.activeDeck");
     if (raw && skirmish && !queryParams.has("resume")) { const deck = JSON.parse(raw); if (deck.faction === faction) world.setActiveDeck(deck); }
   } catch { /* */ }
-  const activeMode: MatchMode = skirmish ? (queryGameMode && MODE_RULES[queryGameMode] ? queryGameMode : "skirmish") : "assault";
+  const activeMode: MatchMode = skirmish ? (queryGameMode && Object.hasOwn(MODE_RULES,queryGameMode) ? queryGameMode : "skirmish") : "assault";
   const modeController = new MatchModeController(world, activeMode, mission);
   if (skirmish) world.matchController = modeController;
   else if (!multiplayer) world.missionController = missionRuntime;
@@ -121,7 +121,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const glCanvas = document.getElementById("game") as HTMLCanvasElement;
   const topCanvas = document.getElementById("overlay") as HTMLCanvasElement;
   (document.getElementById("fog") as HTMLCanvasElement).style.display="none";
-  const ctx = createRenderContext(glCanvas, mission.map.theme === "temperate");
+  const ctx = createRenderContext(glCanvas, mission.map.theme === "temperate",visualQuality);
   ctx.setQuality(visualQuality);
   const performancePanel=new PerformancePanel(loadSettings().performanceOverlay??false);
   const terrainView=createTerrain(mission.map.theme, world.mapFeatures, mission.map.bases);ctx.scene.add(terrainView);
@@ -248,9 +248,9 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   hud.onGuideTarget=p=>{cam.jumpTo(p.x,p.z);fx.ping(p.x,p.z,0x77ba9e);};
   hud.onGuideFocus=ids=>{commands.reset();selection.selected.clear();for(const id of ids)selection.selected.add(id);const u=world.byId.get(ids[0]);if(u)cam.jumpTo(u.x,u.z);};
   hud.setSaveAvailability(hasSave(),false);
-  const togglePause = () => { if(!running)return; if(multiplayer){hud.setWarning("Võrgumäng peatub ühenduse katkemisel automaatselt.");return;} paused = !paused; setEnabled(running && !paused); hud.setPaused(paused); if (paused) audio.pause(); else { audio.unlock(); audio.resume(); audio.startMusic(); } };
+  const togglePause = () => { if(!running||settingsPanel.isOpen)return; if(multiplayer){hud.setWarning("Võrgumäng peatub ühenduse katkemisel automaatselt.");return;} paused = !paused; setEnabled(running && !paused); hud.setPaused(paused); if (paused) audio.pause(); else { audio.unlock(); audio.resume(); audio.startMusic(); } };
   hud.onPause = togglePause;
-  hud.onSettings = () => settingsPanel.open();
+  hud.onSettings = () => {if(running&&!paused&&!multiplayer)togglePause();setEnabled(false);cam.enabled=false;settingsPanel.open();};
   hud.onRestart = () => {
     try{
       if(skirmish&&world.activeDeck)sessionStorage.setItem("rogue-front.activeDeck",JSON.stringify(world.activeDeck));
@@ -269,7 +269,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   hud.showBriefing(skirmish ? { ...mission, name: "Skirmish — " + mission.map.name, briefing: mission.id === "roheorg" ? mission.briefing + "\n\n" + modeController.label() + "\n\n" + (queryParams.get("deployment")==="base" ? "Ehita generaator → varustusladu → maaväe juhtimiskeskus → tehas. Saada insener ressursipunkti." : "Baas ja väike lahingugrupp on valmis. Saada luure ette; tugevda koosseisu Maa-paneelist. Insener käivitab koduse ressursipunkti kogumise.") + "\n\nF1: vali soomus · Fookus: kaamera valikule\nRündeliiku + parem klõps: liigu ja võitle\nInsener / juhtimishoone → Ehita: baas ja FOB\nMoon, kütus ja remont vajavad tegelikku varustust." : modeController.label() + "\n\nREAL WAR baas:\n1) Generaator → varustusladu → maaväe juhtimiskeskus → tehas\n2) Saada teine insener ressursipunkti; ta käivitab kogumise\n3) Veokid toovad raha ja ammo/kütusevaru. Katkenud tarne peatab tootmise\n\nWARGAME lahing:\n• Optika/recon — kes näeb, tulistab\n• Supply raadius — ammo/kütus; forward ladu risk\n• Flank ja moraal loevad\n• Õhk: CAP / Strike / SEAD; ilma AA-ta kaotad\n\nDoktriin: " + facBlur + "\n\nKlahvid: F1 soomus F2 jala F3 õhk F4 toetus · Ctrl+1-9 grupid" } : mission, () => { if(multiplayer)return; running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); }, hasSave(), () => loadGame());
 
   addEventListener("keydown", (e) => {
-    if(e.repeat||(e.target instanceof Element&&e.target.closest("input,textarea,select,[contenteditable=true]")))return;
+    if(settingsPanel.isOpen||e.repeat||(e.target instanceof Element&&e.target.closest("input,textarea,select,[contenteditable=true]")))return;
     if (!e.defaultPrevented && e.key.toLowerCase() === loadSettings().keys.pause && running) togglePause();
     if (!running || paused) return false;
     const k = e.key.toLowerCase();
@@ -374,20 +374,23 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
 }
 
 const queryMode = queryParams.get("mode");
-const queryDifficulty = queryParams.get("difficulty") as "easy"|"normal"|"hard"|null;
+const requestedDifficulty=queryParams.get("difficulty");
+const queryDifficulty=requestedDifficulty==="easy"||requestedDifficulty==="hard"?requestedDifficulty:"normal";
 if (queryMission) {
   if ((queryMode === "multiplayer" || queryMode === "spectator") && !getAuthToken()) { location.href = location.pathname; throw new Error("Multiplayer requires account authentication"); }
   const queryFaction = (queryParams.get("faction") as FactionId | null) ?? (localStorage.getItem("rogue-front.faction") as FactionId | null) ?? "usa";
   const bootFaction = (FACTION_LIST.includes(queryFaction as FactionId) ? queryFaction : "usa") as FactionId;
   const selectedMission = MISSIONS.find(m => m.id === queryMission) ?? getPlayableMap(queryMission);
-  if (!selectedMission) throw new Error(`Unknown mission/map: ${queryMission}`);
-  void boot(selectedMission, queryRoom || undefined, queryMode === "skirmish" ? (queryDifficulty || "normal") : undefined, bootFaction, queryMode === "spectator", querySpectateToken || "").catch((err: unknown) => {
+  if (!selectedMission)showMenu("Seda kaarti või operatsiooni ei leitud. Vali menüüst uus lahing.");
+  else void boot(selectedMission, queryRoom || undefined, queryMode === "skirmish" ? (queryDifficulty || "normal") : undefined, bootFaction, queryMode === "spectator", querySpectateToken || "").catch((err: unknown) => {
     console.error(err);
-    hud.showMissionSelect(MISSIONS, MissionController.loadProgress(), (mission) => { location.href = "?mission=" + encodeURIComponent(mission.id); });
+    showMenu("Lahingu käivitamine ebaõnnestus. "+(err instanceof Error?err.message:"Proovi lehte uuesti avada või teist graafikataset."));
   });
-} else {
-  const gameRoot = document.getElementById("ui")!;
-  gameRoot.innerHTML = "<div id=\"online-root\"></div>";
-  const shell = new OnlineShell(document.getElementById("online-root")!);
-  void shell.start();
+} else showMenu();
+
+function showMenu(message=""):void {
+  const gameRoot=document.getElementById("ui")!;
+  gameRoot.innerHTML='<div id="online-root"></div>';
+  const shell=new OnlineShell(document.getElementById("online-root")!);
+  shell.showOffline(message);
 }

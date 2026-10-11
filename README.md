@@ -4,7 +4,9 @@ Brauseripõhine RTS (Three.js + TypeScript + Vite): Wargame’i taktikaline lahi
 
 Relvade ulatusringid ja tegeliku lasuarvutusega seotud lahinguandmed: [tulejuhtimise muudatus](docs/FIRE-CONTROL-RELEASE.md).
 
-Viimane mängukoodi muudatus: [A5 — luurepõhine AI, reserv ja taastumine](docs/A5-AI-SKIRMISH-RELEASE.md). AI kasutab nähtavaid kontakte ja mälukoordinaate, hoiab reservi, arvestab kõigi relvade moona ning taastub päris laos/lennubaasis. Pika matši tasakaal ja alpha läbipääs on veel ootel. ZIP sisaldab ka [A4 logistikat](docs/A4-LOGISTICS-AIR-RELEASE.md), [A3 garnisoni](docs/A3-GARRISON-RELEASE.md) ja [A2 teeliikumist/transporti](docs/A2-MOVEMENT-TRANSPORT-RELEASE.md). Järgmine tööpakett on A6 (õpetus, salvestuse sobivus ja alpha viimistlus).
+Praegune seis on **alpha kandidaat**, mitte veel kinnitatud alpha väljalase. Fookus on Roheoru Conquestil ja logistikaõpetusel; merekaart, teised režiimid ja multiplayer on katsetusjärgus. Õpetuse algus kaitseb mängijat vaenlase planeerimise eest kuni garnisonisammuni, katkenud ehitust saab jätkata ning ehitus-/uuendustõrked annavad põhjuse. Seaded on kättesaadavad enne lahingut; esmakordne graafikakvaliteet on keskmine. Kaamera liigub noolte/ekraaniservaga ja pöörab Alt+Q/E-ga; A ja E jäävad lahingukäskudele.
+
+Build ja sihitud simulatsiooni/UI kontrollid läbivad. Päris brauseri FPS, täielik õpetus ning 15–30 minuti mängija matš võidu/kaotuseni on veel kinnitamata. Täpne lõpetamiskriteerium ja tõendatud seis: [arenguplaan](docs/DEVELOPMENT-PLAN.md).
 
 Järgmise arenduse põhiplaan: [viimistlus → alpha → beta](docs/DEVELOPMENT-PLAN.md). Aktiivne tööjärjekord on TODO alguses; vanad etapinimed ei määra uut arendust.
 

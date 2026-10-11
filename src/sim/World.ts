@@ -141,7 +141,7 @@ export class World {
   buildingCount(team: Team, kind: BuildableKind): number { return this.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === kind).length; }
   canBuildKind(team: Team, kind: BuildableKind): boolean {
     const spec = BUILDINGS[kind];
-    if ((spec.limit ?? Infinity) <= this.buildingCount(team, kind)) return false;
+    if ((spec.limit ?? Infinity) <= this.entities.filter(e=>!e.dead&&e.team===team&&e.kind===kind).length) return false;
     if (spec.requires?.some(req => !this.hasBuilding(team, req))) return false;
     if (kind !== "generator" && !this.hasBuilding(team, "generator")) return false;
     if (["landCommand","airCommand","seaCommand"].includes(kind)) {
@@ -864,9 +864,10 @@ export class World {
     this.teamCredits[this.playerTeam] = this.credits;
     this.teamResources[this.playerTeam] = this.resources;
     this.fobManager.tick();
-    this.operationalCommander.tick(dt);
+    const preparing=this.missionController?.preparing??false;
+    if(!preparing)this.operationalCommander.tick(dt);
     this.frontline.tick(dt);
-    if (!this.networkMode) {
+    if (!this.networkMode&&!preparing) {
       this.ai.update(this, dt);
       if (Math.floor(this.time * 10) % 5 === 0) updateTacticalAI(this, this.playerTeam === 0 ? 1 : 0, dt);
     }
