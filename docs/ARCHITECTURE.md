@@ -45,6 +45,8 @@ Ruudustik 2 m, blokeeritud ruudud = kaardi takistused + hooned + järsk kalle. M
 
 ## Integreeritud käitus
 
+`ui/TutorialGuide` loeb olemasolevat missioonisammu ja maailma olekut ning tagastab valiku-ID-d, staatilise/oma sihtpunkti, avatava paneeli ja nupu selektori. HUD valib ja avab UI-d olemasolevate callback'ide kaudu, mitte ei muuda simi/õpetuse progressi. Ehitusharu valitakse koos inseneriga; pooleliolev hoone suunab ootama ja puuduv üksus/tootja taastamisele. Majasoovitus kasutab vaid nähtavat kahjustust ning oma/nähtavaid garnisone.
+
 Õpetuse `mapRef` lahendatakse samast Roheoru JSON-ist nagu skirmish: maastikuandmeid ei dubleerita missioonifaili. Roheoru õpetus kasutab `MissionController`-i olemasolevat ülesannete ahelat. Uuendus, pardale minek ja garnison kontrollivad päris entiteedi seisundit; HUD loeb aktiivse sammu ja annab vaid valiku/kaamera käsu. Hävitamis- ja sabotaažisihtmärgid seotakse algsete ID-dega ning säilivad snapshot'is. Üldauditi raport: [PROJECT-QUALITY-AUDIT.md](PROJECT-QUALITY-AUDIT.md).
 
 `OnlineShell` avab vaikimisi kohaliku mänguseadistuse. `main.ts` valib ühe algoleku (skirmish või kampaania), loob ühe `World`-i ja kinnitab sellele sobiva võidu- või missioonikontrolleri. Need töötavad `World.tick()` sees; HUD ei muuda skoori ega missiooni progressi.

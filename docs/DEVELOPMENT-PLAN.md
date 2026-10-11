@@ -52,6 +52,8 @@ V4 arendus (10.10.2026): HUD toob valitud üksuse relvad, ulatuse ja laskmise p�
 
 V4 kaugvaate ühendus: mudeli renderdatud positsioon juhib ka nimesilte ja hiire-/kastivalikut, eemaldades nende vahel tickipõhise positsioonierinevuse. Siltide hõiveruudustik arvestab paneelide ja varuhoiatustega, säilitab suhtelist rida ning korduvkasutab puhvreid. Viimati nähtud kontakt saab katkendliku raami ja vanuse ilma elava sihtmärgi valikupinnata. Build ja kaheksa sihitud sisendi/paigutuse kontrolli läbisid; brauseri sujuvuse/FPS/loetavuse värav endiselt avatud.
 
+V5 juhendamise parandus (11.10.2026): õpetus seob valikunupu õige juhtimisharu/inseneri või tootjaga, avab päris ehitus-/tootmispaneeli ja märgib vajaliku nupu. Puuduv üksus või tootja suunab taastamisele; pooleliolev ehitus suunab ootama, mitte topeltostule. Juhend loeb tegelikku tootmise/tarne seisu, kasutab õiget väljumise hiireklahvi ning ei vali maja peidetud kahjustuse/vaenlase hõive järgi. Põhimenüüs on soovitatud Roheoru Conquest ja õpetus, ülejäänud valikud märgitud katsetusjärgus. Build ja viis sihitud kontrolli läbisid; täielik õpetuse/matši inimvaates läbimine ning V1/V4/V5 väravad jäävad avatuks.
+
 V1 alustab lühikese tegeliku vaatluse ja mõõtmisega, mitte uue optimeerimiskihi kirjutamisega. Kui nähtav juhtimisviga takistab mõõtestseeni või mängimist, parandatakse see kohe. V4 väiksemad UI/visuaaliparandused tehakse ka V1–V3 sees, kui need aitavad sama probleemi lahendada. Uut suurt teemat enne käimasoleva paketi lõpetamist ei alustata.
 
 ## Alpha väljalaske värav

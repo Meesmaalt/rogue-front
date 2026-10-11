@@ -1,3 +1,4 @@
+import {tutorialGuide} from "./TutorialGuide";
 import {tacticalSupplyStatus} from "../sim/systems/tacticalSupply";
 import {productionStatus} from "../sim/systems/production";
 import {bindFullscreen} from "./Fullscreen";
@@ -143,6 +144,8 @@ export class Hud {
   onSettings: () => void = () => {};
   onGuideFocus:(ids:number[])=>void=()=>{};
   onGuideTarget:(point:{x:number;z:number})=>void=()=>{};
+  private guidePanel:"builds"|"land"|null=null;
+  private guideHighlight:string|null=null;
   private guidePoint:{x:number;z:number}|null=null;
   private notice="";
   private noticeUntil=0;
@@ -183,7 +186,7 @@ export class Hud {
   findButton(selector:string):HTMLButtonElement|null {return this.nodes<HTMLButtonElement>(selector)[0]??null;}
   constructor(private readonly root: HTMLElement) {
     root.innerHTML = `
-      <aside class="tutorial-guide" data-r="tutorialGuide" hidden><small data-r="tutorialProgress"></small><b data-r="tutorialTitle"></b><p data-r="tutorialText"></p><button data-guide-focus>Vali sobiv üksus</button><button data-guide-target hidden>Näita sihtpunkti</button></aside>
+      <aside class="tutorial-guide" data-r="tutorialGuide" hidden><small data-r="tutorialProgress"></small><b data-r="tutorialTitle"></b><p data-r="tutorialText"></p><small class="tutorial-state" data-r="tutorialState"></small><button data-guide-panel hidden>Ava ehitus / tootmine</button><button data-guide-focus>Vali sobiv üksus</button><button data-guide-target hidden>Näita sihtpunkti</button></aside>
       <header class="top">
         <div class="panel brand">Rogue Front<small>Taktikaline RTS · <span data-r="fps">-- fps</span> · <span data-r="net">üksikmäng</span></small></div>
         <div class="panel obj"><b data-r="missionName">Missioon</b><div data-r="objectiveList">Vali missioon.</div><div class="mission-msg" data-r="missionMsg"></div><div class="warning" data-r="warning"></div></div>
@@ -317,6 +320,11 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     root.querySelector('[data-action="pause"]')?.addEventListener("click", () => this.onPause());
     root.querySelector<HTMLButtonElement>("[data-guide-target]")!.onclick=()=>{if(this.guidePoint)this.onGuideTarget(this.guidePoint);};
     root.querySelector<HTMLButtonElement>("[data-guide-focus]")!.onclick=()=>this.onGuideFocus(this.guideIds);
+    root.querySelector<HTMLButtonElement>("[data-guide-panel]")!.onclick=()=>{
+      this.onGuideFocus(this.guideIds);this.root.classList.add("deployment-open");
+      this.findButton("[data-deployment-toggle]")!.setAttribute("aria-expanded","true");
+      if(this.guidePanel)this.findButton(`[data-tab="${this.guidePanel}"]`)?.click();
+    };
     root.querySelector('[data-action="save"]')?.addEventListener("click", () => this.onSave());
     root.querySelector('[data-action="load"]')?.addEventListener("click", () => this.onLoad());
     root.querySelector('[data-action="settings"]')?.addEventListener("click", () => this.onSettings());
@@ -474,13 +482,11 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     if(tutorial&&step){
       this.el.tutorialProgress.textContent=`ÕPETUS · ${world.missionController!.completedObjectives+1}/${world.missionController!.mission.objectives.length}`;
       this.el.tutorialTitle.textContent=step.title;this.el.tutorialText.textContent=step.description;
-      const preferred=["build","capture","deliver"].includes(step.kind)?"engineer":step.kind==="upgrade"?step.target?.kind:step.kind==="produce"?(step.unitKind==="tank"||step.unitKind==="apc"?"factory":"barracks"):step.kind==="reach"?step.unitKind:step.kind==="garrison"||step.kind==="transport"?"inf":"tank";
-      const passengers=world.entities.filter(e=>!e.dead&&e.team===world.playerTeam&&e.kind==="inf"),carrier=step.kind==="garrison"?world.byId.get(passengers.find(e=>e.loadedIntoId!=null)?.loadedIntoId??-1):undefined;
-      const candidate=carrier??world.entities.find(e=>!e.dead&&!e.underConstruction&&e.team===world.playerTeam&&e.kind===preferred&&e.loadedIntoId==null);this.guideIds=candidate?[candidate.id]:[];
-      this.findButton("[data-guide-focus]")!.disabled=!candidate;this.findButton("[data-guide-focus]")!.textContent=carrier?"Vali transport väljumiseks":"Vali sobiv üksus";
-      this.guidePoint=step.point??null;
-      if(step.kind==="garrison"){const house=world.mapFeatures.filter(isGarrisonBuilding).sort((a,b)=>Math.hypot(a.x-(candidate?.x??0),a.z-(candidate?.z??0))-Math.hypot(b.x-(candidate?.x??0),b.z-(candidate?.z??0)))[0];if(house)this.guidePoint={x:house.x,z:house.z};}
-      if(step.kind==="deliver"){const home=world.resourcePoints.filter(r=>r.controlledBy!==1).sort((a,b)=>Math.hypot(a.x-(candidate?.x??0),a.z-(candidate?.z??0))-Math.hypot(b.x-(candidate?.x??0),b.z-(candidate?.z??0)))[0];if(home)this.guidePoint={x:home.x,z:home.z};}
+      const guide=tutorialGuide(world,step);this.guideIds=guide.ids;this.guidePoint=guide.point;this.guidePanel=guide.panel;this.guideHighlight=guide.highlight;
+      this.el.tutorialState.textContent=guide.hint;
+      this.findButton("[data-guide-focus]")!.disabled=!guide.ids.length;
+      this.findButton("[data-guide-focus]")!.textContent=step.kind==="build"?"Vali ehitusharu ja insener":"Vali sobiv üksus";
+      const open=this.findButton("[data-guide-panel]")!;open.hidden=!guide.panel;open.textContent=guide.panel==="builds"?"Ava ehitus":"Ava tootmine";
       this.findButton("[data-guide-target]")!.hidden=!this.guidePoint;
     }
     const hq = world.hq[world.playerTeam];
@@ -518,6 +524,12 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
       b.title=reason||`Tooda ${world.unitDisplayName(kind)} (${cost}) · ${def.roleLabel??""} · ${(def.weapons??[]).map(w=>w.name+" / "+w.range+" m").join(" · ")} · Parem klõps: koosseisukaart`;
     }
     this.refreshBuildPanel(world, selection, running, engineerSelected);
+    this.root.querySelectorAll(".tutorial-target").forEach(n=>n.classList.remove("tutorial-target"));
+    if(tutorial&&step&&this.guideHighlight)this.root.querySelector(this.guideHighlight)?.classList.add("tutorial-target");
+    if(tutorial&&step){
+      const drawer=this.nodes<HTMLElement>(".build.tactical")[0],top=this.root.classList.contains("deployment-open")&&drawer?drawer.getBoundingClientRect().bottom+8:innerWidth<700?72:52;
+      const value=`${top}px`;if(this.el.tutorialGuide.style.getPropertyValue("--tutorial-top")!==value)this.el.tutorialGuide.style.setProperty("--tutorial-top",value);
+    }
     (this.el.qbar as HTMLElement).style.width = q.length ? Math.min(100, ((selectedProducer?.productionProgress??0) / world.unitDefinition(q[0],selectedProducer?.team??world.playerTeam).buildTime) * 100) + "%" : "0";
     if (selectedProducer) {
       const pre = selectedProducer.preDeployOrder;

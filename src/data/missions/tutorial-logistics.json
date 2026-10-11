@@ -61,7 +61,7 @@
       "id": "generator",
       "kind": "build",
       "title": "Ehita generaator",
-      "description": "Vali insener. Ehita → Generaator → vaba plats peakorteri lähedal.",
+      "description": "Vali insener. Tootmine → Ehita → Generaator → vaba plats peakorteri lähedal.",
       "target": {
         "kind": "generator",
         "count": 1
@@ -96,7 +96,7 @@
       "id": "land-command",
       "kind": "build",
       "title": "Ehita maaväe juhtimiskeskus",
-      "description": "Vali insener või peakorter: Ehita → Maaväe juhtimiskeskus.",
+      "description": "Vali insener või peakorter: Tootmine → Ehita → Maaväe juhtimiskeskus.",
       "requires": [
         "first-delivery"
       ],
@@ -251,7 +251,7 @@
       "id": "urban",
       "kind": "garrison",
       "title": "Paiguta jalavägi majja",
-      "description": "Vali APC, U ning klõps lähima küla lähedale. Vali väljunud jalavägi ja paremklõpsa hõivatavale majale. Rühm läheb ukse kaudu sisse.",
+      "description": "Vali APC, vajuta U ning paremklõpsa lähima küla lähedale. Vali väljunud jalavägi ja paremklõpsa hõivatavale majale. Rühm läheb ukse kaudu sisse.",
       "requires": [
         "boarding"
       ],

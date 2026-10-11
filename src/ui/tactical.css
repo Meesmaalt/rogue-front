@@ -120,3 +120,9 @@
 .tab-panel[data-panel=builds] .depot-control-bar{margin-bottom:5px}
 @media(max-width:1000px){.top .stat.resources .res-label{display:block}.top .stat.resources .logistics-row{display:none}.bottom .sel{flex-basis:320px}.brand{min-width:85px}.top .controls button{font-size:10px}}
 @media(max-width:700px){.top .stat.resources{gap:7px}.top .stat.resources .res-label{display:none}.bottom .sel{flex-basis:calc(100vw - 140px);max-width:352px;max-height:min(340px,calc(100dvh - 88px))}.sel:has(details[open]){max-height:calc(100dvh - 88px)}.selected-picture{display:none}.game-menu>summary{font-size:9px;padding:5px}.top .obj .warning:not(:empty){top:68px}}
+
+.tutorial-guide .tutorial-state{display:block;margin:7px 0;padding:7px;background:#213934;border-left:2px solid #adbf8c;font-size:11px;line-height:1.45;color:#d1dfce}
+.tutorial-target{outline:2px solid #e4cf86!important;outline-offset:-2px;box-shadow:inset 0 0 0 3px #e4cf8630!important}
+.tutorial-guide button{min-height:29px;margin:3px 3px 0 0}.tutorial-guide [hidden]{display:none}
+
+.deployment-open .tutorial-guide,.tutorial-guide{top:var(--tutorial-top,52px);max-height:max(110px,calc(100dvh - var(--tutorial-top,52px) - 160px));overflow-y:auto;scrollbar-width:thin}
