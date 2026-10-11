@@ -26,7 +26,7 @@ import { Minimap } from "./ui/Minimap";
 import { Overlay } from "./ui/Overlay";
 import { MISSIONS } from "./data/missions";
 import { MissionController } from "./sim/Mission";
-import { loadWorld, saveWorld, type WorldSave } from "./sim/SaveState";
+import { loadWorld, saveWorld } from "./sim/SaveState";
 import { ReplayRecorder } from "./sim/Replay";
 import { AudioManager } from "./render/Audio";
 import { loadSettings, SettingsPanel } from "./ui/Settings";
@@ -34,6 +34,7 @@ import type { MissionDef } from "./sim/types";
 import { LockstepClient } from "./net/LockstepClient";
 import { worldHash } from "./sim/Replay";
 import { OnlineShell } from "./ui/OnlineShell";
+import { SAVE_PREFIX, writeSavedSession, readSessionWorld } from "./ui/SavedSessions";
 import { getAuthToken } from "./net/Api";
 import { createSkirmish } from "./sim/scenario";
 import { getPlayableMap } from "./sim/proceduralMap";
@@ -45,7 +46,6 @@ const queryMission = queryParams.get("mission");
 const queryRoom = queryParams.get("room");
 const querySpectateToken = queryParams.get("spectateToken");
 const queryGameMode = queryParams.get("gameMode") as MatchMode | null;
-const SAVE_PREFIX = "rogue-front.save.v2.";
 
 const deckBuilder = new DeckBuilder(document.body);
 const hud = new Hud(document.getElementById("ui")!);
@@ -104,7 +104,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   world.enemyFaction = (FACTION_LIST.find(f => f !== faction) ?? "russia") as FactionId;
   try {
     const raw = sessionStorage.getItem("rogue-front.activeDeck");
-    if (raw && skirmish) { const deck = JSON.parse(raw); if (deck.faction === faction) world.setActiveDeck(deck); }
+    if (raw && skirmish && !queryParams.has("resume")) { const deck = JSON.parse(raw); if (deck.faction === faction) world.setActiveDeck(deck); }
   } catch { /* */ }
   const activeMode: MatchMode = skirmish ? (queryGameMode && MODE_RULES[queryGameMode] ? queryGameMode : "skirmish") : "assault";
   const modeController = new MatchModeController(world, activeMode, mission);
@@ -208,19 +208,26 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   let saveAvailable=readSaveAvailability();
   const hasSave=()=>saveAvailable;
   window.addEventListener("storage",e=>{if(e.key===saveKey||e.key===null)saveAvailable=readSaveAvailability();});
-  const saveGame = () => {localStorage.setItem(saveKey,JSON.stringify({format:"rogue-front-session",context:sessionContext,savedAt:new Date().toISOString(),world:saveWorld(world)}));saveAvailable=true;};
-  const loadGame = () => {
+  const saveGame = () => {
+    const indexed=writeSavedSession(localStorage,{
+      key:saveKey,mission:mission.id,name:skirmish?mission.map.name:mission.name,faction,
+      mode:skirmish?activeMode:"campaign",difficulty:skirmishDifficulty??"normal",
+      deployment:queryParams.get("deployment")==="base"?"base":"ready",
+      savedAt:new Date().toISOString(),time:world.time,status:world.status,
+    },sessionContext,saveWorld(world));
+    saveAvailable=true;
+    return indexed;
+  };
+  const loadGame = (resumePaused=false) => {
     if(multiplayer)return;
     try{
       const raw=localStorage.getItem(saveKey);if(!raw){hud.setWarning("Selle lahingu salvestus puudub");return;}
-      const saved=JSON.parse(raw) as {format?:string;context?:string;world?:WorldSave}&WorldSave;
-      if(saved.format&&saved.context!==sessionContext)throw new Error("Salvestuse kaart, fraktsioon või režiim ei vasta sellele lahingule");
-      loadWorld(world,saved.format?saved.world!:saved);
+      loadWorld(world,readSessionWorld(raw,sessionContext));
       units.reset();ranges.reset();overlay.reset();picker.setUnitMarkers([]);fx.reset();commands.reset();selection.selected.clear();replayRecorder.reset(world);
-      hud.hideScreen();running=world.status==="running";paused=false;hud.setPaused(false);setEnabled(running);audio.unlock();if(running)audio.startMusic();else audio.stopMusic();
+      hud.hideScreen();running=world.status==="running";paused=running&&resumePaused;hud.setPaused(paused);setEnabled(running&&!paused);if(running&&!paused){audio.unlock();audio.startMusic();}else{audio.stopMusic();audio.pause();}
       const hq=world.hq[world.playerTeam];if(hq)cam.jumpTo(hq.x,hq.z);
       if(!running)hud.showResult(world.status as "won"|"lost",world.time,"Laaditud lõpetatud lahing");
-      hud.setWarning("Salvestus taastatud · "+Math.floor(world.time/60)+" min");
+      hud.setWarning("Salvestus taastatud · "+Math.floor(world.time/60)+" min"+(paused?" · vajuta Jätka":""));
     }catch(err){hud.setWarning(err instanceof Error?err.message:"Salvestuse laadimine ebaõnnestus");}
   };
   hud.onGuideTarget=p=>{cam.jumpTo(p.x,p.z);fx.ping(p.x,p.z,0x77ba9e);};
@@ -229,14 +236,14 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const togglePause = () => { if(multiplayer){hud.setWarning("Võrgumäng peatub ühenduse katkemisel automaatselt.");return;} paused = !paused; setEnabled(running && !paused); hud.setPaused(paused); if (paused) audio.pause(); else { audio.unlock(); audio.resume(); } };
   hud.onPause = togglePause;
   hud.onSettings = () => settingsPanel.open();
-  hud.onSave = () => { if (running && !multiplayer) {try{saveGame();hud.setWarning("Mäng salvestatud");}catch{hud.setWarning("Salvestamine ebaõnnestus: brauseri salvestusruum on täis");}} };
+  hud.onSave = () => { if (running && !multiplayer) {try{const indexed=saveGame();hud.setWarning(indexed?"Mäng salvestatud":"Mäng salvestatud; menüüloend ei uuenenud — laadi selle lahingu menüüst");}catch{hud.setWarning("Salvestamine ebaõnnestus: brauseri salvestusruum on täis");}} };
   hud.onLoad = () => {if(!multiplayer)loadGame();};
   hud.onSkirmish = (m, difficulty, mode) => { const url = new URL(location.href); url.search = ""; url.searchParams.set("mission", m.id); url.searchParams.set("mode", "skirmish"); url.searchParams.set("difficulty", difficulty); url.searchParams.set("gameMode", mode ?? "skirmish"); url.searchParams.set("faction", hud.selectedFaction); location.href = url.toString(); };
 
   let running = false;
   const setEnabled = (on: boolean) => { selection.enabled = commands.enabled = minimap.enabled = on; };
   const facBlur = FACTIONS[world.playerFaction]?.doctrineBlurb ?? "";
-  hud.showBriefing(skirmish ? { ...mission, name: "Skirmish — " + mission.map.name, briefing: mission.id === "roheorg" ? mission.briefing + "\n\n" + modeController.label() + "\n\n" + (queryParams.get("deployment")==="base" ? "Ehita generaator → varustusladu → maaväe juhtimiskeskus → tehas. Saada insener ressursipunkti." : "Baas ja väike lahingugrupp on valmis. Saada luure ette; tugevda koosseisu Maa-paneelist. Insener käivitab koduse ressursipunkti kogumise.") + "\n\nF1: vali soomus · Fookus: kaamera valikule\nRündeliiku + parem klõps: liigu ja võitle\nInsener / juhtimishoone → Ehita: baas ja FOB\nMoon, kütus ja remont vajavad tegelikku varustust." : modeController.label() + "\n\nREAL WAR baas:\n1) Generaator → varustusladu → maaväe juhtimiskeskus → tehas\n2) Saada teine insener ressursipunkti; ta käivitab kogumise\n3) Veokid toovad raha ja ammo/kütusevaru. Katkenud tarne peatab tootmise\n\nWARGAME lahing:\n• Optika/recon — kes näeb, tulistab\n• Supply raadius — ammo/kütus; forward ladu risk\n• Flank ja moraal loevad\n• Õhk: CAP / Strike / SEAD; ilma AA-ta kaotad\n\nDoktriin: " + facBlur + "\n\nKlahvid: F1 soomus F2 jala F3 õhk F4 toetus · Ctrl+1-9 grupid" } : mission, () => { if(multiplayer)return; running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); }, hasSave(), loadGame);
+  hud.showBriefing(skirmish ? { ...mission, name: "Skirmish — " + mission.map.name, briefing: mission.id === "roheorg" ? mission.briefing + "\n\n" + modeController.label() + "\n\n" + (queryParams.get("deployment")==="base" ? "Ehita generaator → varustusladu → maaväe juhtimiskeskus → tehas. Saada insener ressursipunkti." : "Baas ja väike lahingugrupp on valmis. Saada luure ette; tugevda koosseisu Maa-paneelist. Insener käivitab koduse ressursipunkti kogumise.") + "\n\nF1: vali soomus · Fookus: kaamera valikule\nRündeliiku + parem klõps: liigu ja võitle\nInsener / juhtimishoone → Ehita: baas ja FOB\nMoon, kütus ja remont vajavad tegelikku varustust." : modeController.label() + "\n\nREAL WAR baas:\n1) Generaator → varustusladu → maaväe juhtimiskeskus → tehas\n2) Saada teine insener ressursipunkti; ta käivitab kogumise\n3) Veokid toovad raha ja ammo/kütusevaru. Katkenud tarne peatab tootmise\n\nWARGAME lahing:\n• Optika/recon — kes näeb, tulistab\n• Supply raadius — ammo/kütus; forward ladu risk\n• Flank ja moraal loevad\n• Õhk: CAP / Strike / SEAD; ilma AA-ta kaotad\n\nDoktriin: " + facBlur + "\n\nKlahvid: F1 soomus F2 jala F3 õhk F4 toetus · Ctrl+1-9 grupid" } : mission, () => { if(multiplayer)return; running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); }, hasSave(), () => loadGame());
 
   addEventListener("keydown", (e) => {
     if(e.repeat||(e.target instanceof Element&&e.target.closest("input,textarea,select,[contenteditable=true]")))return;
@@ -340,6 +347,11 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     metrics=>performancePanel.record(metrics,{calls:ctx.renderer.info.render.calls,triangles:ctx.renderer.info.render.triangles,units:world.entities.length,worldTime:world.time,quality:visualQuality,width:glCanvas.width,height:glCanvas.height}),
     ()=>performancePanel.enabled,
   );
+  const resumeKey=queryParams.get("resume");
+  if(resumeKey&&!multiplayer){
+    if(resumeKey===saveKey)loadGame(true);
+    else hud.setWarning("Salvestuse kaart või režiim on muutunud; vali sobiv lahing või alusta uut");
+  }
   loop.start();
 }
 

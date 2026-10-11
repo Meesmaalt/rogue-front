@@ -11,6 +11,8 @@ describe("save state", () => {
     for (let i = 0; i < 60; i++) a.tick(SIM_STEP);
     const state = saveWorld(a), b = new World(7); loadWorld(b, state);
     expect(worldHash(b)).toBe(worldHash(a));
+    for (let i = 0; i < 60; i++) { a.tick(SIM_STEP); b.tick(SIM_STEP); }
+    expect(worldHash(b)).toBe(worldHash(a));
   });
 });
 
