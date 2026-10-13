@@ -300,3 +300,7 @@ WaveAI.expandForward uuendab piisava eelarvega ühendatud operatiivse edasilao e
 MissionDef.preparationUntil viitab olemasolevale eesmärgi ID-le. MissionController.preparing tuletab ettevalmistuse lõpetamata eesmärgist; World jätab selle ajal vahele operatiivse, strateegilise ja taktikalise AI planeerimise. Füüsilist maailma ei pausita. Missiooni definitsioon/eesmärgid salvestatakse olemasoleva runtime'i kaudu; tundmatu eesmärk ei sulge AI-d lõputult. Uut save-versiooni pole vaja.
 
 Ehituskorralduse limiit loeb ka pooleliolevaid vundamente. Construction süsteem tunnustab ainult tegelikult sellele hoonele build/repair režiimis määratud inseneri. Olemasolev repair-käsk võtab poolelioleva ehituse uuesti build-režiimis üle; UI ja õpetus kasutavad sama käsku. Tõrked kasutavad olemasolevat order-rejected sündmust.
+
+## Dev-server reverse proxy
+
+Vite dev/preview lubab kõiki Host-päiseid: domeeni suunamist haldab väline proxy. ROGUE_FRONT_BASE_PATH (vaikimisi /) määrab Vite base-i, avalike mudelite/ikoonide URL-id ning API/WS prefiksi. Api.request liidab olemasolevad /api teed BASE_URL-iga; Vite proxy eemaldab prefiksi enne multiplayer-serverisse edastamist. Compose dev edastab muutuja. Hestia/Overseeri alamtee proxy peab säilitama prefiksi ja edastama WebSocket upgrade'i. Tootmise nginx on endiselt juurtee konfiguratsioon.
