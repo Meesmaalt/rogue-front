@@ -10,6 +10,8 @@ Build ja sihitud simulatsiooni/UI kontrollid läbivad. 13.10 avaliku aadressi me
 
 13.10 liikumise ja relvade viimistlus: kiirusest sõltuv sõidukite pöörderaadius, pidurdamine enne tagurdamist, kopteri eraldi hoog ja ninapööre ning külgmine laskepositsiooni otsing. Kopterikahuri õhusihtmärgi kahjustus parandatud; paigalseisva tankikahuri täpsus parem, raketid lähtuvad päris tiivarakkidest. Metsas on väiksemad, tihedamad instantsitud puud ning rakettidel mootorituli ja suitsurada. Roheoru lähimad ressursialad on nüüd umbes 174 m baasist; veokid valivad vaba kogumiskoha ja taastavad ummikust marsruudi. Roheoru/õpetuse layout14 jaoks alusta uut matši: layout13 salvestus ei sobi muutunud kaardiga, vana salvestus jääb alles eraldi võtmes. Muudatused ei ole veel avalikus GPU-ga mänguvaates hinnatud.
 
+Roheoru kaardiviimistlus (layout15): ühine jõepind, maastikusse seotud ühendatud teed/õued/märgistus, elamute juurdepääsutänavad ja aiad, talurajad, lühemad talade/sammastega sillad ning ebakorrapärasemad metsaservad. Atlas säilitab 2048² mõõdu ja mets instantsimise/LOD-i. Uue paigutuse jaoks alusta uut Roheoru/õpetuse matši. Vt [kaardi kompositsioon](docs/MAP-COMPOSITION-ROHEORG.md); avaliku brauseri visuaal/FPS jäävad kinnitamata.
+
 Järgmise arenduse põhiplaan: [viimistlus → alpha → beta](docs/DEVELOPMENT-PLAN.md). Aktiivne tööjärjekord on TODO alguses; vanad etapinimed ei määra uut arendust.
 
 ## Käivitamine Dockeris

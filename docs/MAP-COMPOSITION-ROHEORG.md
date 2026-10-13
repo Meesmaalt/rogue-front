@@ -1,23 +1,21 @@
 # Roheorg: kaardi kompositsiooni viimistlus
 
-## Tulemus
-1088 m kaart kasutab nüüd kaht kompaktset jõeküla, selgeid ühendusteid, põllu- ja metsavööndeid ning viit olemasolevat sillaületust. Kaardi autorandmetes on 48 tsiviilhoonet, 45 teed, 22 põllulappi, 20 metsaala ja 48 kattuvat jõesegmenti. World lisab täpselt viis ressursirajatist: kokku 53 staatilist hoonet.
+## Hetkeseis — layout15
 
-Külamajad paiknevad tänavate järgi, väiksemad talukompleksid põldude kõrval. Teede klassid eristavad maanteed, ühendusteed, külatänavad ja kruusarajad; tänavad ja rajad ei kasuta maantee teljemärgistust. Baaside asukohad, ressursipunktid ja sillad säilitavad senise mängulise ülesande.
+1088 m kaardil on kaks jõeasulat, 48 garnisonitavat tsiviilhoonet, 87 ühendatud teesegmenti, viis silda ja viis tegelikku ressursirajatist. Baasid ning ressursikoordinaadid säilitavad layout14 asukohad. 42 asulamajal on varieeruvad mõõdud/kõrgused, tänava poole suunatud front ja aed; kuus talumaja on maanteega seotud kruusarajaga. Neli elamuridade vahelist tänavat täidavad varasemat tühja ruudustikku.
 
-Varasem autorandmete tööstushoonete kiht dubleeris Worldi automaatseid ressursirajatisi. See eemaldati. Kaardi facilityOffset määrab nüüd päris ressursihoone asukoha, vältides tee ja hoone kattumist; vanade kaartide vaikimisi nihe säilib.
+Mets koosneb 20 algsest alast, 20 servaharust ja neljast kaldasalust. Ellipsid on ühine sim/render alus, kuid kattuvate puuproovide miinimumvahe väldib samas kohas tüvede kuhjumist. Puud jäävad väikseks ja instantsituks, teed/majad/vesi puhastavad võrastikku. Põllud ja elamuaiad moodustavad 64 maakatteala; põllupiiridel on pehmemad nurgad.
 
-## Renderduse ja simulatsiooni ühendus
-- Üks 2048² maastikuatlas ühendab põllutekstuurid, metsapõhjad, kaldad ja teeservad. See luuakse kaardi laadimisel samadest feature-andmetest, mida kasutavad simulatsiooni maastikutarbijad; põllud ei ole enam eraldi hõljuvad plaadid.
-- Jõesegmendid jagavad veematerjali ja maailma koordinaatidel põhinevaid UV-sid. Kuival kaldal järgib maapind silla lähenemisrampi; vee all säilib päris jõepõhi, mitte muldkeha.
-- Tsiviilmajade kaugmudel kasutab jagatud akende ja ustega fassaaditekstuuri. Varem jäi kaugvaates alles tühi seinakast. Lähimudelite geomeetria säilib.
-- Minikaardi joonistusjärjekord jätab teed põldude ja metsade peale. Temperate-kaardi udu algab kaugemalt; ressursisilt kuvatakse lähedalt, et kaugvaadet mitte täita suurte tekstidega.
+## Pindade ühendus
 
-Simulatsioon jääb fikseeritud sammuga ja deterministlikuks. UI ei loo eraldi teede ega hoonete olekut. Roheoru salvestusvõti on layout12, mistõttu vana paigutusega salvestust ei laadita uuele kaardile automaatselt.
+Temperate-maastiku üks 2048² atlas ühendab põllu, metsa, kalda, tee, õue, kõnnitee, märgistuse ja majast tänavani viiva raja. Kõigi teeservade kiht eelneb kõigile sõidupindadele, nii et ristmik ei koosne eraldi kattuvatest kõrgusnihkega plaatidest. Teed jäävad samaks nav-/maanteekiiruse feature'iks, render loob neist pinnavärvi.
 
-## Kontroll
-Tootmisbuild (sh strict TypeScript) ja TerrainState'i viis sihitud kontrolli läbisid. Uus kontroll kasutab päris Worldi: tsiviil- ja ressursihooned ei kattu tee ega veega, kogumispunktid on läbitavad ning kuiv silla lähenemine järgib nav-kõrgust. Sama arenduse varasemad kaks Pathfinderi kontrolli läbisid; tervet testikomplekti ei käivitatud.
+48 jõe autorsegmenti ühendatakse renderdamisel üheks samakõrguseliste footprint'ide veepinnaks. Kattuv ala trianguleeritakse üks kord; maailma-UV-d, kaldast sügavama keskosa gradient ja voolutekstuur on pidevad. Simulatsioon kasutab endiselt tegelikku vee/jõepõhja footprint'i ning päris silladeck'i.
 
-`checks/roheorg-layout-comparison.png` on JSON-andmetest loodud paigutusskeem, mitte brauseri render. Kohalik Chromium puudub, seega tegelik 3D-pilt ja GPU jõudlus pole selles etapis kinnitatud. Wargame'i visuaalse taseme saavutamist ei saa üksnes skeemi põhjal väita.
+Viis 52×10 m silda on kanaliga sobivas mõõdus; lähenemisroad tulevad deck'i otsteni. Asfalt, avatud piirded, talad ja jõepõhjale toetuvad sambad kuuluvad eemaldatavasse bridgeId gruppi, mis järgib olemasolevat hävimisloogikat. Kaks korrust on ka väiksemate 5.8 m elamute fassaadil loetavad.
 
-Paigutuse taasloomine: `python3 scripts/maps/polish-roheorg.py`. Skeem: `python3 scripts/maps/overview.py /path/to/before-map.json`.
+## Kontroll ja piirangud
+
+Build ning 19 sihitud geomeetria/maastiku/esituse/õpetuse kontrolli läbivad. Majad/ressursirajatised ei kattu tee ega veega, kogumispunktid on läbitavad, sildade nav/hävimine/save taastumine ja tasuline õpetuse läbipääs säilivad. Veepinna kontroll mõõdab kattuvate kanalite tegelikku ühendpindala ning kontrollib normaale ja UV-sid. See ei tõenda veel Wargame'i visuaalset taset ega GPU FPS-i; tegelik mänguvaade vajab riistvaralise WebGL-iga hindamist.
+
+Uue paigutuse jaoks alusta uut Roheoru või õpetuse matši (layout15/training15). Vana kaardi snapshot'id jäävad oma võtmetesse. Paigutuse korduv genereerimine: `python3 scripts/maps/finish-road-network.py`. Vanemad polish/refine skriptid kirjeldavad varasemaid migratsioone.

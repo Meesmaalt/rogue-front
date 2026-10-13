@@ -1,6 +1,6 @@
 # Arhitektuur
 
-Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 14, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
+Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 15, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
 
 ## Põhimõte
 Kolm kihti, sõltuvused ainult allapoole: **ui/input → sim ← render** (render ja ui *loevad* sim olekut, annavad käske, kuid sim ei tea neist midagi).
@@ -323,3 +323,14 @@ Blokeeritud tulejoone puhul otsib kopter seitset külgmist laskepositsiooni stan
 Mets kasutab terrain.json-i treeArea=16, väiksemat skaalat ja võrasid. Cell-põhine instancing, jagatud geomeetria/materjal, opaque võrad, lihtne kaug-LOD ja põlenud metsa sama instantside loend säilivad. See on tihedam geomeetria, mitte mõõdetud FPS-võit. Fx lisab olemasolevate mürsumudelite jagatud mallidesse raketimootori välisleegi/südamiku ja kahuri suunatud halo; suits/sära kasutavad piiratud efekte ning kaamerakauguse raketiskaala on max 1.6.
 
 Roheoru layout14 lähimad ressursipunktid (-225,140)/(225,-140) on baasist ~174 m (varem ~99 m). Füüsiline facilityOffset, õuefeature ja maanteeühendus liiguvad koos. Ressurss tekib endiselt hõivatud/aktiveeritud rajatises ning nõuab reaalset tarnet. Kaardisignatuur ja main.ts uued layout14/training14 võtmed väldivad vana kaardi snapshoti segamist uue geomeetriaga; vana snapshoti ei kustutata. Simulatsiooni töömaht jääb piiratud otsingutega, fixed-step/RNG reeglid säilivad.
+
+
+## Roheoru kaardipindade ühendamine — layout15
+
+Terrain.createRiverSurface lõikab samakõrguseliste kitsaste veefeature'ite ristkülikud horisontaalseteks intervallideks ja ühendab need enne trianguleerimist. Ridadeks on feature'i nurgakõrgused ning max 1.5 m vahe; risti jõega kuus värvitooniga sammu. Ühised maailma-UV-d ja üks ülespoole suunatud pind eemaldavad ristkülikute sügavuspuhvri kattumise. Lai meri säilitab oma senise renderduse; kitsaste vete füüsiline/nav footprint on endiselt mapFeatures. Veepinna serv on heledam, keskosa tumedam; voolu tekstuur animeerub olemasoleva riverFlow kaudu.
+
+Temperate-kaardi makeLandscapeTexture maalib kõik teeservad enne kõiki sõidupindu, seejärel ristmikke arvestavad märgistused ja kruusatee rattajäljed. Sama atlas sisaldab õue- ja kõnniteepindu, elamute tänavaga ühendavaid radu ning ümardatud põllupiire. createMapFeatures jätab sellel teemal eraldi tee-/teeserva-/märgistuse-/õuepinnad välja; sildadel säilib päris eemaldatav geomeetria ja world-UV asfalt. Sellega on tee pinnakõrgus maastiku enda kõrgus, puuduvad pinnakihtide kõrguste vahed/kattuvad teeplaadid. Atlas jääb 2048²; uut suurt tekstuurikomplekti või dünaamilist maastikupassi ei lisatud. Muudel teemadel jäävad varasemad drapedStrip-teed alles.
+
+finish-road-network.py on layout15 idempotentne autoritöö: viis 52×10 m silda koos maantee lähenemistega, elamuridade juurdepääsud, kuue talu rajad, 42 elamu mõõtude/setback/frontide varieerimine, samad 48 garnisonimaja ja viis ressursirajatist. Kaks korrust saab nüüd ka 5.8 m maja facade2-atlas. Metsad kasutavad olemasolevate ellipsite kõrvalharusid ja nelja väikesalu. createForest väldib alglaadimise ajal deterministliku 3 m lähinaabribiniga liiga lähestikku puid, säilitades opaque instancing/LOD-i ja põlenud puude oleku. Silla talad ja sambad jäävad olemasoleva bridgeId grupi alla ning kaovad koos füüsiliselt purunenud sillaga. Sambad algavad groundHeightAt jõepõhjast; maaüksus kasutab jätkuvalt deck'i heightAt kõrgust.
+
+Kaardipaigutus on uus: main.ts layout15/training15 võtmed ja saveMapSignature eristavad seda varasematest snapshot'idest. Simulatsiooni tick, lahingureeglid, baseraadiused, ressursikoordinaadid ja RNG on säilitatud. Laius/lähenemisteed on kontrollitud tegeliku World/Nav'i ja tasulise õpetuse kaudu. GPU-ga renderpilti ega FPS-i see kontroll ei tõenda.

@@ -4,7 +4,7 @@ import * as THREE from "three";
 import {createCivilianBuilding,createBuildingModel,batchStaticScene} from "./Architecture";
 import { getBases, MAP_SIZE, heightAt,groundHeightAt } from "../sim/heightmap";
 import { mulberry32 } from "../sim/rng";
-import { pointInFeature, forestDensityAt, MapFeatureIndex, type MapFeatureDef } from "../sim/mapFeatures";
+import { pointInFeature, featureCorners, forestDensityAt, MapFeatureIndex, type MapFeatureDef } from "../sim/mapFeatures";
 import type {World} from "../sim/World";
 import type { Point } from "../sim/types";
 
@@ -55,7 +55,7 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
     new THREE.MeshStandardMaterial({
       vertexColors: true,
       map: theme==="temperate"?makeLandscapeTexture(features,bases):grain,
-      bumpMap:grain,bumpScale:.10,
+      bumpMap:grain,bumpScale:theme==="temperate"?.045:.10,
       roughness: 0.92,
       metalness: 0,
     }),
@@ -85,6 +85,63 @@ function riverTexture():THREE.CanvasTexture {
     ctx.beginPath();ctx.moveTo(x,y);ctx.bezierCurveTo(x+1,y+3,x-2,y+5,x,y+8+rnd()*6);ctx.stroke();
   }
   const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.anisotropy=4;return texture;
+}
+
+/** Union horizontal slices of the authored water footprints. Every band is drawn
+ * once, so adjacent rotated river pieces cannot fight for the depth buffer. */
+export function createRiverSurface(features:readonly MapFeatureDef[]):THREE.BufferGeometry {
+  const groups=new Map<number,Point[][]>();
+  for(const f of features)if(f.kind==="water"&&f.width<128){
+    const y=f.surfaceHeight??heightAt(f.x,f.z)-.55,list=groups.get(y)??[];
+    list.push(featureCorners(f));groups.set(y,list);
+  }
+  const positions:number[]=[],colors:number[]=[],uvs:number[]=[],indices:number[]=[];
+  const deep=new THREE.Color(0x49676c),bank=new THREE.Color(0x7d9286),tint=new THREE.Color();
+  for(const [y,polygons] of groups){
+    const vertices=polygons.flat(),half=MAP_SIZE/2;
+    const lo=Math.max(-half,Math.min(...vertices.map(p=>p.z))),hi=Math.min(half,Math.max(...vertices.map(p=>p.z)));
+    if(hi<=lo)continue;
+    const rows=new Set<number>([lo,hi]);
+    for(const p of vertices)if(p.z>lo&&p.z<hi)rows.add(p.z);
+    for(let z=lo+1.5;z<hi;z+=1.5)rows.add(z);
+    const levels=[...rows].sort((a,b)=>a-b);
+    const spans=(z:number):Array<[number,number]>=>{
+      const intervals:Array<[number,number]>=[];
+      for(const polygon of polygons){
+        const xs:number[]=[];
+        for(let i=0;i<polygon.length;i++){
+          const a=polygon[i],b=polygon[(i+1)%polygon.length];
+          if(Math.abs(a.z-b.z)<1e-8)continue;
+          if(z<Math.min(a.z,b.z)||z>Math.max(a.z,b.z))continue;
+          xs.push(a.x+(b.x-a.x)*(z-a.z)/(b.z-a.z));
+        }
+        if(xs.length>=2)intervals.push([Math.max(-half,Math.min(...xs)),Math.min(half,Math.max(...xs))]);
+      }
+      intervals.sort((a,b)=>a[0]-b[0]);const merged:Array<[number,number]>=[];
+      for(const span of intervals){if(span[1]<=span[0])continue;const last=merged.at(-1);if(last&&span[0]<=last[1]+1e-6)last[1]=Math.max(last[1],span[1]);else merged.push([...span]);}
+      return merged;
+    };
+    for(let row=1;row<levels.length;row++){
+      const za=levels[row-1],zb=levels[row];if(zb-za<1e-6)continue;
+      const middle=spans((za+zb)/2),bottom=spans(za+1e-7),top=spans(zb-1e-7);
+      for(const mid of middle){
+        const match=(list:Array<[number,number]>)=>list.find(s=>s[0]<=mid[1]&&s[1]>=mid[0]);
+        const a=match(bottom),b=match(top);if(!a||!b)continue;
+        const start=positions.length/3,lanes=6;
+        for(const [z,span] of [[za,a],[zb,b]] as const)for(let lane=0;lane<=lanes;lane++){
+          const t=lane/lanes,x=span[0]+(span[1]-span[0])*t;
+          positions.push(x,y,z);uvs.push(x/6,z/12);
+          tint.copy(deep).lerp(bank,Math.pow(Math.abs(t*2-1),3)*.75);colors.push(tint.r,tint.g,tint.b);
+        }
+        for(let lane=0;lane<lanes;lane++){const left=start+lane,right=left+1,upper=left+lanes+1;indices.push(left,upper,right,right,upper,upper+1);}
+      }
+    }
+  }
+  const geometry=new THREE.BufferGeometry();
+  geometry.setAttribute("position",new THREE.Float32BufferAttribute(positions,3));
+  geometry.setAttribute("color",new THREE.Float32BufferAttribute(colors,3));
+  geometry.setAttribute("uv",new THREE.Float32BufferAttribute(uvs,2));geometry.setIndex(indices);geometry.computeVertexNormals();
+  return geometry;
 }
 
 export function animateRiverTerrain(group:THREE.Group,time:number):void {
@@ -122,7 +179,7 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
   ctx.setTransform(scale,0,0,scale,half*scale,half*scale);
   const local=(f:MapFeatureDef,paint:()=>void)=>{ctx.save();ctx.translate(f.x,f.z);ctx.rotate(-(f.rotation??0));paint();ctx.restore();};
   for(const f of features.filter(f=>f.appearance==="field"))local(f,()=>{
-    ctx.beginPath();ctx.rect(-f.width/2,-f.depth/2,f.width,f.depth);ctx.clip();
+    ctx.beginPath();ctx.roundRect(-f.width/2,-f.depth/2,f.width,f.depth,Math.min(3,f.width*.05));ctx.clip();
     ctx.fillStyle=`#${(f.color??0x969572).toString(16).padStart(6,"0")}`;ctx.fillRect(-f.width/2,-f.depth/2,f.width,f.depth);
     ctx.strokeStyle="rgba(63,67,42,.11)";ctx.lineWidth=.28;
     for(let x=-f.width/2+1;x<f.width/2;x+=1.8){ctx.beginPath();ctx.moveTo(x,-f.depth/2);ctx.lineTo(x,f.depth/2);ctx.stroke();}
@@ -148,8 +205,44 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
     ctx.fillStyle=beach;ctx.fillRect(f.width/2-4,-f.depth/2,22,f.depth);
   });
   for(const b of bases){const g=ctx.createRadialGradient(b.x,b.z,b.r*.4,b.x,b.z,b.r);g.addColorStop(0,"rgba(157,157,139,.72)");g.addColorStop(1,"rgba(157,157,139,0)");ctx.fillStyle=g;ctx.beginPath();ctx.arc(b.x,b.z,b.r,0,Math.PI*2);ctx.fill();}
-  // Narrow mown shoulders keep rural routes legible without bright paint stripes.
-  for(const f of features.filter(f=>f.kind==="road"))local(f,()=>{ctx.fillStyle=f.roadClass==="track"?"#aaa58b":"#8c907c";ctx.fillRect(-f.width/2-.8,-f.depth/2,f.width+1.6,f.depth);});
+  // Ground-bound paving: paint the whole network in layers, rather than overlapping elevated strips.
+  const roads=features.filter(f=>f.kind==="road"),index=new MapFeatureIndex(features);
+  for(const f of features.filter(f=>f.appearance==="yard"))local(f,()=>{
+    ctx.fillStyle=`#${(f.color??0x99998b).toString(16).padStart(6,"0")}`;
+    ctx.fillRect(-f.width/2,-f.depth/2,f.width,f.depth);
+  });
+  const strokeRoad=(f:MapFeatureDef,width:number,color:string)=>local(f,()=>{
+    ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(0,-f.depth/2);ctx.lineTo(0,f.depth/2);ctx.stroke();
+  });
+  for(const f of roads)strokeRoad(f,f.width+1.7,f.roadClass==="track"?"#a4a087":"#929580");
+  for(const f of roads)strokeRoad(f,f.width,f.roadClass==="track"?"#9c947b":f.roadClass==="street"?"#777b73":"#686f69");
+  for(const f of roads)local(f,()=>{
+    if(f.roadClass==="track"){
+      ctx.strokeStyle="rgba(91,84,66,.28)";ctx.lineWidth=.55;
+      for(const x of [-f.width*.23,f.width*.23]){ctx.beginPath();ctx.moveTo(x,-f.depth/2);ctx.lineTo(x,f.depth/2);ctx.stroke();}
+    }else if(f.roadClass!=="street"){
+      // A world-distance dash phase survives short curved author segments.
+      const a=f.rotation??0,phase=f.x*Math.sin(a)+f.z*Math.cos(a);
+      ctx.strokeStyle="rgba(212,209,183,.65)";ctx.lineWidth=.22;ctx.lineCap="butt";
+      for(let z=-f.depth/2;z<f.depth/2;z+=.8){
+        if(((z+phase)%10+10)%10>3)continue;
+        const x=f.x+Math.sin(a)*z,zz=f.z+Math.cos(a)*z;
+        if(index.at(x,zz).some(o=>o!==f&&(o.kind==="bridge"||o.kind==="road"&&Math.abs(Math.sin((o.rotation??0)-a))>.25)&&pointInFeature(x,zz,o,1)))continue;
+        ctx.beginPath();ctx.moveTo(0,z);ctx.lineTo(0,Math.min(f.depth/2,z+.8));ctx.stroke();
+      }
+    }
+  });
+  ctx.lineCap="round";
+  // Paths and small aprons connect the actual house door to its nearest street.
+  for(const f of features.filter(f=>f.appearance==="farmhouse")){
+    const a=f.rotation??0,door={x:f.x+Math.sin(a)*(f.depth/2+.3),z:f.z+Math.cos(a)*(f.depth/2+.3)};
+    let nearest:Point|undefined,best=18;
+    for(const r of roads){const t=Math.max(-r.depth/2,Math.min(r.depth/2,(door.x-r.x)*Math.sin(r.rotation??0)+(door.z-r.z)*Math.cos(r.rotation??0)));
+      const q={x:r.x+Math.sin(r.rotation??0)*t,z:r.z+Math.cos(r.rotation??0)*t},d=Math.hypot(q.x-door.x,q.z-door.z);
+      if(d<best){best=d;nearest=q;}
+    }
+    if(nearest){ctx.strokeStyle="#a7a494";ctx.lineWidth=1.1;ctx.beginPath();ctx.moveTo(door.x,door.z);ctx.lineTo(nearest.x,nearest.z);ctx.stroke();}
+  }
   ctx.resetTransform();
   const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=8;return texture;
 }
@@ -203,18 +296,20 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
   const group = new THREE.Group();
   group.name = "map-features";
   const flow=riverTexture();group.userData.riverFlow=flow;
-  const riverMaterial=new THREE.MeshStandardMaterial({color:0x526d70,map:flow,bumpMap:flow,bumpScale:.055,roughness:.36,metalness:.14});
+  const riverMaterial=new THREE.MeshStandardMaterial({color:0xffffff,map:flow,bumpMap:flow,bumpScale:.035,roughness:.48,metalness:.08,vertexColors:true});
   const seaFlow=riverTexture();group.userData.seaFlow=seaFlow;
   const seaMaterial=new THREE.MeshStandardMaterial({color:0xffffff,map:seaFlow,bumpMap:seaFlow,bumpScale:.12,roughness:.48,metalness:.12,vertexColors:true});
   const ocean=features.filter(f=>f.kind==="water"&&f.width>=128);
+  const river=createRiverSurface(features);
+  if(river.getAttribute("position").count){const mesh=new THREE.Mesh(river,riverMaterial);mesh.name="continuous-river";mesh.receiveShadow=true;group.add(mesh);}else river.dispose();
   const asphalt=asphaltTexture();
   const roadMat=new THREE.MeshStandardMaterial({color:0x626862,map:asphalt,bumpMap:asphalt,bumpScale:.015,roughness:.96,polygonOffset:true,polygonOffsetFactor:-1});
   const vergeMat=new THREE.MeshStandardMaterial({color:0x8c907c,roughness:1,polygonOffset:true,polygonOffsetFactor:-1});
   // All shoulders sit below the complete carriageway network, including junctions.
-  for(const f of features)if(f.kind==="road"&&f.roadClass!=="track")group.add(drapedStrip(f,f.width+1.2,0x8c907c,.028,vergeMat));
+  if(!landscapeAtlas)for(const f of features)if(f.kind==="road"&&f.roadClass!=="track")group.add(drapedStrip(f,f.width+1.2,0x8c907c,.028,vergeMat));
   for (const f of features) {
     const y = heightAt(f.x, f.z);
-    if(f.appearance==="yard"){group.add(drapedStrip(f,f.width,f.color??0x858578,f.width>12&&f.depth>12?.025:.07));continue;}
+    if(f.appearance==="yard"){if(landscapeAtlas)continue;group.add(drapedStrip(f,f.width,f.color??0x858578,f.width>12&&f.depth>12?.025:.07));continue;}
     if (f.appearance === "forest") continue;
     if (f.appearance === "field") {
       if(landscapeAtlas)continue;
@@ -222,6 +317,7 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
       (field.material as THREE.MeshStandardMaterial).map=fieldTexture();group.add(field);continue;
     }
     if (f.kind === "water") {
+      if(f.width<128)continue; // River footprints are united into one continuous surface below.
       const sea=f.width>=128;
       const geo=new THREE.PlaneGeometry(f.width,f.depth,sea?Math.ceil(f.width/16):1,1).rotateX(-Math.PI/2);
       const uv=geo.attributes.uv,pos=geo.attributes.position,c=Math.cos(f.rotation??0),s=Math.sin(f.rotation??0);
@@ -243,6 +339,7 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
     }
     if (f.kind === "road" || f.kind === "bridge") {
       if(f.kind === "road") {
+        if(landscapeAtlas)continue;
         const track=f.roadClass==="track",urban=f.roadClass==="street";
         group.add(drapedStrip(f,f.width,track?0x8e8b73:0x626862,.065,track?undefined:roadMat));
         if(!track&&!urban)for(let z=-f.depth/2+3;z<f.depth/2-2;z+=10){
@@ -261,7 +358,19 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
         for(let i=0;i<deckPos.count;i++)deckUv.setXY(i,(f.x+deckPos.getX(i)*Math.cos(a)+deckPos.getZ(i)*Math.sin(a))*.18,(f.z-deckPos.getX(i)*Math.sin(a)+deckPos.getZ(i)*Math.cos(a))*.18);
         surface.receiveShadow=true;bridge.add(surface);
         for(const side of [-1,1]){const a=f.rotation??0,offset=f.depth/2*side;const support=new THREE.Mesh(new THREE.BoxGeometry(f.width+1,1.8,2.2),mesh.material);support.position.set(f.x+Math.sin(a)*offset,(f.surfaceHeight??y)-1.3,f.z+Math.cos(a)*offset);support.rotation.y=a;bridge.add(support);}
-        addBridgeRails(bridge,f,f.surfaceHeight??y);group.add(batchStaticScene(bridge));
+        // Open span with girders and piers rooted in the same visible riverbed.
+        const deckY=f.surfaceHeight??y;
+        for(const side of [-1,1]){
+          const offset=side*(f.width*.3),girder=new THREE.Mesh(new THREE.BoxGeometry(.4,.5,f.depth-2),mesh.material);
+          girder.position.set(f.x+Math.cos(a)*offset,deckY-.65,f.z-Math.sin(a)*offset);girder.rotation.y=a;bridge.add(girder);
+        }
+        for(const along of [-f.depth*.22,f.depth*.22]){
+          const px=f.x+Math.sin(a)*along,pz=f.z+Math.cos(a)*along,bottom=groundHeightAt(px,pz),height=deckY-.5-bottom;
+          if(height<.8)continue;
+          for(const side of [-1,1]){const pier=new THREE.Mesh(new THREE.BoxGeometry(.9,height,1.2),mesh.material);
+            pier.position.set(px+Math.cos(a)*side*f.width*.27,bottom+height/2,pz-Math.sin(a)*side*f.width*.27);pier.rotation.y=a;bridge.add(pier);}
+        }
+        addBridgeRails(bridge,f,deckY);group.add(batchStaticScene(bridge));
       }
       continue;
     }
@@ -304,7 +413,7 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
       mesh.receiveShadow = true;
       if(f.appearance === "farmhouse") {
         // Small paving/apron grounds the facade without covering neighbouring roads.
-        group.add(drapedStrip({...f,kind:"cover",appearance:"yard",depth:f.depth+3},f.width+3,0x8f9181,.025,undefined,features));
+        if(!landscapeAtlas)group.add(drapedStrip({...f,kind:"cover",appearance:"yard",depth:f.depth+3},f.width+3,0x8f9181,.025,undefined,features));
         const variant=Number(f.id.split("-").at(-1))||0,house=new THREE.LOD();
         house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant),0);
         house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,true),235, .15);
@@ -401,15 +510,20 @@ function drapedStrip(f:MapFeatureDef,width:number,color:number,lift:number,share
 /** Opaque rounded crowns avoid alpha overdraw and leaf shadow-map passes. Separate cell batches keep distant forests culled. */
 export function createForest(features:readonly MapFeatureDef[]):THREE.Group {
   const rnd=mulberry32(104),cells=new Map<string,{x:number;z:number;s:number;angle:number;pine:boolean}[]>();
-  const index=new MapFeatureIndex(features);
+  const index=new MapFeatureIndex(features),spacing=new Map<string,Array<{x:number;z:number;s:number}>>();
   for(const f of features.filter(f=>f.appearance==="forest")){
     const c=Math.cos(f.rotation??0),s=Math.sin(f.rotation??0);
     for(let i=0;i<Math.ceil(f.width*f.depth/terrainConfig.forest.treeArea);i++){
       const lx=(rnd()-.5)*f.width,lz=(rnd()-.5)*f.depth,x=f.x+lx*c+lz*s,z=f.z-lx*s+lz*c;
       const nearby=index.at(x,z);
       if(nearby.some(block=>(["building","road","bridge","water","wall"].includes(block.kind)||block.appearance==="yard")&&pointInFeature(x,z,block,2))||rnd()>forestDensityAt(x,z,nearby))continue;
-      const pine=rnd()<.4,key=`${Math.floor(x/64)}/${Math.floor(z/64)}/${pine}`,list=cells.get(key)??[];
-      list.push({x,z,s:terrainConfig.forest.treeScaleMinimum+rnd()*terrainConfig.forest.treeScaleVariation,angle:rnd()*Math.PI,pine});cells.set(key,list);
+      const pine=rnd()<.4,scale=terrainConfig.forest.treeScaleMinimum+rnd()*terrainConfig.forest.treeScaleVariation;
+      const bx=Math.floor(x/3),bz=Math.floor(z/3);let crowded=false;
+      for(let dx=-1;dx<=1&&!crowded;dx++)for(let dz=-1;dz<=1&&!crowded;dz++)crowded=(spacing.get(`${bx+dx}/${bz+dz}`)??[]).some(p=>Math.hypot(p.x-x,p.z-z)<(p.s+scale)*1.15);
+      if(crowded)continue;
+      const bucket=spacing.get(`${bx}/${bz}`)??[];bucket.push({x,z,s:scale});spacing.set(`${bx}/${bz}`,bucket);
+      const key=`${Math.floor(x/64)}/${Math.floor(z/64)}/${pine}`,list=cells.get(key)??[];
+      list.push({x,z,s:scale,angle:rnd()*Math.PI,pine});cells.set(key,list);
     }
   }
   const group=new THREE.Group(),trunkGeometry=new THREE.CylinderGeometry(.1,.22,terrainConfig.forest.trunkHeight,5),crownGeometry=new THREE.SphereGeometry(1,8,4),farGeometry=new THREE.IcosahedronGeometry(1,0);

@@ -57,7 +57,7 @@ function facade(g:THREE.Group,w:number,d:number,h:number,floors:number,wall:THRE
 }
 /** Original civilian models: gable roof, facade, sill, rain pipes, chimney and annex. */
 export function createCivilianBuilding(width:number,depth:number,height:number,variant=0,tactical=false):THREE.Group {
-  const g=new THREE.Group(),wall=material([0xb9b4a3,0xa39f91,0xc5bba7,0x9a9d8e][variant%4],height>6?"facade2":"facade1"),concrete=material(0x8c8e83,"concrete"),tiles=material([0x706259,0x565f61,0x8a7060][variant%3],"roof");
+  const g=new THREE.Group(),wall=material([0xb9b4a3,0xa39f91,0xc5bba7,0x9a9d8e][variant%4],height>5?"facade2":"facade1"),concrete=material(0x8c8e83,"concrete"),tiles=material([0x706259,0x565f61,0x8a7060][variant%3],"roof");
   // Height describes the whole house, rather than a wall plus an extra tall roof.
   const rise=Math.min(1.25,height*.22),wallHeight=height-rise-.2;
   box(g,width+.3,.2,depth+.3,0,.1,0,concrete);
