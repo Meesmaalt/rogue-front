@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "size": 1280,
+  "baseRadius": 48,
+  "roadWidth": 7,
+  "streetWidth": 4.8,
+  "riverWidth": 27,
+  "riverSteps": 64,
+  "parcelSpacing": 112,
+  "blockWidth": 45,
+  "blockDepth": 34,
+  "houseWidth": [6.1, 7.5],
+  "houseDepth": [7.2, 8.6],
+  "resourceRadius": 14,
+  "resourceStock": 1600,
+  "cropColors": [11180910, 9603952, 8884586, 11576181, 9147761]
+}

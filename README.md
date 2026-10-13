@@ -14,6 +14,8 @@ Roheoru kaardiviimistlus (layout15): ühine jõepind, maastikusse seotud ühenda
 
 Referentsipõhine maastiku uuendus (layout16): tekstuuriga ebakorrapärased puuvõrad kolmes LOD-is, ühest puupaigutusest küpsetatud varjud ka keskmisel kvaliteedil, eri põllupinnad ja põlluhekid, lauged kõrgendikud, kelpkatused ning uduga kaugmaastik/gradienttaevas. Parandatud päikese algsuund väljalülitatud shadow-mapiga profiilidel. Kaardi põhitekstuur jääb 2048²; kauge võra kasutab 24 kolmnurka. Alusta uut Roheoru/õpetuse matši. Päris GPU visuaal ja FPS on veel kinnitamata.
 
+Uus kaardigeneraator: peamenüüs **Järvemaa**, **Kaardiseeme**, **Piirkond** ja **Uus kaart**. V2 loob 1280 m mängitava maastiku nelja tiheda asula, kolme silla, ebakorrapärase järve ja polügoonsete põllu-/metsaaladega. Väiksed majad on garnisonitavad, viis ressursiala käivitavad päris veokitarneid. Sama seeme taastab sama kaardi; uue generaatori kasutamiseks alusta uut lahingut. Vana Roheorg on eraldi varasem kaart, selle JSON-i selles töös ei uuendatud. Käivitus/salvestus/nav/logistika on kontrollitud; referentsipiltide visuaalset taset ja GPU FPS-i pole kinnitatud.
+
 Järgmise arenduse põhiplaan: [viimistlus → alpha → beta](docs/DEVELOPMENT-PLAN.md). Aktiivne tööjärjekord on TODO alguses; vanad etapinimed ei määra uut arendust.
 
 ## Käivitamine Dockeris

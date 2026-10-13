@@ -4,7 +4,7 @@ import * as THREE from "three";
 import {createCivilianBuilding,createBuildingModel,batchStaticScene} from "./Architecture";
 import { getBases, MAP_SIZE, heightAt,groundHeightAt } from "../sim/heightmap";
 import { mulberry32 } from "../sim/rng";
-import { pointInFeature, featureCorners, forestDensityAt, MapFeatureIndex, type MapFeatureDef } from "../sim/mapFeatures";
+import { pointInFeature, isSeaFeature, featureCorners, forestDensityAt, MapFeatureIndex, type MapFeatureDef } from "../sim/mapFeatures";
 import type {World} from "../sim/World";
 import type { Point } from "../sim/types";
 
@@ -76,7 +76,7 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
  * fogged ring. Its inner vertices match the actual terrain boundary exactly. */
 export function createLandscapeBackdrop(features:readonly MapFeatureDef[]=[]):THREE.Mesh {
   const positions:number[]=[],colors:number[]=[],indices:number[]=[],half=MAP_SIZE/2,rows=[0,50,140,260,420],tint=new THREE.Color();
-  const seas=features.filter(f=>f.kind==="water"&&f.width>=128);
+  const seas=features.filter(f=>isSeaFeature(f));
   for(let side=0;side<4;side++){
     const start=positions.length/3;
     for(const distance of rows)for(let i=0;i<=SEG;i++){
@@ -116,7 +116,7 @@ function riverTexture():THREE.CanvasTexture {
  * once, so adjacent rotated river pieces cannot fight for the depth buffer. */
 export function createRiverSurface(features:readonly MapFeatureDef[]):THREE.BufferGeometry {
   const groups=new Map<number,Point[][]>();
-  for(const f of features)if(f.kind==="water"&&f.width<128){
+  for(const f of features)if(f.kind==="water"&&!isSeaFeature(f)){
     const y=f.surfaceHeight??heightAt(f.x,f.z)-.55,list=groups.get(y)??[];
     list.push(featureCorners(f));groups.set(y,list);
   }
@@ -140,7 +140,7 @@ export function createRiverSurface(features:readonly MapFeatureDef[]):THREE.Buff
           if(z<Math.min(a.z,b.z)||z>Math.max(a.z,b.z))continue;
           xs.push(a.x+(b.x-a.x)*(z-a.z)/(b.z-a.z));
         }
-        if(xs.length>=2)intervals.push([Math.max(-half,Math.min(...xs)),Math.min(half,Math.max(...xs))]);
+        xs.sort((a,b)=>a-b);for(let i=1;i<xs.length;i+=2)intervals.push([Math.max(-half,xs[i-1]),Math.min(half,xs[i])]);
       }
       intervals.sort((a,b)=>a[0]-b[0]);const merged:Array<[number,number]>=[];
       for(const span of intervals){if(span[1]<=span[0])continue;const last=merged.at(-1);if(last&&span[0]<=last[1]+1e-6)last[1]=Math.max(last[1],span[1]);else merged.push([...span]);}
@@ -203,12 +203,18 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
   nc.putImageData(data,0,0);ctx.drawImage(noise,0,0,2048,2048);
   ctx.setTransform(scale,0,0,scale,half*scale,half*scale);
   const local=(f:MapFeatureDef,paint:()=>void)=>{ctx.save();ctx.translate(f.x,f.z);ctx.rotate(-(f.rotation??0));paint();ctx.restore();};
+  const trace=(f:MapFeatureDef)=>{
+    ctx.beginPath();
+    if(f.polygon){const a=f.rotation??0,c=Math.cos(a),s=Math.sin(a);f.polygon.forEach((p,i)=>{const x=(p.x-f.x)*c-(p.z-f.z)*s,z=(p.x-f.x)*s+(p.z-f.z)*c;if(i)ctx.lineTo(x,z);else ctx.moveTo(x,z);});ctx.closePath();}
+    else if(f.shape==="ellipse")ctx.ellipse(0,0,f.width/2,f.depth/2,0,0,Math.PI*2);
+    else ctx.roundRect(-f.width/2,-f.depth/2,f.width,f.depth,Math.min(3,f.width*.05));
+  };
   const cropNoise=document.createElement("canvas");cropNoise.width=cropNoise.height=64;
   const cc=cropNoise.getContext("2d")!,cropData=cc.createImageData(64,64);
   for(let i=0;i<64*64;i++){const v=230+Math.round(rnd()*24);cropData.data.set([v,v,v,255],i*4);}cc.putImageData(cropData,0,0);
   const cropPattern=ctx.createPattern(cropNoise,"repeat")!;
   for(const f of features.filter(f=>f.appearance==="field"))local(f,()=>{
-    ctx.beginPath();ctx.roundRect(-f.width/2,-f.depth/2,f.width,f.depth,Math.min(3,f.width*.05));ctx.clip();
+    trace(f);ctx.clip();
     ctx.fillStyle=`#${(f.color??0x969572).toString(16).padStart(6,"0")}`;ctx.fillRect(-f.width/2,-f.depth/2,f.width,f.depth);
     ctx.globalCompositeOperation="multiply";ctx.fillStyle=cropPattern;ctx.fillRect(-f.width/2,-f.depth/2,f.width,f.depth);ctx.globalCompositeOperation="source-over";
     ctx.strokeStyle=f.color===0x927b70?"rgba(49,35,29,.23)":"rgba(63,67,42,.15)";ctx.lineWidth=.35;
@@ -218,7 +224,7 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
   });
   // Forest floor follows irregular shared ellipses, with soft soil transition.
   for(const f of features.filter(f=>f.appearance==="forest"))local(f,()=>{
-    ctx.scale(f.width/2,f.depth/2);const gradient=ctx.createRadialGradient(0,0,.15,0,0,1);
+    trace(f);ctx.clip();ctx.scale(f.width/2,f.depth/2);const gradient=ctx.createRadialGradient(0,0,.15,0,0,1);
     gradient.addColorStop(0,"rgba(49,68,43,.78)");gradient.addColorStop(.65,"rgba(57,74,46,.68)");gradient.addColorStop(1,"rgba(67,81,51,0)");
     ctx.fillStyle=gradient;ctx.beginPath();if(f.shape==="ellipse")ctx.arc(0,0,1,0,Math.PI*2);else ctx.rect(-1,-1,2,2);ctx.fill();
   });
@@ -226,10 +232,12 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
   ctx.lineCap="round";
   for(const width of [48,37,29]){
     ctx.strokeStyle=width===48?"rgba(147,149,118,.65)":width===37?"#969581":"#858778";ctx.lineWidth=width;
-    for(const f of features.filter(f=>f.kind==="water"&&f.width<128))local(f,()=>{ctx.beginPath();ctx.moveTo(0,-f.depth/2);ctx.lineTo(0,f.depth/2);ctx.stroke();});
+    for(const f of features.filter(f=>f.kind==="water"&&!isSeaFeature(f)))local(f,()=>{
+      ctx.beginPath();if(f.waterBody==="lake") {if(f.polygon)trace(f);else ctx.ellipse(0,0,f.width/2,f.depth/2,0,0,Math.PI*2);ctx.lineWidth=(width-26)*.65+2;}else {ctx.lineWidth=width;ctx.moveTo(0,-f.depth/2);ctx.lineTo(0,f.depth/2);}ctx.stroke();
+    });
   }
   // Ocean shore is the actual water footprint boundary, never a river stripe.
-  for(const f of features.filter(f=>f.kind==="water"&&f.width>=128))local(f,()=>{
+  for(const f of features.filter(f=>isSeaFeature(f)))local(f,()=>{
     const beach=ctx.createLinearGradient(f.width/2-4,0,f.width/2+18,0);
     beach.addColorStop(0,"#777f76");beach.addColorStop(.35,"#b3ac8d");beach.addColorStop(1,"rgba(155,157,126,0)");
     ctx.fillStyle=beach;ctx.fillRect(f.width/2-4,-f.depth/2,22,f.depth);
@@ -342,7 +350,7 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
   const riverMaterial=new THREE.MeshStandardMaterial({color:0xffffff,map:flow,bumpMap:flow,bumpScale:.035,roughness:.48,metalness:.08,vertexColors:true});
   const seaFlow=riverTexture();group.userData.seaFlow=seaFlow;
   const seaMaterial=new THREE.MeshStandardMaterial({color:0xffffff,map:seaFlow,bumpMap:seaFlow,bumpScale:.12,roughness:.48,metalness:.12,vertexColors:true});
-  const ocean=features.filter(f=>f.kind==="water"&&f.width>=128);
+  const ocean=features.filter(f=>isSeaFeature(f));
   const river=createRiverSurface(features);
   if(river.getAttribute("position").count){const mesh=new THREE.Mesh(river,riverMaterial);mesh.name="continuous-river";mesh.receiveShadow=true;group.add(mesh);}else river.dispose();
   const asphalt=asphaltTexture();
@@ -360,8 +368,8 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
       (field.material as THREE.MeshStandardMaterial).map=fieldTexture();group.add(field);continue;
     }
     if (f.kind === "water") {
-      if(f.width<128)continue; // River footprints are united into one continuous surface below.
-      const sea=f.width>=128;
+      if(!isSeaFeature(f))continue; // River footprints are united into one continuous surface below.
+      const sea=isSeaFeature(f);
       const geo=new THREE.PlaneGeometry(f.width,f.depth,sea?Math.ceil(f.width/16):1,1).rotateX(-Math.PI/2);
       const uv=geo.attributes.uv,pos=geo.attributes.position,c=Math.cos(f.rotation??0),s=Math.sin(f.rotation??0);
       for(let i=0;i<uv.count;i++){const x=f.x+pos.getX(i)*c+pos.getZ(i)*s,z=f.z-pos.getX(i)*s+pos.getZ(i)*c;uv.setXY(i,x/6,z/12);}
@@ -458,8 +466,8 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
         // Small paving/apron grounds the facade without covering neighbouring roads.
         if(!landscapeAtlas)group.add(drapedStrip({...f,kind:"cover",appearance:"yard",depth:f.depth+3},f.width+3,0x8f9181,.025,undefined,features));
         const variant=Number(f.id.split("-").at(-1))||0,house=new THREE.LOD();
-        house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant),0);
-        house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,true),235, .15);
+        house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,false,f.color),0);
+        house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,true,f.color),235, .15);
         house.userData.structureId=f.id;house.userData.structureHeight=h;
         house.position.set(f.x,y,f.z);house.rotation.y=f.rotation??0;group.add(house);
         mesh.geometry.dispose();(mesh.material as THREE.Material).dispose();

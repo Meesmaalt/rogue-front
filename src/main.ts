@@ -81,7 +81,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   }
   setBases(mission.map.bases);
   setProceduralSeed(mission.seed);
-  setTerrainProfile(mission.map.terrainProfile);
+  setTerrainProfile(mission.map.terrainProfile,mission.map.landforms);
   if(mission.map.heightmap)await loadHeightmap(mission.map.heightmap,mission.map.maxHeight);
   ensureHeightCache(); // rebuild cache now that heightmap + bases are final
 
@@ -122,7 +122,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const modeController = new MatchModeController(world, activeMode, mission);
   if (skirmish) world.matchController = modeController;
   else if (!multiplayer) world.missionController = missionRuntime;
-  if (skirmish) { createSkirmish(world, ["roheorg","operation-tidebreaker"].includes(mission.id) && queryParams.get("deployment") !== "base"); world.ai.setProfile(skirmishDifficulty === "hard" ? "aggressive" : skirmishDifficulty === "easy" ? "defensive" : "economic", skirmishDifficulty!); }
+  if (skirmish) { createSkirmish(world, (["roheorg","operation-tidebreaker"].includes(mission.id)||mission.id.startsWith("procedural-v2-")) && queryParams.get("deployment") !== "base",mission.id.startsWith("procedural-v2-")); world.ai.setProfile(skirmishDifficulty === "hard" ? "aggressive" : skirmishDifficulty === "easy" ? "defensive" : "economic", skirmishDifficulty!); }
   if(!skirmish&&!multiplayer&&mission.id==="operation-tidebreaker")world.externalVictoryMode=true;
   if (skirmish && activeMode !== "skirmish") world.externalVictoryMode = true;
   if (multiplayer) world.setNetworkMode(0);
@@ -276,7 +276,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   let running = false;
   const setEnabled = (on: boolean) => { selection.enabled = commands.enabled = minimap.enabled = on; };
   const facBlur = FACTIONS[world.playerFaction]?.doctrineBlurb ?? "";
-  hud.showBriefing(skirmish ? { ...mission, name: "Skirmish — " + mission.map.name, briefing: mission.id === "roheorg" ? mission.briefing + "\n\n" + modeController.label() + "\n\n" + (queryParams.get("deployment")==="base" ? "Ehita generaator → varustusladu → maaväe juhtimiskeskus → tehas. Saada insener ressursipunkti." : "Baas ja väike lahingugrupp on valmis. Saada luure ette; tugevda koosseisu Maa-paneelist. Insener käivitab koduse ressursipunkti kogumise.") + "\n\nF1: vali soomus · Fookus: kaamera valikule\nRündeliiku + parem klõps: liigu ja võitle\nInsener / juhtimishoone → Ehita: baas ja FOB\nMoon, kütus ja remont vajavad tegelikku varustust." : modeController.label() + "\n\nREAL WAR baas:\n1) Generaator → varustusladu → maaväe juhtimiskeskus → tehas\n2) Saada teine insener ressursipunkti; ta käivitab kogumise\n3) Veokid toovad raha ja ammo/kütusevaru. Katkenud tarne peatab tootmise\n\nWARGAME lahing:\n• Optika/recon — kes näeb, tulistab\n• Supply raadius — ammo/kütus; forward ladu risk\n• Flank ja moraal loevad\n• Õhk: CAP / Strike / SEAD; ilma AA-ta kaotad\n\nDoktriin: " + facBlur + "\n\nKlahvid: F1 soomus F2 jala F3 õhk F4 toetus · Ctrl+1-9 grupid" } : mission, () => { if(multiplayer)return; running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); }, hasSave(), () => loadGame());
+  hud.showBriefing(skirmish ? { ...mission, name: "Skirmish — " + mission.map.name, briefing: (mission.id === "roheorg"||mission.id.startsWith("procedural-v2-")) ? mission.briefing + "\n\n" + modeController.label() + "\n\n" + (queryParams.get("deployment")==="base" ? "Ehita generaator → varustusladu → maaväe juhtimiskeskus → tehas. Saada insener ressursipunkti." : "Baas ja väike lahingugrupp on valmis. Saada luure ette; tugevda koosseisu Maa-paneelist. Insener käivitab koduse ressursipunkti kogumise.") + "\n\nF1: vali soomus · Fookus: kaamera valikule\nRündeliiku + parem klõps: liigu ja võitle\nInsener / juhtimishoone → Ehita: baas ja FOB\nMoon, kütus ja remont vajavad tegelikku varustust." : modeController.label() + "\n\nREAL WAR baas:\n1) Generaator → varustusladu → maaväe juhtimiskeskus → tehas\n2) Saada teine insener ressursipunkti; ta käivitab kogumise\n3) Veokid toovad raha ja ammo/kütusevaru. Katkenud tarne peatab tootmise\n\nWARGAME lahing:\n• Optika/recon — kes näeb, tulistab\n• Supply raadius — ammo/kütus; forward ladu risk\n• Flank ja moraal loevad\n• Õhk: CAP / Strike / SEAD; ilma AA-ta kaotad\n\nDoktriin: " + facBlur + "\n\nKlahvid: F1 soomus F2 jala F3 õhk F4 toetus · Ctrl+1-9 grupid" } : mission, () => { if(multiplayer)return; running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); }, hasSave(), () => loadGame());
 
   addEventListener("keydown", (e) => {
     if(settingsPanel.isOpen||e.repeat||(e.target instanceof Element&&e.target.closest("input,textarea,select,[contenteditable=true]")))return;

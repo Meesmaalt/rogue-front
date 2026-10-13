@@ -1,4 +1,4 @@
-import type {MapFeatureDef} from "./mapFeatures";
+import {pointInFeature,polygonEdgeDistance,type MapFeatureDef} from "./mapFeatures";
 import terrain from "../data/terrain.json";
 /** Kaardi kõrgusväli. Puhas matemaatika, EI impordi three.js-i. */
 export let MAP_SIZE = 640;
@@ -16,8 +16,10 @@ const DEFAULT_BASES: readonly BaseDef[] = [
 let activeBases: readonly BaseDef[] = DEFAULT_BASES;
 let activeHeightmap: HeightmapSource | null = null;
 let proceduralSeed = 1;
+export interface TerrainLandform {x:number;z:number;width:number;depth:number;height:number}
+let activeLandforms:readonly TerrainLandform[]=terrain.farmland.landforms;
 let terrainProfile: "farmland" | undefined;
-export function setTerrainProfile(profile?: "farmland"): void { terrainProfile=profile; activeHeightmap=null; cacheValid=false; heightCache=null; }
+export function setTerrainProfile(profile?: "farmland",landforms?:readonly TerrainLandform[]): void { terrainProfile=profile; activeLandforms=landforms??terrain.farmland.landforms;activeHeightmap=null; cacheValid=false; heightCache=null; }
 
 /** Cached height grid (2 m cells) — built once after bases/heightmap are set. */
 const CACHE_CELL = 2;
@@ -47,7 +49,7 @@ export function resetHeightmap(): void {
   hydrology=[];hydrologyKey="";
   setMapSize(640);
   activeHeightmap = null;
-  terrainProfile = undefined;
+  terrainProfile = undefined;activeLandforms=terrain.farmland.landforms;
   activeBases = DEFAULT_BASES;
   cacheValid = false;
   heightCache = null;
@@ -89,7 +91,7 @@ function valueNoise(x:number,z:number,scale:number): number {
 function rawH(x: number, z: number): number {
   if (terrainProfile === "farmland") {
     let h=1.8+valueNoise(x,z,100)*2.6+valueNoise(x+13,z-17,45)*.7;
-    for(const f of terrain.farmland.landforms){const d=((x-f.x)/f.width)**2+((z-f.z)/f.depth)**2;h+=f.height*Math.exp(-d*2);}
+    for(const f of activeLandforms){const d=((x-f.x)/f.width)**2+((z-f.z)/f.depth)**2;h+=f.height*Math.exp(-d*2);}
     return h;
   }
   const broad=(valueNoise(x,z,90)-0.5)*22;
@@ -127,7 +129,8 @@ function computeRaw(x: number, z: number, decks=true): number {
   for(const {f,c,s} of hydrology){
     if(f.kind!=="water")continue;
     const dx=x-f.x,dz=z-f.z,lx=Math.abs(dx*c-dz*s),lz=Math.abs(dx*s+dz*c);
-    const outside=Math.max(lx-f.width/2,lz-f.depth/2,0);
+    if(f.polygon&&(lx>f.width/2+14||lz>f.depth/2+14))continue;
+    const outside=f.polygon?(pointInFeature(x,z,f)?0:polygonEdgeDistance(x,z,f.polygon)):f.shape==="ellipse"?Math.max(0,Math.sqrt((lx/(f.width/2))**2+(lz/(f.depth/2))**2)-1)*Math.min(f.width,f.depth)/2:Math.max(lx-f.width/2,lz-f.depth/2,0);
     if(outside<14){const blend=1-smooth(0,14,outside);h=Math.min(h,h+(f.surfaceHeight!-2.4-h)*blend);}
   }
   for(const {f,c,s} of hydrology){
@@ -145,7 +148,7 @@ export function groundHeightAt(x:number,z:number):number {
     if(f.kind!=="bridge")continue;
     const dx=x-f.x,dz=z-f.z;
     if(Math.abs(dx*c-dz*s)<f.width/2+14&&Math.abs(dx*s+dz*c)<f.depth/2+14){
-      const wet=hydrology.some(({f:water,c:wc,s:ws})=>{if(water.kind!=="water")return false;const wx=x-water.x,wz=z-water.z;return Math.abs(wx*wc-wz*ws)<=water.width/2&&Math.abs(wx*ws+wz*wc)<=water.depth/2;});
+      const wet=hydrology.some(({f:water})=>water.kind==="water"&&pointInFeature(x,z,water));
       // Keep the wet channel below the deck; dry approaches follow the same
       // flattened bank/ramp as units, so long decks cannot disappear in soil.
       return wet?computeRaw(x,z,false):heightAt(x,z);

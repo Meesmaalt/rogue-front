@@ -51,3 +51,6 @@ button { font-family:inherit; }
 .menu-actions button:focus-visible{outline:2px solid #f2a33a;outline-offset:3px}
 .offline-app>.section-note[role=alert]{margin:16px 28px;padding:14px 18px;border:1px solid #c88761;background:#30231f;color:#ffe5cf;font-size:14px;line-height:1.6}
 @media(max-width:700px){.offline-app .online-top{flex-wrap:wrap}.menu-actions{margin-left:0}.offline-main .room-actions{flex-wrap:wrap}}
+
+.offline-app [data-generator][hidden] { display:none; }
+.offline-app [data-new-seed] { grid-column:1 / -1; padding:10px 14px; color:#e9e6d8; background:#263438; border:1px solid #53666b; cursor:pointer; }
