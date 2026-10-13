@@ -11,6 +11,8 @@ Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on j�
 
 ## Teostatud alused ja seniste pakettide seis
 
+- [x] Valge lehe /src/main.ts ja /@vite/client 404 parandus: dev-server tuvastab alamtee automaatselt ning teenindab iga prefiksi mooduligraafi eraldi, säilitades samaaegselt juurtee. Säilitatud prefiks ja X-Forwarded-Prefix on toetatud; käsitsi BASE_PATH jääb valikuliseks. Kontrollitud HTTP mooduleid/assets/Arsenali/API-t ja WS handshake'i juurteel ning kahes alamtees; build läbis. Välist deploy'd ei käivitatud.
+
 - [x] Reverse proxy hostitõrge: Vite dev/preview lubavad kõiki Host-päiseid; dev alamtee on `ROGUE_FRONT_BASE_PATH` kaudu seadistatav ning API/WS prefiks eemaldatakse backendisse saatmisel. Compose edastab muutuja, mudelid/ikoonid kasutavad olemasolevat BASE_URL-i. Kontroll: build ja tegelikud kohalikud HTTP päringud erinevate hostidega ning `/rts/` prefiksiga. Avalikku Hestia/Overseeri deploy'd ei muudetud.
 
 - [x] Alpha kandidaadi ühendus: õpetuse kõigi AI planeerimiskihtide ettevalmistus, 16 päris eesmärgi läbipääs, pooleli ehituse jätkamine/limiit ja käsutõrke tagasiside; kaamera A/E konflikt eemaldatud; peamenüü seaded, keskmine esmakvaliteet ja käivitustõrke teade. Build + 46 sihitud kontrolli. Täielik õpetus, brauseri FPS/juhtimistunnetus ja tervikmatš jäävad alpha väravasse; vaja töötavat mängu URL-i.

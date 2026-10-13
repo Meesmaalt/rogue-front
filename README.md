@@ -34,7 +34,9 @@ Selle käsu ajal ära käivita teist `dev` konteinerit samal pordil. Portaineri 
 
 Vite dev- ja preview-server aktsepteerivad kõiki Host-päiseid; domeenide suunamine jääb Hestia/Overseeri proxy teha. `thormen.com` või uue domeeni lisamine ei nõua lubatud hostide nimekirja muutmist. Dev-server väljastab arenduse lähtekoodi; avaliku valmisbuildi jaoks on olemas `prod` teenus.
 
-Kui avalik mänguaadress on `https://thormen.com/rts/` ning backend `http://192.168.88.28:5173`, määra Portaineri stacki keskkonnamuutuja `ROGUE_FRONT_BASE_PATH=/rts/` ja tee **Pull and redeploy koos image'i rebuildiga**. Proxy peab edastama `/rts/` tee muutmata ja lubama WebSocket upgrade'i. Mängu failid, mudelid, API ja mängu WebSocket kasutavad sama prefiksit; Vite eemaldab API/WS prefiksi multiplayer-serverisse saatmisel. Põhiaadressil kasutamiseks jäta muutuja määramata (vaikimisi `/`). See seadistus käib `dev` teenuse kohta; `prod` teenuse praegune nginx-konfiguratsioon teenindab juurteed.
+Dev-server tuvastab säilitatud alamtee päringust automaatselt: `/rts/`, `/games/rogue/` või muu prefiks ei vaja eraldi seadistust. Nende all väljastab Vite sama prefiksiga HTML-i, moodulite impordid, kliendi, mudelite URL-id ja API/WS aadressid. Juurtee jääb samal serveril toimima. Tee **Pull and redeploy koos image'i rebuildiga**; vana konteineri taaskäivitus ei uuenda konfiguratsiooni.
+
+Proxy peab säilitama avaliku prefiksi või saatma eemaldatud prefiksi `X-Forwarded-Prefix` päises (näiteks `/rts`). Kui proxy eemaldab prefiksi ega teata seda, ei saa backend avalikku aadressi tuvastada; sellisel juhul saab endiselt määrata `ROGUE_FRONT_BASE_PATH` käsitsi. WebSocket upgrade peab olema proxy kaudu lubatud. See automaatne lahendus käib `dev` teenuse kohta; `prod` teenuse praegune nginx-konfiguratsioon teenindab juurteed.
 
 ## Kaasasolev brauseribuild
 
