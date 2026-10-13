@@ -13,7 +13,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("content-type", "application/json");
   if (token) headers.set("authorization", `Bearer ${token}`);
-  const res = await fetch(path, { ...init, headers });
+  const res = await fetch(`${import.meta.env.BASE_URL}${path.replace(/^\//, "")}`, { ...init, headers });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data as T;

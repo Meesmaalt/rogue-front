@@ -30,6 +30,12 @@ docker compose run --rm --build --service-ports -v "$PWD:/app" -v /app/node_modu
 
 Selle käsu ajal ära käivita teist `dev` konteinerit samal pordil. Portaineri deploy’s neid kohalikke mount’e vaja ei ole.
 
+## Reverse proxy ja domeenid
+
+Vite dev- ja preview-server aktsepteerivad kõiki Host-päiseid; domeenide suunamine jääb Hestia/Overseeri proxy teha. `thormen.com` või uue domeeni lisamine ei nõua lubatud hostide nimekirja muutmist. Dev-server väljastab arenduse lähtekoodi; avaliku valmisbuildi jaoks on olemas `prod` teenus.
+
+Kui avalik mänguaadress on `https://thormen.com/rts/` ning backend `http://192.168.88.28:5173`, määra Portaineri stacki keskkonnamuutuja `ROGUE_FRONT_BASE_PATH=/rts/` ja tee **Pull and redeploy koos image'i rebuildiga**. Proxy peab edastama `/rts/` tee muutmata ja lubama WebSocket upgrade'i. Mängu failid, mudelid, API ja mängu WebSocket kasutavad sama prefiksit; Vite eemaldab API/WS prefiksi multiplayer-serverisse saatmisel. Põhiaadressil kasutamiseks jäta muutuja määramata (vaikimisi `/`). See seadistus käib `dev` teenuse kohta; `prod` teenuse praegune nginx-konfiguratsioon teenindab juurteed.
+
 ## Kaasasolev brauseribuild
 
 ZIP sisaldab `dist/` valmisbuildi, lähtekoodi, mudeleid ja serverit. Kiireks üksikmängu proovimiseks ava projekti kaustas terminal:
