@@ -32,13 +32,14 @@ export function createRenderContext(canvas: HTMLCanvasElement, temperate = false
   const haze = new THREE.Color(temperate ? 0xb7c6cc : 0xd4c49a);
   scene.background = haze;
   scene.fog = new THREE.Fog(haze, temperate?680:260, temperate?1450:780);
-  if (!temperate) scene.add(createSky());
+  scene.add(createSky(temperate));
 
   const camera = new THREE.PerspectiveCamera(42, 1, 1, 1400);
   // Brighter ambient so buildings read clearly
-  const hemi = new THREE.HemisphereLight(temperate ? 0xc5d7df : 0xfff0d0, temperate ? 0x414a37 : 0x8a7350, temperate?.85:1.1);
+  const hemi = new THREE.HemisphereLight(temperate ? 0xc5d7df : 0xfff0d0, temperate ? 0x414a37 : 0x8a7350, temperate?.72:1.1);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(temperate ? 0xfff5e4 : 0xffe8c0, temperate ? 2.7 : 3.0);
+  const sun = new THREE.DirectionalLight(temperate ? 0xfff5e4 : 0xffe8c0, temperate ? 2.25 : 3.0);
+  sun.position.set(70,95,45);
   sun.castShadow = profile.shadows;
   sun.shadow.mapSize.set(profile.shadowSize||512,profile.shadowSize||512);
   const sc = sun.shadow.camera;

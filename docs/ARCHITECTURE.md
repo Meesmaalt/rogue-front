@@ -1,6 +1,6 @@
 # Arhitektuur
 
-Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 15, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
+Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 16, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
 
 ## Põhimõte
 Kolm kihti, sõltuvused ainult allapoole: **ui/input → sim ← render** (render ja ui *loevad* sim olekut, annavad käske, kuid sim ei tea neist midagi).
@@ -334,3 +334,16 @@ Temperate-kaardi makeLandscapeTexture maalib kõik teeservad enne kõiki sõidup
 finish-road-network.py on layout15 idempotentne autoritöö: viis 52×10 m silda koos maantee lähenemistega, elamuridade juurdepääsud, kuue talu rajad, 42 elamu mõõtude/setback/frontide varieerimine, samad 48 garnisonimaja ja viis ressursirajatist. Kaks korrust saab nüüd ka 5.8 m maja facade2-atlas. Metsad kasutavad olemasolevate ellipsite kõrvalharusid ja nelja väikesalu. createForest väldib alglaadimise ajal deterministliku 3 m lähinaabribiniga liiga lähestikku puid, säilitades opaque instancing/LOD-i ja põlenud puude oleku. Silla talad ja sambad jäävad olemasoleva bridgeId grupi alla ning kaovad koos füüsiliselt purunenud sillaga. Sambad algavad groundHeightAt jõepõhjast; maaüksus kasutab jätkuvalt deck'i heightAt kõrgust.
 
 Kaardipaigutus on uus: main.ts layout15/training15 võtmed ja saveMapSignature eristavad seda varasematest snapshot'idest. Simulatsiooni tick, lahingureeglid, baseraadiused, ressursikoordinaadid ja RNG on säilitatud. Laius/lähenemisteed on kontrollitud tegeliku World/Nav'i ja tasulise õpetuse kaudu. GPU-ga renderpilti ega FPS-i see kontroll ei tõenda.
+
+
+## Referentsipõhine maastiku renderdus — layout16
+
+sampleForest on üks renderduse deterministlik paigutusallikas; createTerrain arvutab selle ühe korra ning edastab nii maastikuatlasel varjude küpsetamisele kui createForest-ile. 3 m lähinaabribin, nav-feature'i väljajätt ja forestDensityAt säilivad. Madalad, päris forest-cover'i hekid kasutavad väiksemat puuskaalat. Atlasel on üks jagatud pehme varjutempliga projitseeritud võravari ja kontaktvari ning tsiviilkatuse siluett; neid ei joonistata uuesti igas kaadris. Süttinud metsa senine char/scorch kiht katab põlenud maastiku. Varjud eeldavad olemasoleva päeva fikseeritud päikesesuunda, uut päevaöötsüklit ei loodud.
+
+createCanopyGeometry deformeerib jagatud sfäärgeomeetria labaliseks, lisab alumise/tipmise pinna iseenese varjutuse vertex-colour'ina ja arvutab normaalid. Jagatud opaque 128² mipmapped DataTexture annab leheklastrite tooni ilma alpha-test/overdraw-ta. Üks 64 m/rühma LOD valib lähivõra+tüve (168 kolmnurka/võra), taktikalise võra (64) või kaugvõra (24). Lähim ja keskmine tase jagavad instantsimaatrikseid/värve; kõik kasutavad seniseid forestPoints/forestMatrices/forestColors võtmeid ja sama põlenud puu sync'i. Trunk/shadow-pass'e kaugvaates ei lisata.
+
+Maastikuatlas jääb 2048², põldude mikromuster küpsetatakse samasse canvasesse. Renderer algväärtustab nüüd sun.position=(70,95,45) ka siis, kui shadow-map on välja lülitatud; varem jäi madal/keskmine profiil DirectionalLight'i vaikimisi vertikaalse suuna peale, sest updateShadows katkestab seal töö. Temperate hemi/sun tugevus vähendatud ülepõlenud heledate pindade vältimiseks. Reaalaja shadow-refresh, pixelRatio ja postprocessing-profiilid säilivad.
+
+createSky lisab temperate-kaardile värvihaldusega gradienttaeva; üks callback järgib kaamera maailmaasukohta, taevageomeetria ei sunni kogu stseeni maatrikseid muutma. createLandscapeBackdrop on üks 6144 kolmnurgaga staatiline, fogged ring väljaspool mänguala. Sisemine serv kasutab täpselt groundHeightAt/SEG piiripunkte. Lai meri jätkub map-boundary proovipunkti järgi oma kõrguse ja värviga; rannikule ei joonistata ookeani asemele kaugmäge. See ei laienda käskude/nav'i mänguala ega avalda fog-of-war'i taga üksusi.
+
+finish-road-network.py genereerib layout16 põllud, päris forest-cover'i piirirühmad ja hajusalud koos varasema tee/linna/silla võrguga. terrain.json lisab kaks 22 m amplituudiga laugemat landform'i; kõrgus on jagatud nav/liikumise/LOS/renderduse vahel. Tsiviilmaja kelpkatus säilitab mõõdu ja silueti mõlemas LOD-is. Main'i layout16/training16 võtmed eraldavad uue maastiku varasemast save'ist. Vaikimisi brauserimootor ja fixed-step/command/RNG arhitektuur jäävad samaks. Build, 24 mõjutatud kontrolli ja Canvas2D atlas on kontrollitud; shaderite tegelikku GPU-renderit/FPS-i pole sellest tõendatud.

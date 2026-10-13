@@ -1,15 +1,20 @@
 import * as THREE from "three";
 
-export function createSky(): THREE.Mesh {
-  const geo = new THREE.SphereGeometry(650, 32, 16);
+export function createSky(temperate=false): THREE.Mesh {
+  const geo = new THREE.SphereGeometry(1330, 16, 8);
   const mat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthWrite: false,
-    uniforms: { top: { value: new THREE.Color(0x8eb4c8) }, horizon: { value: new THREE.Color(0xf0e0b0) } },
-    vertexShader: `varying vec3 vWorld; void main(){vWorld=(modelMatrix*vec4(position,1.0)).xyz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
-    fragmentShader: `uniform vec3 top; uniform vec3 horizon; varying vec3 vWorld; void main(){float h=clamp(normalize(vWorld).y*0.5+0.5,0.0,1.0);gl_FragColor=vec4(mix(horizon,top,pow(h,0.65)),1.0);}`,
+    uniforms: { top: { value: new THREE.Color(temperate?0x81abc5:0x8eb4c8) }, horizon: { value: new THREE.Color(temperate?0xb7c6cc:0xf0e0b0) } },
+    vertexShader: `varying vec3 vWorld; void main(){vWorld=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+    fragmentShader: `uniform vec3 top; uniform vec3 horizon; varying vec3 vWorld; void main(){float h=clamp(normalize(vWorld).y,0.0,1.0);gl_FragColor=vec4(mix(horizon,top,pow(h,0.65)),1.0);
+#include <tonemapping_fragment>
+#include <colorspace_fragment>
+}`,
   });
-  return new THREE.Mesh(geo, mat);
+  const sky=new THREE.Mesh(geo,mat);sky.name="landscape-sky";sky.frustumCulled=false;sky.renderOrder=-1000;
+  sky.onBeforeRender=(_renderer,_scene,camera)=>{sky.position.setFromMatrixPosition(camera.matrixWorld);sky.updateMatrix();sky.updateMatrixWorld(true);};
+  return sky;
 }
 
 export function createWater(): THREE.Mesh {

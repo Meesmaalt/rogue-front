@@ -13,6 +13,7 @@ const SEG = 192;
 export function createTerrain(theme: "desert" | "mountains" | "city" | "temperate" = "desert", features: readonly MapFeatureDef[] = [], bases: readonly (Point & { r: number })[] = []): THREE.Group {
   const rnd = mulberry32(7);
   const group = new THREE.Group();
+  const forestLayout=theme==="temperate"?sampleForest(features):undefined;
 
   const geo = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE, SEG, SEG);
   geo.rotateX(-Math.PI / 2);
@@ -54,7 +55,7 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
     geo,
     new THREE.MeshStandardMaterial({
       vertexColors: true,
-      map: theme==="temperate"?makeLandscapeTexture(features,bases):grain,
+      map: theme==="temperate"?makeLandscapeTexture(features,bases,forestLayout!):grain,
       bumpMap:grain,bumpScale:theme==="temperate"?.045:.10,
       roughness: 0.92,
       metalness: 0,
@@ -64,11 +65,35 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
   terrain.receiveShadow = true;
   group.add(terrain);
   if (theme !== "temperate") group.add(createRocks(rnd, bases, features));
-  else group.add(createForest(features));
+  else {group.add(createLandscapeBackdrop(features));group.add(createForest(features,forestLayout));}
   if(theme!=="temperate")group.add(createDecals(rnd));
   group.add(batchStaticScene(createMapFeatures(features,theme==="temperate")));
   freezeTerrainTransforms(group);
   return group;
+}
+
+/** Non-playable distant land closes the rectangular board edge with one static,
+ * fogged ring. Its inner vertices match the actual terrain boundary exactly. */
+export function createLandscapeBackdrop(features:readonly MapFeatureDef[]=[]):THREE.Mesh {
+  const positions:number[]=[],colors:number[]=[],indices:number[]=[],half=MAP_SIZE/2,rows=[0,50,140,260,420],tint=new THREE.Color();
+  const seas=features.filter(f=>f.kind==="water"&&f.width>=128);
+  for(let side=0;side<4;side++){
+    const start=positions.length/3;
+    for(const distance of rows)for(let i=0;i<=SEG;i++){
+      const edge=half+distance,t=(i/SEG*2-1)*edge;
+      const x=side===0?t:side===1?edge:side===2?-t:-edge;
+      const z=side===0?edge:side===1?-t:side===2?-edge:t;
+      const blend=Math.min(1,distance/260),hill=16+Math.sin(x*.009)*Math.cos(z*.007)*23+Math.sin((x+z)*.014)*9;
+      const sea=seas.find(f=>pointInFeature(Math.max(-half,Math.min(half,x)),Math.max(-half,Math.min(half,z)),f));
+      const y=sea?(sea.surfaceHeight??0):groundHeightAt(x,z)+Math.max(0,hill)*blend;
+      positions.push(x,y,z);tint.setHex(sea?0x526d78:y>25?0x7f8978:0x879170).multiplyScalar(sea?1:.9+.08*Math.sin(x*.035)*Math.cos(z*.027));colors.push(tint.r,tint.g,tint.b);
+    }
+    for(let row=1;row<rows.length;row++)for(let i=0;i<SEG;i++){
+      const a=start+(row-1)*(SEG+1)+i,b=a+1,c=a+SEG+1,d=c+1;indices.push(a,c,b,b,c,d);
+    }
+  }
+  const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.Float32BufferAttribute(positions,3));g.setAttribute("color",new THREE.Float32BufferAttribute(colors,3));g.setIndex(indices);g.computeVertexNormals();
+  const mesh=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:1}));mesh.name="distant-landscape";return mesh;
 }
 
 /** Static terrain keeps its matrices; damage changes explicitly invalidate a house. */
@@ -167,7 +192,7 @@ function makeGrainTexture(theme:string):THREE.CanvasTexture {
 
 /** A single world-space landcover atlas avoids floating, overlapping field slabs.
  * Geometry, tree placement, navigation and cover still use the same map features. */
-function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (Point&{r:number})[]):THREE.CanvasTexture {
+function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (Point&{r:number})[],forestLayout:Map<string,ForestPoint[]>):THREE.CanvasTexture {
   const canvas=document.createElement("canvas");canvas.width=canvas.height=2048;
   const ctx=canvas.getContext("2d")!,scale=canvas.width/MAP_SIZE,half=MAP_SIZE/2,rnd=mulberry32(917);
   const noise=document.createElement("canvas");noise.width=noise.height=512;const nc=noise.getContext("2d")!,data=nc.createImageData(512,512);
@@ -178,11 +203,16 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
   nc.putImageData(data,0,0);ctx.drawImage(noise,0,0,2048,2048);
   ctx.setTransform(scale,0,0,scale,half*scale,half*scale);
   const local=(f:MapFeatureDef,paint:()=>void)=>{ctx.save();ctx.translate(f.x,f.z);ctx.rotate(-(f.rotation??0));paint();ctx.restore();};
+  const cropNoise=document.createElement("canvas");cropNoise.width=cropNoise.height=64;
+  const cc=cropNoise.getContext("2d")!,cropData=cc.createImageData(64,64);
+  for(let i=0;i<64*64;i++){const v=230+Math.round(rnd()*24);cropData.data.set([v,v,v,255],i*4);}cc.putImageData(cropData,0,0);
+  const cropPattern=ctx.createPattern(cropNoise,"repeat")!;
   for(const f of features.filter(f=>f.appearance==="field"))local(f,()=>{
     ctx.beginPath();ctx.roundRect(-f.width/2,-f.depth/2,f.width,f.depth,Math.min(3,f.width*.05));ctx.clip();
     ctx.fillStyle=`#${(f.color??0x969572).toString(16).padStart(6,"0")}`;ctx.fillRect(-f.width/2,-f.depth/2,f.width,f.depth);
-    ctx.strokeStyle="rgba(63,67,42,.11)";ctx.lineWidth=.28;
-    for(let x=-f.width/2+1;x<f.width/2;x+=1.8){ctx.beginPath();ctx.moveTo(x,-f.depth/2);ctx.lineTo(x,f.depth/2);ctx.stroke();}
+    ctx.globalCompositeOperation="multiply";ctx.fillStyle=cropPattern;ctx.fillRect(-f.width/2,-f.depth/2,f.width,f.depth);ctx.globalCompositeOperation="source-over";
+    ctx.strokeStyle=f.color===0x927b70?"rgba(49,35,29,.23)":"rgba(63,67,42,.15)";ctx.lineWidth=.35;
+    for(let x=-f.width/2+1;x<f.width/2;x+=f.width>30?1.4:2.4){ctx.beginPath();ctx.moveTo(x,-f.depth/2);ctx.lineTo(x,f.depth/2);ctx.stroke();}
     ctx.strokeStyle="rgba(60,65,44,.18)";ctx.lineWidth=1.2;ctx.strokeRect(-f.width/2+1.5,-f.depth/2+1.5,f.width-3,f.depth-3);
     for(let i=0;i<22;i++){ctx.fillStyle=`rgba(208,205,165,${.02+rnd()*.025})`;ctx.fillRect(-f.width/2+rnd()*f.width,-f.depth/2,1+rnd()*3,f.depth);}
   });
@@ -231,6 +261,19 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
         ctx.beginPath();ctx.moveTo(0,z);ctx.lineTo(0,Math.min(f.depth/2,z+.8));ctx.stroke();
       }
     }
+  });
+  // Shared tree positions produce static shade even when realtime shadows are off.
+  const stamp=document.createElement("canvas");stamp.width=stamp.height=64;const sc=stamp.getContext("2d")!;
+  const shade=sc.createRadialGradient(32,32,2,32,32,32);shade.addColorStop(0,"rgba(24,35,23,.42)");shade.addColorStop(.5,"rgba(24,35,23,.26)");shade.addColorStop(1,"rgba(24,35,23,0)");
+  sc.fillStyle=shade;sc.fillRect(0,0,64,64);
+  for(const points of forestLayout.values())for(const p of points){
+    const radius=terrainConfig.forest.crownRadius*p.s;
+    ctx.save();ctx.translate(p.x-radius*.85,p.z-radius*.55);ctx.rotate(.55);ctx.drawImage(stamp,-radius*1.3,-radius,radius*2.6,radius*2);ctx.restore();
+    ctx.drawImage(stamp,p.x-radius*.65,p.z-radius*.65,radius*1.3,radius*1.3);
+  }
+  // Civilian roof silhouettes ground the village on low/medium quality too.
+  for(const f of features.filter(f=>f.appearance==="farmhouse"))local(f,()=>{
+    const height=f.height??4;ctx.fillStyle="rgba(31,38,31,.18)";ctx.beginPath();ctx.roundRect(-f.width/2-height*.7,-f.depth/2-height*.45,f.width+height*.5,f.depth+height*.25,1);ctx.fill();
   });
   ctx.lineCap="round";
   // Paths and small aprons connect the actual house door to its nearest street.
@@ -507,9 +550,38 @@ function drapedStrip(f:MapFeatureDef,width:number,color:number,lift:number,share
   const map=paved?asphaltTexture():null;
   const mesh=new THREE.Mesh(geo,sharedMaterial??new THREE.MeshStandardMaterial({color,map,bumpMap:map,bumpScale:.025,roughness:.96,polygonOffset:true,polygonOffsetFactor:-1}));mesh.receiveShadow=true;return mesh;
 }
-/** Opaque rounded crowns avoid alpha overdraw and leaf shadow-map passes. Separate cell batches keep distant forests culled. */
-export function createForest(features:readonly MapFeatureDef[]):THREE.Group {
-  const rnd=mulberry32(104),cells=new Map<string,{x:number;z:number;s:number;angle:number;pine:boolean}[]>();
+/** Lobed silhouette and baked self-occlusion; detail is shared by every tree. */
+export function createCanopyGeometry(widthSegments:number,heightSegments:number):THREE.BufferGeometry {
+  const g=new THREE.SphereGeometry(1,widthSegments,heightSegments),p=g.getAttribute("position"),colors=new Float32Array(p.count*3);
+  for(let i=0;i<p.count;i++){
+    const x=p.getX(i),y=p.getY(i),z=p.getZ(i),a=Math.atan2(z,x);
+    const lobe=1+.085*Math.sin(a*5+y*6)+.045*Math.cos(a*9-y*4);
+    p.setXYZ(i,x*lobe,y*(1+.045*Math.sin(a*3)),z*lobe);
+    const shade=.57+.35*(y+1)/2+.055*Math.sin(a*7+y*9);
+    colors.set([shade*.96,shade,shade*.92],i*3);
+  }
+  g.setAttribute("color",new THREE.BufferAttribute(colors,3));g.computeVertexNormals();return g;
+}
+let leafTexture:THREE.DataTexture|undefined;
+function canopyTexture():THREE.DataTexture {
+  if(leafTexture)return leafTexture;
+  const size=128,data=new Uint8Array(size*size*4),rnd=mulberry32(701);
+  for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+    const u=x/size*Math.PI*2,v=y/size*Math.PI*2;
+    const clusters=Math.sin(u*9+Math.sin(v*5))*Math.cos(v*11)+Math.sin(u*19+v*13)*.35;
+    const value=Math.round(215+clusters*20+(rnd()-.5)*18),i=(y*size+x)*4;
+    data[i]=value;data[i+1]=value;data[i+2]=value-5;data[i+3]=255;
+  }
+  leafTexture=new THREE.DataTexture(data,size,size);leafTexture.colorSpace=THREE.SRGBColorSpace;
+  leafTexture.wrapS=leafTexture.wrapT=THREE.RepeatWrapping;leafTexture.repeat.set(3,2);
+  leafTexture.magFilter=THREE.LinearFilter;leafTexture.minFilter=THREE.LinearMipmapLinearFilter;leafTexture.generateMipmaps=true;leafTexture.needsUpdate=true;
+  return leafTexture;
+}
+
+interface ForestPoint {x:number;z:number;s:number;angle:number;pine:boolean}
+/** One deterministic placement source for canopy batches and baked ground shade. */
+export function sampleForest(features:readonly MapFeatureDef[]):Map<string,ForestPoint[]> {
+  const rnd=mulberry32(104),cells=new Map<string,ForestPoint[]>();
   const index=new MapFeatureIndex(features),spacing=new Map<string,Array<{x:number;z:number;s:number}>>();
   for(const f of features.filter(f=>f.appearance==="forest")){
     const c=Math.cos(f.rotation??0),s=Math.sin(f.rotation??0);
@@ -517,7 +589,7 @@ export function createForest(features:readonly MapFeatureDef[]):THREE.Group {
       const lx=(rnd()-.5)*f.width,lz=(rnd()-.5)*f.depth,x=f.x+lx*c+lz*s,z=f.z-lx*s+lz*c;
       const nearby=index.at(x,z);
       if(nearby.some(block=>(["building","road","bridge","water","wall"].includes(block.kind)||block.appearance==="yard")&&pointInFeature(x,z,block,2))||rnd()>forestDensityAt(x,z,nearby))continue;
-      const pine=rnd()<.4,scale=terrainConfig.forest.treeScaleMinimum+rnd()*terrainConfig.forest.treeScaleVariation;
+      const pine=rnd()<.25,scale=(terrainConfig.forest.treeScaleMinimum+rnd()*terrainConfig.forest.treeScaleVariation)*((f.height??8)<5?.58:1);
       const bx=Math.floor(x/3),bz=Math.floor(z/3);let crowded=false;
       for(let dx=-1;dx<=1&&!crowded;dx++)for(let dz=-1;dz<=1&&!crowded;dz++)crowded=(spacing.get(`${bx+dx}/${bz+dz}`)??[]).some(p=>Math.hypot(p.x-x,p.z-z)<(p.s+scale)*1.15);
       if(crowded)continue;
@@ -526,15 +598,21 @@ export function createForest(features:readonly MapFeatureDef[]):THREE.Group {
       list.push({x,z,s:scale,angle:rnd()*Math.PI,pine});cells.set(key,list);
     }
   }
-  const group=new THREE.Group(),trunkGeometry=new THREE.CylinderGeometry(.1,.22,terrainConfig.forest.trunkHeight,5),crownGeometry=new THREE.SphereGeometry(1,8,4),farGeometry=new THREE.IcosahedronGeometry(1,0);
+  return cells;
+}
+
+/** Opaque leaf texture and three cell LODs keep detail local, without alpha leaf overdraw. */
+export function createForest(features:readonly MapFeatureDef[],cells=sampleForest(features)):THREE.Group {
+  const rnd=mulberry32(818),group=new THREE.Group(),trunkGeometry=new THREE.CylinderGeometry(.1,.22,terrainConfig.forest.trunkHeight,5);
+  const closeGeometry=createCanopyGeometry(12,8),crownGeometry=createCanopyGeometry(8,5),farGeometry=createCanopyGeometry(6,3);
   const trunkMaterial=new THREE.MeshStandardMaterial({color:0x625a49,roughness:1});
-  const crownMaterial=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,metalness:0});
+  const crownMaterial=new THREE.MeshStandardMaterial({color:0xffffff,map:canopyTexture(),vertexColors:true,roughness:1,metalness:0});
   const d=new THREE.Object3D(),tint=new THREE.Color();
   for(const points of cells.values()){
     const trunks=new THREE.InstancedMesh(trunkGeometry,trunkMaterial,points.length),crowns=new THREE.InstancedMesh(crownGeometry,crownMaterial,points.length);
     points.forEach((p,i)=>{
       const y=heightAt(p.x,p.z);d.rotation.set(0,p.angle,0);d.position.set(p.x,y+terrainConfig.forest.trunkHeight*.5*p.s,p.z);d.scale.set(p.s,p.s,p.s);d.updateMatrix();trunks.setMatrixAt(i,d.matrix);trunks.setColorAt(i,new THREE.Color(1,1,1));
-      tint.setHSL(.26+rnd()*.035,.25+rnd()*.12,.30+rnd()*.08);
+      tint.setHSL(.245+rnd()*.07,.24+rnd()*.15,.27+rnd()*.10);
       d.position.set(p.x,y+terrainConfig.forest.crownBaseHeight*p.s,p.z);d.rotation.set(0,p.angle,0);
       d.scale.set(terrainConfig.forest.crownRadius*(p.pine?.78:1)*p.s,terrainConfig.forest.crownHeight*(p.pine?1.15:1)*p.s,terrainConfig.forest.crownRadius*(p.pine?.78:.92)*p.s);
       d.updateMatrix();crowns.setMatrixAt(i,d.matrix);crowns.setColorAt(i,tint);
@@ -542,16 +620,21 @@ export function createForest(features:readonly MapFeatureDef[]):THREE.Group {
     trunks.computeBoundingSphere();crowns.computeBoundingSphere();trunks.castShadow=false;crowns.castShadow=false;crowns.receiveShadow=true;trunks.matrixAutoUpdate=crowns.matrixAutoUpdate=false;
     crowns.userData.forestCrownCount=1;crowns.userData.forestPoints=points;crowns.userData.forestColors=crowns.instanceColor!.array.slice();crowns.userData.forestMatrices=crowns.instanceMatrix.array.slice();
     trunks.userData.forestPoints=points;trunks.userData.forestTrunks=true;trunks.userData.forestColors=trunks.instanceColor!.array.slice();trunks.userData.forestMatrices=trunks.instanceMatrix.array.slice();
-    // Distant opaque canopy retains volume with only 20 triangles and no trunks.
+    // Distant opaque canopy drops fine lobes and trunks; no extra shadow or alpha pass.
     const far=new THREE.InstancedMesh(farGeometry,crowns.material,points.length);
     points.forEach((_,i)=>{crowns.getMatrixAt(i,d.matrix);far.setMatrixAt(i,d.matrix);crowns.getColorAt(i,tint);far.setColorAt(i,tint);});
     far.computeBoundingSphere();far.receiveShadow=true;far.matrixAutoUpdate=false;
     far.userData.forestPoints=points;far.userData.forestCrownCount=1;
     far.userData.forestColors=far.instanceColor!.array.slice();far.userData.forestMatrices=far.instanceMatrix.array.slice();
-    const near=new THREE.Group();near.add(trunks,crowns);
+    const close=new THREE.InstancedMesh(closeGeometry,crowns.material,points.length);
+    close.instanceMatrix=crowns.instanceMatrix;close.instanceColor=crowns.instanceColor;
+    close.computeBoundingSphere();close.receiveShadow=true;close.matrixAutoUpdate=false;
+    close.userData={...crowns.userData};
+    const near=new THREE.Group();near.add(trunks,close);
+    const middle=new THREE.Group();middle.add(crowns);
     const lod=new THREE.LOD(),origin=new THREE.Vector3(points.reduce((n,p)=>n+p.x,0)/points.length,0,points.reduce((n,p)=>n+p.z,0)/points.length);origin.y=heightAt(origin.x,origin.z);
-    lod.position.copy(origin);near.position.copy(origin).negate();far.position.copy(origin).negate();far.updateMatrix();
-    lod.addLevel(near,0);lod.addLevel(far,terrainConfig.forest.lodDistance,.15);group.add(lod);
+    lod.position.copy(origin);near.position.copy(origin).negate();middle.position.copy(origin).negate();far.position.copy(origin).negate();far.updateMatrix();
+    lod.addLevel(near,0);lod.addLevel(middle,105,.15);lod.addLevel(far,terrainConfig.forest.lodDistance,.15);group.add(lod);
   }
   return group;
 }
