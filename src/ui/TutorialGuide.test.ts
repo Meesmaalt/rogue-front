@@ -32,3 +32,10 @@ it("resumes a paused foundation and explains the actual placement mouse button",
  engineer.target=foundation;engineer.mode="build";expect(tutorialGuide(w,step("build")).hint).toContain("Oota");
  engineer.dead=true;expect(tutorialGuide(w,step("build")).highlight).toBe('[data-kind="engineer"]');
 });
+
+it("combat guidance selects armor with recon and reveals only a spotted target location",()=>{
+ const w=new World(71,false,[],[],[],false),tank=w.spawn("tank",0,0,0),other=w.spawn("tank",0,10,0),recon=w.spawn("reconInf",0,-10,0);
+ const depot=w.spawn("supply",1,120,80),objective={...step("destroy"),target:{kind:"supply" as const,team:1 as const,count:1}};
+ const hidden=tutorialGuide(w,objective);expect(hidden.ids).toEqual([tank.id,other.id,recon.id]);expect(hidden.point).toEqual({x:w.bases[1].x,z:w.bases[1].z});
+ w.isSpottedByTeam=()=>true;const seen=tutorialGuide(w,objective);expect(seen.point).toEqual({x:depot.x,z:depot.z});expect(seen.hint).toContain("laskeulatuses");
+});

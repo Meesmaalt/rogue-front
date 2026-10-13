@@ -58,11 +58,20 @@ export function loadAllDecks(): Record<FactionId, FactionDeck> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as Record<FactionId, FactionDeck>;
+      const parsed: unknown = JSON.parse(raw);
+      const stored = parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : {};
+      const result = {} as Record<FactionId, FactionDeck>;
       for (const id of ["usa", "russia", "china"] as FactionId[]) {
-        if (!parsed[id]) parsed[id] = defaultDeck(id);
+        const entry = stored[id] as Partial<FactionDeck> | undefined;
+        const roster = rosterForFaction(id);
+        const slots = entry?.slots;
+        const valid = entry?.faction === id && Array.isArray(slots) &&
+          slots.every(s => s && roster.includes(s.kind) && Number.isInteger(s.count) && s.count > 0) &&
+          new Set(slots.map(s => s.kind)).size === slots.length;
+        result[id] = valid ? { faction:id, name:typeof entry!.name === "string" ? entry!.name : `${FACTIONS[id].short} standard`,
+          slots:slots!.map(s=>({...s})), updatedAt:typeof entry!.updatedAt === "number" && Number.isFinite(entry!.updatedAt) ? entry!.updatedAt : 0 } : defaultDeck(id);
       }
-      return parsed;
+      return result;
     }
   } catch { /* ignore */ }
   return {
@@ -77,22 +86,19 @@ export function saveAllDecks(decks: Record<FactionId, FactionDeck>): void {
 }
 
 export function defaultDeck(faction: FactionId): FactionDeck {
-  const land = factionLandUnits(faction).filter(k => UNITS[k]?.producible);
-  const air = factionAirUnits(faction).filter(k => UNITS[k]?.producible);
-  const slots: DeckSlot[] = [];
-  // A useful combined-arms starter deck: line infantry, AT, recon, MBT, indirect fire and AA.
-  const preferredLand: UnitKind[] = ["inf","atInf","reconInf","tank","ifv","mortar","atgm","manpad"];
-  for (const k of preferredLand.filter(k => land.includes(k)).slice(0, 8)) {
-    slots.push({ kind: k, count: k === "inf" ? 6 : k === "tank" ? 4 : k === "reconInf" ? 2 : 2 });
+  const roster = rosterForFaction(faction);
+  const deck: FactionDeck = { faction, name:`${FACTIONS[faction].short} standard`, slots:[], updatedAt:Date.now() };
+  // Keep construction, transport, recon, indirect fire and AA available in a legal starter.
+  const preferred: UnitKind[] = ["inf","engineer","reconInf","tank","apc","ifv","atInf","mortar","manpad","atgm","heli","fighter","transport","multirole"];
+  for (const kind of preferred.filter(k=>roster.includes(k))) {
+    const candidate = { ...deck, slots:[...deck.slots,{kind,count:1}] };
+    if (!validateDeck(candidate).length) deck.slots = candidate.slots;
   }
-  const preferredAir: UnitKind[] = ["heli","casHeli","fighter","multirole"];
-  for (const k of preferredAir.filter(k => air.includes(k)).slice(0, 4)) slots.push({ kind: k, count: 2 });
-  return {
-    faction,
-    name: `${FACTIONS[faction].short} standard`,
-    slots,
-    updatedAt: Date.now(),
-  };
+  for (const kind of ["inf","inf","tank"] as UnitKind[]) {
+    const candidate = { ...deck, slots:deck.slots.map(s=>s.kind===kind ? {...s,count:s.count+1} : s) };
+    if (!validateDeck(candidate).length) deck.slots = candidate.slots;
+  }
+  return deck;
 }
 
 export function rosterForFaction(faction: FactionId): UnitKind[] {
@@ -107,6 +113,14 @@ export function rosterForFaction(faction: FactionId): UnitKind[] {
 /** Validate deck against rules; returns error strings. */
 export function validateDeck(deck: FactionDeck, rules: DeckRules = DEFAULT_RULES): string[] {
   const errs: string[] = [];
+  if (!deck || !["usa","russia","china"].includes(deck.faction) || !Array.isArray(deck.slots)) return ["Vigane koosseis"];
+  if (!deck.slots.length) errs.push("Vali vähemalt üks üksus");
+  const roster = rosterForFaction(deck.faction), seen = new Set<UnitKind>();
+  for (const slot of deck.slots) {
+    if (!slot || !roster.includes(slot.kind) || !Number.isInteger(slot.count) || slot.count <= 0) return ["Vigane üksus või kogus koosseisus"];
+    if (seen.has(slot.kind)) errs.push("Sama üksuse korduv kaart");
+    seen.add(slot.kind);
+  }
   const total = deckActivationTotal(deck);
   if (total > rules.maxActivation) errs.push(`Aktiveerimine ${total}/${rules.maxActivation}`);
   let land = 0, air = 0, sea = 0, log = 0;

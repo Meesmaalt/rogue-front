@@ -51,8 +51,17 @@ const deckBuilder = new DeckBuilder(document.body);
 const hud = new Hud(document.getElementById("ui")!);
 
 hud.onOpenDeck = () => deckBuilder.open(hud.selectedFaction);
-addEventListener("rogue-front:open-deck", () => deckBuilder.open(hud.selectedFaction));
+deckBuilder.onClose=()=>{
+  const selector=document.querySelector<HTMLSelectElement>('[data-skirmish] select[name="faction"]');
+  selector?.dispatchEvent(new Event("change"));
+};
+addEventListener("rogue-front:open-deck", event => {
+  const faction=(event as CustomEvent<{faction?:FactionId}>).detail?.faction;
+  deckBuilder.open(faction && FACTION_LIST.includes(faction) ? faction : hud.selectedFaction);
+});
 deckBuilder.onPlay = (faction, deck) => {
+  const selector=document.querySelector<HTMLSelectElement>('[data-skirmish] select[name="faction"]');
+  if(selector)selector.value=faction;
   void import("./net/Api").then(({ api }) => api.saveDeck(faction, deck).catch(() => {}));
   sessionStorage.setItem("rogue-front.activeDeck", JSON.stringify(deck));
   localStorage.setItem("rogue-front.faction", faction);
@@ -60,12 +69,16 @@ deckBuilder.onPlay = (faction, deck) => {
 };
 
 async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDifficulty?: "easy"|"normal"|"hard", faction: FactionId = "usa", spectator = false, spectatorToken = ""): Promise<void> {
+  // Fail before downloading models or allocating the simulation if this browser has no 3D support.
+  setMapSize(mission.map.size??640);
+  let visualQuality=loadSettings().quality;
+  const glCanvas = document.getElementById("game") as HTMLCanvasElement;
+  const ctx = createRenderContext(glCanvas, mission.map.theme === "temperate",visualQuality);
   hud.setWarning("Laadin 3D-mudeleid…");
   try { await loadArtModels(multiplayerRoom?FACTION_LIST:[faction,FACTION_LIST.find(f=>f!==faction)??"russia"]); hud.setWarning(""); } catch (error) {
     console.warn("3D asset loading failed", error);
     hud.setWarning("Osa 3D-mudeleid ei laadinud. Kasutan varumudeleid.");
   }
-  setMapSize(mission.map.size??640);
   setBases(mission.map.bases);
   setProceduralSeed(mission.seed);
   setTerrainProfile(mission.map.terrainProfile);
@@ -81,7 +94,6 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   let applyingNetwork = false;
   const replayRecorder = new ReplayRecorder(mission.seed);
   const audio = new AudioManager();
-  let visualQuality=loadSettings().quality;
   let intelAcc=0, terrainAcc=.2, hoverAcc=0;
   const settingsPanel = new SettingsPanel((settings) => { audio.setSettings(settings);visualQuality=settings.quality; ctx.setQuality(settings.quality); performancePanel.setEnabled(settings.performanceOverlay??false); },()=>{cam.enabled=true;setEnabled(running&&!paused);});
   let paused = false;
@@ -118,10 +130,8 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   if(mission.id==="tutorial-logistics"&&!skirmish&&!multiplayer){world.ai.setProfile("defensive","easy");world.ai.attackTimer=240;}
   replayRecorder.reset(world);
 
-  const glCanvas = document.getElementById("game") as HTMLCanvasElement;
   const topCanvas = document.getElementById("overlay") as HTMLCanvasElement;
   (document.getElementById("fog") as HTMLCanvasElement).style.display="none";
-  const ctx = createRenderContext(glCanvas, mission.map.theme === "temperate",visualQuality);
   ctx.setQuality(visualQuality);
   const performancePanel=new PerformancePanel(loadSettings().performanceOverlay??false);
   const terrainView=createTerrain(mission.map.theme, world.mapFeatures, mission.map.bases);ctx.scene.add(terrainView);
@@ -384,7 +394,10 @@ if (queryMission) {
   if (!selectedMission)showMenu("Seda kaarti või operatsiooni ei leitud. Vali menüüst uus lahing.");
   else void boot(selectedMission, queryRoom || undefined, queryMode === "skirmish" ? (queryDifficulty || "normal") : undefined, bootFaction, queryMode === "spectator", querySpectateToken || "").catch((err: unknown) => {
     console.error(err);
-    showMenu("Lahingu käivitamine ebaõnnestus. "+(err instanceof Error?err.message:"Proovi lehte uuesti avada või teist graafikataset."));
+    const reason=err instanceof Error&&/WebGL/i.test(err.message)
+      ? "Brauser ei saanud WebGL 2 3D-vaadet käivitada. Kontrolli brauseri riistvarakiirendust ja graafikadraiverit või proovi teist toetatud brauserit. Graafikakvaliteedi vähendamine ei asenda puuduvat WebGL-i tuge."
+      : err instanceof Error ? err.message : "Proovi lehte uuesti avada.";
+    showMenu("Lahingu käivitamine ebaõnnestus. "+reason);
   });
 } else showMenu();
 

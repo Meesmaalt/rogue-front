@@ -6,7 +6,7 @@ Relvade ulatusringid ja tegeliku lasuarvutusega seotud lahinguandmed: [tulejuhti
 
 Praegune seis on **alpha kandidaat**, mitte veel kinnitatud alpha väljalase. Fookus on Roheoru Conquestil ja logistikaõpetusel; merekaart, teised režiimid ja multiplayer on katsetusjärgus. Õpetuse algus kaitseb mängijat vaenlase planeerimise eest kuni garnisonisammuni, katkenud ehitust saab jätkata ning ehitus-/uuendustõrked annavad põhjuse. Seaded on kättesaadavad enne lahingut; esmakordne graafikakvaliteet on keskmine. Kaamera liigub noolte/ekraaniservaga ja pöörab Alt+Q/E-ga; A ja E jäävad lahingukäskudele.
 
-Build ja sihitud simulatsiooni/UI kontrollid läbivad. Päris brauseri FPS, täielik õpetus ning 15–30 minuti mängija matš võidu/kaotuseni on veel kinnitamata. Täpne lõpetamiskriteerium ja tõendatud seis: [arenguplaan](docs/DEVELOPMENT-PLAN.md).
+Build ja sihitud simulatsiooni/UI kontrollid läbivad. 13.10 avaliku aadressi menüü/decki ülevaatus leidis ja parandas vigased starterdeckid ning fraktsioonivaliku lahknemise; tootmisväljumine väldib baasi suletud taskuid. Päris brauseri FPS, täielik õpetus ning 15–30 minuti mängija matš võidu/kaotuseni on veel kinnitamata: kontrollbrauseri WebGL/GPU oli välja lülitatud. Täpne lõpetamiskriteerium ja tõendatud seis: [arenguplaan](docs/DEVELOPMENT-PLAN.md).
 
 Järgmise arenduse põhiplaan: [viimistlus → alpha → beta](docs/DEVELOPMENT-PLAN.md). Aktiivne tööjärjekord on TODO alguses; vanad etapinimed ei määra uut arendust.
 

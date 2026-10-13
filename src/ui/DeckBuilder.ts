@@ -23,6 +23,7 @@ import type { UnitKind } from "../sim/types";
 export class DeckBuilder {
   private root: HTMLElement;
   private decks = loadAllDecks();
+  private storageWarning = "";
   private faction: FactionId = "usa";
   onClose: () => void = () => {};
   onPlay: (faction: FactionId, deck: FactionDeck) => void = () => {};
@@ -60,8 +61,13 @@ export class DeckBuilder {
     } else if (i >= 0) slots[i] = { kind, count };
     else slots.push({ kind, count });
     this.decks[this.faction] = { ...d, slots, updatedAt: Date.now() };
-    saveAllDecks(this.decks);
+    this.persist();
     this.render();
+  }
+
+  private persist(): void {
+    try { saveAllDecks(this.decks); this.storageWarning=""; }
+    catch { this.storageWarning="Brauser ei lubanud koosseisu salvestada. Muudatused jäävad avatuks, kuid järgmise avamise järel võivad kaduda."; }
   }
 
   private render(): void {
@@ -107,6 +113,7 @@ export class DeckBuilder {
             </div>`;
           }).join("")}
         </div>
+        ${this.storageWarning ? `<p role="alert">${this.storageWarning}</p>` : ""}
         <footer class="deck-foot">
           <button type="button" class="deck-reset">Lähtesta</button>
           <button type="button" class="deck-close">Sulge</button>
@@ -131,7 +138,7 @@ export class DeckBuilder {
     });
     this.root.querySelector<HTMLButtonElement>(".deck-reset")!.onclick = () => {
       this.decks[this.faction] = defaultDeck(this.faction);
-      saveAllDecks(this.decks);
+      this.persist();
       this.render();
     };
     this.root.querySelector<HTMLButtonElement>(".deck-close")!.onclick = () => this.close();
