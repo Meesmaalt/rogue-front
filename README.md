@@ -12,6 +12,8 @@ Build ja sihitud simulatsiooni/UI kontrollid läbivad. 13.10 avaliku aadressi me
 
 Roheoru kaardiviimistlus (layout15): ühine jõepind, maastikusse seotud ühendatud teed/õued/märgistus, elamute juurdepääsutänavad ja aiad, talurajad, lühemad talade/sammastega sillad ning ebakorrapärasemad metsaservad. Atlas säilitab 2048² mõõdu ja mets instantsimise/LOD-i. Uue paigutuse jaoks alusta uut Roheoru/õpetuse matši. Vt [kaardi kompositsioon](docs/MAP-COMPOSITION-ROHEORG.md); avaliku brauseri visuaal/FPS jäävad kinnitamata.
 
+Referentsipõhine maastiku uuendus (layout16): tekstuuriga ebakorrapärased puuvõrad kolmes LOD-is, ühest puupaigutusest küpsetatud varjud ka keskmisel kvaliteedil, eri põllupinnad ja põlluhekid, lauged kõrgendikud, kelpkatused ning uduga kaugmaastik/gradienttaevas. Parandatud päikese algsuund väljalülitatud shadow-mapiga profiilidel. Kaardi põhitekstuur jääb 2048²; kauge võra kasutab 24 kolmnurka. Alusta uut Roheoru/õpetuse matši. Päris GPU visuaal ja FPS on veel kinnitamata.
+
 Järgmise arenduse põhiplaan: [viimistlus → alpha → beta](docs/DEVELOPMENT-PLAN.md). Aktiivne tööjärjekord on TODO alguses; vanad etapinimed ei määra uut arendust.
 
 ## Käivitamine Dockeris

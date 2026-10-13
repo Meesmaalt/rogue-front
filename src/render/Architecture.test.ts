@@ -9,8 +9,8 @@ it("keeps facade materials and roof silhouette across civilian LODs",()=>{
     createImageData:(w:number,h:number)=>({data:new Uint8ClampedArray(w*h*4)}),
     putImageData:()=>{},fillRect:()=>{},fillStyle:"",
   })})});
-  for(const height of [3.6,6.4]){
-    const near=createCivilianBuilding(6.4,7.2,height,3),far=createCivilianBuilding(6.4,7.2,height,3,true);
+  for(const height of [3.6,6.4])for(const variant of [1,3]){
+    const near=createCivilianBuilding(6.4,7.2,height,variant),far=createCivilianBuilding(6.4,7.2,height,variant,true);
     const nearBounds=new THREE.Box3().setFromObject(near),farBounds=new THREE.Box3().setFromObject(far);
     expect(Math.abs(nearBounds.max.y-farBounds.max.y)).toBeLessThan(.2);
     const facade=(g:THREE.Group)=>g.children.find(o=>o instanceof THREE.Mesh&&(o.material as THREE.MeshStandardMaterial).map?.repeat.x===1) as THREE.Mesh;

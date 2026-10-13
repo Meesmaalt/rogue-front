@@ -54,7 +54,7 @@ for i,r in enumerate(m['resources']):
   if best is None or d<best[0]:best=(d,q)
  if best and best[0]>2:segment(f'resource-link-{i}',best[1],point,5,'track')
 # Reproducible residential scale/setbacks; fronts face the local access lanes.
-features=[f for f in features if not f['id'].startswith(('garden-','canopy-edge-','bank-copse-'))]
+features=[f for f in features if not f['id'].startswith(('garden-','canopy-edge-','bank-copse-','field-border-','field-copse-','meadow-parcel-'))]
 for f in features:
  if not f['id'].startswith(('west-house-','east-house-')):continue
  i=int(f['id'].split('-')[-1]);row=i//6;cz=-100.44 if f['id'].startswith('west') else 132.84
@@ -71,6 +71,19 @@ for f in list(features):
   features.append(dict(id=f"canopy-edge-{f['id']}-{side}",kind='cover',appearance='forest',shape='ellipse',x=round(f['x']+side*f['width']*.32*math.cos(a),3),z=round(f['z']-side*f['width']*.32*math.sin(a)+f['depth']*.32,3),width=f['width']*.38,depth=f['depth']*.48,rotation=a+.22*side,height=6,density=.72,blocksMovement=False))
 for i,(x,z) in enumerate([(-66,-92),(72,136),(-92,290),(90,-267)]):
  features.append(dict(id=f'bank-copse-{i}',kind='cover',appearance='forest',shape='ellipse',x=x,z=z,width=42,depth=28,rotation=.3,height=6,density=.7,blocksMovement=False))
+# The photographed reference has mixed crops and narrow, real cover along field boundaries.
+for side in [1,-1]:
+ for i,(x,z,w,d) in enumerate([(-392,20,94,100),(-400,112,96,66),(-210,-270,78,60),(-108,-125,58,70),(-156,74,104,62),(-414,470,110,70),(-275,440,72,82)]):
+  features.append(dict(id=f'meadow-parcel-{side}-{i}',kind='cover',appearance='field',x=x*side,z=z*side,width=w,depth=d,rotation=(i%3-1)*.025,blocksMovement=False))
+parcels=[f for f in features if f['id'].startswith(('parcel-','meadow-parcel-'))]
+crop_colors=[0xa99b67,0x927b70,0x87916a,0xb0a375,0x8b9571]
+for i,f in enumerate(parcels):
+ f['color']=crop_colors[i%len(crop_colors)]
+ if i%2==0:
+  a=f.get('rotation',0);side=1 if i%4==0 else -1;offset=f['width']*.47*side
+  features.append(dict(id='field-border-'+f['id'],kind='cover',appearance='forest',shape='ellipse',x=round(f['x']+math.cos(a)*offset,3),z=round(f['z']-math.sin(a)*offset,3),width=5.5,depth=f['depth']*.86,rotation=a,height=3.4,density=.72,blocksMovement=False,label='Põlluäärne hekk'))
+ if i%3==0:
+  features.append(dict(id='field-copse-'+f['id'],kind='cover',appearance='forest',shape='ellipse',x=f['x']-f['width']*.31,z=f['z']+f['depth']*.3,width=13,depth=11,height=6,density=.48,blocksMovement=False,label='Põllusalu'))
 # Avoid placing houses or old pavements inside the corrected network.
 def inside(f,x,z,pad):
  a=f.get('rotation',0);dx,dz=x-f['x'],z-f['z'];return abs(dx*math.cos(a)-dz*math.sin(a))<f['width']/2+pad and abs(dx*math.sin(a)+dz*math.cos(a))<f['depth']/2+pad
@@ -88,6 +101,6 @@ for i,r in enumerate(m['resources']):
 for f in list(features):
  if f['id'].startswith(('west-house-','east-house-')):
   features.append(dict(id='garden-'+f['id'],kind='cover',appearance='field',x=f['x'],z=f['z'],width=12,depth=12,rotation=0,color=[0x90997c,0x879373,0x9b9f83][int(f['id'].split('-')[-1])%3],blocksMovement=False,label='Elamu aed'))
-m['features']=features+roads;m['layoutVersion']=15
+m['features']=features+roads;m['layoutVersion']=16
 p.write_text(json.dumps(mission,ensure_ascii=False,indent=2)+'\n')
 print('Roheorg',len(roads),'connected road segments')

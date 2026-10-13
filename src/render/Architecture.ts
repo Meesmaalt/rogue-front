@@ -42,6 +42,13 @@ function roof(g:THREE.Group,w:number,d:number,y:number,rise:number,m:THREE.Mater
   // Gable ends seal the roof; no floating pyramid on a cube.
   const geometry=new THREE.BufferGeometry();geometry.setAttribute("position",new THREE.Float32BufferAttribute([-w/2,y,-d/2,w/2,y,-d/2,0,y+rise,-d/2,-w/2,y,d/2,0,y+rise,d/2,w/2,y,d/2],3));geometry.setAttribute("uv",new THREE.Float32BufferAttribute([0,0,1,0,.5,1,0,0,.5,1,1,0],2));geometry.computeVertexNormals();const mesh=new THREE.Mesh(geometry,m);g.add(mesh);
 }
+/** Hipped silhouette shares its low-cost geometry between both civilian LODs. */
+function hipRoof(g:THREE.Group,w:number,d:number,y:number,rise:number,m:THREE.Material):void {
+  const ridge=d/2-Math.min(w*.4,d*.28),geometry=new THREE.BufferGeometry();
+  geometry.setAttribute("position",new THREE.Float32BufferAttribute([-w/2,y,-d/2,w/2,y,-d/2,w/2,y,d/2,-w/2,y,d/2,0,y+rise,-ridge,0,y+rise,ridge],3));
+  geometry.setAttribute("uv",new THREE.Float32BufferAttribute([0,0,1,0,1,1,0,1,.5,.5-ridge/d,.5,.5+ridge/d],2));
+  geometry.setIndex([0,4,1,1,4,5,1,5,2,2,5,3,3,5,4,3,4,0]);geometry.computeVertexNormals();g.add(new THREE.Mesh(geometry,m));
+}
 function facade(g:THREE.Group,w:number,d:number,h:number,floors:number,wall:THREE.Material):void {
   const glass=material(0x334951,undefined,.35),frames=material(0xa2a695),door=material(0x514f43,"metal");
   for(const side of [-1,1])for(let floor=0;floor<floors;floor++)for(let x=-w/2+1.6;x<w/2-1;x+=2.4){
@@ -62,7 +69,7 @@ export function createCivilianBuilding(width:number,depth:number,height:number,v
   const rise=Math.min(1.25,height*.22),wallHeight=height-rise-.2;
   box(g,width+.3,.2,depth+.3,0,.1,0,concrete);
   box(g,width,wallHeight,depth,0,wallHeight/2+.2,0,wall);
-  roof(g,width+.35,depth+.35,wallHeight+.2,rise,tiles);
+  if(variant%4===1)hipRoof(g,width+.35,depth+.35,wallHeight+.2,rise,tiles);else roof(g,width+.35,depth+.35,wallHeight+.2,rise,tiles);
   box(g,1.15,1.95,.10,0,1.18,depth/2+.06,material(0x514f43,"metal"));
   box(g,1.65,.14,.85,0,.12,depth/2+.35,concrete);
   box(g,.42,.85,.45,width*.25,height-.05,-depth*.2,material(0x8a786b,"brick"));
