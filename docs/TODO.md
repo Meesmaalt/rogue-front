@@ -3,13 +3,15 @@
 Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on järgmise arenduse alus; hilisemad vanad etapid ja märkeruudud jäävad ajalooliseks loendiks. Pakett loetakse tehtuks põhiplaani lõpetamistingimuste järgi, mitte funktsiooni nime olemasolu järgi.
 
 - [x] Kasutatava alpha ulatuse, viie viimistluspaketi ja alpha/beta lõpetamiskriteeriumide uuendamine (08.10.2026).
-- [ ] V1 brauserivärav: PR #15 mõõdikutega sama Roheoru 60–90 s stseeni võrdlus ja suurima mõõdetud kitsaskoha parandus; päris FPS/visuaal endiselt kinnitamata.
+- [ ] V1 brauserivärav: PR #15 mõõdikutega sama Roheoru 60–90 s stseeni võrdlus ja suurima mõõdetud kitsaskoha parandus; päris FPS/visuaal endiselt kinnitamata. Avalik URL on olemas; 13.10 kontrollbrauseri GPU/WebGL on välja lülitatud.
 - [ ] V2: grupijuhtimise, maa-/õhuliikumise ja lahingu tunnetuse lõpetamine.
 - [x] V3: majanduse, füüsilise logistika ja AI taastumistsükli funktsionaalne lõpetamine — 15 min Roheoru simulatsioon läbis pealao/veokite kaotuse, tootmise hilise jätkumise ja eesmärkide vallutamise. Mängija vaates raskus/tasakaal ja lõpetatav tervikmatš jäävad V5 alpha väravasse.
 - [ ] V4: selge HUD ja Roheoru ühtne visuaalne viimistlus.
 - [ ] V5: õpetuse/save-load läbipääs ning DEVELOPMENT-PLAN.md alpha värav; seejärel A6 lõpetatuks.
 
 ## Teostatud alused ja seniste pakettide seis
+
+- [x] Avaliku brauseri alpha audit ja parandused (13.10): https://thormen.com/rts/ menüü/seaded/fraktsioon/deck avanesid; õpetus takerdus kontrollbrauseri GL_RENDERER=Disabled piirangusse. Brauseris tuvastati vigane 192/120 AP ja 22/14 Maa vaikimisi deck ning Venemaa menüüvaliku järel USA decki avamine. Nüüd kõigi fraktsioonide legaalne ühendrelvade algdeck, õige valitud fraktsioon, sulgemisel värske kokkuvõte, käivituse valideerimine ja vigaste salvestusandmete taastumine; kasutaja üle-eelarveline deck jääb muutmiseks alles. Tehase väljund väldib kohalikke suletud nav-taskuid, HUD kasutab sama väljumiskontrolli. Õpetuse lõpp valib soomuse+luure ning sihtmarker kasutab üksnes nähtavat rajatist või teadaolevat baasikohta. Menüü tegevusnupud/veateade loetavamad; puuduva WebGL-i puhul katkeb käivitus enne mudelite/simi laadimist selge eestikeelse teatega. Build + 18 sihitud kontrolli, sh 16/18 päris õpetuseesmärki ja nelja toodetud tanki tee baasiõuest, tootmine/õhubaas ning replay. Täisvõit/kaotus, brauseri lahingutunnetus ja FPS ei ole kinnitatud; uut koodi avalikku konteinerisse ei deployitud.
 
 - [x] Valge lehe /src/main.ts ja /@vite/client 404 parandus: dev-server tuvastab alamtee automaatselt ning teenindab iga prefiksi mooduligraafi eraldi, säilitades samaaegselt juurtee. Säilitatud prefiks ja X-Forwarded-Prefix on toetatud; käsitsi BASE_PATH jääb valikuliseks. Kontrollitud HTTP mooduleid/assets/Arsenali/API-t ja WS handshake'i juurteel ning kahes alamtees; build läbis. Välist deploy'd ei käivitatud.
 

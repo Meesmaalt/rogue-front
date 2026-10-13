@@ -60,6 +60,17 @@ export function tutorialGuide(world:World,step:MissionObjectiveDef):TutorialGuid
       if(house)point={x:house.x,z:house.z};
       hint=passenger?"Vali transport → U → paremklõps maja lähedal vabale maapinnale. Seejärel vali väljunud jalavägi ja paremklõpsa majale.":"Jalavägi + paremklõps tervele, vaba kohaga majale. Vaatesuund määrab laskesektori; välju U + paremklõpsuga.";
     }else{const carrier=ready("apc");if(carrier)point={x:carrier.x,z:carrier.z};hint="Vali jalavägi → paremklõps oma APC mudelile või nimesildile. Oota, kuni rühm on pardal.";}
+  }else if(step.kind==="destroy"){
+    const tanks=units.filter(e=>e.kind==="tank"&&e.loadedIntoId==null),recon=ready("reconInf")??ready("reconVehicle");
+    candidate=tanks[0];
+    if(candidate){ids.push(...tanks.slice(0,4).map(e=>e.id));if(recon)ids.push(recon.id);}
+    const enemy=step.target?.team??(world.playerTeam===0?1:0);
+    const visible=world.entities.find(e=>!e.dead&&e.team===enemy&&e.kind===step.target?.kind&&world.isSpottedByTeam(e,world.playerTeam));
+    const base=world.bases[enemy];
+    point=visible?{x:visible.x,z:visible.z}:base?{x:base.x,z:base.z}:null;
+    hint=visible
+      ? "Vaenlase rajatis on nähtav: paremklõps sellele annab ründekäsu. Tankid peatuvad oma laskeulatuses. Hoia luure elus ning too moon, kütus ja remont etteveetud lattu."
+      : "Sihtpunkt näitab teadaolevat vastase baasi, mitte peidetud üksust. Vii luure tankide toel sillapääle; A + paremklõps ründab liikudes. Tugevda armeed ja varustust enne baasi ründamist.";
   }else candidate=ready(step.unitKind??"tank");
   if(!candidate&&!["build","deliver","capture"].includes(step.kind)){
     const kind=step.unitKind??"tank",producer:UnitKind=kind==="tank"||kind==="apc"?"factory":"barracks";

@@ -33,7 +33,7 @@ it("tutorial reaches transport and urban combat through actual paid commands and
  const m=getMission("tutorial-logistics");setMapSize(m.map.size!);setBases(m.map.bases);
  const w=new World(m.seed,true,m.map.resources,m.map.features,m.map.bases,m.map.baseDefenses??true);
  for(const o of m.map.objects??[])w.spawn(o.kind,o.team,o.x,o.z);
- w.missionController=new MissionController(m,w);w.ai.setProfile("defensive","easy");
+ w.missionController=new MissionController(m,w);w.ai.setProfile("defensive","easy");w.ai.attackTimer=240;
  const engineers=w.entities.filter(e=>e.team===0&&e.kind==="engineer"),base=w.bases[0];
  const wait=(test:()=>boolean,seconds=120)=>{
   for(let n=0;n<seconds/SIM_STEP&&!test()&&w.status==="running";n++)w.tick(SIM_STEP);
@@ -53,8 +53,9 @@ it("tutorial reaches transport and urban combat through actual paid commands and
  };
  const produce=(kind:Parameters<World["unitDefinition"]>[0],producerId:number)=>{
   wait(()=>w.teamCredits[0]>=w.unitDefinition(kind,0).cost&&w.teamResources[0]>=w.unitDefinition(kind,0).cost);
-  w.issue({type:"produce",kind,producerId});wait(()=>w.entities.some(e=>e.team===0&&e.kind===kind));
-  return w.entities.find(e=>e.team===0&&e.kind===kind)!;
+  const previous=new Set(w.entities.map(e=>e.id));
+  w.issue({type:"produce",kind,producerId});wait(()=>w.entities.some(e=>e.team===0&&e.kind===kind&&!previous.has(e.id)));
+  return w.entities.find(e=>e.team===0&&e.kind===kind&&!previous.has(e.id))!;
  };
  build("generator");const depot=build("supply");
  const resource=w.resourcePoints.reduce((a,b)=>Math.hypot(a.x-base.x,a.z-base.z)<Math.hypot(b.x-base.x,b.z-base.z)?a:b);
@@ -82,6 +83,12 @@ it("tutorial reaches transport and urban combat through actual paid commands and
  const timer=w.ai.buildTimer;w.tick(SIM_STEP);expect(w.ai.buildTimer).toBeLessThan(timer);
  const copy=new World(m.seed,true,m.map.resources,m.map.features,m.map.bases,m.map.baseDefenses??true);
  loadWorld(copy,saveWorld(w));expect(copy.missionController!.preparing).toBe(false);
+ // Repeated production in the constructed base must not place tanks in sealed pockets.
+ const tanks=[w.entities.find(e=>e.team===0&&e.kind==="tank")!,produce("tank",factory.id),produce("tank",factory.id),produce("tank",factory.id)];
+ w.issue({type:"amove",ids:tanks.map(e=>e.id),x:280,z:-140});w.tick(SIM_STEP);
+ expect(w.events.filter(e=>e.type==="order-rejected"&&tanks.some(t=>t.id===e.unitId))).toEqual([]);
+ for(const tank of tanks){expect(tank.mode).toBe("amove");expect(tank.navPath.length).toBeGreaterThan(0);}
+
 },20000);
 
 it("a stopped foundation waits for an explicit engineer reassignment and resumes construction",()=>{

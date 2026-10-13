@@ -18,6 +18,27 @@ function exitPoint(producer: Entity, distance: number): { x: number; z: number }
   return { x: producer.x + dx * distance, z: producer.z + dz * distance };
 }
 
+/** A free point inside a sealed pocket is not a usable factory exit. Bounded local flood. */
+function canLeaveProductionArea(w:World,producer:Entity,point:{x:number;z:number},radius:number):boolean {
+  const grid=w.nav,start=grid.worldToCell(point.x,point.z);
+  if(grid.isBlocked(start.x,start.z,radius))return false;
+  const reach=producer.def.radius+radius+4+Math.max(...mobility.production.exitRings)+grid.cellSize;
+  const center=grid.worldToCell(producer.x,producer.z),extent=Math.ceil(reach/grid.cellSize)+1;
+  const queue=[start],seen=new Set([grid.index(start.x,start.z)]);
+  const directions=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]] as const;
+  for(let i=0;i<queue.length;i++){
+    const cell=queue[i],world=grid.cellToWorld(cell.x,cell.z);
+    if(Math.hypot(world.x-producer.x,world.z-producer.z)>=reach)return true;
+    for(const [dx,dz] of directions){
+      const x=cell.x+dx,z=cell.z+dz,id=grid.index(x,z);
+      if(Math.abs(x-center.x)>extent||Math.abs(z-center.z)>extent||seen.has(id)||grid.isBlocked(x,z,radius))continue;
+      if(dx&&dz&&(grid.isBlocked(cell.x+dx,cell.z,radius)||grid.isBlocked(cell.x,cell.z+dz,radius)))continue;
+      seen.add(id);queue.push({x,z});
+    }
+  }
+  return false;
+}
+
 /** Find a real unoccupied ground exit before consuming deck availability. */
 function groundExit(w:World,producer:Entity,kind:UnitKind):{x:number;z:number}|null {
   const def=w.unitDefinition(kind,producer.team),distance=Math.max(10,producer.def.radius+def.radius+4);
@@ -26,6 +47,7 @@ function groundExit(w:World,producer:Entity,kind:UnitKind):{x:number;z:number}|n
     const p={x:producer.x+Math.sin(angle)*(distance+ring),z:producer.z+Math.cos(angle)*(distance+ring)};
     if(!w.nav.isWalkableWorld(p.x,p.z,def.radius))continue;
     if(w.entities.some(e=>!e.dead&&e.loadedIntoId==null&&!e.garrisonId&&e.def.armor!=="air"&&Math.hypot(e.x-p.x,e.z-p.z)<e.def.radius+def.radius+mobility.production.exitClearance))continue;
+    if(!canLeaveProductionArea(w,producer,p,def.radius))continue;
     return p;
   }
   return null;
