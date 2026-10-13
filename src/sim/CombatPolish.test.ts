@@ -113,3 +113,11 @@ it('oriented group destinations keep their heading through save/load and turn af
  step(w,400);expect(a.mode).toBe('idle');expect(b.mode).toBe('idle');expect(a.heading).toBeCloseTo(Math.PI/2);expect(b.heading).toBeCloseTo(Math.PI/2);
  w.issue({type:'move',ids:[a.id],x:10,z:0});applyCommands(w);expect(a.moveFacing).toBeUndefined();
 });
+
+it('Apache cannon inflicts useful damage on a helicopter without making Hellfire an air weapon',()=>{
+ const w=fixture(),u=w.spawn('heli',0,-50,0),t=w.spawn('heli',1,-10,0);
+ u.airState=t.airState='airborne';u.y=t.y=28;u.heading=Math.PI/2;u.airMission='cap';t.spottedUntil[0]=100;t.standingOrder='holdfire';t.mode='hold';t.holdPosition=true;
+ w.issue({type:'attack',ids:[u.id],targetId:t.id});let fired=0;
+ for(let i=0;i<120&&!t.dead;i++){w.tick(dt);fired+=w.events.filter(e=>e.type==='fire'&&e.sourceId===u.id&&e.weaponIndex===1).length;}
+ expect(fired).toBeGreaterThan(2);expect(t.hp).toBeLessThan(t.def.hp*.8);expect(weaponCanTarget(weaponSpec(u,0),t)).toBe(false);
+});

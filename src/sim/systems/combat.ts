@@ -46,7 +46,7 @@ export function movingFireFactor(def:UnitDef,spec:WeaponSpec):number {
   return stabilizer==="full"?1:stabilizer==="partial"?.72:.45;
 }
 export function weaponMuzzle(u:Entity,spec:WeaponSpec,index:number):{x:number;y:number;z:number} {
-  const a=u.heading+(u.def.turret?u.turretYaw:0),wing=u.def.armor==="air"&&spec.weapon==="missile"?(Math.floor(weaponAmmo(u,index))%2?1:-1)*(spec.muzzleSide??1.4):spec.muzzleSide??0;
+  const a=u.heading+(u.def.turret&&!(u.def.category==="heli"&&spec.weapon==="missile")?u.turretYaw:0),wing=u.def.armor==="air"&&spec.weapon==="missile"?(Math.floor(weaponAmmo(u,index))%2?1:-1)*(spec.muzzleSide??1.4):spec.muzzleSide??0;
   const crew=u.squadMaxMembers&&!u.garrisonId?mobility.infantry.squadLayout[Math.min(index,Math.max(0,(u.squadMembers??1)-1))]:[0,0];
   const scale=u.def.modelScale??1;
   return {x:u.x+(Math.sin(a)*(spec.muzzle+crew[1])+Math.cos(a)*(wing+crew[0]))*scale,y:u.y+spec.muzzleHeight*scale,z:u.z+(Math.cos(a)*(spec.muzzle+crew[1])-Math.sin(a)*(wing+crew[0]))*scale};
@@ -105,7 +105,9 @@ export function weaponFireBlocker(w:World,u:Entity,t:Entity,index:number):string
   const angle=Math.atan2(t.x-u.x,t.z-u.z),delta=Math.abs(wrapAngle(angle-u.heading));
   if(u.firingArc<Math.PI*2-.01&&delta>u.firingArc*.5)return "Sihtmärk väljaspool laskesektorit";
   if(!(u.def.domain==="sea"&&spec.weapon==="missile")){
-    const error=Math.abs(wrapAngle(angle-u.heading-(u.def.turret?u.turretYaw:0)));
+    const fixedRack=u.def.category==="heli"&&spec.weapon==="missile";
+    const error=Math.abs(wrapAngle(angle-u.heading-(!fixedRack&&u.def.turret?u.turretYaw:0)));
+    if(fixedRack)return error<mobility.combat.helicopterMissileAimTolerance?null:"Pöörab raketirakke sihtmärgile";
     if(error>=(u.def.turret?mobility.combat.turretAimTolerance:mobility.combat.hullAimTolerance))return u.def.turret?"Pöörab torni sihtmärgile":"Pöörab relva sihtmärgile";
   }
   return null;
@@ -221,7 +223,7 @@ export function shotAccuracy(w:World,u:Entity,t:Entity,spec:WeaponSpec,distance=
   note("Juhtimisvõrk");
 
   const rangeRatio = Math.min(1, distance / Math.max(1, spec.range));
-  hitChance *= 1 - rangeRatio * 0.32;
+  hitChance *= 1 - rangeRatio * mobility.combat.rangeAccuracyLoss;
   note("Kaugus");
   const sizeBonus: Record<string, number> = { small: -0.16, medium: 0, large: 0.08, very_large: 0.16 };
   hitChance += sizeBonus[t.def.size ?? "medium"] ?? 0;
@@ -234,6 +236,9 @@ export function shotAccuracy(w:World,u:Entity,t:Entity,spec:WeaponSpec,distance=
   }
   if ((t.motionSpeed??0)>.5 && t.def.speed > 0) hitChance *= 0.86;
   note("Sihtmärgi liikumine");
+  if(spec.visual==="sabot"&&(u.motionSpeed??0)<=mobility.combat.weaponMotionThreshold&&w.time>=(u.stationaryFireReadyAt??0)){
+    hitChance+=mobility.combat.settledCannonBonus;note("Paigal sihitud kahur");
+  }
   hitChance *= Math.max(0.25, 1 - (u.suppression ?? 0) / 150);
   note("Surve");
   hitChance *= 0.72 + ((u.morale ?? 100) / 100) * 0.28;
@@ -275,7 +280,8 @@ export function fireProjectile(w: World, u: Entity, t: Entity, x: number, y: num
 
   const dealt=base*classMult*fMult;
   const eta=Math.hypot(t.x-x,t.z-z)/Math.max(1,spec.speed);
-  const tx=t.x+Math.sin(t.heading)*(t.motionSpeed??0)*eta,tz=t.z+Math.cos(t.heading)*(t.motionSpeed??0)*eta;
+  const targetSpeed=(t.motionSpeed??0)*(t.motionReverse?-1:1);
+  const tx=t.x+(t.flightVx??Math.sin(t.heading)*targetSpeed)*eta,tz=t.z+(t.flightVz??Math.cos(t.heading)*targetSpeed)*eta;
   const hitRoll=w.rng(),angle=w.rng()*Math.PI*2,miss=1.5+t.def.radius+(1-hitChance)*5;
   const missX=Math.cos(angle)*miss,missZ=Math.sin(angle)*miss;
   const missShot=hitRoll>hitChance;

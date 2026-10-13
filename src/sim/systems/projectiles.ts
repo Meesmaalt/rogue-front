@@ -95,7 +95,7 @@ export function updateProjectiles(w:World,dt:number):void {
       crossed=Math.hypot(target.x-x,target.y+target.def.height*.45-y,target.z-z)<=Math.max(.5,target.def.radius);
       if(crossed){p.x=x;p.y=y;p.z=z;}
     }
-    const arrived=!p.guidanceLost&&(ballistic?(p.age>=(p.flightTime??1)):d<=p.speed*dt+.25);
+    const arrived=!p.guidanceLost&&(ballistic?(p.age>=(p.flightTime??1)):d<=p.speed*dt+.25&&(!guided||p.vx*dx+p.vy*dy+p.vz*dz>0));
     if(terrain||arrived||crossed){if(arrived&&!terrain&&!crossed){p.x=p.tx;p.y=ty;p.z=p.tz;}impact(w,p,terrain);w.projectiles.splice(i,1);}
   }
 }

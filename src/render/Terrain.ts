@@ -404,25 +404,25 @@ export function createForest(features:readonly MapFeatureDef[]):THREE.Group {
   const index=new MapFeatureIndex(features);
   for(const f of features.filter(f=>f.appearance==="forest")){
     const c=Math.cos(f.rotation??0),s=Math.sin(f.rotation??0);
-    for(let i=0;i<Math.ceil(f.width*f.depth/38);i++){
+    for(let i=0;i<Math.ceil(f.width*f.depth/terrainConfig.forest.treeArea);i++){
       const lx=(rnd()-.5)*f.width,lz=(rnd()-.5)*f.depth,x=f.x+lx*c+lz*s,z=f.z-lx*s+lz*c;
       const nearby=index.at(x,z);
       if(nearby.some(block=>(["building","road","bridge","water","wall"].includes(block.kind)||block.appearance==="yard")&&pointInFeature(x,z,block,2))||rnd()>forestDensityAt(x,z,nearby))continue;
       const pine=rnd()<.4,key=`${Math.floor(x/64)}/${Math.floor(z/64)}/${pine}`,list=cells.get(key)??[];
-      list.push({x,z,s:.85+rnd()*.65,angle:rnd()*Math.PI,pine});cells.set(key,list);
+      list.push({x,z,s:terrainConfig.forest.treeScaleMinimum+rnd()*terrainConfig.forest.treeScaleVariation,angle:rnd()*Math.PI,pine});cells.set(key,list);
     }
   }
-  const group=new THREE.Group(),trunkGeometry=new THREE.CylinderGeometry(.13,.3,5,5),crownGeometry=new THREE.SphereGeometry(1,8,5),farGeometry=new THREE.IcosahedronGeometry(1,0);
+  const group=new THREE.Group(),trunkGeometry=new THREE.CylinderGeometry(.1,.22,terrainConfig.forest.trunkHeight,5),crownGeometry=new THREE.SphereGeometry(1,8,4),farGeometry=new THREE.IcosahedronGeometry(1,0);
   const trunkMaterial=new THREE.MeshStandardMaterial({color:0x625a49,roughness:1});
   const crownMaterial=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,metalness:0});
   const d=new THREE.Object3D(),tint=new THREE.Color();
   for(const points of cells.values()){
     const trunks=new THREE.InstancedMesh(trunkGeometry,trunkMaterial,points.length),crowns=new THREE.InstancedMesh(crownGeometry,crownMaterial,points.length);
     points.forEach((p,i)=>{
-      const y=heightAt(p.x,p.z);d.rotation.set(0,p.angle,0);d.position.set(p.x,y+2.5*p.s,p.z);d.scale.set(p.s,p.s,p.s);d.updateMatrix();trunks.setMatrixAt(i,d.matrix);trunks.setColorAt(i,new THREE.Color(1,1,1));
+      const y=heightAt(p.x,p.z);d.rotation.set(0,p.angle,0);d.position.set(p.x,y+terrainConfig.forest.trunkHeight*.5*p.s,p.z);d.scale.set(p.s,p.s,p.s);d.updateMatrix();trunks.setMatrixAt(i,d.matrix);trunks.setColorAt(i,new THREE.Color(1,1,1));
       tint.setHSL(.26+rnd()*.035,.25+rnd()*.12,.30+rnd()*.08);
-      d.position.set(p.x,y+5.2*p.s,p.z);d.rotation.set(0,p.angle,0);
-      d.scale.set((p.pine?3.1:4.4)*p.s,(p.pine?4:3.5)*p.s,(p.pine?3.1:4)*p.s);
+      d.position.set(p.x,y+terrainConfig.forest.crownBaseHeight*p.s,p.z);d.rotation.set(0,p.angle,0);
+      d.scale.set(terrainConfig.forest.crownRadius*(p.pine?.78:1)*p.s,terrainConfig.forest.crownHeight*(p.pine?1.15:1)*p.s,terrainConfig.forest.crownRadius*(p.pine?.78:.92)*p.s);
       d.updateMatrix();crowns.setMatrixAt(i,d.matrix);crowns.setColorAt(i,tint);
     });
     trunks.computeBoundingSphere();crowns.computeBoundingSphere();trunks.castShadow=false;crowns.castShadow=false;crowns.receiveShadow=true;trunks.matrixAutoUpdate=crowns.matrixAutoUpdate=false;

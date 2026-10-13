@@ -25,8 +25,8 @@
     ],
     "resources": [
       {
-        "x": -279.936,
-        "z": 191.808,
+        "x": -225,
+        "z": 140,
         "amount": 1200,
         "radius": 14,
         "controlledBy": null,
@@ -41,12 +41,12 @@
         "label": "Lääne ladu",
         "facilityOffset": {
           "x": 18,
-          "z": 0
+          "z": 24
         }
       },
       {
-        "x": 279.936,
-        "z": -191.808,
+        "x": 225,
+        "z": -140,
         "amount": 1200,
         "radius": 14,
         "controlledBy": null,
@@ -60,8 +60,8 @@
         "disabledUntil": 0,
         "label": "Ida ladu",
         "facilityOffset": {
-          "x": 0,
-          "z": -18
+          "x": -18,
+          "z": -24
         }
       },
       {
@@ -1430,8 +1430,8 @@
         "id": "resource-yard-0",
         "kind": "cover",
         "appearance": "yard",
-        "x": -261.936,
-        "z": 191.808,
+        "x": -207,
+        "z": 164,
         "width": 31,
         "depth": 27,
         "color": 8751227,
@@ -1441,8 +1441,8 @@
         "id": "resource-yard-1",
         "kind": "cover",
         "appearance": "yard",
-        "x": 279.936,
-        "z": -209.808,
+        "x": 207,
+        "z": -164,
         "width": 31,
         "depth": 27,
         "color": 8751227,
@@ -2879,28 +2879,6 @@
         "label": "Külatänav"
       },
       {
-        "id": "resource-link-0",
-        "kind": "road",
-        "x": -291.2256470588235,
-        "z": 189.6585882352941,
-        "width": 5,
-        "depth": 5.363246640885833,
-        "rotation": 0.5404195002705842,
-        "roadClass": "track",
-        "label": "Maantee"
-      },
-      {
-        "id": "resource-link-1",
-        "kind": "road",
-        "x": 273.87270588235293,
-        "z": -185.24682352941176,
-        "width": 5,
-        "depth": 15.653161749436363,
-        "rotation": -2.6011731533192077,
-        "roadClass": "track",
-        "label": "Maantee"
-      },
-      {
         "id": "resource-link-2",
         "kind": "road",
         "x": -72.19916573579222,
@@ -2921,10 +2899,32 @@
         "rotation": 3.141592653589793,
         "roadClass": "track",
         "label": "Maantee"
+      },
+      {
+        "id": "resource-link-0",
+        "kind": "road",
+        "x": -223.45588235294116,
+        "z": 142.5735294117647,
+        "width": 5,
+        "depth": 8.002450479987818,
+        "rotation": 0.5404195002705842,
+        "roadClass": "track",
+        "label": "Laoplatsi ühendustee"
+      },
+      {
+        "id": "resource-link-1",
+        "kind": "road",
+        "x": 223.45588235294116,
+        "z": -142.5735294117647,
+        "width": 5,
+        "depth": 8.002450479987818,
+        "rotation": -2.601173153319209,
+        "roadClass": "track",
+        "label": "Laoplatsi ühendustee"
       }
     ],
     "baseDefenses": false,
     "size": 1088,
-    "layoutVersion": 13
+    "layoutVersion": 14
   }
 }

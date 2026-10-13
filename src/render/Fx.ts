@@ -113,10 +113,18 @@ export class Fx {
       for(let i=0;i<2;i++)parts.push(new THREE.BoxGeometry(radius*5,.025,.22).rotateZ(i*Math.PI/2).translate(0,0,-length*.33));
       const geometry=mergeGeometries(parts)!;parts.forEach(g=>g.dispose());
       group.add(new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color:bomb?0x777e63:key==="sam"?0xd0d0bf:0xb9beb6,roughness:.8,metalness:.12})));
-      if(!bomb&&key!=="torpedo"){const flame=new THREE.Mesh(new THREE.ConeGeometry(radius*1.2,.45,6).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xffc16b,toneMapped:false}));flame.name="MotorFlame";flame.position.z=-length*.5-.22;group.add(flame);}
+      if(!bomb&&key!=="torpedo"){
+        const flame=new THREE.Group();flame.name="MotorFlame";flame.position.z=-length*.5-.22;
+        const outer=new THREE.Mesh(new THREE.ConeGeometry(radius*1.6,.65,6).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xff922b,transparent:true,opacity:.65,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));
+        const core=new THREE.Mesh(new THREE.ConeGeometry(radius*.8,.38,6).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xfff2cf,toneMapped:false}));
+        core.position.z=.1;flame.add(outer,core);group.add(flame);
+      }
     }else {
       const tracer=p.weapon==="bullet"||["autocannon","flak","sabot"].includes(key),length=key==="sabot"?3.2:key==="sniper"?2.2:tracer?1.5:.7;
       group.add(new THREE.Mesh(new THREE.BoxGeometry(key==="sabot"?.045:.035,.035,length),new THREE.MeshBasicMaterial({color:tracer?0xffd4a0:0xbbb5a0,toneMapped:false})));
+    }
+    if(p.weapon==="cannon"&&["sabot","autocannon","flak"].includes(key)){
+      group.add(new THREE.Mesh(new THREE.BoxGeometry(.1,.1,key==="sabot"?3.6:1.8),new THREE.MeshBasicMaterial({color:0xffad54,transparent:true,opacity:.18,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false})));
     }
     this.models.set(key,group);return group.clone(true);
   }
@@ -132,6 +140,8 @@ export class Fx {
       const x=(p.px??p.x)+(p.x-(p.px??p.x))*alpha,y=(p.py??p.y)+(p.y-(p.py??p.y))*alpha,z=(p.pz??p.z)+(p.z-(p.pz??p.z))*alpha;
       if(!this.frustum.containsPoint(this.point.set(x,y,z))){m.visible=false;shell.lastX=x;shell.lastY=y;shell.lastZ=z;continue;}
       if(shell.flame){const throttle=(p.age??0)<(p.boostTime??0)?1.6:(p.speed<(p.maxSpeed??p.speed)*.9?1:.55);shell.flame.scale.z=throttle;}
+      const distanceScale=Math.min(1.6,Math.max(1,this.camera.position.distanceTo(this.point.set(x,y,z))/220));
+      m.scale.setScalar(p.weapon==="missile"?distanceScale:1);
       m.position.set(x,y,z);this.direction.set(p.vx,p.vy,p.vz).normalize();m.lookAt(x+this.direction.x,y+this.direction.y,z+this.direction.z);
       if(p.visual==="torpedo"){this.emit("dust",x,y+.12,z,.15,.4,0xc2e2df,0,.1,0);}
       else if(p.weapon==="missile"){
@@ -139,6 +149,7 @@ export class Fx {
         if(distance>=spacing){const count=Math.min(12,Math.floor(distance/spacing));
           for(let i=1;i<=count;i++){const t=i*spacing/distance;this.emit("smoke",shell.lastX+(x-shell.lastX)*t,shell.lastY+(y-shell.lastY)*t,shell.lastZ+(z-shell.lastZ)*t,p.visual==="sam"||p.visual==="naval-sam"?.48:p.visual==="mlrs"?.4:.2,["cruise","anti-ship","aam"].includes(p.visual??"")?1:1.6,0xc6c6b8,.25,.35,0);}
           const advance=count===12?1:count*spacing/distance;
+          this.emit("glow",x-this.direction.x*.6,y-this.direction.y*.6,z-this.direction.z*.6,.14,.08,0xffdb91);
           shell.lastX+=(x-shell.lastX)*advance;shell.lastY+=(y-shell.lastY)*advance;shell.lastZ+=(z-shell.lastZ)*advance;
         }
       }

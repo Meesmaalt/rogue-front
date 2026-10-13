@@ -9,7 +9,7 @@
     "light": 1.25,
     "medium": 1.0,
     "heavy": 0.72,
-    "air": 0.12
+    "air": 0.85
   },
   "missile": {
     "light": 0.9,

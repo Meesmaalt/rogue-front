@@ -37,19 +37,25 @@
         1.15
       ]
     ],
-    "roadSpeed": 1.08
+    "roadSpeed": 1.08,
+    "lateralAcceleration": 12,
+    "lateralSlip": 1
   },
   "tracked": {
     "acceleration": 2.03,
     "braking": 4.29,
     "forestSpeed": 0.64,
-    "roadSpeed": 1.22
+    "roadSpeed": 1.22,
+    "lateralAcceleration": 2.8,
+    "lateralSlip": 0.12
   },
   "wheeled": {
     "acceleration": 2.8,
     "braking": 5.2,
     "forestSpeed": 0.48,
-    "roadSpeed": 1.28
+    "roadSpeed": 1.28,
+    "lateralAcceleration": 3.6,
+    "lateralSlip": 0.2
   },
   "helicopter": {
     "altitude": 30,
@@ -82,7 +88,8 @@
     "parkingSpacing": 6,
     "launchSeparation": 6,
     "baseCapacity": 4,
-    "capacityPerLevel": 2
+    "capacityPerLevel": 2,
+    "lateralAcceleration": 7.2
   },
   "navigation": {
     "lookAhead": 7,
@@ -165,7 +172,11 @@
     "aaRetreatThreat": 0.78,
     "helicopterAvoidThreat": 0.55,
     "helicopterAvoidDistance": 28,
-    "helicopterAvoidTime": 3
+    "helicopterAvoidTime": 3,
+    "rangeAccuracyLoss": 0.22,
+    "settledCannonBonus": 0.055,
+    "helicopterLosSearchAngle": 0.3,
+    "helicopterMissileAimTolerance": 0.55
   },
   "naval": {
     "acceleration": 1.5,
