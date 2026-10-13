@@ -8,6 +8,8 @@ Praegune seis on **alpha kandidaat**, mitte veel kinnitatud alpha väljalase. Fo
 
 Build ja sihitud simulatsiooni/UI kontrollid läbivad. 13.10 avaliku aadressi menüü/decki ülevaatus leidis ja parandas vigased starterdeckid ning fraktsioonivaliku lahknemise; tootmisväljumine väldib baasi suletud taskuid. Päris brauseri FPS, täielik õpetus ning 15–30 minuti mängija matš võidu/kaotuseni on veel kinnitamata: kontrollbrauseri WebGL/GPU oli välja lülitatud. Täpne lõpetamiskriteerium ja tõendatud seis: [arenguplaan](docs/DEVELOPMENT-PLAN.md).
 
+13.10 liikumise ja relvade viimistlus: kiirusest sõltuv sõidukite pöörderaadius, pidurdamine enne tagurdamist, kopteri eraldi hoog ja ninapööre ning külgmine laskepositsiooni otsing. Kopterikahuri õhusihtmärgi kahjustus parandatud; paigalseisva tankikahuri täpsus parem, raketid lähtuvad päris tiivarakkidest. Metsas on väiksemad, tihedamad instantsitud puud ning rakettidel mootorituli ja suitsurada. Roheoru lähimad ressursialad on nüüd umbes 174 m baasist; veokid valivad vaba kogumiskoha ja taastavad ummikust marsruudi. Roheoru/õpetuse layout14 jaoks alusta uut matši: layout13 salvestus ei sobi muutunud kaardiga, vana salvestus jääb alles eraldi võtmes. Muudatused ei ole veel avalikus GPU-ga mänguvaates hinnatud.
+
 Järgmise arenduse põhiplaan: [viimistlus → alpha → beta](docs/DEVELOPMENT-PLAN.md). Aktiivne tööjärjekord on TODO alguses; vanad etapinimed ei määra uut arendust.
 
 ## Käivitamine Dockeris

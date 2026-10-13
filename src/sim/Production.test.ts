@@ -37,7 +37,10 @@ it("physical air operations: production, runway queue, mission, landing and fini
   w.issue({type:"air-return",ids:[pad.id]});let landed=false;
   for(let i=0;i<1800;i++){w.tick(SIM_STEP);if(plane.airState==="rearming"||plane.airState==="grounded"){landed=true;break;}}
   expect(landed).toBe(true);expect(plane.airReturnReason).toBe("manual");expect(Math.hypot(plane.x-airParkingPoint(plane,pad).x,plane.z-airParkingPoint(plane,pad).z)).toBeLessThan(1);
-  const depot=w.entities.find(e=>e.kind==="supply")!,stock=depot.ammoStock!;for(let i=0;i<90;i++)w.tick(SIM_STEP);expect(plane.ammo).toBe(plane.maxAmmo);expect(depot.ammoStock).toBeLessThan(stock);
+  const depot=w.entities.find(e=>e.kind==="supply")!;let consumed=0;
+  // A longer turn/approach can coincide with an incoming physical delivery: measure service withdrawals, not net stock.
+  for(let i=0;i<90;i++){const stock=depot.ammoStock!;w.tick(SIM_STEP);consumed+=Math.max(0,stock-depot.ammoStock!);}
+  expect(plane.ammo).toBe(plane.maxAmmo);expect(consumed).toBeGreaterThan(0);
   const copy=airWorld();loadWorld(copy,JSON.parse(JSON.stringify(saveWorld(w))));expect(worldHash(copy)).toBe(worldHash(w));
 });
 it("physical air operations: helicopter rises vertically and cannot fly without a facility",()=>{

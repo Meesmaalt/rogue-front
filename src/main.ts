@@ -211,7 +211,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   hud.onAirReturn=ids=>{if(running&&!paused){commands.cancelOrders();world.issue({type:"air-return",ids});hud.setWarning("EVAC: lennuvägi naaseb baasi");}};
   hud.onAirMission=(ids,mission)=>{if(running&&!paused){commands.startAirMission(ids,mission);hud.setWarning("Õhuoperatsioon: paremklõps sihtpunktile, Esc tühistab");}};
   hud.onCancelProduce = (producerId) => { if (running && !paused) world.issue({ type: "cancel-produce", producerId }); };
-  const saveKey = SAVE_PREFIX + mission.id + (mission.id==="roheorg"?".layout13":mission.id==="operation-tidebreaker"?".coast3":mission.id==="tutorial-logistics"?".training13":"") + "." + (skirmish ? activeMode : "campaign") + "." + faction;
+  const saveKey = SAVE_PREFIX + mission.id + (mission.id==="roheorg"?".layout14":mission.id==="operation-tidebreaker"?".coast3":mission.id==="tutorial-logistics"?".training14":"") + "." + (skirmish ? activeMode : "campaign") + "." + faction;
   const sessionContext=JSON.stringify({mission:mission.id,seed:mission.seed,heightmap:mission.map.heightmap,terrain:mission.map.terrainProfile,maxHeight:mission.map.maxHeight,mode:skirmish?activeMode:"campaign",faction});
   // Avoid reading/copying a potentially multi-megabyte snapshot five times a second.
   const readSaveAvailability=()=>{try{return !multiplayer&&localStorage.getItem(saveKey)!==null;}catch{return false;}};

@@ -163,6 +163,7 @@ export interface Entity {
   aiDecisionAt?: number;
   aiIntent?: "attack" | "defend" | "recon" | "resupply" | "counterbattery" | "retreat" | null;
   gunElevation?:number;weaponCooldowns?:number[];secondaryAmmo?:number[];activeWeapon?:number;
+  motionReverse?: boolean; flightVx?: number; flightVz?: number;
   motionSpeed?: number; flightBank?: number; flightPitch?: number; flightOrbitCenter?: Point; airLandingPhase?: "approach"|"final";
   airHomeSlot?:number;airTaxiPhase?:"apron"|"lining-up"|"runway";combatPosition?:Point;combatPositionTarget?:number;combatPositionAnchor?:Point;combatPositionRetryAt?:number;taskApproachIndex?:number;
   airState?: AirState; airMissionHomeId?: number | null; airSortieTime?: number; airMission?: AirMission; airMissionPoint?: Point | null; fireMission?: Point | null; lastCombatTime: number; morale?: number; disabledUntil?: number; builderIds: number[]; underConstruction: boolean; cargoUnitIds: number[]; loadedIntoId: number | null; transportTargetId: number | null; unloadPoint: Point | null; standingOrder?: "hold" | "patrol" | "attack" | "holdfire" | null; priorityFocus?: "supply" | "generator" | "aa" | null; preDeployOrder?: { mode: "move" | "attack" | "hold"; x?: number; z?: number } | null;

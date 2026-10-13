@@ -6,7 +6,7 @@
           "name": "M256 120 mm APFSDS",
           "range": 86,
           "penetration": 29,
-          "accuracy": 0.8,
+          "accuracy": 0.86,
           "cooldown": 2.8,
           "ammoCapacity": 40,
           "stabilizer": "full",
@@ -422,7 +422,10 @@
           "muzzle": 2.6,
           "muzzleHeight": 0.66,
           "muzzleSide": 0,
-          "targetHelicopters": true
+          "targetHelicopters": true,
+          "range": 68,
+          "damage": 12,
+          "accuracy": 0.7
         },
         {
           "name": "Hydra 70",
@@ -640,7 +643,7 @@
           "name": "2A46M 125 mm APFSDS",
           "range": 80,
           "penetration": 28,
-          "accuracy": 0.74,
+          "accuracy": 0.81,
           "cooldown": 3.2,
           "ammoCapacity": 42,
           "stabilizer": "full",
@@ -1056,7 +1059,10 @@
           "muzzle": 2.6,
           "muzzleHeight": 0.66,
           "muzzleSide": 0,
-          "targetHelicopters": true
+          "targetHelicopters": true,
+          "range": 64,
+          "damage": 13,
+          "accuracy": 0.66
         },
         {
           "name": "S-8 80 mm",
@@ -1274,7 +1280,7 @@
           "name": "ZPT-98 125 mm APFSDS",
           "range": 82,
           "penetration": 27,
-          "accuracy": 0.76,
+          "accuracy": 0.78,
           "cooldown": 3,
           "ammoCapacity": 38,
           "stabilizer": "full",
@@ -1690,7 +1696,10 @@
           "muzzle": 2.6,
           "muzzleHeight": 0.66,
           "muzzleSide": 0,
-          "targetHelicopters": true
+          "targetHelicopters": true,
+          "range": 64,
+          "damage": 13,
+          "accuracy": 0.66
         },
         {
           "name": "90 mm raketid",

@@ -67,3 +67,12 @@ it('secondary SAM reach drives helicopter avoidance without deleting its origina
  const copy=world();loadWorld(copy,JSON.parse(JSON.stringify(saveWorld(w))));expect(worldHash(copy)).toBe(worldHash(w));
  u.x=aa.x-r*.1;updateAirDoctrine(w,u,SIM_STEP);expect(u.airState).toBe('returning');expect(u.airReturnReason).toBe('threat');expect(u.flightAttackExit).toBeUndefined();
 });
+
+it('helicopter translation retains velocity while turning and restores the same continued flight',()=>{
+ const w=world(),pad=w.spawn('helipad',0,-100,-160),u=w.spawn('heli',0,-50,-100);
+ u.airMissionHomeId=pad.id;u.airState='airborne';u.y=heightAt(u.x,u.z)+30;u.heading=Math.PI/2;u.motionSpeed=12;u.flightVx=12;u.flightVz=0;u.standingOrder='holdfire';
+ w.issue({type:'move',ids:[u.id],x:-120,z:-100});const start=u.x;w.tick(SIM_STEP);
+ expect(u.x).toBeGreaterThan(start);expect(u.flightVx).toBeGreaterThan(11);
+ const copy=world();loadWorld(copy,JSON.parse(JSON.stringify(saveWorld(w))));expect(worldHash(copy)).toBe(worldHash(w));
+ for(let i=0;i<120;i++){w.tick(SIM_STEP);copy.tick(SIM_STEP);}expect(worldHash(copy)).toBe(worldHash(w));expect(u.flightVx).toBeLessThan(0);
+});

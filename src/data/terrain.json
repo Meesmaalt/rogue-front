@@ -43,6 +43,13 @@
     "suppression": 7,
     "smokeLifetime": 18,
     "burntCover": 0.18,
-    "lodDistance": 260
+    "lodDistance": 220,
+    "treeArea": 16,
+    "treeScaleMinimum": 0.7,
+    "treeScaleVariation": 0.35,
+    "crownRadius": 3.2,
+    "crownHeight": 2.6,
+    "trunkHeight": 4,
+    "crownBaseHeight": 4.1
   }
 }

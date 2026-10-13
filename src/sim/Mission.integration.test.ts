@@ -75,6 +75,8 @@ it("tutorial reaches transport and urban combat through actual paid commands and
  wait(()=>inf.loadedIntoId===apc.id);expect(w.missionController!.preparing).toBe(true);
  const house=w.mapFeatures.filter(isGarrisonBuilding).reduce((a,b)=>Math.hypot(a.x-apc.x,a.z-apc.z)<Math.hypot(b.x-apc.x,b.z-apc.z)?a:b);
  w.issue({type:"unload",ids:[apc.id],x:house.x+12,z:house.z});wait(()=>inf.loadedIntoId==null);
+ // Prepare reserves before the tutorial releases enemy planning; use paid production and real income.
+ const tanks=[w.entities.find(e=>e.team===0&&e.kind==="tank")!,produce("tank",factory.id),produce("tank",factory.id),produce("tank",factory.id)];
  w.issue({type:"enter-building",ids:[inf.id],featureId:house.id});wait(()=>inf.garrisonId===house.id);
  w.tick(SIM_STEP);
  expect(w.missionController!.activeObjective?.id).toBe("destroy-enemy-supply");
@@ -84,7 +86,7 @@ it("tutorial reaches transport and urban combat through actual paid commands and
  const copy=new World(m.seed,true,m.map.resources,m.map.features,m.map.bases,m.map.baseDefenses??true);
  loadWorld(copy,saveWorld(w));expect(copy.missionController!.preparing).toBe(false);
  // Repeated production in the constructed base must not place tanks in sealed pockets.
- const tanks=[w.entities.find(e=>e.team===0&&e.kind==="tank")!,produce("tank",factory.id),produce("tank",factory.id),produce("tank",factory.id)];
+
  w.issue({type:"amove",ids:tanks.map(e=>e.id),x:280,z:-140});w.tick(SIM_STEP);
  expect(w.events.filter(e=>e.type==="order-rejected"&&tanks.some(t=>t.id===e.unitId))).toEqual([]);
  for(const tank of tanks){expect(tank.mode).toBe("amove");expect(tank.navPath.length).toBeGreaterThan(0);}

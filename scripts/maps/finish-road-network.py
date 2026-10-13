@@ -55,6 +55,6 @@ for i,r in enumerate(m['resources']):
     if f['id']==f'resource-yard-{i}':f['x']=x;f['z']=z
    break
  else:raise RuntimeError('No safe facility placement')
-m['features']=features+roads;m['layoutVersion']=13
+m['features']=features+roads;m['layoutVersion']=14
 p.write_text(json.dumps(mission,ensure_ascii=False,indent=2)+'\n')
 print('Roheorg',len(roads),'connected road segments')
