@@ -64,6 +64,7 @@
     "crownRadius": 3.2,
     "crownHeight": 2.6,
     "trunkHeight": 4,
-    "crownBaseHeight": 4.1
+    "crownBaseHeight": 4.1,
+    "placementBudget": 60000
   }
 }
