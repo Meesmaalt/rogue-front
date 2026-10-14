@@ -3,18 +3,19 @@ import * as THREE from "three";
 import {batchStaticScene,createCivilianBuilding} from "./Architecture";
 
 afterEach(()=>vi.unstubAllGlobals());
-it("keeps facade materials and roof silhouette across civilian LODs",()=>{
+it("keeps roof silhouette and textured facades with one distant-house draw",()=>{
   // Geometry-only check; no WebGL or browser visual-quality claim.
   vi.stubGlobal("document",{createElement:()=>({width:0,height:0,getContext:()=>({
     createImageData:(w:number,h:number)=>({data:new Uint8ClampedArray(w*h*4)}),
-    putImageData:()=>{},fillRect:()=>{},fillStyle:"",
+    putImageData:()=>{},fillRect:()=>{},drawImage:()=>{},fillStyle:"",
   })})});
   for(const height of [3.6,6.4])for(const variant of [1,3]){
     const near=createCivilianBuilding(6.4,7.2,height,variant),far=createCivilianBuilding(6.4,7.2,height,variant,true);
     const nearBounds=new THREE.Box3().setFromObject(near),farBounds=new THREE.Box3().setFromObject(far);
     expect(Math.abs(nearBounds.max.y-farBounds.max.y)).toBeLessThan(.2);
     const facade=(g:THREE.Group)=>g.children.find(o=>o instanceof THREE.Mesh&&(o.material as THREE.MeshStandardMaterial).map?.repeat.x===1) as THREE.Mesh;
-    expect(facade(near).material).toBe(facade(far).material);
+    expect((facade(near).material as THREE.MeshStandardMaterial).map).toBeTruthy();
+    expect(far.children).toHaveLength(1);expect((facade(far).material as THREE.MeshStandardMaterial).vertexColors).toBe(true);
     expect(near.children.length).toBeLessThanOrEqual(6);
     expect(farBounds.max.y).toBeGreaterThan(height);
     for(const g of [near,far])g.traverse(o=>{if(o instanceof THREE.Mesh){expect([...o.geometry.attributes.position.array].every(Number.isFinite)).toBe(true);o.geometry.dispose();}});

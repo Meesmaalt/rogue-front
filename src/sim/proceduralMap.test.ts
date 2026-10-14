@@ -68,3 +68,15 @@ it("large regional deployment has routes to both bases and all nine resource loa
  for(const r of w.resourcePoints){expect(w.nav.isWalkableWorld(r.x,r.z,1.5),r.label).toBe(true);expect(findPath(w.nav,map.bases[0],r,1.5).length,r.label).toBeGreaterThan(0);}
  for(const e of w.entities.filter(e=>e.def.speed>0&&e.def.domain==="land"&&e.kind!=="engineer"))expect(w.nav.isWalkableWorld(e.x,e.z,e.def.radius),e.kind).toBe(true);
 },20000);
+
+it("v4 archetypes change relief and settlement silhouettes while preserving v3 reconstruction",()=>{
+ const hills=generateProceduralMap(27,"highlands"),river=generateProceduralMap(27,"river"),city=generateProceduralMap(27,"urban"),forest=generateProceduralMap(27,"forest");
+ expect(Math.max(...hills.map.landforms!.map(f=>f.height))).toBeGreaterThan(32);
+ expect(Math.max(...river.map.landforms!.map(f=>f.height))).toBeLessThanOrEqual(10);
+ const houses=(m:ReturnType<typeof generateProceduralMap>)=>m.map.features!.filter(f=>f.kind==="building");
+ expect(houses(city).length).toBeGreaterThan(houses(forest).length);
+ expect(houses(city).some(f=>f.buildingStyle==="industrial")).toBe(true);
+ expect(houses(forest).filter(f=>f.id.startsWith("town-")).every(f=>f.buildingStyle==="rural")).toBe(true);
+ const old=generateProceduralMap(62510,"balanced",1792,3);expect(old.id).toBe("procedural-v3-balanced-1792-62510");expect(getPlayableMap(old.id)).toEqual(old);
+ expect(getPlayableMap(city.id)).toEqual(city);
+});

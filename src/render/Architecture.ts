@@ -1,12 +1,13 @@
 import * as THREE from "three";
 import {mergeGeometries} from "three/addons/utils/BufferGeometryUtils.js";
 import type {UnitKind,Team} from "../sim/types";
+import type {MapFeatureDef} from "../sim/mapFeatures";
 import type {FactionId} from "../sim/factions";
 import {mulberry32} from "../sim/rng";
 
 const textures=new Map<string,THREE.CanvasTexture>();
 const materials=new Map<string,THREE.MeshStandardMaterial>();
-function surface(kind:"plaster"|"brick"|"metal"|"roof"|"concrete"|"facade1"|"facade2"):THREE.CanvasTexture {
+function surface(kind:"plaster"|"brick"|"metal"|"roof"|"concrete"|"facade1"|"facade2"|"facade3"):THREE.CanvasTexture {
   const cached=textures.get(kind);if(cached)return cached;
   const canvas=document.createElement("canvas");canvas.width=canvas.height=256;const c=canvas.getContext("2d")!,random=mulberry32(311+kind.length);
   const image=c.createImageData(256,256);
@@ -19,9 +20,9 @@ function surface(kind:"plaster"|"brick"|"metal"|"roof"|"concrete"|"facade1"|"fac
   }
   c.putImageData(image,0,0);
   if(kind.startsWith("facade")){
-    const floors=kind==="facade2"?2:1;
+    const floors=kind==="facade3"?3:kind==="facade2"?2:1;
     for(let floor=0;floor<floors;floor++)for(const x of [43,111,179]){
-      const y=floors===2?44+floor*99:75;c.fillStyle="#b4b5a8";c.fillRect(x-3,y-3,39,54);c.fillStyle="#4b5b5c";c.fillRect(x,y,33,47);c.fillStyle="#969d96";c.fillRect(x+15,y,2,47);c.fillRect(x,y+23,33,2);
+      const y=floors>1?18+floor*(210/floors):75;c.fillStyle="#b4b5a8";c.fillRect(x-3,y-3,39,54);c.fillStyle="#4b5b5c";c.fillRect(x,y,33,47);c.fillStyle="#969d96";c.fillRect(x+15,y,2,47);c.fillRect(x,y+23,33,2);
     }
     c.fillStyle="#797c72";c.fillRect(0,238,256,18);
   }
@@ -63,13 +64,14 @@ function facade(g:THREE.Group,w:number,d:number,h:number,floors:number,wall:THRE
   for(const x of [-w/2+.12,w/2-.12])box(g,.07,h,.09,x,h/2,d/2+.12,frames);
 }
 /** Original civilian models: gable roof, facade, sill, rain pipes, chimney and annex. */
-export function createCivilianBuilding(width:number,depth:number,height:number,variant=0,tactical=false,roofColor?:number):THREE.Group {
-  const g=new THREE.Group(),wall=material([0xb9b4a3,0xa39f91,0xc5bba7,0x9a9d8e][variant%4],height>5?"facade2":"facade1"),concrete=material(0x8c8e83,"concrete"),tiles=material(roofColor??[0x706259,0x565f61,0x8a7060][variant%3],"roof");
+export function createCivilianBuilding(width:number,depth:number,height:number,variant=0,tactical=false,roofColor?:number,style:MapFeatureDef["buildingStyle"]="residential"):THREE.Group {
+  const g=new THREE.Group(),wall=material([0xb9b4a3,0xa39f91,0xc5bba7,0x9a9d8e][variant%4],style==="industrial"?"metal":height>8?"facade3":height>5?"facade2":"facade1"),concrete=material(0x8c8e83,"concrete"),tiles=material(roofColor??[0x706259,0x565f61,0x8a7060][variant%3],"roof");
   // Height describes the whole house, rather than a wall plus an extra tall roof.
-  const rise=Math.min(1.25,height*.22),wallHeight=height-rise-.2;
+  const rise=style==="industrial"?.24:Math.min(1.25,height*.22),wallHeight=height-rise-.2;
   box(g,width+.3,.2,depth+.3,0,.1,0,concrete);
   box(g,width,wallHeight,depth,0,wallHeight/2+.2,0,wall);
-  if(variant%4===1)hipRoof(g,width+.35,depth+.35,wallHeight+.2,rise,tiles);else roof(g,width+.35,depth+.35,wallHeight+.2,rise,tiles);
+  if(style==="industrial")box(g,width+.35,.24,depth+.35,0,height-.12,0,material(0x7c8384,"metal"));
+  else if(style==="rowhouse"||variant%4===1)hipRoof(g,width+.35,depth+.35,wallHeight+.2,rise,tiles);else roof(g,width+.35,depth+.35,wallHeight+.2,rise,tiles);
   box(g,1.15,1.95,.10,0,1.18,depth/2+.06,material(0x514f43,"metal"));
   box(g,1.65,.14,.85,0,.12,depth/2+.35,concrete);
   box(g,.42,.85,.45,width*.25,height-.05,-depth*.2,material(0x8a786b,"brick"));
@@ -82,7 +84,40 @@ export function createCivilianBuilding(width:number,depth:number,height:number,v
     if(variant%3===0){box(g,2,.12,1.2,0,.15,depth/2+.55,concrete);box(g,2.2,.12,1.4,0,2.35,depth/2+.6,tiles);}
     if(variant%3===1){box(g,2,.95,.12,-width*.23,1.45,depth/2+.1,material(0x334951,undefined,.35));box(g,2.2,.12,.75,-width*.23,2.1,depth/2+.35,tiles);}
   }
-  return batch(g);
+  return tactical?batchDistantHouse(g):batch(g);
+}
+
+let distantHouseMaterial:THREE.MeshStandardMaterial|undefined;
+const houseAtlasKinds=["facade1","facade2","facade3","roof","concrete","metal","brick"] as const;
+/** One shared opaque material/draw per distant house, while retaining its garrison root. */
+function batchDistantHouse(group:THREE.Group):THREE.Group {
+  if(!distantHouseMaterial){
+    const canvas=document.createElement("canvas");canvas.width=512;canvas.height=256;
+    const c=canvas.getContext("2d")!;c.fillStyle="#fff";c.fillRect(0,0,512,256);
+    houseAtlasKinds.forEach((kind,i)=>{
+      const image=surface(kind).image as HTMLCanvasElement,x=(i%4)*128,y=Math.floor(i/4)*128,repeat=kind.startsWith("facade")?1:2;
+      // Repeat within each atlas cell; gutters keep neighbouring materials out of mip edges.
+      for(let z=0;z<repeat;z++)for(let a=0;a<repeat;a++)c.drawImage(image,x+2+a*124/repeat,y+2+z*124/repeat,124/repeat,124/repeat);
+    });
+    const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=4;
+    distantHouseMaterial=new THREE.MeshStandardMaterial({map:texture,vertexColors:true,roughness:.94});distantHouseMaterial.userData.sharedArt=true;
+  }
+  group.updateMatrixWorld(true);const parts:THREE.BufferGeometry[]=[];
+  group.traverse(o=>{
+    if(!(o instanceof THREE.Mesh)||!(o.material instanceof THREE.MeshStandardMaterial))return;
+    const source=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone(),uv=source.getAttribute("uv"),n=source.getAttribute("position").count;
+    source.applyMatrix4(o.matrixWorld);
+    const tile=houseAtlasKinds.findIndex(kind=>o.material instanceof THREE.MeshStandardMaterial&&o.material.map===textures.get(kind));
+    const index=tile<0?7:tile,colors=new Float32Array(n*3);
+    for(let i=0;i<n;i++){
+      uv.setXY(i,((index%4)*128+2+uv.getX(i)*124)/512,1-(Math.floor(index/4)*128+2+(1-uv.getY(i))*124)/256);
+      o.material.color.toArray(colors,i*3);
+    }
+    source.setAttribute("color",new THREE.BufferAttribute(colors,3));parts.push(source);
+  });
+  const geometry=mergeGeometries(parts,false)!;for(const p of parts)p.dispose();
+  group.traverse(o=>{if(o instanceof THREE.Mesh)o.geometry.dispose();});group.clear();
+  const mesh=new THREE.Mesh(geometry,distantHouseMaterial);mesh.castShadow=mesh.receiveShadow=true;group.add(mesh);return group;
 }
 
 const kinds=new Set(["hq","barracks","factory","supply","generator","helipad","airbase","refinery","shipyard","landCommand","airCommand","seaCommand","landStrategy","airStrategy","seaStrategy","combatEngineer"]);

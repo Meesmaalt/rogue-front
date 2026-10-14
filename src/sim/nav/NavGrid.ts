@@ -16,6 +16,8 @@ export class NavGrid {
   readonly height = this.width;
   readonly blocked = new Uint8Array(this.width*this.height);
 
+  private readonly dynamicCells:number[]=[];
+
   constructor(entities: readonly Entity[] = [], features: readonly MapFeatureDef[] = [], terrain=true) {
     if(terrain){this.buildTerrain();this.syncFeatures(features);this.syncBuildings(entities);}
   }
@@ -52,6 +54,7 @@ export class NavGrid {
   }
 
   syncFeatures(features: readonly MapFeatureDef[]): void {
+    this.clearBuildings();
     // Static map geometry occupies state 1; dynamic buildings use state 2.
     for (let i = 0; i < this.blocked.length; i++) if (this.blocked[i] !== 2) {
       // Preserve terrain slope cells by rebuilding them before applying features.
@@ -85,8 +88,13 @@ export class NavGrid {
     }
   }
 
+  private clearBuildings():void {
+    for(const i of this.dynamicCells)if(this.blocked[i]===2)this.blocked[i]=0;
+    this.dynamicCells.length=0;
+  }
+
   syncBuildings(entities: readonly Entity[]): void {
-    for (let i = 0; i < this.blocked.length; i++) if (this.blocked[i] === 2) this.blocked[i] = 0;
+    this.clearBuildings();
     for (const e of entities) {
       if (e.dead || e.def.speed > 0 || e.underConstruction) continue;
       const c = this.worldToCell(e.x, e.z);
@@ -94,7 +102,7 @@ export class NavGrid {
       for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
         if (dx * dx + dz * dz > r * r) continue;
         const x = c.x + dx, z = c.z + dz;
-        if (this.inBounds(x, z) && this.blocked[this.index(x, z)] === 0) this.blocked[this.index(x, z)] = 2;
+        if (this.inBounds(x, z) && this.blocked[this.index(x, z)] === 0) {const i=this.index(x,z);this.blocked[i]=2;this.dynamicCells.push(i);}
       }
     }
   }

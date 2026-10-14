@@ -33,5 +33,135 @@
   ],
   "defaultSize": 1792,
   "regionalParcelSpacing": 144,
-  "regionalResourceStock": 2400
+  "regionalResourceStock": 2400,
+  "profiles": {
+    "balanced": {
+      "mainBlocks": 3,
+      "houseChance": 0.92,
+      "height": [
+        4.1,
+        7.2
+      ],
+      "styles": [
+        "residential",
+        "rowhouse",
+        "rural"
+      ],
+      "hills": 6,
+      "hillHeight": [
+        9,
+        22
+      ],
+      "hillWidth": [
+        180,
+        260
+      ]
+    },
+    "river": {
+      "mainBlocks": 3,
+      "houseChance": 0.87,
+      "height": [
+        3.9,
+        6.3
+      ],
+      "styles": [
+        "residential",
+        "rural"
+      ],
+      "hills": 4,
+      "hillHeight": [
+        3,
+        10
+      ],
+      "hillWidth": [
+        210,
+        300
+      ]
+    },
+    "highlands": {
+      "mainBlocks": 2,
+      "houseChance": 0.82,
+      "height": [
+        3.8,
+        6.2
+      ],
+      "styles": [
+        "rural",
+        "residential"
+      ],
+      "hills": 8,
+      "hillHeight": [
+        32,
+        58
+      ],
+      "hillWidth": [
+        230,
+        340
+      ]
+    },
+    "urban": {
+      "mainBlocks": 4,
+      "houseChance": 0.97,
+      "height": [
+        6.8,
+        10.8
+      ],
+      "styles": [
+        "rowhouse",
+        "residential",
+        "industrial"
+      ],
+      "hills": 3,
+      "hillHeight": [
+        4,
+        12
+      ],
+      "hillWidth": [
+        230,
+        310
+      ]
+    },
+    "forest": {
+      "mainBlocks": 2,
+      "houseChance": 0.76,
+      "height": [
+        3.5,
+        5.2
+      ],
+      "styles": [
+        "rural"
+      ],
+      "hills": 6,
+      "hillHeight": [
+        12,
+        27
+      ],
+      "hillWidth": [
+        170,
+        250
+      ]
+    },
+    "coastal": {
+      "mainBlocks": 3,
+      "houseChance": 0.88,
+      "height": [
+        3.8,
+        6.4
+      ],
+      "styles": [
+        "residential",
+        "industrial",
+        "rural"
+      ],
+      "hills": 4,
+      "hillHeight": [
+        3,
+        12
+      ],
+      "hillWidth": [
+        200,
+        290
+      ]
+    }
+  }
 }
