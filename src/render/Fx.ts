@@ -4,6 +4,7 @@ import * as THREE from "three";
 import {mergeGeometries} from "three/addons/utils/BufferGeometryUtils.js";
 import type {World} from "../sim/World";
 import type {SimEvent,Projectile} from "../sim/types";
+import {maxHitPoints} from "../sim/unitStats";
 import {heightAt} from "../sim/heightmap";
 
 type ParticleKind="smoke"|"vapor"|"dust"|"glow"|"spark";
@@ -19,6 +20,8 @@ function particleTexture():THREE.CanvasTexture {
 /** Bounded billboard batches; trails follow actual simulated 3D flight. */
 export class Fx {
   private forestTimer=0;
+  private ambientTimer=0;
+  private ambientCursor=0;
   private pools:Record<ParticleKind,Pool>;
   private shells=new Map<number,Shell>();
   private models=new Map<string,THREE.Group>();
@@ -48,6 +51,7 @@ export class Fx {
     this.pools={smoke:make("smoke",effects.pools.smoke),vapor:make("vapor",effects.pools.vapor),dust:make("dust",effects.pools.dust),glow:make("glow",effects.pools.glow),spark:make("spark",effects.pools.spark)};
   }
   reset():void {
+    this.forestTimer=this.wakeTimer=this.ambientTimer=this.ambientCursor=0;
     for(const s of this.shells.values())this.scene.remove(s.group);this.shells.clear();
     for(const pool of Object.values(this.pools)){pool.particles.length=0;pool.mesh.count=0;}
     for(const r of this.rings){this.scene.remove(r.mesh);(r.mesh.material as THREE.Material).dispose();}this.rings.length=0;
@@ -73,6 +77,34 @@ export class Fx {
       if(!c.burnt){this.emit("glow",x,y+1,z,2.5,.65,0xff942d,0,2.5,0,2);this.emit("spark",x,y+1,z,.16,1.2,0xffd56a,this.r(2),4,this.r(2));}
     }
   }
+  /** Cosmetic only: bounded, staggered emitters; hidden enemies never expose their state. */
+  syncUnitEffects(world:World,dt:number):void {
+    this.ambientTimer+=dt;const cfg=effects.ambient;if(this.ambientTimer<cfg.interval)return;this.ambientTimer%=cfg.interval;
+    this.camera.updateMatrixWorld();this.frustum.setFromProjectionMatrix(this.projection.multiplyMatrices(this.camera.projectionMatrix,this.camera.matrixWorldInverse));
+    const count=world.entities.length;if(!count)return;let emitted=0;
+    for(let n=0;n<count;n++){
+      const u=world.entities[(this.ambientCursor+n)%count];
+      if(u.dead||u.loadedIntoId!=null||u.underConstruction||u.def.category==="infantry"||u.team!==world.playerTeam&&!world.isSpottedByTeam(u,world.playerTeam))continue;
+      this.point.set(u.x,u.y+u.def.height*.5,u.z);
+      if(this.camera.position.distanceToSquared(this.point)>cfg.distance**2||!this.frustum.containsPoint(this.point))continue;
+      const ground=heightAt(u.x,u.z),altitude=u.y-ground,speed=Math.abs(u.motionSpeed??0),radius=u.def.radius;
+      const damaged=u.hp/maxHitPoints(u)<cfg.damageThreshold||(u.components?.engine??0)>cfg.engineThreshold;
+      const rotor=u.def.category==="heli"&&altitude>1&&altitude<cfg.rotorHeight&&speed<cfg.rotorMaxSpeed;
+      const moving=u.def.speed>0&&u.def.armor!=="air"&&u.def.domain!=="sea"&&speed>cfg.groundSpeed&&altitude<cfg.maxGroundAltitude&&!world.waterNav.isWalkableWorld(u.x,u.z);
+      if(!damaged&&!rotor&&!moving)continue;
+      if(damaged)this.emit("smoke",u.x-Math.sin(u.heading)*radius*.4,u.y+u.def.height*.8,u.z-Math.cos(u.heading)*radius*.4,Math.max(.5,radius*.28),cfg.smokeLife,0x51544f,.45,1.6,.2);
+      if(moving){
+        const dir=(u.motionReverse?-1:1),dx=Math.sin(u.heading)*dir,dz=Math.cos(u.heading)*dir;
+        for(const side of [-1,1])this.emit("dust",u.x-dx*radius+dz*radius*.5*side,ground+.3,u.z-dz*radius-dx*radius*.5*side,Math.max(.4,radius*.25),cfg.dustLife,0xa99d82,-dx*1.8,.4,-dz*1.8);
+      }
+      if(rotor){
+        const strength=1-altitude/cfg.rotorHeight;
+        for(let i=0;i<3;i++){const angle=Math.random()*Math.PI*2,dx=Math.sin(angle),dz=Math.cos(angle);this.emit("dust",u.x+dx*radius*1.5,ground+.2,u.z+dz*radius*1.5,radius*.4*strength,cfg.dustLife,0xb0a489,dx*5,.4,dz*5);}
+      }
+      if(++emitted>=cfg.maxUnits){this.ambientCursor=(this.ambientCursor+n+1)%count;return;}
+    }
+    this.ambientCursor=(this.ambientCursor+1)%count;
+  }
   handleEvents(events:SimEvent[],world:World):void {
     for(const e of events){
       if((e.type==="fire"&&e.team!==world.playerTeam||e.type!=="fire")&&!world.vision.isVisible(world.playerTeam,e.x,e.z))continue;
@@ -86,6 +118,12 @@ export class Fx {
           if(!small&&e.y-heightAt(e.x,e.z)<3)for(let i=0;i<5;i++)this.emit("dust",e.x,heightAt(e.x,e.z)+.2,e.z,.6,.55,0xab9c7c,this.r(4),Math.random(),this.r(4));
         }
       }else if(e.type==="impact"){
+        if(e.result==="intercept"){
+          this.emit("glow",e.x,e.y,e.z,1.1,.12,0xfff2cf);
+          this.emit("smoke",e.x,e.y,e.z,.9,.7,0xb7b7ad);
+          for(let i=0;i<10;i++)this.emit("spark",e.x,e.y,e.z,.12,.25,0xffdfac,this.r(14),this.r(10),this.r(14),3);
+          continue;
+        }
         if(world.waterNav.isWalkableWorld(e.x,e.z)&&e.y-world.waterNav.surfaceAt(e.x,e.z)<6){
           const surface=world.waterNav.surfaceAt(e.x,e.z)+.2;
           for(let i=0;i<18;i++)this.emit("dust",e.x,surface,e.z,.5,.7,0xb8dce3,this.r(8),2+Math.random()*9,this.r(8),7);
@@ -94,8 +132,13 @@ export class Fx {
           for(let i=0;i<12;i++)this.emit("spark",e.x,e.y,e.z,.1,.3,0xffda94,this.r(10),Math.random()*6,this.r(10),3);
           this.emit("smoke",e.x,e.y,e.z,.7,.6,0x9a988e);continue;
         }
-        if(e.weapon==="bullet"||e.visual==="sniper"){
-          for(let i=0;i<3;i++)this.emit("dust",e.x,e.y,e.z,.25,.25,0xab9c7c,this.r(2),Math.random()*2,this.r(2));continue;
+        if(e.visual==="sabot"||e.visual==="autocannon"||e.weapon==="bullet"||e.visual==="sniper"){
+          if(e.result==="penetration"){
+            this.emit("glow",e.x,e.y,e.z,e.visual==="sabot"?.65:.25,.08,0xffe5b4);
+            for(let i=0;i<6;i++)this.emit("spark",e.x,e.y,e.z,.09,.25,0xffd297,this.r(8),Math.random()*4,this.r(8),2);
+            this.emit("smoke",e.x,e.y,e.z,.45,.5,0x8e8e83);
+          }else for(let i=0;i<3;i++)this.emit("dust",e.x,e.y,e.z,e.visual==="sabot"?.6:.25,.35,0xab9c7c,this.r(3),Math.random()*2,this.r(3));
+          continue;
         }
         const heavy=["bomb","howitzer","mlrs","cruise","anti-ship","torpedo"].includes(e.visual??""),size=heavy?2.2:e.visual==="mortar"?1.35:e.result==="penetration"?.75:1.1;
         this.explode(e.x,e.y,e.z,size,e.result==="airburst");

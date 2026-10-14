@@ -1,7 +1,38 @@
 {
-  "pools": {"smoke":640,"vapor":960,"dust":320,"glow":192,"spark":256},
+  "pools": {
+    "smoke": 640,
+    "vapor": 960,
+    "dust": 320,
+    "glow": 192,
+    "spark": 256
+  },
   "trails": {
-    "missile": {"spacing":0.9,"size":0.48,"life":2.8,"color":14014158,"maxSamples":20},
-    "shell": {"spacing":2.2,"size":0.22,"life":0.85,"color":12500666,"maxSamples":12}
+    "missile": {
+      "spacing": 0.9,
+      "size": 0.48,
+      "life": 2.8,
+      "color": 14014158,
+      "maxSamples": 20
+    },
+    "shell": {
+      "spacing": 2.2,
+      "size": 0.22,
+      "life": 0.85,
+      "color": 12500666,
+      "maxSamples": 12
+    }
+  },
+  "ambient": {
+    "interval": 0.12,
+    "maxUnits": 48,
+    "damageThreshold": 0.45,
+    "engineThreshold": 60,
+    "groundSpeed": 2,
+    "maxGroundAltitude": 3,
+    "rotorHeight": 14,
+    "rotorMaxSpeed": 28,
+    "distance": 650,
+    "smokeLife": 2.6,
+    "dustLife": 0.7
   }
 }

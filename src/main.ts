@@ -370,7 +370,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       fx.handleEvents(events,world);
       audio.setListener(cam.x,cam.z,cam.yaw);audio.events(events, world.playerTeam);
       fx.syncProjectiles(world, visualAlpha);
-      fx.syncForestFires(world,frameDt);fx.syncNavalWakes(world,frameDt);
+      fx.syncForestFires(world,frameDt);fx.syncNavalWakes(world,frameDt);fx.syncUnitEffects(world,animationDt);
       fx.update(frameDt);
       const animateWater = ctx.water.material as THREE.ShaderMaterial;
       if (animateWater.uniforms?.time) animateWater.uniforms.time.value += frameDt;

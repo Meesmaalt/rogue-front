@@ -20,6 +20,6 @@ it('ballistic weapons share physical gravity, while direct fire does not acquire
 it('APS intercepts an incoming HEAT missile once; empty charges do not offer infinite protection',()=>{
  const w=fixture(),a=w.spawn('heli',0,-18,-170),t=w.spawn('tank',1,-10,-170);a.y=heightAt(a.x,a.z)+6;t.equipment={protection:'aps'};t.equipmentCharges=1;
  fireProjectile(w,a,t,a.x,a.y,a.z,0);const p=w.projectiles[0];p.x=t.x-3;p.y=t.y+2;p.z=t.z;p.hitChance=1;p.hitRoll=0;const hp=t.hp;run(w);
- expect(t.equipmentCharges).toBe(0);expect(t.hp).toBe(hp);expect(w.events.some(e=>e.type==='impact'&&e.result==='miss')).toBe(true);
+ expect(t.equipmentCharges).toBe(0);expect(t.hp).toBe(hp);expect(w.events.some(e=>e.type==='impact'&&e.result==='intercept')).toBe(true);
  fireProjectile(w,a,t,a.x,a.y,a.z,0);const second=w.projectiles[0];second.x=t.x-3;second.y=t.y+2;second.z=t.z;second.hitChance=1;second.hitRoll=0;run(w);expect(t.hp).toBeLessThan(hp);
 });

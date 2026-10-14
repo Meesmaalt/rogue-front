@@ -14,6 +14,10 @@ Mängukaardid on ainult protseduurkaardid. Ajaloolised Roheoru/Murdlaine kirjeld
 
 `naturalLandscape.ts` lisab kompaktse madala reljeefi ja muudab metsa servi, hoides kruntide/teede piirid. `farmland-natural` kõrgusprofiil jätab vana farmland kõrguse taastamistee alles. Puude/bushide paigutus on andmepõhise piiriga ning jagatud sim-vegetatsiooniga. Valmis algus kasutab lennuvälja ja stardivarustuse selgesõnalist granti. `battle-scale.json.weaponOverrides` eristab platvormide relvaulatusi. `AudioManager` loeb sündmusi ning kaamera asukohta, juhib eraldi master/SFX/music siine ja piirab hääli; audio ei muuda simi. Detailid: [NATURAL-LANDSCAPE-AUDIO-RELEASE.md](NATURAL-LANDSCAPE-AUDIO-RELEASE.md).
 
+## Lahingu tagasiside ja kontaktid
+
+`projectiles.ts.segmentBodyEntry` arvutab üksuse ellipsoidi esimese kontaktaja; põhiklasside reeglistik võrdleb seda takistuste proovitud kontaktajaga. APS kasutab sama segmendikontrolli ja annab eraldi `intercept` sündmuse. `Fx.syncUnitEffects` loeb tervist, komponendikahjustust ja liikumist, lisades olemasolevatesse piiratud partiidesse nähtavate üksuste suitsu/tolmu. See ei muuda simi ega loo eraldi üksusemeshe. Detailid: [COMBAT-FEEDBACK-RELEASE.md](COMBAT-FEEDBACK-RELEASE.md).
+
 ## Põhimõte
 Kolm kihti, sõltuvused ainult allapoole: **ui/input → sim ← render** (render ja ui *loevad* sim olekut, annavad käske, kuid sim ei tea neist midagi).
 

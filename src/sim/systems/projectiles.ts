@@ -7,6 +7,15 @@ import { heightAt } from "../heightmap";
 import {pointInFeature,featureBlocksMovement} from "../mapFeatures";
 import { damage, hitFace,armorValue,weaponDamageMultiplier,penetrationFactor } from "./combat";
 
+/** First segment entry into an axis-aligned ellipsoid; Infinity means no contact. */
+export function segmentBodyEntry(ax:number,ay:number,az:number,bx:number,by:number,bz:number,cx:number,cy:number,cz:number,radius:number,verticalRadius=radius):number {
+  const x=(ax-cx)/radius,y=(ay-cy)/verticalRadius,z=(az-cz)/radius;
+  const dx=(bx-ax)/radius,dy=(by-ay)/verticalRadius,dz=(bz-az)/radius;
+  const c=x*x+y*y+z*z-1;if(c<=0)return 0;
+  const a=dx*dx+dy*dy+dz*dz;if(a<=1e-12)return Infinity;
+  const b=x*dx+y*dy+z*dz,disc=b*b-a*c;if(disc<0)return Infinity;
+  const t=(-b-Math.sqrt(disc))/a;return t>=0&&t<=1?t:Infinity;
+}
 function blocked(w:World,obstacles:readonly Entity[],p:Projectile,x:number,y:number,z:number):boolean {
   if(y<=heightAt(x,z)+.12)return true;
   for(const f of w.terrain.coverFeaturesAt(x,z))if(f.kind!=="water"&&featureBlocksMovement(f)&&pointInFeature(x,z,f)&&y<heightAt(x,z)+(f.kind==="building"&&(w.infrastructureDamage.get(f.id)??0)>=1?GARRISON_RULES.rubbleHeight:f.height??3))return true;
@@ -86,25 +95,30 @@ export function updateProjectiles(w:World,dt:number):void {
         p.vx=vx/len*p.speed;p.vy=vy/len*p.speed;p.vz=vz/len*p.speed;
       }else {const old=Math.hypot(p.vx,p.vy,p.vz)||1;p.vx=p.vx/old*p.speed;p.vy=p.vy/old*p.speed;p.vz=p.vz/old*p.speed;}
     }
-    if(w.platformRosterOnly&&p.weapon==='missile'&&p.warhead==='heat'&&p.target&&!p.target.dead&&p.target.team!==p.team&&(p.target.equipmentCharges??0)>=1&&equipmentModule(p.target,'protection')?.interceptCharges&&Math.hypot(p.target.x-p.x,p.target.y+1-p.y,p.target.z-p.z)<p.target.def.radius+physics.activeProtectionRadius){
-      p.target.equipmentCharges=(p.target.equipmentCharges??0)-1;w.events.push({type:'impact',x:p.x,y:p.y,z:p.z,weapon:p.weapon,visual:p.visual,result:'miss',size:1});w.projectiles.splice(i,1);continue;
-    }
     const nx=p.x+p.vx*dt,ny=p.y+p.vy*dt-(ballistic?.5*(p.gravity??0)*dt*dt:0),nz=p.z+p.vz*dt;
     if(ballistic)p.vy-=(p.gravity??0)*dt;
-    const steps=Math.max(1,Math.ceil(Math.hypot(nx-p.x,ny-p.y,nz-p.z)/2));let terrain=false;
-    for(let j=1;j<=steps;j++){const t=j/steps,x=p.px+(nx-p.px)*t,y=p.py+(ny-p.py)*t,z=p.pz+(nz-p.pz)*t;if(blocked(w,obstacles,p,x,y,z)){p.x=x;p.y=Math.max(heightAt(x,z)+.12,y);p.z=z;terrain=true;break;}}
+    const steps=Math.max(1,Math.ceil(Math.hypot(nx-p.x,ny-p.y,nz-p.z)/2));let terrain=false,terrainT=Infinity;
+    for(let j=1;j<=steps;j++){const t=j/steps,x=p.px+(nx-p.px)*t,y=p.py+(ny-p.py)*t,z=p.pz+(nz-p.pz)*t;if(blocked(w,obstacles,p,x,y,z)){p.x=x;p.y=Math.max(heightAt(x,z)+.12,y);p.z=z;terrain=true;terrainT=t;break;}}
     if(!terrain){p.x=nx;p.y=ny;p.z=nz;}
     let crossed=false;
-    if(w.platformRosterOnly&&!terrain){
-      const dx=nx-p.px,dy=ny-p.py,dz=nz-p.pz,length=dx*dx+dy*dy+dz*dz||1;let first=Infinity,victim:Entity|null=null;
+    if(w.platformRosterOnly){
+      const dx=nx-p.px,dy=ny-p.py,dz=nz-p.pz;let first=terrainT,victim:Entity|null=null;
       w.spatial.queryRadius((nx+p.px)/2,(nz+p.pz)/2,Math.hypot(dx,dz)/2+physics.collisionSearchPadding,e=>{
         if(e.dead||e.team===p.team||e.loadedIntoId!=null||e.id===p.sourceId)return;
-        const t=Math.max(0,Math.min(1,((e.x-p.px!)*dx+(e.y+e.def.height*.45-p.py!)*dy+(e.z-p.pz!)*dz)/length));
-        if(t<first&&Math.hypot(e.x-(p.px!+dx*t),e.y+e.def.height*.45-(p.py!+dy*t),e.z-(p.pz!+dz*t))<=Math.max(.5,e.def.radius)){first=t;victim=e;}
+        const t=segmentBodyEntry(p.px!,p.py!,p.pz!,nx,ny,nz,e.x,e.y+e.def.height*.45,e.z,Math.max(.5,e.def.radius),Math.max(2,e.def.height*.6));
+        if(t<first){first=t;victim=e;}
       });
-      if(victim){p.target=victim;p.x=p.px+dx*first;p.y=p.py+dy*first;p.z=p.pz+dz*first;crossed=true;}
+      const protectedTarget=p.target;
+      if(p.weapon==='missile'&&p.warhead==='heat'&&protectedTarget&&!protectedTarget.dead&&protectedTarget.team!==p.team&&(protectedTarget.equipmentCharges??0)>=1&&equipmentModule(protectedTarget,'protection')?.interceptCharges){
+        const t=segmentBodyEntry(p.px,p.py,p.pz,nx,ny,nz,protectedTarget.x,protectedTarget.y+1,protectedTarget.z,protectedTarget.def.radius+physics.activeProtectionRadius);
+        if(t<terrainT&&t<=first){
+          protectedTarget.equipmentCharges=(protectedTarget.equipmentCharges??0)-1;
+          w.events.push({type:'impact',x:p.px+dx*t,y:p.py+dy*t,z:p.pz+dz*t,weapon:p.weapon,visual:p.visual,result:'intercept',size:1});w.projectiles.splice(i,1);continue;
+        }
+      }
+      if(victim){p.target=victim;p.x=p.px+dx*first;p.y=p.py+dy*first;p.z=p.pz+dz*first;crossed=true;terrain=false;}
     }
-    if(!crossed&&!terrain&&p.target&&!p.target.dead){const target=p.target,dx=nx-p.px,dy=ny-p.py,dz=nz-p.pz,len=dx*dx+dy*dy+dz*dz||1;
+    if(!w.platformRosterOnly&&!crossed&&!terrain&&p.target&&!p.target.dead){const target=p.target,dx=nx-p.px,dy=ny-p.py,dz=nz-p.pz,len=dx*dx+dy*dy+dz*dz||1;
       const t=Math.max(0,Math.min(1,((target.x-p.px)*dx+(target.y+target.def.height*.45-p.py)*dy+(target.z-p.pz)*dz)/len));
       const x=p.px+dx*t,y=p.py+dy*t,z=p.pz+dz*t;
       crossed=Math.hypot(target.x-x,target.y+target.def.height*.45-y,target.z-z)<=Math.max(.5,target.def.radius);

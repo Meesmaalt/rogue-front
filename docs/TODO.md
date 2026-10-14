@@ -1,5 +1,13 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Lahingu visuaalne tagasiside ja kontaktid · 14.10.2026
+
+- [x] Liikumistolm, madala kopteri rootoritolm ja seisundist sõltuv kahjustussuits; nähtavus-, kaugus- ja osakeste piirid.
+- [x] Eraldi läbistava tabamuse sädemed ning APS tõrje visuaal/heli.
+- [x] Kiire mürsu esimese kontaktpinna ja takistuse ühine järjekord; APS kogu sammu trajektooril. Vt COMBAT-FEEDBACK-RELEASE.md.
+- [ ] Uute efektide brauserivaatlus, kuulamine ja F8 FPS-võrdlus.
+
+
 ## Näidisalgus, loomulik maastik ja heli · 15.10.2026
 
 - [x] Valmis alguses lennuväli ja kaks täisvarustuses lennukit mõlemale poolele; standard-/mitmeotstarbeline koorem ja ühendatud ladu.

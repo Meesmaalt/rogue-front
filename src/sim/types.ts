@@ -196,7 +196,7 @@ export type Command = ({type:"configure-unit";ids:number[];slot:"weapon"|"protec
 
 export type SimEvent =
   | {type:"order-rejected";team:Team;unitId:number;x:number;z:number;message:string}
-  | { type: "impact"; x: number; y: number; z: number; weapon: string;visual?:string;result?:"penetration"|"ricochet"|"ground"|"airburst"|"miss";size?:number }
+  | { type: "impact"; x: number; y: number; z: number; weapon: string;visual?:string;result?:"penetration"|"ricochet"|"ground"|"airburst"|"miss"|"intercept";size?:number }
   | { type: "fire"; team: Team; x: number; y: number; z: number; sourceId?: number; weapon?: string; caliber?: number;visual?:string;dx?:number;dy?:number;dz?:number;weaponIndex?:number }
   | { type: "hit"; x: number; y: number; z: number }
   | { type: "build-complete"; team: Team; x: number; y: number; z: number; kind: UnitKind }

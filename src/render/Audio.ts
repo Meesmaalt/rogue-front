@@ -63,7 +63,8 @@ export class AudioManager {
     if(now-(this.lastShot.get(kind)??-10)<profile[4])continue;this.lastShot.set(kind,now);this.activity=Math.min(1,this.activity+mix.gain*.12);
     this.noise(profile[0],profile[1]/(1+(1-mix.gain)*1.2),profile[2]*mix.gain,mix.pan);this.tone(profile[3],profile[0]*.65,'triangle',profile[2]*.5*mix.gain,mix.pan);
    }else if(e.type==='impact'){
-    if(e.result==='ricochet'){this.tone(1800,.16,'sine',.06*mix.gain,mix.pan);this.noise(.12,3800,.06*mix.gain,mix.pan);}
+    if(e.result==='intercept'){this.noise(.12,3000,.13*mix.gain,mix.pan);this.tone(210,.1,'triangle',.08*mix.gain,mix.pan);}
+    else if(e.result==='ricochet'){this.tone(1800,.16,'sine',.06*mix.gain,mix.pan);this.noise(.12,3800,.06*mix.gain,mix.pan);}
     else if(e.weapon==='bullet')this.noise(.055,2100,.055*mix.gain,mix.pan);
     else{const heavy=['bomb','howitzer','mlrs'].includes(e.visual??'');this.noise(heavy?.85:.42,heavy?500:1000,(heavy?.3:.2)*mix.gain,mix.pan);this.tone(heavy?38:62,heavy?.7:.35,'sine',.2*mix.gain,mix.pan);}
    }else if(e.type==='death'){
