@@ -1,5 +1,10 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Viie testitõrke parandused · 14.10.2026
+
+- [x] Ehituse/õhuoperatsioonide füüsilise kestuse, fraktsiooni täpsuse ja kütusereservi regressioonide parandamine.
+- [x] Vaba sirge teekonna optimeering, pargitud kehade otsingupiiride eelarvutus ja navigeerimise/sim eelarvete eraldi mõõtmine. Vt SIMULATION-REGRESSION-FIXES.md.
+
 ## Protseduurkaart ja põhiklassid · 14.10.2026
 
 - [x] Ainult protseduurkaardid mängumenüüs ja online ruumide serverivalideerimises; kampaania/fikseeritud kaartide valiku eemaldamine.

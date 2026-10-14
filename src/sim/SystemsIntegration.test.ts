@@ -2,6 +2,7 @@ import {describe,it,expect} from "vitest";
 import {World} from "./World";
 import {SIM_STEP} from "./constants";
 import {UNITS} from "./units";
+import {updateUnits} from "./systems/units";
 import {assignAirMission} from "./systems/airDoctrine";
 import {saveWorld,loadWorld} from "./SaveState";
 import {MissionController} from "./Mission";
@@ -9,6 +10,7 @@ import {MISSIONS} from "../data/missions";
 import {setBases,setProceduralSeed,resetHeightmap} from "./heightmap";
 import {damage} from "./systems/combat";
 const run=(w:World,s:number)=>{for(let i=0;i<Math.ceil(s/SIM_STEP);i++)w.tick(SIM_STEP);};
+const runUntil=(w:World,ready:()=>boolean,seconds:number)=>{for(let elapsed=0;!ready()&&elapsed<seconds;elapsed+=SIM_STEP)w.tick(SIM_STEP);};
 describe("connected military systems",()=>{
  it("building upgrades finish without an assigned engineer and change capacity",()=>{
   const w=new World(1);w.networkMode=true;const p=w.bases[0];w.spawn("hq",0,p.x,p.z);const generator=w.spawn("generator",0,p.x+20,p.z);const supply=w.spawn("supply",0,p.x,p.z+20);w.teamCredits[0]=w.teamResources[0]=2000;
@@ -21,8 +23,12 @@ describe("connected military systems",()=>{
  });
  it("air missions take off, return to a real airbase and rearm from finite depot stocks",()=>{
   const w=new World(1);w.networkMode=true;const p=w.bases[0];w.spawn("hq",0,p.x,p.z);w.spawn("generator",0,p.x+20,p.z);const depot=w.spawn("supply",0,p.x,p.z+25);w.spawn("airCommand",0,p.x-20,p.z);const pad=w.spawn("airbase",0,p.x+30,p.z);const u=w.spawn("fighter",0,pad.x,pad.z);u.airMissionHomeId=pad.id;u.airState="grounded";
-  assignAirMission(u,"cap",{x:pad.x+30,z:pad.z});run(w,1);expect(u.airState).toBe("airborne");expect(u.airSortieCount).toBe(1);
-  u.ammo=0;run(w,15);expect(["rearming","grounded"]).toContain(u.airState);expect(u.ammo).toBeGreaterThan(0);expect(depot.ammoStock).toBeLessThan(420);expect(u.airMissionHomeId).toBe(pad.id);
+  assignAirMission(u,"cap",{x:pad.x+30,z:pad.z});run(w,1);expect(u.airState).toBe("taxi");
+  runUntil(w,()=>u.airState==="airborne",30);
+  expect(u.airState).toBe("airborne");expect(u.airSortieCount).toBe(1);
+  u.ammo=0;u.secondaryAmmo?.fill(0);
+  runUntil(w,()=>u.airState==="rearming"||u.airState==="grounded",90);
+  expect(["rearming","grounded"]).toContain(u.airState);const stock=depot.ammoStock!;updateUnits(w,SIM_STEP);expect(u.ammo).toBeGreaterThan(0);expect(depot.ammoStock).toBeLessThan(stock);expect(u.airMissionHomeId).toBe(pad.id);
  });
  it("stock travels from warehouse to FOB in a physical truck without generating extra income",()=>{
   const w=new World(1);w.networkMode=true;const p=w.bases[0];w.spawn("hq",0,p.x,p.z);w.spawn("generator",0,p.x-20,p.z);const main=w.spawn("supply",0,p.x,p.z+20);const fob=w.spawn("supply",0,p.x+70,p.z);fob.ammoStock=fob.fuelStock=fob.repairStock=0;

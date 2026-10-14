@@ -19,7 +19,8 @@ it('readout chooses the actual stocked source and a cut FOB keeps its physical s
  empty.ammoStock=0;empty.fuelStock=0;full.ammoStock=40;full.fuelStock=40;tank.ammo=0;tank.fuel=0;
  expect(tacticalSupplyDepot(w,tank)).toBe(full);expect(tacticalSupplyStatus(w,tank)).toContain(`#${full.id}`);
  expect(w.connectedSupplyNodes(0)).not.toContain(full);
- updateTacticalSupply(w,1/30);expect(tank.ammo).toBeGreaterThan(0);expect(tank.fuel).toBeGreaterThan(0);expect(full.ammoStock).toBeLessThan(40);
+ updateTacticalSupply(w,1/30);expect(tank.ammo).toBeGreaterThan(0);expect(tank.fuel).toBe(0);expect(full.fuelStock).toBe(40);expect(tacticalSupplyStatus(w,tank)).toContain("tootmisreservis");expect(full.ammoStock).toBeLessThan(40);
+ full.logisticsPriority="fuel";updateTacticalSupply(w,1/30);expect(tank.fuel).toBeGreaterThan(0);expect(full.fuelStock).toBeLessThan(40);
  full.disabledUntil=w.time+10;expect(tacticalSupplyDepot(w,tank)).toBe(empty);expect(tacticalSupplyStatus(w,tank)).toContain('otsas: moon, kütus');
  tank.x=400;expect(tacticalSupplyDepot(w,tank)).toBeNull();expect(tacticalSupplyStatus(w,tank)).toContain('Väljaspool');
 });

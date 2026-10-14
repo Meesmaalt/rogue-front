@@ -30,6 +30,6 @@ Relvaulatused, kaardisuurused ja lennukiirus on endiselt senise mänguskaala num
 
 Reeglistik on `2026-10-14.modular-platforms`. Alusta uut lahingut; vanad salvestused jäävad eraldi võtmete alla. Komponendid, pooleliolev paigaldus ja aktiivkaitselaengud kuuluvad salvestusse ning replay/lockstep räsi sisse.
 
-Build ja TypeScripti kontroll läbivad. Komponentide, salvestuse, põhiklasside, füüsiliste tabamuste, gravitatsiooni, aktiivkaitse ja mudelivahemälu sihitud kontrollid läbivad. Kogu testipakis on varasemast viis eraldi probleemi: CoreLoop’i ehitusaeg, Integration’i fraktsiooni täpsuse eeldus, SystemsIntegration’i lennuki ruleerimise aeg, NavGrid’i 4 ms eelarve ja tacticalSupply kütusereserv. Need ei ole selle väljalaske kontrollidega parandatuks märgitud.
+Build ja TypeScripti kontroll läbivad. Komponentide, salvestuse, põhiklasside, füüsiliste tabamuste, gravitatsiooni, aktiivkaitse ja mudelivahemälu sihitud kontrollid läbivad. Varasema viie testitõrke parandused on kirjeldatud failis [SIMULATION-REGRESSION-FIXES.md](SIMULATION-REGRESSION-FIXES.md). Ehituse, õhkutõusu ja varustuse kontrollid arvestavad füüsilist teekonda ning uut majandust; teekonnaotsing väldib vabal sirgel A* otsingut ja arvutab pargitud takistuste piirid üks kord.
 
 Päris brauseri visuaal ja FPS vajavad kasutaja masinal mõõtmist. F8 → salvesta jõudlusraport → pan/zoom ja lahing 60–90 s → ekspordi JSON. Varasem bulk-ImageData minikaardiparandus säilib; uut GPU/FPS tulemust ei ole mõõdetuks märgitud.

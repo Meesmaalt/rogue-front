@@ -1,4 +1,5 @@
 import {it,expect,afterEach} from 'vitest';
+import {findPath} from './Pathfinder';
 import {World} from '../World';
 import {setBases,setMapSize,setTerrainProfile,resetHeightmap} from '../heightmap';
 import {applyCommands} from '../systems/commands';
@@ -31,4 +32,16 @@ it('twelve mixed ground units pass the actual Roheorg base gate and reform at th
  w.issue({type:'fast-move',ids:us.map(u=>u.id),x:-130,z:-78});applyCommands(w);
  for(let i=0;i<4200&&us.some(u=>u.mode!=='idle');i++)step(w);
  expect(us.every(u=>u.mode==='idle'&&Math.hypot(u.x+130,u.z+78)<45)).toBe(true);
+});
+
+it('direct-path shortcut respects static walls and parked bodies',()=>{
+ const bases=[{x:0,z:0,r:200},{x:250,z:250,r:20}];setBases(bases);
+ const empty=new World(77,false,[],[],bases,false);
+ expect(findPath(empty.nav,{x:-40,z:0},{x:40,z:0},1)).toHaveLength(2);
+ const parked={x:0,z:0,radius:4};
+ const around=findPath(empty.nav,{x:-40,z:0},{x:40,z:0},1,undefined,[parked]);
+ expect(around.length).toBeGreaterThan(2);
+ for(let i=1;i<around.length;i++){const a=around[i-1],b=around[i],steps=Math.ceil(Math.hypot(b.x-a.x,b.z-a.z));for(let j=0;j<=steps;j++)expect(Math.hypot(a.x+(b.x-a.x)*j/steps,a.z+(b.z-a.z)*j/steps)).toBeGreaterThan(3);}
+ const blocked=new World(77,false,[],[{id:'wall',kind:'wall',x:0,z:0,width:4,depth:40}],bases,false);
+ expect(findPath(blocked.nav,{x:-40,z:0},{x:40,z:0},1).length).toBeGreaterThan(2);
 });

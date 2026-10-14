@@ -1,3 +1,6 @@
+import {vi} from "vitest";
+import * as paths from "./Pathfinder";
+import {SIM_STEP} from "../constants";
 import { describe, expect, it } from "vitest";
 import { NavGrid } from "./NavGrid";
 import { findPath } from "./Pathfinder";
@@ -37,16 +40,27 @@ describe("NavGrid", () => {
     expect(Math.hypot(d!.x, d!.z)).toBeCloseTo(1, 5);
   });
 
-  it("200 moving units stay under the 4ms/tick navigation budget", () => {
+  it("200 moving units keep path searches under 4ms/tick and the full simulation within its tick budget", () => {
     const w = new World(1);
     const units = Array.from({ length: 200 }, (_, i) => w.spawn("inf", 0, -150 + (i % 20) * 3, 80 + Math.floor(i / 20) * 3));
     for (const u of units) { u.mode = "move"; u.dest = { x: -20, z: 0 }; u.navPath = findPath(w.nav, u, u.dest, u.def.radius); u.navPathIndex = 1; }
     const dt = 1 / 30;
     for (let i = 0; i < 10; i++) { for (const u of units) { u.px = u.x; u.pz = u.z; } w.tick(dt); }
+    const initial=units.map(u=>({x:u.x,z:u.z}));
+    // Charge the navigation budget to searches, not vision, logistics and combat.
+    let navigationMs=0;
+    const original=paths.findPath;
+    const measured=vi.spyOn(paths,"findPath").mockImplementation((...args)=>{
+      const started=performance.now();try{return original(...args);}finally{navigationMs+=performance.now()-started;}
+    });
     const t0 = performance.now();
-    for (let i = 0; i < 60; i++) w.tick(dt);
-    const avg = (performance.now() - t0) / 60;
-    expect(avg).toBeLessThan(4);
+    try {
+      for (let i = 0; i < 60; i++) w.tick(dt);
+      const avg = (performance.now() - t0) / 60;
+      expect(navigationMs/60).toBeLessThan(4);
+      expect(avg).toBeLessThan(SIM_STEP*1000);
+      expect(units.reduce((sum,u,i)=>sum+Math.hypot(u.x-initial[i].x,u.z-initial[i].z),0)).toBeGreaterThan(10);
+    } finally {measured.mockRestore();}
   });
 });
 

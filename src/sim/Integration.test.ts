@@ -39,6 +39,6 @@ describe("integrated gameplay",()=>{
   for(const mode of ["conquest","assault"] as const){const w=new World(1);w.externalVictoryMode=true;w.matchController=new MatchModeController(w,mode);w.time=w.matchController.rules.timeLimit;w.matchController.tick(SIM_STEP);expect(w.status).toBe("lost");}
  });
  it("supply starvation never mutates a unit's base accuracy",()=>{
-  const w=new World(3);w.networkMode=true;const u=w.spawn("tank",0,0,0);u.supply=0;const accuracy=u.def.accuracy;run(w,3);expect(u.def.accuracy).toBe(accuracy);expect(UNITS.tank.accuracy).toBe(accuracy);
+  const w=new World(3);w.networkMode=true;const u=w.spawn("tank",0,0,0);u.supply=0;const accuracy=u.def.accuracy,baseAccuracy=UNITS.tank.accuracy;expect(accuracy).toBe(w.unitDefinition("tank",0).accuracy);run(w,3);expect(u.def.accuracy).toBe(accuracy);expect(UNITS.tank.accuracy).toBe(baseAccuracy);
  });
 });

@@ -13,10 +13,14 @@ it("a player builds the complete industrial chain and produces a tank using star
  for(const kind of ["generator","supply","landCommand","factory"] as BuildableKind[]){
   let point:{x:number,z:number}|undefined;
   for(const radius of [24,40,56])for(let i=0;i<16&&!point;i++){const a=i*Math.PI/8;const x=p.x+Math.sin(a)*radius,z=p.z+Math.cos(a)*radius;if(w.canPlaceBuilding(0,kind,x,z))point={x,z};}
-  expect(point,kind).toBeDefined();w.issue({type:"build",ids:[builder.id],kind,...point!});run(w,BUILDINGS[kind].buildTime+32);
+  expect(point,kind).toBeDefined();w.issue({type:"build",ids:[builder.id],kind,...point!});w.tick(SIM_STEP);
+  // Construction starts after the engineer reaches the site; bound travel separately.
+  const site=w.entities.find(e=>e.team===0&&e.kind===kind)!;
+  for(let elapsed=0;site?.underConstruction&&elapsed<BUILDINGS[kind].buildTime+60;elapsed+=SIM_STEP)w.tick(SIM_STEP);
   const building=w.entities.find(e=>e.team===0&&e.kind===kind)!;expect(building,kind).toBeDefined();expect(building.underConstruction,kind).toBe(false);expect(building.hp).toBe(building.def.hp);if(kind==="factory")factory=building.id;
  }
- expect(resource.active).toBe(true);expect(resource.controlledBy).toBe(0);expect(w.roadCargoDelivered[0]).toBeGreaterThan(0);
+ expect(resource.active).toBe(true);expect(resource.controlledBy).toBe(0);for(let elapsed=0;w.roadCargoDelivered[0]+w.airCargoDelivered[0]<=0&&elapsed<120;elapsed+=SIM_STEP)w.tick(SIM_STEP);
+ expect(w.roadCargoDelivered[0]+w.airCargoDelivered[0]).toBeGreaterThan(0);
  w.issue({type:"produce",kind:"tank",producerId:factory});run(w,35);expect(w.entities.some(e=>e.kind==="tank"&&e.team===0)).toBe(true);
 },15000);
 it("formation is a team-specific tick command preserved by replay and save snapshots",()=>{
