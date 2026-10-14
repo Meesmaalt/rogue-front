@@ -1,7 +1,7 @@
 import {afterEach,expect,it} from "vitest";
 import {generateProceduralMap,getPlayableMap} from "./proceduralMap";
 import {pointInFeature,featureCorners} from "./mapFeatures";
-import {setMapSize,setBases,setTerrainProfile,setProceduralSeed,resetHeightmap} from "./heightmap";
+import {MAP_SIZE,setMapSize,setBases,setTerrainProfile,setProceduralSeed,resetHeightmap} from "./heightmap";
 import {World} from "./World";
 import {createSkirmish} from "./scenario";
 import {findPath} from "./nav/Pathfinder";
@@ -9,7 +9,7 @@ import {saveWorld,loadWorld} from "./SaveState";
 import {worldHash} from "./Replay";
 afterEach(resetHeightmap);
 it("versioned seeded maps are reproducible and create dense wards and polygonal land use",()=>{
- const m=generateProceduralMap(62510),same=getPlayableMap(m.id)!;
+ const m=generateProceduralMap(62510,"balanced",1280),same=getPlayableMap(m.id)!;
  expect(same).toEqual(m);expect(getPlayableMap("procedural-balanced-62510")!.id).toBe("procedural-balanced-62510");expect(generateProceduralMap(8103).map.features).not.toEqual(m.map.features);
  const f=m.map.features!;expect(f.filter(x=>x.kind==="building").length).toBeGreaterThan(130);
  expect(f.filter(x=>x.polygon).length).toBeGreaterThan(30);
@@ -18,19 +18,19 @@ it("versioned seeded maps are reproducible and create dense wards and polygonal 
 });
 it("houses and physical resource facilities stay clear of road and water footprints",()=>{
  for(const seed of [62510,8103,27]){
-  const m=generateProceduralMap(seed),f=m.map.features!;
+  const m=generateProceduralMap(seed,"balanced",1280),f=m.map.features!;
   for(const house of f.filter(x=>x.kind==="building"))expect(f.some(x=>(x.kind==="road"||x.kind==="water")&&pointInFeature(house.x,house.z,x,Math.max(house.width,house.depth)/2+.8)),`${seed}: ${house.id}`).toBe(false);
   for(const r of m.map.resources){const p={x:r.x+r.facilityOffset!.x,z:r.z+r.facilityOffset!.z};expect(f.some(x=>(x.kind==="road"||x.kind==="water"||x.kind==="building")&&pointInFeature(p.x,p.z,x,8)),`${seed}: ${r.label}`).toBe(false);}
  }
 });
 it("polygon cover respects its actual edges and a lake has a curved footprint",()=>{
- const m=generateProceduralMap(62510),f=m.map.features!,lake=f.find(x=>x.waterBody==="lake")!;
+ const m=generateProceduralMap(62510,"balanced",1280),f=m.map.features!,lake=f.find(x=>x.waterBody==="lake")!;
  expect(pointInFeature(lake.x,lake.z,lake)).toBe(true);expect(pointInFeature(lake.x+lake.width*.49,lake.z+lake.depth*.49,lake)).toBe(false);
  expect(featureCorners(lake).length).toBeGreaterThan(20);
  const parcel=f.find(x=>x.polygon)!;expect(pointInFeature(parcel.polygon![0].x,parcel.polygon![0].z,parcel)).toBe(true);
 });
 it("the generated match connects bases and resource loading areas and restores deterministic play",()=>{
- const m=generateProceduralMap(62510),map=m.map;setMapSize(map.size);setBases(map.bases);setTerrainProfile(map.terrainProfile,map.landforms);setProceduralSeed(m.seed);
+ const m=generateProceduralMap(62510,"balanced",1280),map=m.map;setMapSize(map.size);setBases(map.bases);setTerrainProfile(map.terrainProfile,map.landforms);setProceduralSeed(m.seed);
  const w=new World(m.seed,false,map.resources,map.features,map.bases,false);w.networkMode=true;
  expect(findPath(w.nav,map.bases[0],map.bases[1],1.5).length).toBeGreaterThan(1);
  for(const r of w.resourcePoints){expect(w.nav.isWalkableWorld(r.x,r.z,1.5)).toBe(true);expect(findPath(w.nav,map.bases[0],r,1.5).length).toBeGreaterThan(0);}
@@ -43,6 +43,28 @@ it("ready generated deployment starts on dry navigable land and activates physic
  const m=generateProceduralMap(62510),map=m.map;setMapSize(map.size);setBases(map.bases);setTerrainProfile(map.terrainProfile,map.landforms);setProceduralSeed(m.seed);
  const w=new World(m.seed,false,map.resources,map.features,map.bases,false);w.networkMode=true;createSkirmish(w,true,true);
  for(const e of w.entities.filter(e=>e.def.speed>0&&e.def.domain==="land"&&e.kind!=="engineer"))expect(w.nav.isWalkableWorld(e.x,e.z,e.def.radius),e.kind).toBe(true);
- for(let i=0;i<260*30&&w.roadCargoDelivered[0]<100;i++)w.tick(1/30);
+ for(let i=0;i<360*30&&w.roadCargoDelivered[0]<100;i++)w.tick(1/30);
  expect(w.resourcePoints[0].active).toBe(true);expect(w.roadCargoDelivered[0]).toBeGreaterThanOrEqual(100);
+},20000);
+
+it("regional maps encode size and seed and add playable settlements and economic zones",()=>{
+ for(const size of [1536,1792,2048]){
+  const m=generateProceduralMap(62510,"balanced",size);expect(getPlayableMap(m.id)).toEqual(m);
+  expect(m.map.size).toBe(size);expect(m.map.resources.length).toBe(9);
+  expect(m.map.features!.filter(f=>f.kind==="building").length).toBeGreaterThan(220);
+  expect(m.map.features!.some(f=>f.id.startsWith("farm-"))).toBe(true);
+  const f=m.map.features!;
+  for(const house of f.filter(f=>f.kind==="building"))expect(f.some(r=>(r.kind==="road"||r.kind==="water")&&pointInFeature(house.x,house.z,r,Math.max(house.width,house.depth)/2+.8)),`${size}: ${house.id}`).toBe(false);
+ }
+ expect(getPlayableMap("procedural-v3-balanced-9999-1")).toBeUndefined();
+});
+
+it("large regional deployment has routes to both bases and all nine resource loading yards",()=>{
+ const m=generateProceduralMap(8103,"highlands",2048),map=m.map;
+ setMapSize(map.size);setBases(map.bases);setTerrainProfile(map.terrainProfile,map.landforms);setProceduralSeed(m.seed);
+ expect(MAP_SIZE).toBe(map.size);
+ const w=new World(m.seed,false,map.resources,map.features,map.bases,false);w.networkMode=true;createSkirmish(w,true,true);
+ expect(findPath(w.nav,map.bases[0],map.bases[1],1.5).length).toBeGreaterThan(1);
+ for(const r of w.resourcePoints){expect(w.nav.isWalkableWorld(r.x,r.z,1.5),r.label).toBe(true);expect(findPath(w.nav,map.bases[0],r,1.5).length,r.label).toBeGreaterThan(0);}
+ for(const e of w.entities.filter(e=>e.def.speed>0&&e.def.domain==="land"&&e.kind!=="engineer"))expect(w.nav.isWalkableWorld(e.x,e.z,e.def.radius),e.kind).toBe(true);
 },20000);

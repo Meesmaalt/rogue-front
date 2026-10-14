@@ -3,7 +3,7 @@ import terrain from "../data/terrain.json";
 /** Kaardi kõrgusväli. Puhas matemaatika, EI impordi three.js-i. */
 export let MAP_SIZE = 640;
 export function setMapSize(size=640):void {
-  const next=Math.max(320,Math.min(1600,Math.round(size/16)*16));
+  const next=Math.max(320,Math.min(2048,Math.round(size/16)*16));
   if(next===MAP_SIZE)return;MAP_SIZE=next;CACHE_HALF=next/2;CACHE_CELLS=Math.round(next/CACHE_CELL);cacheValid=false;heightCache=null;
 }
 export interface BaseDef { x: number; z: number; r: number }

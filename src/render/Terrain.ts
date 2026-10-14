@@ -591,9 +591,12 @@ interface ForestPoint {x:number;z:number;s:number;angle:number;pine:boolean}
 export function sampleForest(features:readonly MapFeatureDef[]):Map<string,ForestPoint[]> {
   const rnd=mulberry32(104),cells=new Map<string,ForestPoint[]>();
   const index=new MapFeatureIndex(features),spacing=new Map<string,Array<{x:number;z:number;s:number}>>();
-  for(const f of features.filter(f=>f.appearance==="forest")){
+  const forests=features.filter(f=>f.appearance==="forest");
+  const requested=forests.reduce((n,f)=>n+Math.ceil(f.width*f.depth/terrainConfig.forest.treeArea),0);
+  const ratio=Math.min(1,terrainConfig.forest.placementBudget/Math.max(1,requested));
+  for(const f of forests){
     const c=Math.cos(f.rotation??0),s=Math.sin(f.rotation??0);
-    for(let i=0;i<Math.ceil(f.width*f.depth/terrainConfig.forest.treeArea);i++){
+    for(let i=0;i<Math.floor(Math.ceil(f.width*f.depth/terrainConfig.forest.treeArea)*ratio);i++){
       const lx=(rnd()-.5)*f.width,lz=(rnd()-.5)*f.depth,x=f.x+lx*c+lz*s,z=f.z-lx*s+lz*c;
       const nearby=index.at(x,z);
       if(nearby.some(block=>(["building","road","bridge","water","wall"].includes(block.kind)||block.appearance==="yard")&&pointInFeature(x,z,block,2))||rnd()>forestDensityAt(x,z,nearby))continue;

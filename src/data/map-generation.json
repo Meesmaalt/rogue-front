@@ -9,9 +9,29 @@
   "parcelSpacing": 112,
   "blockWidth": 45,
   "blockDepth": 34,
-  "houseWidth": [6.1, 7.5],
-  "houseDepth": [7.2, 8.6],
+  "houseWidth": [
+    6.1,
+    7.5
+  ],
+  "houseDepth": [
+    7.2,
+    8.6
+  ],
   "resourceRadius": 14,
   "resourceStock": 1600,
-  "cropColors": [11180910, 9603952, 8884586, 11576181, 9147761]
+  "cropColors": [
+    11180910,
+    9603952,
+    8884586,
+    11576181,
+    9147761
+  ],
+  "largeSizes": [
+    1536,
+    1792,
+    2048
+  ],
+  "defaultSize": 1792,
+  "regionalParcelSpacing": 144,
+  "regionalResourceStock": 2400
 }
