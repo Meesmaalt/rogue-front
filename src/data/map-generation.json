@@ -219,5 +219,224 @@
     "maxParcelPieces": 12,
     "hedgeMinimumLength": 35,
     "minimumCompactness": 0.018
+  },
+  "settlementVariety": {
+    "layouts": [
+      "oldtown",
+      "grid",
+      "ribbon",
+      "fork"
+    ],
+    "blockSpan": 23,
+    "loopSegments": 24,
+    "spokeStride": 6,
+    "cityGridStreets": 5,
+    "villageGridStreets": 3,
+    "frontSetback": 1.7,
+    "cornerSetback": 3,
+    "minimumClearance": 0.85,
+    "industrialClusters": 4,
+    "industrialAttempts": 60,
+    "industrialSetback": 48,
+    "urbanStyles": [
+      "residential",
+      "rowhouse",
+      "rowhouse",
+      "apartment",
+      "apartment",
+      "shop"
+    ],
+    "villageStyles": [
+      "rural",
+      "rural",
+      "residential",
+      "shop",
+      "barn"
+    ],
+    "ruralStyles": [
+      "rural",
+      "rural",
+      "barn",
+      "residential"
+    ],
+    "roofColors": [
+      8740173,
+      7365209,
+      5660513,
+      9072736,
+      7633787
+    ],
+    "roles": {
+      "city": {
+        "spread": [
+          1.0,
+          1.25
+        ],
+        "streetWidth": 5.2,
+        "gap": [
+          1.0,
+          2.2
+        ],
+        "occupancy": 0.99
+      },
+      "town": {
+        "spread": [
+          0.9,
+          1.2
+        ],
+        "streetWidth": 4.8,
+        "gap": [
+          1.2,
+          2.8
+        ],
+        "occupancy": 0.97
+      },
+      "village": {
+        "spread": [
+          0.85,
+          1.05
+        ],
+        "streetWidth": 4.2,
+        "gap": [
+          2,
+          4
+        ],
+        "occupancy": 0.94
+      },
+      "hamlet": {
+        "spread": [
+          0.55,
+          0.8
+        ],
+        "streetWidth": 3.6,
+        "gap": [
+          3,
+          6
+        ],
+        "occupancy": 0.86
+      }
+    },
+    "buildings": {
+      "residential": {
+        "width": [
+          6,
+          8
+        ],
+        "depth": [
+          7,
+          10
+        ],
+        "height": [
+          4,
+          6
+        ],
+        "label": "Eramu"
+      },
+      "rural": {
+        "width": [
+          6,
+          8
+        ],
+        "depth": [
+          7,
+          9
+        ],
+        "height": [
+          3.5,
+          5
+        ],
+        "label": "Talumaja"
+      },
+      "rowhouse": {
+        "width": [
+          7,
+          10
+        ],
+        "depth": [
+          8,
+          11
+        ],
+        "height": [
+          6,
+          8
+        ],
+        "label": "Ridaelamu"
+      },
+      "apartment": {
+        "width": [
+          10,
+          15
+        ],
+        "depth": [
+          10,
+          14
+        ],
+        "height": [
+          10,
+          16
+        ],
+        "label": "Korterelamu"
+      },
+      "shop": {
+        "width": [
+          7,
+          10
+        ],
+        "depth": [
+          8,
+          11
+        ],
+        "height": [
+          4,
+          6
+        ],
+        "label": "Kauplus"
+      },
+      "barn": {
+        "width": [
+          7,
+          10
+        ],
+        "depth": [
+          9,
+          13
+        ],
+        "height": [
+          4,
+          6
+        ],
+        "label": "Kõrvalhoone"
+      },
+      "industrial": {
+        "width": [
+          18,
+          24
+        ],
+        "depth": [
+          24,
+          30
+        ],
+        "height": [
+          7,
+          10
+        ],
+        "label": "Tehas"
+      },
+      "warehouse": {
+        "width": [
+          10,
+          15
+        ],
+        "depth": [
+          14,
+          20
+        ],
+        "height": [
+          4,
+          6
+        ],
+        "label": "Ladu"
+      }
+    }
   }
 }

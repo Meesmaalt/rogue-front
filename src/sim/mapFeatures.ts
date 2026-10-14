@@ -22,7 +22,7 @@ export interface MapFeatureDef {
   color?: number;
   /** Crop-row direction only; polygon bounds remain axis aligned for spatial queries. */
   cropRotation?:number;
-  buildingStyle?:"residential"|"rowhouse"|"industrial"|"rural";
+  buildingStyle?:"residential"|"rowhouse"|"industrial"|"rural"|"apartment"|"shop"|"barn"|"warehouse";
   shape?:"ellipse";density?:number;
   polygon?:Point[];
   waterBody?:"river"|"lake"|"sea";

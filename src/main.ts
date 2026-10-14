@@ -1,6 +1,8 @@
 import {maxHitPoints} from "./sim/unitStats";
 import "./style.css";
 import * as THREE from "three";
+import {GpuTimer} from "./render/GpuTimer";
+import {warmTerrainBuffers} from "./render/TerrainWarmup";
 import { PerformancePanel } from "./ui/PerformancePanel";
 import { GameLoop } from "./core/GameLoop";
 import { SIM_STEP } from "./sim/constants";
@@ -135,6 +137,12 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   (document.getElementById("fog") as HTMLCanvasElement).style.display="none";
   ctx.setQuality(visualQuality);
   const performancePanel=new PerformancePanel(loadSettings().performanceOverlay??false);
+  const gpuTimer=new GpuTimer(ctx.renderer.getContext());
+  const gl=ctx.renderer.getContext(),debug=gl.getExtension("WEBGL_debug_renderer_info");
+  performancePanel.configure({clientBuild:"settlements-v7/performance-v2",mapId:mission.id,seed:mission.seed,mapSize:mission.map.size,buildingCount:world.mapFeatures.filter(f=>f.kind==="building").length,
+    browser:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,deviceMemoryGB:(navigator as Navigator&{deviceMemory?:number}).deviceMemory??null,
+    graphics:debug?{vendor:gl.getParameter(debug.UNMASKED_VENDOR_WEBGL),renderer:gl.getParameter(debug.UNMASKED_RENDERER_WEBGL)}:{renderer:gl.getParameter(gl.RENDERER)},
+    webglVersion:gl.getParameter(gl.VERSION),gpuTimerSupported:gpuTimer.supported,devicePixelRatio:window.devicePixelRatio});
   const terrainView=createTerrain(mission.map.theme, world.mapFeatures, mission.map.bases);ctx.scene.add(terrainView);
 
   const terrainCulling=new TerrainCulling(terrainView);
@@ -286,6 +294,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     else if(m instanceof THREE.MeshBasicMaterial&&m.map)terrainTextures.add(m.map);
   }});
   for(const texture of terrainTextures)ctx.renderer.initTexture(texture);
+  warmTerrainBuffers(ctx.renderer,ctx.scene,ctx.camera,terrainView);
   await ctx.renderer.compileAsync(ctx.scene,ctx.camera);
   hud.showBriefing(skirmish ? { ...mission, name: "Skirmish — " + mission.map.name, briefing: (mission.id === "roheorg"||mission.id.startsWith("procedural-")) ? mission.briefing + "\n\n" + modeController.label() + "\n\n" + (queryParams.get("deployment")==="base" ? "Ehita generaator → varustusladu → maaväe juhtimiskeskus → tehas. Saada insener ressursipunkti." : "Baas ja väike lahingugrupp on valmis. Saada luure ette; tugevda koosseisu Maa-paneelist. Insener käivitab koduse ressursipunkti kogumise.") + "\n\nF1: vali soomus · Fookus: kaamera valikule\nRündeliiku + parem klõps: liigu ja võitle\nInsener / juhtimishoone → Ehita: baas ja FOB\nMoon, kütus ja remont vajavad tegelikku varustust." : modeController.label() + "\n\nREAL WAR baas:\n1) Generaator → varustusladu → maaväe juhtimiskeskus → tehas\n2) Saada teine insener ressursipunkti; ta käivitab kogumise\n3) Veokid toovad raha ja ammo/kütusevaru. Katkenud tarne peatab tootmise\n\nWARGAME lahing:\n• Optika/recon — kes näeb, tulistab\n• Supply raadius — ammo/kütus; forward ladu risk\n• Flank ja moraal loevad\n• Õhk: CAP / Strike / SEAD; ilma AA-ta kaotad\n\nDoktriin: " + facBlur + "\n\nKlahvid: F1 soomus F2 jala F3 õhk F4 toetus · Ctrl+1-9 grupid" } : mission, () => { if(multiplayer)return; running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); }, hasSave(), () => loadGame());
 
@@ -337,7 +346,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     },
     (alpha, frameDt) => {
       performancePanel.begin();
-      cam.update(frameDt);terrainCulling.sync(ctx.camera);
+      cam.update(frameDt);terrainCulling.sync(ctx.camera);performancePanel.mark("kaamera");
       selection.prune();
       const events = world.drainEvents();
       units.handleEvents(events);commands.handleEvents(events);
@@ -348,9 +357,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       ranges.sync(world,selection.selected,hud.showWeaponRanges,hud.rangeSlot);
       ctx.updateShadows(units.shadowDirty);units.shadowDirty=false;
       intelAcc+=frameDt;if(intelAcc>=.2){units.syncIntelGhosts(world);intelAcc=0;}
-      fx.handleEvents(events,world);
-      audio.events(events, world.playerTeam);
-      fx.syncProjectiles(world, visualAlpha);
+      performancePanel.mark("üksused");
       terrainAcc+=frameDt;
       if(terrainAcc>=.2){
         terrainAcc%=.2;
@@ -360,14 +367,20 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
         resourceSites.sync(world,ctx.camera);
       }
       animateRiverTerrain(terrainView,world.time);
+      performancePanel.mark("maastik");
+      fx.handleEvents(events,world);
+      audio.events(events, world.playerTeam);
+      fx.syncProjectiles(world, visualAlpha);
       fx.syncForestFires(world,frameDt);fx.syncNavalWakes(world,frameDt);
       fx.update(frameDt);
       const animateWater = ctx.water.material as THREE.ShaderMaterial;
       if (animateWater.uniforms?.time) animateWater.uniforms.time.value += frameDt;
-      performancePanel.mark("vaated");
+      performancePanel.mark("efektid");
       fog.sync(world,visualAlpha);
       performancePanel.mark("udu");
+      gpuTimer.begin(performancePanel.enabled);
       ctx.post.render();
+      gpuTimer.end();
       performancePanel.mark("3D");
       overlay.draw(world, picker, selection, { point: commands.buildPoint, kind: commands.buildMode, rotation: commands.buildRotation, valid: commands.buildValid },commands);
       minimap.draw(frameDt);
@@ -383,7 +396,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       if(fpsElapsed>=500){hud.setFps(Math.round(fpsFrames*1000/fpsElapsed));fpsFrames=0;fpsStarted=fpsNow;}
       performancePanel.mark("HUD");
     },
-    metrics=>performancePanel.record(metrics,{calls:ctx.renderer.info.render.calls,triangles:ctx.renderer.info.render.triangles,units:world.entities.length,worldTime:world.time,quality:visualQuality,terrainGroupsVisible:terrainCulling.visibleGroups,terrainGroupsTotal:terrainCulling.totalGroups,width:glCanvas.width,height:glCanvas.height}),
+    metrics=>performancePanel.record(metrics,{cameraX:ctx.camera.position.x,cameraY:ctx.camera.position.y,cameraZ:ctx.camera.position.z,gpuMs:gpuTimer.milliseconds,gpuSampleAgeFrames:gpuTimer.sampleAgeFrames,geometries:ctx.renderer.info.memory.geometries,textures:ctx.renderer.info.memory.textures,calls:ctx.renderer.info.render.calls,triangles:ctx.renderer.info.render.triangles,units:world.entities.length,worldTime:world.time,quality:visualQuality,terrainGroupsVisible:terrainCulling.visibleGroups,terrainGroupsTotal:terrainCulling.totalGroups,width:glCanvas.width,height:glCanvas.height}),
     ()=>performancePanel.enabled,
   );
   const resumeKey=queryParams.get("resume");

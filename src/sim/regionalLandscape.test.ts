@@ -29,7 +29,7 @@ it('organic lots align to curved connected streets and stay clear of physical fo
 });
 it('v6 maps preserve v5 reconstruction and maintain usable geography across seeds and archetypes',()=>{
  for(const seed of [0,27,8103,62510,4294967295])for(const type of ['balanced','river','highlands','urban','coastal','forest'] as const){
-  const m=generateProceduralMap(seed,type);
+  const m=generateProceduralMap(seed,type,1792,6);
   expect(m.map.landforms!.length).toBeGreaterThanOrEqual(3);
   if(type==='highlands'){
     const forms=m.map.landforms!;
@@ -45,7 +45,7 @@ it('v6 maps preserve v5 reconstruction and maintain usable geography across seed
 
 it('v6 resources and opposing bases remain connected on the smallest and largest regions',()=>{
  for(const [seed,size,type] of [[0,1536,'urban'],[27,2048,'highlands'],[62510,1792,'coastal']] as const){
-  const m=generateProceduralMap(seed,type,size),map=m.map;
+  const m=generateProceduralMap(seed,type,size,6),map=m.map;
   setMapSize(size);setBases(map.bases);setTerrainProfile(map.terrainProfile,map.landforms);setProceduralSeed(seed);
   const w=new World(seed,false,map.resources,map.features,map.bases,false);
   expect(findPath(w.nav,map.bases[0],map.bases[1],1.5).length,`${seed}: bases`).toBeGreaterThan(1);

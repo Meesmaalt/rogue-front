@@ -3,6 +3,7 @@ import {MapFeatureIndex,pointInFeature,featureCorners,type MapFeatureDef} from "
 import {Rng} from "./rng";
 import config from "../data/map-generation.json";
 import {buildOrganicTown,buildMountainRanges,ridgeReliefAt,subtractParcel,parcelArea,convexHull} from "./regionalLandscape";
+import {buildVariedSettlement,buildIndustrialClusters} from "./settlements";
 import tidebreaker from "../data/missions/operation-tidebreaker.json";
 import greenValley from "../data/maps/green-valley.json";
 
@@ -24,7 +25,7 @@ function clip(points:Point[],nx:number,nz:number,limit:number):Point[] {
 }
 
 export const GENERATED_MAP_SIZES:readonly number[]=config.largeSizes;
-export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5|6=6):MissionDef {
+export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5|6|7=7):MissionDef {
   // 1280 retains v2 geometry for existing saved matches; v3 sizes are deliberately bounded.
   const legacy=requestedSize===config.size;
   if(!legacy&&!GENERATED_MAP_SIZES.includes(requestedSize))throw new Error("Kaardi suurus pole toetatud");
@@ -43,6 +44,13 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
       towns.push({x:side*size*random(.13,.17),z:side*size*random(.025,.055),angle:random(-.35,.35),blocks:2});
       towns.push({x:side*size*random(.17,.22),z:-side*size*random(.32,.36),angle:random(-.4,.4),blocks:2});
     }
+  }
+  if(!legacy&&generationVersion>=7){
+    towns[0].blocks=Math.floor(random(archetype==="urban"?4:3,6));
+    towns[1].blocks=Math.floor(random(3,5));
+    for(let i=2;i<towns.length;i++)towns[i].blocks=i%3===2?1:2;
+    // Frontier villages sit on the opposite side of their main city, leaving room for dense wards.
+    for(const i of [4,6])towns[i].z=-Math.sign(towns[i].x)*size*random(.045,.10);
   }
   const phase=random(-.3,.3),amplitude=random(38,70);
   const riverX=(z:number)=>Math.sin(z/size*Math.PI*2+phase)*amplitude+Math.sin(z/size*Math.PI*5)*13;
@@ -98,6 +106,7 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
   // Compact lots follow streets. A town transform rotates its whole ward, never individual random houses.
   for(let ti=0;ti<towns.length;ti++){
     const style=regional?profile.styles[ti%profile.styles.length] as MapFeatureDef["buildingStyle"]:undefined;
+    if(landscape&&generationVersion>=7){features.push(...buildVariedSettlement(ti,towns[ti],rng,features,archetype==="forest"));continue;}
     if(landscape){
       features.push(...buildOrganicTown(ti,towns[ti],style,profile.height,profile.houseChance,rng,features));continue;
     }
@@ -145,6 +154,7 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
       }
     }
   }
+  if(!legacy&&generationVersion>=7)features.push(...buildIndustrialClusters(size,rng,features,[...bases,...towns.map(t=>({...t,r:t.blocks*40+30}))]));
   const landscapeForms=landscape?buildMountainRanges(size,archetype,rng,features,[...bases.map(b=>({...b,r:b.r+55})),...towns.map(t=>({...t,r:110})),
     ...[{x:-size*.31,z:size*.17},{x:size*.31,z:-size*.17},{x:-size*.29,z:-size*.29},{x:size*.29,z:size*.29}].map(p=>({...p,r:75}))]):[];
   // Jittered Voronoi parcels create connected land use, rather than floating rectangular stamps.
@@ -267,8 +277,8 @@ export const GENERATED_MAP=generateProceduralMap(62510,"balanced");
 export const CURATED_MAPS:readonly MissionDef[]=[FOCUS_MAP,tidebreaker as unknown as MissionDef];
 export function getPlayableMap(id:string):MissionDef|undefined {
   const fixed=CURATED_MAPS.find(m=>m.id===id);if(fixed)return fixed;
-  const regional=/^procedural-v(3|4|5|6)-(balanced|river|highlands|urban|coastal|forest)-(1536|1792|2048)-(\d+)$/.exec(id);
-  if(regional)return Number(regional[4])<=4294967295?generateProceduralMap(Number(regional[4]),regional[2] as MapArchetype,Number(regional[3]),Number(regional[1]) as 3|4|5|6):undefined;
+  const regional=/^procedural-v(3|4|5|6|7)-(balanced|river|highlands|urban|coastal|forest)-(1536|1792|2048)-(\d+)$/.exec(id);
+  if(regional)return Number(regional[4])<=4294967295?generateProceduralMap(Number(regional[4]),regional[2] as MapArchetype,Number(regional[3]),Number(regional[1]) as 3|4|5|6|7):undefined;
   const match=/^procedural-(?:v2-)?(balanced|river|highlands|urban|coastal|forest)-(\d+)$/.exec(id);
   if(!match||Number(match[2])>4294967295)return undefined;
   const map=generateProceduralMap(Number(match[2]),match[1] as MapArchetype,config.size);

@@ -49,7 +49,7 @@ it("ready generated deployment starts on dry navigable land and activates physic
 
 it("regional maps encode size and seed and add playable settlements and economic zones",()=>{
  for(const size of [1536,1792,2048]){
-  const m=generateProceduralMap(62510,"balanced",size);expect(getPlayableMap(m.id)).toEqual(m);
+  const m=generateProceduralMap(62510,"balanced",size,6);expect(getPlayableMap(m.id)).toEqual(m);
   expect(m.map.size).toBe(size);expect(m.map.resources.length).toBe(9);
   expect(m.map.features!.filter(f=>f.kind==="building").length).toBeGreaterThan(220);
   expect(m.map.features!.some(f=>f.id.startsWith("farm-"))).toBe(true);
@@ -70,7 +70,7 @@ it("large regional deployment has routes to both bases and all nine resource loa
 },20000);
 
 it("v4 archetypes change relief and settlement silhouettes while preserving v3 reconstruction",()=>{
- const hills=generateProceduralMap(27,"highlands"),river=generateProceduralMap(27,"river"),city=generateProceduralMap(27,"urban"),forest=generateProceduralMap(27,"forest");
+ const hills=generateProceduralMap(27,"highlands",1792,4),river=generateProceduralMap(27,"river",1792,4),city=generateProceduralMap(27,"urban",1792,4),forest=generateProceduralMap(27,"forest",1792,4);
  expect(Math.max(...hills.map.landforms!.map(f=>f.height))).toBeGreaterThan(32);
  expect(Math.max(...river.map.landforms!.map(f=>f.height))).toBeLessThanOrEqual(10);
  const houses=(m:ReturnType<typeof generateProceduralMap>)=>m.map.features!.filter(f=>f.kind==="building");
