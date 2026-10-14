@@ -16,7 +16,7 @@ function mobile(w: World, ids: number[], team?: Entity["team"]): Entity[] {
   const out: Entity[] = [];
   for (const id of ids) {
     const e = w.byId.get(id);
-    if (e && !e.dead && e.def.speed > 0 && e.loadedIntoId==null && (team === undefined || e.team === team)) out.push(e);
+    if (e && !e.dead && e.def.speed > 0 && e.logisticsRoute!=="strategic" && e.loadedIntoId==null && (team === undefined || e.team === team)) out.push(e);
   }
   return out;
 }
@@ -337,7 +337,7 @@ function apply(w: World, c: Command): void {
       for(const id of c.ids){const depot=w.byId.get(id);if(!depot||depot.dead||depot.team!==team||depot.kind!=="supply")continue;
         if(c.sourceIndex!=null&&(c.sourceIndex<0||c.sourceIndex>=w.resourcePoints.length))continue;
         depot.preferredResourceIndex=c.sourceIndex;depot.logisticsPaused=c.paused??false;
-        for(const t of w.entities)if(!t.dead&&t.supplyDepotId===depot.id){t.logisticsLoadProgress=0;t.routeLeg=undefined;if(t.cargo<=0&&(t.logisticsSourceIndex!=null||t.kind==="transport")){if(c.sourceIndex!=null){t.logisticsSourceIndex=c.sourceIndex;t.logisticsTarget={x:w.resourcePoints[c.sourceIndex].x,z:w.resourcePoints[c.sourceIndex].z};}}}
+        for(const t of w.entities)if(!t.dead&&t.supplyDepotId===depot.id&&t.logisticsRoute!=="strategic"){t.logisticsLoadProgress=0;t.routeLeg=undefined;if(t.cargo<=0&&(t.logisticsSourceIndex!=null||t.kind==="transport")){if(c.sourceIndex!=null){t.logisticsSourceIndex=c.sourceIndex;t.logisticsTarget={x:w.resourcePoints[c.sourceIndex].x,z:w.resourcePoints[c.sourceIndex].z};}}}
       }break;
     }
     case "logistics-route": {

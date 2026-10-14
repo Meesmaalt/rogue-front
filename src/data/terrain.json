@@ -58,14 +58,18 @@
     "smokeLifetime": 18,
     "burntCover": 0.18,
     "lodDistance": 220,
-    "treeArea": 16,
+    "treeArea": 12,
     "treeScaleMinimum": 0.7,
     "treeScaleVariation": 0.35,
     "crownRadius": 3.2,
     "crownHeight": 2.6,
     "trunkHeight": 4,
     "crownBaseHeight": 4.1,
-    "placementBudget": 60000
+    "placementBudget": 65000,
+    "understoryBudget": 6500,
+    "understoryPerTree": 0.45,
+    "understoryRadius": 1.9,
+    "understoryHeight": 1.1
   },
   "render": {
     "groundTileSize": 256,

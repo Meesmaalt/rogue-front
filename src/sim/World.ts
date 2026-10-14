@@ -1,3 +1,4 @@
+import {dispatchExternalHelicopters,airportDepot,externalEntry} from "./externalSupply";
 import {receiveResourceCargo,stockCapacity,stockTotal,STOCK_KEYS,needsBackhaul} from "./stockLogistics";
 import {updateGarrisons} from "./garrison";
 import {damage as damageUnit} from "./systems/combat";
@@ -9,7 +10,7 @@ import { getBases, heightAt, setTerrainFeatures, setMapSize, ensureHeightCache, 
 import {WaterNavGrid} from "./nav/WaterNavGrid";
 import {TerrainState} from "./TerrainState";
 import { Rng } from "./rng";
-import { ENEMY_AGGRO, INCOME_PER_SEC, STARTING_CREDITS, STARTING_RESOURCES, AIR_CARGO_INCOME_PER_SEC, AIR_CARGO_LOAD, AIR_CARGO_INTERVAL, RESOURCE_FACILITY_STARTUP, RESOURCE_FACILITY_MAX_STOCK, RESOURCE_FACILITY_PRODUCTION, ROAD_TRUCK_CARGO, ROAD_TRUCK_INTERVAL, ROAD_TRUCK_MAX_PER_DEPOT } from "./constants";
+import { ENEMY_AGGRO, STARTING_CREDITS, STARTING_RESOURCES, RESOURCE_FACILITY_STARTUP, RESOURCE_FACILITY_MAX_STOCK, RESOURCE_FACILITY_PRODUCTION, ROAD_TRUCK_CARGO, ROAD_TRUCK_INTERVAL, ROAD_TRUCK_MAX_PER_DEPOT } from "./constants";
 import { applyCommands } from "./systems/commands";
 import { updateProduction } from "./systems/production";
 import { updateUnits } from "./systems/units";
@@ -640,31 +641,23 @@ export class World {
 
   airliftStatus(team: Team): { pool: number; delivered: number; lost: number; enabled: boolean; inFlight: number } {
     const airbases = this.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === "airbase");
-    const enabled = airbases.some(a => this.producerLevel(a) >= 2);
+    const enabled = airbases.some(a => airportDepot(this,a)!==null);
     const inFlight = this.entities.filter(e => !e.dead && e.team === team && e.kind === "cargoPlane").length;
     return { pool: Math.floor(this.airCargoPool[team]), delivered: Math.floor(this.airCargoDelivered[team]), lost: Math.floor(this.airCargoLost[team]), enabled, inFlight };
   }
 
-  private updateStrategicAirlift(dt: number): void {
-    for (const team of [0,1] as const) {
-      // Strategic airlift is an external supply line: it is unlocked only by a developed airport.
-      const bases = this.entities.filter(e => !e.dead && !e.underConstruction && e.team === team && e.kind === "airbase");
-      const base = bases.find(a => this.producerLevel(a) >= 2) ?? null;
-      const airLevel = base ? (this.producerLevel(base)) : 0;
-      if (airLevel > 1) this.airCargoPool[team] = Math.min(1400, this.airCargoPool[team] + AIR_CARGO_INCOME_PER_SEC * (1 + Math.max(0, airLevel - 2) * 0.65) * this.incomeMultiplier * dt);
-      if (!base || !this.productionOperational(base).operational || this.airCargoPool[team] < 40) continue;
-      const inFlight = this.entities.filter(e => !e.dead && e.team === team && e.kind === "cargoPlane").length;
-      if (inFlight > 0 || this.time - this.airCargoLastSpawn[team] < AIR_CARGO_INTERVAL) continue;
-      const amount = Math.min(AIR_CARGO_LOAD, Math.floor(this.airCargoPool[team]));
-      this.airCargoPool[team] -= amount;
-      this.airCargoLastSpawn[team] = this.time;
-      const edgeX = team === 0 ? -this.mapSize/2+15 : this.mapSize/2-15;
-      const plane = this.spawn("cargoPlane", team, edgeX, base.z + (this.rng() - 0.5) * 40);
-      plane.cargo = amount;
-      plane.logisticsHome = { x: base.x, z: base.z };
-      plane.logisticsPhase = "idle";
-      plane.mode = "patrol";
-      plane.dest = { x: base.x, z: base.z };
+  private updateStrategicAirlift(dt:number):void {
+    const config=logisticsConfig.external;
+    for(const team of [0,1] as const){
+      const base=this.entities.find(e=>e.kind==="airbase"&&e.team===team&&airportDepot(this,e));
+      if(!base)continue;const depot=airportDepot(this,base)!;
+      const level=Math.max(this.producerLevel(base)-1,this.supplyDepotLevel(depot));
+      this.airCargoPool[team]=Math.min(config.planePoolMax,this.airCargoPool[team]+config.planePoolRate*(1+level*config.planePoolRatePerLevel)*this.incomeMultiplier*dt);
+      if(this.airCargoPool[team]<config.planeMinimumLoad||this.time-this.airCargoLastSpawn[team]<config.planeInterval/(1+level*config.planeFrequencyPerLevel)||this.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="cargoPlane").length>=config.planeFleetByLevel[level])continue;
+      const amount=Math.min(config.planeCapacity+level*config.planeCapacityPerLevel,Math.floor(this.airCargoPool[team])),entry=externalEntry(this,team,base);
+      this.airCargoPool[team]-=amount;this.airCargoLastSpawn[team]=this.time;
+      const plane=this.spawn("cargoPlane",team,entry.x,entry.z);plane.y+=config.planeAltitude;plane.py=plane.y;plane.heading=Math.atan2(base.x-entry.x,base.z-entry.z);plane.pHeading=plane.heading;
+      plane.logisticsRoute="strategic";plane.cargo=amount;plane.logisticsCargoCapacity=config.planeCapacity+level*config.planeCapacityPerLevel;plane.supplyDepotId=depot.id;plane.logisticsHome={x:base.x,z:base.z};plane.logisticsTarget=entry;plane.logisticsPhase="idle";plane.mode="patrol";plane.dest={x:base.x,z:base.z};
     }
   }
 
@@ -743,26 +736,7 @@ export class World {
     }
   }
 
-  private updateSupplyAirbridge(): void {
-    for(const team of [0,1] as const){
-      const depots=this.entities.filter(e=>!e.dead&&!e.underConstruction&&e.team===team&&e.kind==="supply");
-      for(const depot of depots){
-        if(depot.logisticsPaused||!this.productionOperational(depot).operational||this.time<(depot.nextLogisticsDispatch??0))continue;
-        const fleet=this.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="transport"&&e.supplyDepotId===depot.id);
-        const max=Math.min(logisticsConfig.air.maxFleet,1+this.supplyDepotLevel(depot));
-        if(fleet.length>=max)continue;
-        const rp=this.resourcePoints.filter((r,i)=>(depot.preferredResourceIndex==null||i===depot.preferredResourceIndex)&&r.active&&r.controlledBy===team&&(r.disabledUntil??0)<=this.time&&r.amount>=1)
-          .sort((a,b)=>Math.hypot(a.x-depot.x,a.z-depot.z)-Math.hypot(b.x-depot.x,b.z-depot.z))[0];
-        if(!rp||(depot.fuelStock??0)<logisticsConfig.air.reserveFuel)continue;
-        const apron={x:depot.x-depot.def.radius-5,z:depot.z};
-        const h=this.spawn("transport",team,apron.x,apron.z);
-        const fuel=Math.min(logisticsConfig.air.dispatchFuel,depot.fuelStock??0);depot.fuelStock=(depot.fuelStock??0)-fuel;h.fuel=fuel;
-        h.supplyDepotId=depot.id;h.logisticsHome=apron;h.logisticsTarget={x:rp.x,z:rp.z};h.logisticsSourceIndex=this.resourcePoints.indexOf(rp);
-        h.logisticsPhase="idle";h.logisticsLoadProgress=0;h.mode="patrol";h.dest=h.logisticsTarget;
-        depot.nextLogisticsDispatch=this.time+logisticsConfig.air.dispatchInterval/Math.max(1,1+this.supplyDepotLevel(depot)*.2);
-      }
-    }
-  }
+  private updateSupplyAirbridge():void {dispatchExternalHelicopters(this);}
 
   /** Phase 71: one compact snapshot for HUD/AI without duplicating graph logic. */
   operationalStatus(team: Team): {
@@ -842,7 +816,7 @@ export class World {
     if (this.status !== "running") return;
     for (const e of this.entities) { e.px = e.x; e.py = e.y; e.pFlightBank=e.flightBank??0; e.pFlightPitch=e.flightPitch??0; e.pz = e.z; e.pHeading = e.heading; e.pTurretYaw = e.turretYaw; }
     this.time += dt;
-    this.teamCredits[0] += INCOME_PER_SEC * 0.35 * this.incomeMultiplier * dt; this.teamCredits[1] += INCOME_PER_SEC * 0.35 * this.incomeMultiplier * dt;
+    // Money is credited by physical imports or resource cargo delivery, never by a passive tick.
     this.updateResourceControl(dt);
     this.logisticsPriority[0] = this.logisticsPriority[0] || "balanced";
     this.logisticsPriority[1] = this.logisticsPriority[1] || "balanced";
@@ -883,8 +857,8 @@ export class World {
     for (let i = this.entities.length - 1; i >= 0; i--) {
       const e = this.entities[i];
       if (e.dead) {
-        if (e.def.speed > 0 && e.kind !== "engineer") this.battlegroupForTeam(e.team)?.recordLoss(e.kind);
-        if (e.kind === "cargoPlane" && e.cargo > 0) { this.airCargoLost[e.team] += e.cargo; e.cargo = 0; }
+        if (e.def.speed > 0 && e.kind !== "engineer" && e.logisticsRoute !== "strategic") this.battlegroupForTeam(e.team)?.recordLoss(e.kind);
+        if ((e.kind === "cargoPlane"||e.kind==="transport"&&e.logisticsRoute==="strategic") && e.cargo > 0) { this.airCargoLost[e.team] += e.cargo; e.cargo = 0; }
         if (e.kind === "logiTruck" && e.cargo > 0) { this.roadCargoLost[e.team] += e.cargo; e.cargo = 0; }
         if (e.def.speed === 0) removedBuilding = true;
         this.entities.splice(i, 1); this.byId.delete(e.id);

@@ -79,7 +79,7 @@ export function saveWorld(world: World): WorldSave {
   };
 }
 
-export const SAVE_RULESET="2026-10-06.integrated-session";
+export const SAVE_RULESET="2026-10-14.external-supply";
 /** Geometry compatibility excludes changing resource stocks/control. */
 export function saveMapSignature(world:World,canonical=true):string {
   const text=JSON.stringify([world.mapSize,world.bases,canonical?[...world.mapFeatures].sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0):world.mapFeatures,world.resourcePoints.map(r=>[r.x,r.z,r.radius,r.facility])]);

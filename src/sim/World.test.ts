@@ -48,7 +48,8 @@ describe("World", () => {
     w.tick(SIM_STEP);
     expect(w.queue).toEqual(["tank"]);
     run(w, UNITS.tank.buildTime + 0.5);
-    expect(w.entities.length).toBe(before + 1);
+    expect(w.entities.filter(e=>e.kind!=="transport").length).toBe(before + 1);
+    expect(w.entities.filter(e=>e.kind==="tank")).toHaveLength(1);
   });
 
   it("ei luba toota ilma krediidita", () => {

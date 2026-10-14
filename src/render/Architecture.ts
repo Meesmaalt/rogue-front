@@ -7,7 +7,7 @@ import {mulberry32} from "../sim/rng";
 
 const textures=new Map<string,THREE.CanvasTexture>();
 const materials=new Map<string,THREE.MeshStandardMaterial>();
-function surface(kind:"plaster"|"brick"|"metal"|"roof"|"concrete"|"facade1"|"facade2"|"facade3"):THREE.CanvasTexture {
+function surface(kind:"plaster"|"brick"|"metal"|"roof"|"concrete"|"facade1"|"facade2"|"facade3"|"camouflage"|"asphalt"):THREE.CanvasTexture {
   const cached=textures.get(kind);if(cached)return cached;
   const canvas=document.createElement("canvas");canvas.width=canvas.height=256;const c=canvas.getContext("2d")!,random=mulberry32(311+kind.length);
   const image=c.createImageData(256,256);
@@ -19,6 +19,11 @@ function surface(kind:"plaster"|"brick"|"metal"|"roof"|"concrete"|"facade1"|"fac
     const i=(y*256+x)*4;image.data[i]=v;image.data[i+1]=v;image.data[i+2]=v;image.data[i+3]=255;
   }
   c.putImageData(image,0,0);
+  if(kind==="camouflage"){
+    const palette=["#aabdb7","#73978f","#8baaa5","#c5cec0","#506f6b"];
+    c.fillStyle=palette[0];c.fillRect(0,0,256,256);
+    for(let i=0;i<210;i++){const x=random()*256,z=random()*256,r=10+random()*29;c.fillStyle=palette[i%palette.length];c.beginPath();c.moveTo(x-r,z-r*.3);c.lineTo(x-r*.2,z-r);c.lineTo(x+r,z-r*.5);c.lineTo(x+r*.6,z+r);c.lineTo(x-r*.8,z+r*.65);c.closePath();c.fill();}
+  }
   if(kind.startsWith("facade")){
     const floors=kind==="facade3"?3:kind==="facade2"?2:1;
     for(let floor=0;floor<floors;floor++)for(const x of [43,111,179]){
@@ -49,19 +54,6 @@ function hipRoof(g:THREE.Group,w:number,d:number,y:number,rise:number,m:THREE.Ma
   geometry.setAttribute("position",new THREE.Float32BufferAttribute([-w/2,y,-d/2,w/2,y,-d/2,w/2,y,d/2,-w/2,y,d/2,0,y+rise,-ridge,0,y+rise,ridge],3));
   geometry.setAttribute("uv",new THREE.Float32BufferAttribute([0,0,1,0,1,1,0,1,.5,.5-ridge/d,.5,.5+ridge/d],2));
   geometry.setIndex([0,4,1,1,4,5,1,5,2,2,5,3,3,5,4,3,4,0]);geometry.computeVertexNormals();g.add(new THREE.Mesh(geometry,m));
-}
-function facade(g:THREE.Group,w:number,d:number,h:number,floors:number,wall:THREE.Material):void {
-  const glass=material(0x334951,undefined,.35),frames=material(0xa2a695),door=material(0x514f43,"metal");
-  for(const side of [-1,1])for(let floor=0;floor<floors;floor++)for(let x=-w/2+1.6;x<w/2-1;x+=2.4){
-    const y=1.7+floor*2.5,z=side*(d/2+.055);
-    box(g,1.15,1.25,.1,x,y,z,frames);box(g,.95,1.05,.12,x,y,z+side*.015,glass);box(g,.055,1.1,.15,x,y,z+side*.025,frames);box(g,1.25,.08,.3,x,y-.64,z,wall);
-  }
-  for(const side of [-1,1]){
-    box(g,w+.08,.4,.07,0,.42,side*(d/2+.06),wall);
-    for(let z=-d/2+1.6;z<d/2-1;z+=2.8){box(g,.1,1.25,1.1,side*(w/2+.05),1.7,z,frames);box(g,.12,1.05,.92,side*(w/2+.07),1.7,z,glass);}
-  }
-  box(g,1.35,2.05,.12,0,1.08,d/2+.08,door);box(g,1.8,.12,.9,0,2.3,d/2+.35,frames);box(g,2,.16,1.2,0,.08,d/2+.4,wall);
-  for(const x of [-w/2+.12,w/2-.12])box(g,.07,h,.09,x,h/2,d/2+.12,frames);
 }
 /** Original civilian models: gable roof, facade, sill, rain pipes, chimney and annex. */
 export function createCivilianBuilding(width:number,depth:number,height:number,variant=0,tactical=false,roofColor?:number,style:MapFeatureDef["buildingStyle"]="residential",facadeColor?:number):THREE.Group {
@@ -138,41 +130,73 @@ function batchDistantHouse(group:THREE.Group):THREE.Group {
   const mesh=new THREE.Mesh(geometry,distantHouseMaterial);mesh.castShadow=mesh.receiveShadow=true;group.add(mesh);return group;
 }
 
-const kinds=new Set(["hq","barracks","factory","supply","generator","helipad","airbase","refinery","shipyard","landCommand","airCommand","seaCommand","landStrategy","airStrategy","seaStrategy","combatEngineer"]);
+/** Low canvas pavilions and attached utility modules echo the reference's field-base silhouettes. */
+function pavilion(g:THREE.Group,w:number,d:number,h:number,x:number,z:number,camo:THREE.Material,wall:THREE.Material,poles:THREE.Material,open=false):void {
+ const hall=new THREE.Group();hall.position.set(x,0,z);
+ if(!open){box(hall,w,h*.68,d,0,h*.34+.2,0,wall);box(hall,w*.5,h*.48,.12,0,h*.25+.2,d/2+.08,poles);}
+ const roofGroup=new THREE.Group();hipRoof(roofGroup,w+.5,d+.5,h*.7,h*.3,camo);hall.add(roofGroup);
+ for(const side of [-1,1])for(const end of [-1,1])box(hall,.12,h*.75,.12,side*w*.47,h*.375,end*d*.47,poles);
+ box(hall,w+.3,.16,d+.3,0,.08,0,material(0x898c7d,"concrete"));g.add(hall);
+}
+function fieldCrates(g:THREE.Group,x:number,z:number,count:number):void {
+ const crates=material(0x827e5e,"metal");for(let i=0;i<count;i++){const w=.9+(i%2)*.25;box(g,w,.75,w,x+(i%3)*1.2,.4+Math.floor(i/3)*.75,z,crates);box(g,w+.04,.07,w+.04,x+(i%3)*1.2,.76+Math.floor(i/3)*.75,z,material(0x898c7d,"concrete"));}
+}
+function mast(g:THREE.Group,x:number,z:number,h:number,team:Team,steel:THREE.Material):void {
+ cylinder(g,.07,h,x,h/2,z,steel);box(g,1.5,.7,.04,x+.75,h-.7,z,material(team===0?0x699fc5:0xac765f));
+}
+const kinds=new Set(["hq","barracks","factory","supply","generator","helipad","airbase","refinery","shipyard","landCommand","airCommand","seaCommand","landStrategy","airStrategy","seaStrategy","combatEngineer","radar"]);
 export function createBuildingModel(kind:UnitKind,team:Team,faction:FactionId):{group:THREE.Group;turret:null}|null {
-  if(!kinds.has(kind))return null;
-  const g=new THREE.Group(),concrete=material(0x8b8d84,"concrete"),wall=material(faction==="usa"?0x9c9d8c:faction==="russia"?0x969b88:0xa4a393,"plaster"),steel=material(0x646f68,"metal",.3),dark=material(0x424a48,"metal",.3),trim=material(team===0?0x6995a1:0xa77b64);
-  const industrial=["factory","supply","shipyard","airbase"].includes(kind),width=kind==="hq"?15:industrial?12:9,depth=industrial?11:8,height=industrial?4.5:kind==="hq"?5.5:3;
-  box(g,width+1,.22,depth+1,0,.11,0,concrete);
-  if(kind==="helipad"||kind==="airbase"){
-    box(g,kind==="airbase"?10:26,.12,kind==="airbase"?48:18,0,.12,6,dark);
-    const marking=material(0xc8c7b8);if(kind==="helipad"){box(g,.25,.03,4,-1,.21,6,marking);box(g,.25,.03,4,1,.21,6,marking);box(g,2,.03,.25,0,.21,6,marking);}else for(let z=-14;z<29;z+=5)box(g,.18,.03,2,0,.21,z,marking);
-    const shed=createCivilianBuilding(6,5,2.5,1);shed.position.set(kind==="airbase"?29:0,0,-7);g.add(shed);box(g,1.2,.14,1.8,kind==="airbase"?31:2,3,-7,trim);
-    if(kind==="airbase"){box(g,17,.12,36,15,.12,8,concrete);for(const x of [11,17])for(let z=-4;z<25;z+=6){box(g,4,.025,.15,x,.2,z+2,marking);box(g,.15,.025,4,x-2,.2,z,marking);}for(const x of [-5.3,5.3])for(let z=-16;z<30;z+=8)box(g,.25,.2,.25,x,.24,z,trim);}
-    else for(const x of [-7,7]){box(g,.25,.03,4,x-1,.21,6,marking);box(g,.25,.03,4,x+1,.21,6,marking);box(g,2,.03,.25,x,.21,6,marking);}
-  }else if(kind==="generator"){
-    box(g,7,1.4,4,0,.95,0,steel);for(const x of [-2.1,2.1]){cylinder(g,.38,3.8,x,2.4,0,dark);cylinder(g,.48,.15,x,4.4,0,dark);}for(let z=-1.5;z<2;z+=.45)box(g,7.08,.08,.06,0,1.2,z,dark);box(g,1.1,2,1.3,3,1.2,2.5,wall);
-  }else if(kind==="refinery"){
-    for(const x of [-2.2,2.2]){cylinder(g,1.7,4,x,2.2,0,steel);cylinder(g,1.85,.2,x,4.3,0,concrete);}box(g,7,.25,.25,0,1.2,2.3,dark);box(g,1.3,2,1.3,0,1.2,-3,wall);
+ if(!kinds.has(kind))return null;
+ const g=new THREE.Group(),concrete=material(0x8b8d84,"concrete"),wall=material(faction==="usa"?0xc1c7bd:faction==="russia"?0xa4ae91:0xbab59b,"plaster"),steel=material(0x646f68,"metal",.3),dark=material(0x424a48,"metal",.3),camo=material(faction==="usa"?0xb5d2cd:faction==="russia"?0xa9b69b:0xc1b69c,"camouflage"),trim=material(team===0?0x6995a1:0xa77b64);
+ if(kind==="airbase"||kind==="helipad"){
+  const airbase=kind==="airbase",mark=material(0xd0cbb7);
+  box(g,airbase?10:25,.12,airbase?48:18,0,.12,6,material(0x73776e,"asphalt"));
+  if(airbase){
+   for(let z=-14;z<29;z+=5)box(g,.18,.03,2,0,.21,z,mark);
+   box(g,17,.12,36,15,.12,8,concrete);
+   for(const x of [11,17])for(let z=-4;z<25;z+=6){box(g,4,.025,.15,x,.2,z+2,mark);box(g,.15,.025,4,x-2,.2,z,mark);}
+   pavilion(g,8,7,4,26,-9,camo,wall,dark,true);pavilion(g,6,6,3.5,26,4,camo,wall,dark);
+   for(const x of [29,31])box(g,.35,6,.35,x,3,-1,steel);box(g,4,1.7,3,30,6.3,-1,wall);const cap=new THREE.Group();cap.position.set(30,0,-1);hipRoof(cap,4.4,3.4,7.15,.9,camo);g.add(cap);
+   fieldCrates(g,23,9,4);mast(g,29,-15,6,team,steel);
   }else{
-    box(g,width,height,depth,0,height/2+.22,0,wall);
-    if(industrial){roof(g,width+.7,depth+.7,height+.22,1.2,steel);for(const x of [-3.2,3.2]){box(g,4.2,3.1,.13,x,1.75,depth/2+.08,dark);for(let y=.4;y<3.2;y+=.28)box(g,4.1,.045,.15,x,y,depth/2+.16,steel);}box(g,3,2.7,4,-width*.32,1.5,-depth*.27,wall);}
-    else{box(g,width+.4,.23,depth+.4,0,height+.35,0,steel);facade(g,width,depth,height,height>5?2:1,concrete);}
-    box(g,2,.7,1.4,width*.25,height+.8,-depth*.2,dark);for(let x=-.75;x<=.75;x+=.3)box(g,.1,.6,1.45,width*.25+x,height+.8,-depth*.2,steel);
-    box(g,2,.16,1.3,0,height*.8,depth/2+.23,trim);
-    if(kind==="hq"||kind.includes("Command")||kind.includes("Strategy")){cylinder(g,.07,5,width*.32,height+2.7,-depth*.32,dark);const dish=new THREE.Mesh(new THREE.SphereGeometry(.8,12,8,0,Math.PI*2,0,Math.PI*.5),steel);dish.position.set(width*.32,height+3.5,-depth*.32);dish.rotation.x=-.6;g.add(dish);}
-    if(kind==="shipyard"){
-      const crane=material(0xbba054,"metal");
-      for(const x of [-7,-5])box(g,.45,10,.45,x,5,0,crane);
-      box(g,2.8,.65,2.4,-6,10,0,crane);box(g,2.1,.5,10,-6,10.6,3,crane);
-      for(let z=-1;z<8;z+=2)box(g,2.2,.3,.2,-6,11.2,z,crane);
-      cylinder(g,.06,6,-6,7.5,7,dark);box(g,.7,.6,.7,-6,4.4,7,dark);
-      for(const x of [-3,0,3])box(g,2.6,1.4,2.5,x,.85,-8,steel);
-    }
-    if(kind==="supply"){for(const side of [-1,1])for(let i=0;i<3;i++){box(g,1.2,.9,1.2,side*(width/2-.9),.65+i*.9,-depth/2+1,material(0x80785d,"metal"));}for(const x of [-1.2,1.2])cylinder(g,.45,1.4,x,.9,depth/2-1,steel);}
-    for(const x of [-width/2+.18,width/2-.18])box(g,.1,height,.1,x,height/2+.22,depth/2+.12,steel);
+   for(const x of [-7,0,7]){box(g,.25,.03,4,x-1,.21,6,mark);box(g,.25,.03,4,x+1,.21,6,mark);box(g,2,.03,.25,x,.21,6,mark);}
+   pavilion(g,6,4,3.4,-4,-5,camo,wall,dark,true);fieldCrates(g,2,-5,3);mast(g,7,-4,4,team,steel);
   }
-  return {group:batch(g),turret:null};
+ }else if(kind==="supply"){
+  pavilion(g,6,7,3.7,-1,-1,camo,wall,dark,true);pavilion(g,3.5,4,2.7,3.7,-1,camo,wall,dark);
+  fieldCrates(g,-3,3.5,8);for(const x of [2.5,4])cylinder(g,.55,1.6,x,.85,3.3,steel);mast(g,-4,-4,5,team,steel);
+  const ring=new THREE.Mesh(new THREE.RingGeometry(2.1,2.3,24).rotateX(-Math.PI/2),trim);ring.position.set(-1,.21,-1);g.add(ring);
+ }else if(kind==="generator"){
+  box(g,6,1.5,3.6,-.6,.95,0,steel);for(const x of [-2.1,.7]){cylinder(g,.32,3.8,x,2.6,-.7,dark);cylinder(g,.43,.15,x,4.6,-.7,steel);}pavilion(g,2.5,3,2.4,3.5,0,camo,wall,dark);for(let z=-1.3;z<1.6;z+=.5)box(g,6,.08,.1,-.6,1.3,z,dark);
+ }else if(kind==="refinery"){
+  for(const x of [-2,2]){cylinder(g,1.5,3.5,x,1.95,-.5,steel);cylinder(g,1.65,.22,x,3.85,-.5,concrete);}box(g,7,.2,.3,0,1.4,2,steel);pavilion(g,3,2.5,2.5,0,3,camo,wall,dark);
+ }else if(kind==="factory"||kind==="shipyard"){
+  pavilion(g,8,8,4.5,-1,0,camo,wall,dark,true);pavilion(g,3,5,2.8,4.5,-1,camo,wall,dark);fieldCrates(g,-3,4,5);
+  for(const x of [-3,1])box(g,2.7,2.7,.15,x,1.5,4.05,dark);
+  box(g,1.3,3.2,1.3,3.8,1.7,3,steel);cylinder(g,.3,5,3.8,4.6,3,dark);
+  if(kind==="shipyard"){const crane=material(0xbba054,"metal");for(const x of [-6,-4])box(g,.4,8,.4,x,4,-2,crane);box(g,3,.5,9,-5,8,1,crane);cylinder(g,.07,5,-5,5.5,5,dark);}
+ }else{
+  const command=kind==="hq"||kind.includes("Command")||kind.includes("Strategy"),height=kind==="hq"?4.4:3.2;
+  pavilion(g,6.5,6.5,height,-1,-.5,camo,wall,dark);
+  pavilion(g,3.2,4,height*.75,3.5,1.3,camo,wall,dark,kind==="barracks");
+  fieldCrates(g,-3,3.5,kind==="barracks"?6:3);
+  if(command||kind==="radar"){
+   mast(g,3.5,-3.3,height+3,team,steel);
+   const dish=new THREE.Mesh(new THREE.SphereGeometry(kind==="radar"?1.7:1.05,10,6,0,Math.PI*2,0,Math.PI*.5),steel);dish.position.set(3.4,height+1,-1);dish.rotation.x=-.7;g.add(dish);
+   box(g,1.5,2.4,1.6,-3.8,1.35,-3.4,dark);for(let i=0;i<3;i++)box(g,.9,.08,.15,-3.8,1.1+i*.35,-2.55,trim);
+  }else{mast(g,3,-3,4,team,steel);for(const x of [-2,0,2])box(g,1.2,.6,1.4,x,.35,-4.1,concrete);}
+ }
+ if(kind==="hq"){box(g,4.5,2.3,2.7,-2.2,1.3,-4,wall);mast(g,-4,3.5,7.2,team,steel);}
+ if(kind==="airCommand"){
+  for(const x of [2,4])box(g,.18,4,.18,x,2,1.5,dark);
+  box(g,3,1.8,2.8,3,4.3,1.5,wall);const cap=new THREE.Group();cap.position.y=4.2;pavilion(cap,3.2,2.9,1.2,3,1.5,camo,wall,dark,true);g.add(cap);
+ }
+ if(kind==="barracks")pavilion(g,3,3,2.4,-3,-4.2,camo,wall,dark,true);
+ if(kind==="landCommand")box(g,4,.25,1.2,-1,.7,3.3,steel);
+ if(kind==="seaCommand")for(const z of [-2,0,2])cylinder(g,.7,2.4,-3.8,1.3,z,steel);
+ if(kind.includes("Strategy")){box(g,4.5,2.4,2.3,0,1.4,-4,wall);for(const x of [-2,0,2])cylinder(g,.04,5,x,3,-4.2,steel);}
+ if(kind==="combatEngineer"){box(g,4,.15,1.5,-1,1,3.5,steel);for(const x of [-2,-.5,1])box(g,.45,.6,.8,x,1.35,3.5,material(0xb0a568,"metal"));}
+ g.userData.militarySilhouette=kind;return {group:batch(g),turret:null};
 }
 /** Merge architecture by material without losing texture UVs. */
 function batch(g:THREE.Group):THREE.Group {

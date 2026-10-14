@@ -642,6 +642,18 @@ export function sampleForest(features:readonly MapFeatureDef[]):Map<string,Fores
   return cells;
 }
 
+/** Understory is visual, uses existing forest cover, and never occupies a road, yard or water. */
+export function sampleUnderstory(points:readonly ForestPoint[],features:readonly MapFeatureDef[],budget:number,index=new MapFeatureIndex(features)):ForestPoint[]{
+ const random=mulberry32(914+points.length),shrubs:ForestPoint[]=[];
+ const count=Math.min(budget,Math.floor(points.length*terrainConfig.forest.understoryPerTree));
+ for(let i=0;i<count;i++){
+  const tree=points[Math.floor(random()*points.length)],angle=random()*Math.PI*2,r=2+random()*2.5,x=tree.x+Math.cos(angle)*r,z=tree.z+Math.sin(angle)*r,nearby=index.at(x,z);
+  if(forestDensityAt(x,z,nearby)<.3||nearby.some(f=>["building","road","bridge","water"].includes(f.kind)||f.appearance==="yard"?pointInFeature(x,z,f,2):false))continue;
+  shrubs.push({x,z,s:.65+random()*.5,angle,pine:false});
+ }
+ return shrubs;
+}
+
 /** Opaque leaf texture and three cell LODs keep detail local, without alpha leaf overdraw. */
 export function createForest(features:readonly MapFeatureDef[],cells=sampleForest(features)):THREE.Group {
   const rnd=mulberry32(818),group=new THREE.Group(),trunkGeometry=new THREE.CylinderGeometry(.1,.22,terrainConfig.forest.trunkHeight,5);
@@ -649,6 +661,7 @@ export function createForest(features:readonly MapFeatureDef[],cells=sampleFores
   const trunkMaterial=new THREE.MeshStandardMaterial({color:0x625a49,roughness:1});
   const crownMaterial=new THREE.MeshStandardMaterial({color:0xffffff,map:canopyTexture(),vertexColors:true,roughness:1,metalness:0});
   const d=new THREE.Object3D(),tint=new THREE.Color();
+  let shrubBudget=terrainConfig.forest.understoryBudget;const shrubIndex=new MapFeatureIndex(features);
   for(const points of cells.values()){
     const trunks=new THREE.InstancedMesh(trunkGeometry,trunkMaterial,points.length),crowns=new THREE.InstancedMesh(crownGeometry,crownMaterial,points.length);
     points.forEach((p,i)=>{
@@ -672,6 +685,12 @@ export function createForest(features:readonly MapFeatureDef[],cells=sampleFores
     close.computeBoundingSphere();close.receiveShadow=true;close.matrixAutoUpdate=false;
     close.userData={...crowns.userData};
     const near=new THREE.Group();near.add(trunks,close);
+    const shrubs=sampleUnderstory(points,features,shrubBudget,shrubIndex);shrubBudget-=shrubs.length;
+    if(shrubs.length){
+      const bushes=new THREE.InstancedMesh(farGeometry,crownMaterial,shrubs.length);
+      shrubs.forEach((p,i)=>{d.position.set(p.x,heightAt(p.x,p.z)+terrainConfig.forest.understoryHeight*.6,p.z);d.rotation.set(0,p.angle,0);d.scale.set(terrainConfig.forest.understoryRadius*p.s,terrainConfig.forest.understoryHeight*p.s,terrainConfig.forest.understoryRadius*p.s*.8);d.updateMatrix();bushes.setMatrixAt(i,d.matrix);bushes.setColorAt(i,tint.setHex(0x586847));});
+      bushes.computeBoundingSphere();bushes.receiveShadow=true;bushes.userData.forestPoints=shrubs;bushes.userData.forestCrownCount=1;bushes.userData.forestColors=bushes.instanceColor!.array.slice();bushes.userData.forestMatrices=bushes.instanceMatrix.array.slice();near.add(bushes);
+    }
     const middle=new THREE.Group();middle.add(crowns);
     const lod=new THREE.LOD(),origin=new THREE.Vector3(points.reduce((n,p)=>n+p.x,0)/points.length,0,points.reduce((n,p)=>n+p.z,0)/points.length);origin.y=heightAt(origin.x,origin.z);
     lod.position.copy(origin);near.position.copy(origin).negate();middle.position.copy(origin).negate();far.position.copy(origin).negate();far.updateMatrix();

@@ -936,7 +936,7 @@
     "stabilizer": "none",
     "discipline": "medium",
     "opticsRange": 28,
-    "domain": "land",
+    "domain": "air",
     "ammoCapacity": 0,
     "fuelCapacity": 1800,
     "ammoUsePerShot": 1,

@@ -1,3 +1,4 @@
+import {airportDepot,externalDepotReady,externalEntry} from "../externalSupply";
 import {ROAD_TRUCK_MAX_PER_DEPOT} from "../constants";
 import {collectionSource,depositPayload,withdrawPayload,serviceFuelAvailable,needsBackhaul} from "../stockLogistics";
 import {garrisonFaces} from "../garrison";
@@ -358,7 +359,7 @@ function moveAirTo(u: Entity, target: Point, dt: number, w: World, cruise=false)
     helicopterVelocity(u,Math.sin(travelHeading)*desiredSpeed*component,Math.cos(travelHeading)*desiredSpeed*component,dt);
   }else {u.x+=Math.sin(heading)*step;u.z+=Math.cos(heading)*step;}
   const limit=MAP_SIZE/2-8;
-  if(Math.abs(u.x)>limit||Math.abs(u.z)>limit){u.heading=turnToward(u.heading,Math.atan2(-u.x,-u.z),turnRate*dt*3);u.x=Math.max(-limit,Math.min(limit,u.x));u.z=Math.max(-limit,Math.min(limit,u.z));}
+  if(u.logisticsRoute!=="strategic"&&(Math.abs(u.x)>limit||Math.abs(u.z)>limit)){u.heading=turnToward(u.heading,Math.atan2(-u.x,-u.z),turnRate*dt*3);u.x=Math.max(-limit,Math.min(limit,u.x));u.z=Math.max(-limit,Math.min(limit,u.z));}
   void w;
   return false;
 }
@@ -388,39 +389,37 @@ function updateLandingCraft(w: World, u: Entity, dt: number): void {
   const goal=u.target&&!u.target.dead?{x:u.target.x,z:u.target.z}:u.dest; if(goal&&moveSeaTo(w,u,goal,dt)&&["move","amove"].includes(u.mode))finishMoveWaypoint(u);
 }
 
-function updateCargoPlane(w: World, u: Entity, dt: number): void {
-  let base = u.logisticsHome;
-  if (!base) { w.airCargoLost[u.team]+=u.cargo;u.cargo=0;u.dead = true; return; }
-  // Cargo also needs a real, usable receiving airbase. Divert if its original runway is lost.
-  if (u.cargo > 0 && u.logisticsPhase === "idle") {
-    let destination=w.entities.find(e=>!e.dead&&!e.underConstruction&&(e.disabledUntil??0)<=w.time&&e.team===u.team&&e.kind==="airbase"&&Math.hypot(e.x-base!.x,e.z-base!.z)<15);
-    if(!destination){
-      destination=w.entities.filter(e=>!e.dead&&!e.underConstruction&&(e.disabledUntil??0)<=w.time&&e.team===u.team&&e.kind==="airbase"&&w.producerLevel(e)>=2).sort((a,b)=>dist2d(u,a)-dist2d(u,b)||a.id-b.id)[0];
-      if(destination){base={x:destination.x,z:destination.z};u.logisticsHome=base;}
-      else {u.logisticsPhase="loading";u.dest={x:u.team===0?MAP_SIZE/2-10:-MAP_SIZE/2+10,z:base.z};return;}
+function updateExternalFlight(w:World,u:Entity,dt:number):void {
+  const aircraft=u.kind==="cargoPlane",entry=u.logisticsTarget??externalEntry(w,u.team,u),home=u.logisticsHome;
+  if(!home){u.logisticsPhase="loading";u.dest=entry;}
+  let depot=w.byId.get(u.supplyDepotId??-1);
+  if(u.logisticsPhase!=="loading"){
+    let base=aircraft?w.entities.find(e=>e.kind==="airbase"&&e.team===u.team&&home&&Math.hypot(e.x-home.x,e.z-home.z)<15):undefined;
+    if(aircraft&&(!base||!airportDepot(w,base))){
+      base=w.entities.find(e=>e.kind==="airbase"&&e.team===u.team&&airportDepot(w,e));
+      if(base){depot=airportDepot(w,base)!;u.supplyDepotId=depot.id;u.logisticsHome={x:base.x,z:base.z};}
+      else u.logisticsPhase="loading";
+    }else if(aircraft&&base){depot=airportDepot(w,base)!;u.supplyDepotId=depot.id;}
+    else if(!aircraft&&(!depot||!externalDepotReady(w,depot)))u.logisticsPhase="loading";
+    if(u.logisticsPhase!=="loading"&&depot){
+      u.mode="patrol";u.dest=u.logisticsHome!;
+      if(!moveAirTo(u,u.dest,dt,w))return;
+      u.logisticsPhase="unloading";u.logisticsLoadProgress=(u.logisticsLoadProgress??0)+dt;
+      const unload=Math.max(1.5,logisticsConfig.external.unloadSeconds-w.supplyDepotLevel(depot)*logisticsConfig.external.unloadReduction);
+      if(u.logisticsLoadProgress<unload)return;
+      const accepted=w.receiveSupply(depot,u.cargo);u.cargo=Math.max(0,u.cargo-accepted);w.airCargoDelivered[u.team]+=accepted;
+      if(accepted>0)w.events.push({type:"supply-delivered",team:u.team,x:u.x,z:u.z,amount:accepted});
+      if(u.cargo>.001)return;
+      u.cargo=0;u.logisticsPhase="loading";
     }
-    u.mode = "patrol"; u.dest = base;
-    if (!moveAirTo(u, base, dt, w)) return;
-    let delivered = 0;
-    const depot=w.nearestSupplyDepot(u.team,destination,false);
-    if(depot)delivered=w.receiveSupply(depot,u.cargo);
-    w.airCargoDelivered[u.team] += delivered;
-    if(delivered>0)w.events.push({ type: "supply-delivered", team: u.team, x: u.x, z: u.z, amount: delivered });
-    u.cargo=Math.max(0,u.cargo-delivered);if(u.cargo>0)return;
-    u.logisticsPhase = "loading";
-    // Turn around and leave the map.
-    const exitX = u.team === 0 ? MAP_SIZE/2-10 : -MAP_SIZE/2+10;
-    u.dest = { x: exitX, z: base.z };
-    return;
   }
-  if (u.logisticsPhase === "loading") {
-    moveAirTo(u, u.dest ?? {x: u.team === 0 ? MAP_SIZE/2-10 : -MAP_SIZE/2+10, z: base.z}, dt, w);
-    // Reaching the edge removes the flight from the battlefield.
-    if (Math.abs(u.x) > MAP_SIZE/2-22) {w.airCargoPool[u.team]+=u.cargo;u.cargo=0;u.dead = true;}
-  }
+  u.mode="patrol";u.dest=entry;moveAirTo(u,entry,dt,w,aircraft);
+  if(Math.hypot(u.x-entry.x,u.z-entry.z)<8){u.cargo=0;u.dead=true;}
 }
+function updateCargoPlane(w:World,u:Entity,dt:number):void {updateExternalFlight(w,u,dt);}
 
 function updateTransport(w: World, u: Entity, dt: number): void {
+  if(u.logisticsRoute==="strategic"&&u.supplyDepotId!=null){updateExternalFlight(w,u,dt);return;}
   if (u.mode === "transport-load" || u.mode === "transport-unload") {
     prepareTransport(w,u);
     if(u.dest){moveAirTo(u,u.dest,dt,w);prepareTransport(w,u);}

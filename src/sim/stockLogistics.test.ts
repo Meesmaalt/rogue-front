@@ -39,7 +39,7 @@ it('grounded air service can refuel with zero ammo; disabled taxi holds and a de
 });
 
 it('one real sortie taxis, takes off, returns after ammunition depletion and rearms from warehouse stock',()=>{
- const w=fixture(),d=w.spawn('supply',0,0,0),pad=w.spawn('airbase',0,10,0);w.spawn('airCommand',0,-20,-20);const plane=w.spawn('fighter',0,10,0);stationAircraft(w,plane,pad);assignAirMission(plane,'cap',{x:90,z:0});
+ const w=fixture(),d=w.spawn('supply',0,0,0),pad=w.spawn('airbase',0,10,0);d.logisticsPaused=true;w.spawn('airCommand',0,-20,-20);const plane=w.spawn('fighter',0,10,0);stationAircraft(w,plane,pad);assignAirMission(plane,'cap',{x:90,z:0});
  for(let i=0;i<420;i++)w.tick(1/30);
  expect(plane.airSortieCount).toBe(1);expect(plane.airState).toBe('airborne');const ammo=d.ammoStock!;plane.ammo=0;
  for(let i=0;i<1800&&!['rearming','grounded'].includes(plane.airState??'');i++)w.tick(1/30);

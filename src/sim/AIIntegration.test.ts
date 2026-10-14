@@ -71,7 +71,9 @@ it('Roheorg economy and offensive production recover from a lost trunk depot and
  const m=mapData as unknown as MissionDef;
  setMapSize(m.map.size??640);setBases(m.map.bases);setProceduralSeed(m.seed);setTerrainProfile(m.map.terrainProfile);ensureHeightCache();
  const w=new World(m.seed,false,m.map.resources,m.map.features??[],m.map.bases,m.map.baseDefenses??true);createSkirmish(w,true);w.ai.setProfile('economic','normal');
- let lostDepot=0,deliveredAtLoss=0,postLossUnits=0,resumedProduction=false,lateProduction=false;const produced=new Set<number>();
+ // Exercise 15 minutes of recovery even if the stronger import economy ends the battle sooner.
+ w.externalVictoryMode=true;
+ let lostDepot=0,deliveredAtLoss=0,postLossUnits=0,resumedProduction=false,lateProduction=false,lateAttrition=false;const produced=new Set<number>();
  const factory=w.entities.find(e=>e.team===1&&e.kind==='factory')!;
  for(let i=0;i<900/SIM_STEP&&w.status==='running';i++){
   if(!lostDepot&&w.time>=240){
@@ -79,6 +81,8 @@ it('Roheorg economy and offensive production recover from a lost trunk depot and
    for(const t of w.entities)if(t.team===1&&t.kind==='logiTruck')t.dead=true;
    expect(w.productionOperational(w.entities.find(e=>e.team===1&&e.kind==='factory')!,'tank').operational).toBe(false);
   }
+  // Imports fill the doctrine's army quota earlier. Create real late demand instead of requiring endless overproduction.
+  if(!lateAttrition&&w.time>=780){lateAttrition=true;for(const tank of w.entities.filter(e=>!e.dead&&e.team===1&&e.kind==='tank'))tank.dead=true;}
   const progress=factory.productionProgress;w.tick(SIM_STEP);w.drainEvents();
   if(lostDepot&&factory.productionProgress>progress){resumedProduction=true;if(w.time>780)lateProduction=true;}
   for(const e of w.entities)if(e.team===1&&e.def.speed>0&&!['engineer','transport','logiTruck','cargoPlane'].includes(e.kind)&&!produced.has(e.id)){produced.add(e.id);if(lostDepot)postLossUnits++;}

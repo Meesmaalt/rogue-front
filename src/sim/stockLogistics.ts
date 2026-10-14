@@ -58,6 +58,7 @@ export function collectionSource(w:World,depot:Entity,from:Entity):number|null {
 }
 export function logisticsStatus(w:World,u:Entity):string {
  const depot=w.byId.get(u.supplyDepotId??-1),backhaul=u.logisticsSourceIndex==null&&u.logisticsPhase==='unloading',destination=backhaul?w.primarySupplyDepot(u.team):depot,cap=destination?stockCapacity(w,destination):null;
+ if(u.logisticsRoute==='strategic')return u.logisticsPhase==='loading'?'Väline tarne · naaseb kaardi taha':u.logisticsPhase==='unloading'?'Väline tarne · mahalaadimine':'Väline tarne · koorem '+Math.floor(u.cargo);
  if(!depot||depot.dead)return 'Tarne katkestatud · ladu puudub';
  if((u.fuel??0)<=.5)return 'Kütus otsas · vajab lähedal ladu või kütusekoormaga konvoid';
  if(u.cargo>0&&cap&&STOCK_KEYS.every(k=>(destination?.[`${k}Stock`]??0)>=cap[k]))return 'Sihtladu täis · koorem jääb pardale';

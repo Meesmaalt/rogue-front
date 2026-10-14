@@ -60,5 +60,32 @@
     "radius": 80,
     "perSecond": 10,
     "componentPerStock": 3.2
+  },
+  "external": {
+    "edgeMargin": 45,
+    "apronOffset": 6,
+    "helicopterAltitude": 30,
+    "helicopterCapacity": 180,
+    "capacityPerLevel": 70,
+    "helicopterInterval": 35,
+    "frequencyPerLevel": 0.3,
+    "maxHelicopters": 3,
+    "unloadSeconds": 4,
+    "unloadReduction": 0.7,
+    "airportDepotRadius": 75,
+    "planeCapacity": 480,
+    "planeCapacityPerLevel": 140,
+    "planePoolRate": 12,
+    "planePoolMax": 3000,
+    "planeMinimumLoad": 360,
+    "planeInterval": 45,
+    "planeFrequencyPerLevel": 0.2,
+    "planeFleetByLevel": [
+      1,
+      2,
+      3
+    ],
+    "planeAltitude": 80,
+    "planePoolRatePerLevel": 0.35
   }
 }

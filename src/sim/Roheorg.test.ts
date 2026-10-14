@@ -41,10 +41,10 @@ it("weapon-logistics smoke: guided missile flight and physical depot delivery",(
  const depot=w.entities.find(e=>e.kind==="supply"&&e.team===0)!;
  const h=w.entities.find(e=>e.kind==="transport"&&e.team===0&&e.supplyDepotId===depot.id)!;
  expect(h).toBeTruthy();expect(depot.nextLogisticsDispatch).toBeGreaterThan(w.time);
- h.x=source.x;h.z=source.z;h.y=heightAt(h.x,h.z);h.fuel=800;h.motionSpeed=0;
- run(w,7);expect(h.cargo).toBeGreaterThan(0);
+ expect(h.logisticsRoute).toBe("strategic");expect(h.cargo).toBeGreaterThan(0);
+ depot.ammoStock=depot.fuelStock=depot.repairStock=0;
  const amount=h.cargo,before=w.teamResources[0];h.x=h.logisticsHome!.x;h.z=h.logisticsHome!.z;h.y=heightAt(h.x,h.z);h.motionSpeed=0;
- run(w,3.5);expect(h.cargo).toBe(0);expect(w.teamResources[0]).toBeGreaterThanOrEqual(before+amount*.6);
+ run(w,5);expect(h.cargo).toBe(0);expect(w.teamResources[0]).toBeGreaterThanOrEqual(before+amount*.6);
  const a=w.spawn("heli",0,-95,-220),t=w.spawn("tank",1,-5,-220);a.y=heightAt(a.x,a.z)+30;
  const ammo=a.ammo!;fireProjectile(w,a,t,a.x,a.y,a.z);const missile=w.projectiles[w.projectiles.length-1]!;missile.hitChance=1;
  expect(missile.weapon).toBe("missile");expect(a.ammo).toBe(ammo-1);expect(canEngage(a,t)).toBe(true);expect(canEngage(t,a)).toBe(false);

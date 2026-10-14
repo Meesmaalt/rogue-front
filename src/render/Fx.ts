@@ -1,10 +1,12 @@
+import effects from "../data/effects.json";
+import {sampleProjectileTrail} from "./ProjectileTrail";
 import * as THREE from "three";
 import {mergeGeometries} from "three/addons/utils/BufferGeometryUtils.js";
 import type {World} from "../sim/World";
 import type {SimEvent,Projectile} from "../sim/types";
 import {heightAt} from "../sim/heightmap";
 
-type ParticleKind="smoke"|"dust"|"glow"|"spark";
+type ParticleKind="smoke"|"vapor"|"dust"|"glow"|"spark";
 interface Particle{x:number;y:number;z:number;vx:number;vy:number;vz:number;t:number;life:number;size:number;color:number;stretch:number}
 interface Pool{mesh:THREE.InstancedMesh;fade:THREE.InstancedBufferAttribute;particles:Particle[];capacity:number}
 interface Shell{group:THREE.Group;flame?:THREE.Object3D;lastX:number;lastY:number;lastZ:number}
@@ -40,10 +42,10 @@ export class Fx {
         shader.fragmentShader="varying float vParticleOpacity;\n"+shader.fragmentShader;
         shader.fragmentShader=shader.fragmentShader.replace("#include <color_fragment>","#include <color_fragment>\ndiffuseColor.a*=vParticleOpacity;");
       };
-      const mesh=new THREE.InstancedMesh(geometry,material,capacity);mesh.count=0;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(mesh);
+      const mesh=new THREE.InstancedMesh(geometry,material,capacity);mesh.count=0;mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);mesh.instanceColor=new THREE.InstancedBufferAttribute(new Float32Array(capacity*3),3);mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);fade.setUsage(THREE.DynamicDrawUsage);scene.add(mesh);
       return {mesh,fade,particles:[],capacity};
     };
-    this.pools={smoke:make("smoke",640),dust:make("dust",320),glow:make("glow",192),spark:make("spark",256)};
+    this.pools={smoke:make("smoke",effects.pools.smoke),vapor:make("vapor",effects.pools.vapor),dust:make("dust",effects.pools.dust),glow:make("glow",effects.pools.glow),spark:make("spark",effects.pools.spark)};
   }
   reset():void {
     for(const s of this.shells.values())this.scene.remove(s.group);this.shells.clear();
@@ -144,14 +146,13 @@ export class Fx {
       m.scale.setScalar(p.weapon==="missile"?distanceScale:1);
       m.position.set(x,y,z);this.direction.set(p.vx,p.vy,p.vz).normalize();m.lookAt(x+this.direction.x,y+this.direction.y,z+this.direction.z);
       if(p.visual==="torpedo"){this.emit("dust",x,y+.12,z,.15,.4,0xc2e2df,0,.1,0);}
-      else if(p.weapon==="missile"){
-        const distance=Math.hypot(x-shell.lastX,y-shell.lastY,z-shell.lastZ),spacing=["sam","naval-sam","mlrs"].includes(p.visual??"")?.9:["cruise","anti-ship"].includes(p.visual??"")?1.4:.65;
-        if(distance>=spacing){const count=Math.min(12,Math.floor(distance/spacing));
-          for(let i=1;i<=count;i++){const t=i*spacing/distance;this.emit("smoke",shell.lastX+(x-shell.lastX)*t,shell.lastY+(y-shell.lastY)*t,shell.lastZ+(z-shell.lastZ)*t,p.visual==="sam"||p.visual==="naval-sam"?.48:p.visual==="mlrs"?.4:.2,["cruise","anti-ship","aam"].includes(p.visual??"")?1:1.6,0xc6c6b8,.25,.35,0);}
-          const advance=count===12?1:count*spacing/distance;
-          this.emit("glow",x-this.direction.x*.6,y-this.direction.y*.6,z-this.direction.z*.6,.14,.08,0xffdb91);
-          shell.lastX+=(x-shell.lastX)*advance;shell.lastY+=(y-shell.lastY)*advance;shell.lastZ+=(z-shell.lastZ)*advance;
-        }
+      else if(p.weapon==="missile"||p.weapon==="cannon"||["howitzer","mortar","sabot","autocannon"].includes(p.visual??"")){
+        const rocket=p.weapon==="missile",trail=rocket?effects.trails.missile:effects.trails.shell;
+        const points=sampleProjectileTrail({x:shell.lastX,y:shell.lastY,z:shell.lastZ},{x,y,z},trail.spacing,trail.maxSamples);
+        const heavy=["sam","naval-sam","mlrs","cruise","anti-ship"].includes(p.visual??"");
+        for(const point of points)this.emit(rocket?"vapor":"smoke",point.x,point.y,point.z,trail.size*(heavy?1.35:1),trail.life,trail.color,.22,rocket?.24:.1,.08);
+        if(points.length){const last=points.at(-1)!;shell.lastX=last.x;shell.lastY=last.y;shell.lastZ=last.z;}
+        if(rocket&&(p.age??0)<Math.max(2,p.boostTime??0))this.emit("glow",x-this.direction.x*.6,y-this.direction.y*.6,z-this.direction.z*.6,.18,.1,0xffdb91);
       }
     }
     for(const [id,s]of this.shells)if(!this.seen.has(id)){this.scene.remove(s.group);this.shells.delete(id);}
@@ -164,12 +165,12 @@ export class Fx {
   update(dt:number):void {
     for(const [kind,pool]of Object.entries(this.pools)){
       for(let i=pool.particles.length-1;i>=0;i--){const p=pool.particles[i];p.t+=dt;if(p.t>=p.life){pool.particles[i]=pool.particles[pool.particles.length-1];pool.particles.pop();continue;}
-        p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;p.vy+=(kind==="smoke"?.4:-3)*dt;
+        p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;p.vy+=(kind==="smoke"||kind==="vapor"?.25:-3)*dt;
       }
       pool.mesh.count=pool.particles.length;
-      pool.particles.forEach((p,i)=>{const k=p.t/p.life,size=p.size*(kind==="smoke"||kind==="dust"?.6+k*2.5:1-k*.6);
+      pool.particles.forEach((p,i)=>{const k=p.t/p.life,size=p.size*(kind==="smoke"||kind==="vapor"||kind==="dust"?.6+k*2.5:1-k*.6);
         this.dummy.position.set(p.x,p.y,p.z);this.dummy.quaternion.copy(this.camera.quaternion);this.dummy.scale.set(size*p.stretch,size,1);this.dummy.updateMatrix();pool.mesh.setMatrixAt(i,this.dummy.matrix);
-        this.color.setHex(p.color);pool.mesh.setColorAt(i,this.color);pool.fade.setX(i,Math.sin(Math.min(1,k*5)*Math.PI/2)*(1-k)*(kind==="smoke"?.5:1));
+        this.color.setHex(p.color);pool.mesh.setColorAt(i,this.color);pool.fade.setX(i,Math.sin(Math.min(1,k*5)*Math.PI/2)*(1-k)*(kind==="smoke"?.5:kind==="vapor"?.64:1));
       });
       pool.mesh.instanceMatrix.needsUpdate=true;if(pool.mesh.instanceColor)pool.mesh.instanceColor.needsUpdate=true;pool.fade.needsUpdate=true;
     }

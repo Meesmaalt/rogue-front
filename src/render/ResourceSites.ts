@@ -1,3 +1,4 @@
+import {resourceGroundTexture} from "./ResourceGround";
 import * as THREE from "three";
 import type { World } from "../sim/World";
 import { heightAt } from "../sim/heightmap";
@@ -9,8 +10,8 @@ export class ResourceSites {
   constructor(scene:THREE.Scene,world:World){
     for(const rp of world.resourcePoints){
       const root=new THREE.Group();root.position.set(rp.x,heightAt(rp.x,rp.z)+.12,rp.z);
-      const pad=new THREE.Mesh(new THREE.CircleGeometry(4.5,24).rotateX(-Math.PI/2),new THREE.MeshStandardMaterial({color:0x73756b,roughness:1}));root.add(pad);
-      const ring=new THREE.Mesh(new THREE.RingGeometry(4.5,4.8,32).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xc6b27b}));ring.position.y=.04;root.add(ring);
+      const pad=new THREE.Mesh(new THREE.CircleGeometry(7,32).rotateX(-Math.PI/2),new THREE.MeshStandardMaterial({color:0xffffff,map:resourceGroundTexture(rp.facility),roughness:1}));root.add(pad);
+      const ring=new THREE.Mesh(new THREE.RingGeometry(7,7.3,32).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xc6b27b}));ring.position.y=.04;root.add(ring);
       const canvas=document.createElement("canvas");canvas.width=512;canvas.height=96;
       const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
       const label=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthTest:true,transparent:true}));label.position.set(12,9,0);label.scale.set(30,5.6,1);root.add(label);

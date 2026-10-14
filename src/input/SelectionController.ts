@@ -64,7 +64,7 @@ export class SelectionController {
     }
     const x0 = Math.min(d.x0, d.x1), x1 = Math.max(d.x0, d.x1), y0 = Math.min(d.y0, d.y1), y1 = Math.max(d.y0, d.y1);
     this.set(this.world.entities.filter((u) => {
-      if (u.dead || u.loadedIntoId!=null || u.team !== this.world.playerTeam || u.def.speed === 0) return false;
+      if (u.dead || u.loadedIntoId!=null || u.team !== this.world.playerTeam || u.def.speed === 0 || u.logisticsRoute==="strategic") return false;
       const p = this.picker.entityScreen(u,u.def.height*.5);
       return p.z < 1 && p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1;
     }), add);
@@ -73,7 +73,7 @@ export class SelectionController {
 
   /** Select all player units of a domain filter. */
   selectFilter(pred: (e: Entity) => boolean, add = false): void {
-    const list = this.world.entities.filter(e => !e.dead && e.loadedIntoId==null && e.team === this.world.playerTeam && e.def.speed > 0 && pred(e));
+    const list = this.world.entities.filter(e => !e.dead && e.loadedIntoId==null && e.team === this.world.playerTeam && e.def.speed > 0 && e.logisticsRoute!=="strategic" && pred(e));
     this.set(list, add);
   }
 }

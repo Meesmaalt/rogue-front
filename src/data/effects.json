@@ -1,0 +1,7 @@
+{
+  "pools": {"smoke":640,"vapor":960,"dust":320,"glow":192,"spark":256},
+  "trails": {
+    "missile": {"spacing":0.9,"size":0.48,"life":2.8,"color":14014158,"maxSamples":20},
+    "shell": {"spacing":2.2,"size":0.22,"life":0.85,"color":12500666,"maxSamples":12}
+  }
+}
