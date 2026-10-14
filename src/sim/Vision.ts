@@ -1,3 +1,4 @@
+import battleScale from "../data/battle-scale.json";
 import {garrisonFaces,GARRISON_RULES} from "./garrison";
 import type { Entity, Team } from "./types";
 import { MAP_SIZE, heightAt } from "./heightmap";
@@ -13,8 +14,8 @@ export class Vision {
   forestObscuration?: (a:Entity,b:Entity)=>number;
   /** Derived invalidation token for render consumers; not simulation state. */
   revision = 0;
-  readonly cellSize = VISION_CELL_SIZE;
-  readonly width = Math.ceil(MAP_SIZE/VISION_CELL_SIZE);
+  readonly cellSize = MAP_SIZE>=4096?MAP_SIZE/battleScale.visionCells:VISION_CELL_SIZE;
+  readonly width = Math.ceil(MAP_SIZE/this.cellSize);
   readonly height = this.width;
   private readonly states: [Uint8Array, Uint8Array] = [
     new Uint8Array(this.width*this.height),
@@ -27,6 +28,9 @@ export class Vision {
   structureDamage:ReadonlyMap<string,number>=new Map();
   private buildings: Entity[] = [];
   private tickCounter = 0;
+  private revealCursor=0;
+  private readonly visibleUntil:[Uint32Array,Uint32Array]=[new Uint32Array(MAP_SIZE>=4096?this.width*this.height:0),new Uint32Array(MAP_SIZE>=4096?this.width*this.height:0)];
+  private revealExpiry=0;
   // Derived broad phase; exact rotated footprint tests still decide occlusion.
   private readonly blockerBins = new Map<string, MapFeatureDef[]>();
   private readonly emptyBin: readonly MapFeatureDef[] = [];
@@ -52,19 +56,20 @@ export class Vision {
     if(destination.length!==this.states[team].length)throw new Error("Visibility buffer size mismatch");
     destination.set(this.states[team]);
   }
-  snapshot(): { states: [number[],number[]]; tickCounter: number } {
-    return {states:[Array.from(this.states[0]),Array.from(this.states[1])],tickCounter:this.tickCounter};
+  snapshot(): { states: [number[],number[]]; tickCounter: number; revealCursor:number; visibleUntil:[number[],number[]] } {
+    return {states:[Array.from(this.states[0]),Array.from(this.states[1])],tickCounter:this.tickCounter,revealCursor:this.revealCursor,visibleUntil:[Array.from(this.visibleUntil[0]),Array.from(this.visibleUntil[1])]};
   }
   restore(s: ReturnType<Vision["snapshot"]>, entities: readonly Entity[]): void {
     if(s.states[0].length!==this.states[0].length){this.reset();this.tickCounter=0;this.update(entities);return;}
     this.revision++;
+    this.revealCursor=s.revealCursor??0;for(const t of [0,1] as const)this.visibleUntil[t].set(s.visibleUntil?.[t]??new Uint32Array(this.visibleUntil[t].length));
     this.states[0].set(s.states[0]); this.states[1].set(s.states[1]); this.tickCounter=s.tickCounter;
     this.buildings=entities.filter(e=>!e.dead&&e.def.speed===0);
   }
   reset(): void {
     this.revision++;
     this.states[0].fill(0);
-    this.states[1].fill(0);
+    this.states[1].fill(0);this.visibleUntil[0].fill(0);this.visibleUntil[1].fill(0);this.revealCursor=0;
   }
   index(ix: number, iz: number): number {
     return iz * this.width + ix;
@@ -120,7 +125,7 @@ export class Vision {
     const ay = a.y + Math.max(1.2, a.def.height * 0.7);
     const by = b.y + Math.max(1.2, b.def.height * 0.65);
     // Preserve the 2 m sampling used by combat.
-    const steps = Math.max(2, Math.ceil(d / 2));
+    const steps = Math.max(2, Math.ceil(d / (MAP_SIZE>=4096?this.cellSize/2:2)));
     const inv = 1 / steps;
     const checkFeatures = d > 4 && this.blockingFeatures.length > 0;
 
@@ -168,7 +173,7 @@ export class Vision {
     this.revision++;
     for (const team of [0, 1] as const) {
       const c = this.states[team];
-      for (let i = 0; i < c.length; i++) if (c[i] === 2) c[i] = 1;
+      for (let i = 0; i < c.length; i++) if (c[i] === 2 && (MAP_SIZE<4096||this.visibleUntil[team][i]<=this.tickCounter)) c[i] = 1;
     }
 
     this.buildings = [];
@@ -177,11 +182,16 @@ export class Vision {
     }
 
     // Stagger unit reveals by id across frames when many units
-    for (const u of entities) {
+    const observers=MAP_SIZE>=4096?entities.filter(u=>!u.dead&&u.loadedIntoId==null&&!u.underConstruction):entities;
+    const count=MAP_SIZE>=4096?Math.min(observers.length,battleScale.fogObserversPerUpdate):observers.length;
+    this.revealExpiry=this.tickCounter+Math.ceil(observers.length/battleScale.fogObserversPerUpdate)*3+3;
+    for (let i=0;i<count;i++) {
+      const u=observers[(this.revealCursor+i)%observers.length];
       if (u.dead || u.loadedIntoId!=null || u.underConstruction) continue;
       const radius = this.getVisionRadius(u);
       this.reveal(u.team, u.x, u.z, radius, u);
     }
+    if(MAP_SIZE>=4096&&observers.length)this.revealCursor=(this.revealCursor+count)%observers.length;
   }
 
   getVisionRadius(u: Entity): number {
@@ -237,11 +247,13 @@ export class Vision {
         if (!this.inBounds(ix, iz)) continue;
         const p = this.cellToWorld(ix, iz);
         const dist2 = (p.x - x) * (p.x - x) + (p.z - z) * (p.z - z);
-        if (dist2 > r2 || cells[this.index(ix,iz)]===2) continue;
+        if (dist2 > r2) continue;
+        if(cells[this.index(ix,iz)]===2&&(MAP_SIZE<4096||this.visibleUntil[team][this.index(ix,iz)]>=this.revealExpiry))continue;
 
         // Close: free
         if (dist2 < nearR2) {
           cells[this.index(ix, iz)] = 2;
+          if(MAP_SIZE>=4096)this.visibleUntil[team][this.index(ix,iz)]=this.revealExpiry;
           continue;
         }
 
@@ -262,7 +274,8 @@ export class Vision {
             break;
           }
         }
-        if (!blocked) cells[this.index(ix, iz)] = 2;
+        if (!blocked) {cells[this.index(ix, iz)] = 2;
+          if(MAP_SIZE>=4096)this.visibleUntil[team][this.index(ix,iz)]=this.revealExpiry;}
       }
     }
   }

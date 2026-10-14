@@ -1,10 +1,11 @@
+import battleScale from "../data/battle-scale.json";
 import {pointInFeature,polygonEdgeDistance,type MapFeatureDef} from "./mapFeatures";
 import terrain from "../data/terrain.json";
 /** Kaardi kõrgusväli. Puhas matemaatika, EI impordi three.js-i. */
 export let MAP_SIZE = 640;
 export function setMapSize(size=640):void {
-  const next=Math.max(320,Math.min(2048,Math.round(size/16)*16));
-  if(next===MAP_SIZE)return;MAP_SIZE=next;CACHE_HALF=next/2;CACHE_CELLS=Math.round(next/CACHE_CELL);cacheValid=false;heightCache=null;
+  const next=Math.max(320,Math.min(6144,Math.round(size/16)*16));
+  if(next===MAP_SIZE)return;MAP_SIZE=next;CACHE_CELL=Math.max(2,next/battleScale.heightCells);CACHE_HALF=next/2;CACHE_CELLS=Math.round(next/CACHE_CELL);cacheValid=false;heightCache=null;
 }
 export interface BaseDef { x: number; z: number; r: number }
 export interface HeightmapSource { width: number; height: number; data: Uint8Array; maxHeight: number }
@@ -22,7 +23,7 @@ let terrainProfile: "farmland" | undefined;
 export function setTerrainProfile(profile?: "farmland",landforms?:readonly TerrainLandform[]): void { terrainProfile=profile; activeLandforms=landforms??terrain.farmland.landforms;activeHeightmap=null; cacheValid=false; heightCache=null; }
 
 /** Cached height grid (2 m cells) — built once after bases/heightmap are set. */
-const CACHE_CELL = 2;
+let CACHE_CELL = 2;
 let CACHE_HALF = MAP_SIZE / 2;
 let CACHE_CELLS = Math.round(MAP_SIZE / CACHE_CELL);
 let heightCache: Float32Array | null = null;

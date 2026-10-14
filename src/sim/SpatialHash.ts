@@ -45,6 +45,8 @@ export class SpatialHash {
       if(bucket.length===0)this.occupied.push(index);
       bucket.push(e);
     }
+    // Preserve row-major query order in both dense and sparse traversal.
+    this.occupied.sort((a,b)=>a-b);
   }
 
   /**
@@ -55,6 +57,10 @@ export class SpatialHash {
     const minX = x - r, maxX = x + r, minZ = z - r, maxZ = z + r;
     const a = this.cellOf(minX, minZ);
     const b = this.cellOf(maxX, maxZ);
+    if((b.ix-a.ix+1)*(b.iz-a.iz+1)>this.occupied.length*2){
+      for(const index of this.occupied){const ix=index%this.cols,iz=Math.floor(index/this.cols);if(ix<a.ix||ix>b.ix||iz<a.iz||iz>b.iz)continue;for(const entity of this.buckets[index])if(fn(entity))return;}
+      return;
+    }
     for (let iz = a.iz; iz <= b.iz; iz++) {
       for (let ix = a.ix; ix <= b.ix; ix++) {
         const bucket = this.buckets[this.key(ix, iz)];

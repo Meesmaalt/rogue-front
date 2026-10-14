@@ -1,3 +1,4 @@
+import {BATTLE_SCALE} from "../battleScale";
 import physics from "../../data/physics.json";
 import {garrisonWeaponAllowed,garrisonCover,garrisonProtection} from "../garrison";
 import {maxHitPoints,effectiveArmor,slotRange,weaponPenetration,weaponDamage} from "../unitStats";
@@ -286,7 +287,7 @@ export function fireProjectile(w: World, u: Entity, t: Entity, x: number, y: num
   const hitRoll=w.rng(),angle=w.rng()*Math.PI*2,miss=1.5+t.def.radius+(1-hitChance)*5;
   const missX=Math.cos(angle)*miss,missZ=Math.sin(angle)*miss;
   const missShot=hitRoll>hitChance;
-  if(w.platformRosterOnly){const spread=(1-hitChance)*Math.max(physics.minimumDispersion,Math.hypot(t.x-x,t.z-z)*physics.dispersionAngle)*Math.sqrt(hitRoll);
+  if(w.platformRosterOnly){const spread=(1-hitChance)*Math.max(physics.minimumDispersion,Math.hypot(t.x-x,t.z-z)*(w.metricBattle?(spec.flight==="ballistic"?BATTLE_SCALE.indirectDispersionAngle:BATTLE_SCALE.dispersionAngle):physics.dispersionAngle))*Math.sqrt(hitRoll);
     const ax=tx+Math.cos(angle)*spread,az=tz+Math.sin(angle)*spread;
     launchProjectile(w,u,spec,index,x,y,z,spec.flight==="guided"?t.x:ax,t.y+t.def.height*.45,spec.flight==="guided"?t.z:az,t,dealt,hitChance,penetration,hitRoll,0,0);
     w.projectiles[w.projectiles.length-1].damage=base;return;

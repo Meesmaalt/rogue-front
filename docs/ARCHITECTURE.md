@@ -6,6 +6,10 @@ Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOP
 
 Mängukaardid on ainult protseduurkaardid. Ajaloolised Roheoru/Murdlaine kirjeldused allpool on regressioonitaust. `platforms.json` piirab tootmise 15 põhiklassile; `equipment.json` kirjeldab 16 vahetatavat komponenti. `configure-unit`/`cancel-refit` käsud käivad fikseeritud sim-sammu kaudu; `equipment.ts` hooldus ei täida moona ega paranda tasuta. `physics.json` juhib uue reeglistiku trajektoore. Komponendid ja pooleliolev töö sisalduvad snapshot/replay räsis. Detailid: [MODULAR-PROCEDURAL-RELEASE.md](MODULAR-PROCEDURAL-RELEASE.md).
 
+## Meetrites lahing · v9
+
+`battle-scale.json` määrab uue 4/6 km reeglistiku. `World.metricBattle` valib `metricUnitDefinition` kaudu tegelikud ulatused ja kiirused enne üksuste loomist; salvestus säilitab lipu/definitsioonid. `metricScale` valib üksuse lennuprofiili ja ühise lennuvälja geomeetria. Nav/veenav/kõrguspuhver on piiratud 1024 rakuni ühe telje kohta, udu 256 rakuni. Udu jooksva ajastuse olek on snapshot/räsi osa. `SpatialHash` valib piiratud päringualal tiheda või järjestatud hõreda läbimise. Piirid ja testid: [METRIC-BATTLE-RELEASE.md](METRIC-BATTLE-RELEASE.md).
+
 ## Põhimõte
 Kolm kihti, sõltuvused ainult allapoole: **ui/input → sim ← render** (render ja ui *loevad* sim olekut, annavad käske, kuid sim ei tea neist midagi).
 

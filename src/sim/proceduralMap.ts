@@ -1,3 +1,4 @@
+import battleScale from "../data/battle-scale.json";
 import type {MissionDef,MapResourceDef,Point} from "./types";
 import {MapFeatureIndex,pointInFeature,featureCorners,type MapFeatureDef} from "./mapFeatures";
 import {Rng} from "./rng";
@@ -24,10 +25,11 @@ function clip(points:Point[],nx:number,nz:number,limit:number):Point[] {
 }
 
 export const GENERATED_MAP_SIZES:readonly number[]=config.largeSizes;
-export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5|6|7|8=8):MissionDef {
+export const METRIC_MAP_SIZES:readonly number[]=battleScale.mapSizes;
+export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5|6|7|8|9=requestedSize>=4096?9:8):MissionDef {
   // 1280 retains v2 geometry for existing saved matches; v3 sizes are deliberately bounded.
   const legacy=requestedSize===config.size;
-  if(!legacy&&!GENERATED_MAP_SIZES.includes(requestedSize))throw new Error("Kaardi suurus pole toetatud");
+  if((requestedSize>=4096&&generationVersion!==9)||(!legacy&&![...GENERATED_MAP_SIZES,...METRIC_MAP_SIZES].includes(requestedSize)))throw new Error("Kaardi suurus pole toetatud");
   const landscape=!legacy&&generationVersion>=6;
   const regional=!legacy&&generationVersion>=4,profile=config.profiles[archetype];
   const seed=inputSeed>>>0,rng=new Rng(seed),size=requestedSize,half=size/2,features:MapFeatureDef[]=[];
@@ -79,7 +81,7 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
   if(archetype==="coastal")features.push({id:"sea",kind:"water",waterBody:"sea",x:0,z:-half+38,width:size,depth:76,surfaceHeight:-.8,label:"Meri"});
   const crossingZ=[-size*random(.22,.26),random(-20,20),size*random(.22,.26)],bridges:MapFeatureDef[]=[];
   for(let i=0;i<crossingZ.length;i++){
-    const z=crossingZ[i],b:MapFeatureDef={id:`bridge-${i}`,kind:"bridge",x:riverX(z),z,width:10,depth:56,rotation:Math.PI/2,surfaceHeight:1.4,label:"Jõesild"};features.push(b);bridges.push(b);
+    const z=crossingZ[i],b:MapFeatureDef={id:`bridge-${i}`,kind:"bridge",x:riverX(z),z,width:generationVersion===9?16:10,depth:56,rotation:Math.PI/2,surfaceHeight:1.4,label:"Jõesild"};features.push(b);bridges.push(b);
   }
   const through=(town:typeof towns[number],sign:number):Point[]=>{
     const cols=archetype==="urban"&&town.blocks===3?4:town.blocks;
@@ -272,9 +274,11 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
 }
 
 export const FOCUS_MAP=greenValley as unknown as MissionDef;
-export const GENERATED_MAP=generateProceduralMap(62510,"balanced");
+export const GENERATED_MAP=generateProceduralMap(62510,"balanced",battleScale.defaultSize,9);
 export const CURATED_MAPS:readonly MissionDef[]=[];
 export function getPlayableMap(id:string):MissionDef|undefined {
+  const metric=/^procedural-v9-(balanced|river|highlands|urban|coastal|forest)-(4096|6144)-(\d+)$/.exec(id);
+  if(metric)return Number(metric[3])<=4294967295?generateProceduralMap(Number(metric[3]),metric[1] as MapArchetype,Number(metric[2]),9):undefined;
   const regional=/^procedural-v(3|4|5|6|7|8)-(balanced|river|highlands|urban|coastal|forest)-(1536|1792|2048)-(\d+)$/.exec(id);
   if(regional)return Number(regional[4])<=4294967295?generateProceduralMap(Number(regional[4]),regional[2] as MapArchetype,Number(regional[3]),Number(regional[1]) as 3|4|5|6|7|8):undefined;
   const match=/^procedural-(?:v2-)?(balanced|river|highlands|urban|coastal|forest)-(\d+)$/.exec(id);

@@ -1,6 +1,6 @@
 # Rogue Front: viimistlusplaan kasutatava alpha ja beta jaoks
 
-**Suuna muudatus 14.10.2026:** aktiivne mäng on ainult protseduurkaartidel. Real Wari baas/varustus jäävad, Wargame’i maastik/luure ja trajektooripõhine lahing ühendatakse 15 põhiklassi ning 16 vahetatava komponendiga. [MODULAR-PROCEDURAL-RELEASE.md](MODULAR-PROCEDURAL-RELEASE.md) kirjeldab tehtud aluse ja piirid. Allpool olev Roheorg/kampaania järjekord on ajalooline; fikseeritud kaartide ja kampaania väljalaskesihid on asendatud generaatori tööga. V1 FPS-värav jääb avatuks.
+**Suuna muudatus 14.10.2026:** aktiivne mäng on ainult protseduurkaartidel. Real Wari baas/varustus jäävad, Wargame’i maastik/luure ja trajektooripõhine lahing ühendatakse 15 põhiklassi ning 16 vahetatava komponendiga. [MODULAR-PROCEDURAL-RELEASE.md](MODULAR-PROCEDURAL-RELEASE.md) kirjeldab tehtud aluse ja piirid. Allpool olev Roheorg/kampaania järjekord on ajalooline; fikseeritud kaartide ja kampaania väljalaskesihid on asendatud generaatori tööga. V9 meetrites 4/6 km kaardid, relvad ja lennuring on lisatud; vt [METRIC-BATTLE-RELEASE.md](METRIC-BATTLE-RELEASE.md). V1 FPS-värav jääb avatuks.
 
 
 Uuendatud 09.10.2026, alus `main` pärast PR #14 ning järgmine V1 käitus-/renderduspakett. See on aktiivne viimistlusjärjekord, mitte uute funktsioonide loend. PR #3–13 muudatused on ühendatud; nende brauseritunnetus ja FPS pole siin mõõdetuks märgitud. Viimane kasutaja tagasiside: kaamera panning ei olnud veel sujuv, nähtavuskiht ja käsutähised häirisid. Viimased parandused vajavad sama stseeni uut vaatlust.

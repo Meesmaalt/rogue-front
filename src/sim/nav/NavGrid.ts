@@ -1,3 +1,4 @@
+import battleScale from "../../data/battle-scale.json";
 import { heightAt, MAP_SIZE } from "../heightmap";
 import type { Entity, Point } from "../types";
 import type { MapFeatureDef } from "../mapFeatures";
@@ -10,9 +11,9 @@ export const NAV_SLOPE_LIMIT = NAV_SLOPE_LIMIT_DEG * Math.PI / 180;
 export interface NavCell { x: number; z: number }
 
 export class NavGrid {
-  readonly cellSize = NAV_CELL_SIZE;
+  readonly cellSize = Math.max(NAV_CELL_SIZE,MAP_SIZE/battleScale.navigationCells);
   private readonly half=MAP_SIZE/2;
-  readonly width = Math.round(MAP_SIZE/NAV_CELL_SIZE);
+  readonly width = Math.round(MAP_SIZE/this.cellSize);
   readonly height = this.width;
   readonly blocked = new Uint8Array(this.width*this.height);
 

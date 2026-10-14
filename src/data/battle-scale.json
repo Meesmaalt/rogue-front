@@ -1,0 +1,179 @@
+{
+  "mapSizes": [
+    4096,
+    6144
+  ],
+  "defaultSize": 4096,
+  "navigationCells": 1024,
+  "heightCells": 1024,
+  "visionCells": 256,
+  "speed": {
+    "infantry": 2.4,
+    "recon": 2.8,
+    "armor": 12,
+    "support": 10,
+    "heli": 55,
+    "air": 180,
+    "naval": 12
+  },
+  "speeds": {
+    "engineer": 2.5,
+    "logiTruck": 16,
+    "cargoPlane": 120,
+    "transport": 50,
+    "apc": 16,
+    "ifv": 14
+  },
+  "opticsMultiplier": 18,
+  "dispersionAngle": 0.003,
+  "aircraft": {
+    "altitude": 400,
+    "acceleration": 12,
+    "braking": 18,
+    "climbRate": 35,
+    "descentRate": 22,
+    "maxBank": 0.85,
+    "minimumSpeed": 0.45,
+    "lateralAcceleration": 12,
+    "runwayStart": -100,
+    "runwayEnd": 240,
+    "taxiSpeed": 10,
+    "parkingOffset": 25,
+    "parkingSpacing": 12,
+    "launchSeparation": 12,
+    "approachLength": 900,
+    "approachAltitude": 150,
+    "glideSlope": 0.16,
+    "landingSpeed": 50,
+    "altitudeClearance": 40,
+    "approachRadius": 1200,
+    "headingTolerance": 0.4,
+    "orbitMinimum": 400,
+    "lineLookAhead": 120,
+    "missedApproachDistance": 80,
+    "landingCapture": 26,
+    "runwayWidth": 36
+  },
+  "helicopter": {
+    "altitude": 65,
+    "acceleration": 6,
+    "braking": 8,
+    "climbRate": 8,
+    "descentRate": 7,
+    "hoverRadius": 8,
+    "hoverArrivalSpeed": 1.5,
+    "maxBank": 0.45
+  },
+  "weapons": {
+    "rifle": {
+      "range": 500,
+      "minimumRange": 0,
+      "speed": 800
+    },
+    "mg": {
+      "range": 800,
+      "minimumRange": 0,
+      "speed": 850
+    },
+    "sniper": {
+      "range": 1100,
+      "minimumRange": 0,
+      "speed": 900
+    },
+    "autocannon": {
+      "range": 1800,
+      "minimumRange": 0,
+      "speed": 1000
+    },
+    "tank-ap": {
+      "range": 2400,
+      "minimumRange": 0,
+      "speed": 1500
+    },
+    "at-rocket": {
+      "range": 500,
+      "minimumRange": 20,
+      "speed": 180
+    },
+    "atgm": {
+      "range": 3000,
+      "minimumRange": 150,
+      "speed": 250
+    },
+    "sam": {
+      "range": 5000,
+      "minimumRange": 200,
+      "speed": 700
+    },
+    "manpad": {
+      "range": 2500,
+      "minimumRange": 100,
+      "speed": 500
+    },
+    "aam": {
+      "range": 6000,
+      "minimumRange": 300,
+      "speed": 900
+    },
+    "rocket": {
+      "range": 1600,
+      "minimumRange": 100,
+      "speed": 400
+    },
+    "howitzer": {
+      "range": 8000,
+      "minimumRange": 600,
+      "speed": 300
+    },
+    "mortar": {
+      "range": 2400,
+      "minimumRange": 150,
+      "speed": 130
+    },
+    "mlrs": {
+      "range": 10000,
+      "minimumRange": 1200,
+      "speed": 450
+    },
+    "bomb": {
+      "range": 1500,
+      "minimumRange": 100,
+      "speed": 180
+    },
+    "flak": {
+      "range": 2000,
+      "minimumRange": 0,
+      "speed": 900
+    },
+    "naval-gun": {
+      "range": 6000,
+      "minimumRange": 100,
+      "speed": 600
+    },
+    "anti-ship": {
+      "range": 8000,
+      "minimumRange": 500,
+      "speed": 280
+    },
+    "cruise": {
+      "range": 10000,
+      "minimumRange": 1000,
+      "speed": 280
+    },
+    "naval-sam": {
+      "range": 6000,
+      "minimumRange": 200,
+      "speed": 650
+    },
+    "torpedo": {
+      "range": 4000,
+      "minimumRange": 200,
+      "speed": 25
+    }
+  },
+  "airspaceMargin": 2000,
+  "fogObserversPerUpdate": 8,
+  "commandRangeMultiplier": 12,
+  "logisticsRangeMultiplier": 12,
+  "indirectDispersionAngle": 0.015
+}

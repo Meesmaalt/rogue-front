@@ -1,3 +1,4 @@
+import {BATTLE_SCALE,metricUnitDefinition} from "./battleScale";
 import {updateEquipment} from "./equipment";
 import {CORE_PLATFORMS} from "./platforms";
 import {dispatchExternalHelicopters,airportDepot,externalEntry} from "./externalSupply";
@@ -71,6 +72,7 @@ export class World {
   readonly frontline: FrontlineController;
   externalVictoryMode = false;
   platformRosterOnly = false;
+  metricBattle = false;
   matchController: import("./gameModes").MatchModeController | null = null;
   missionController: import("./Mission").MissionController | null = null;
   teamFormations: ["box"|"line"|"wedge"|"column", "box"|"line"|"wedge"|"column"] = ["box","box"];
@@ -300,7 +302,7 @@ export class World {
     this.frontline = new FrontlineController(this);
   }
 
-  unitDefinition(kind:UnitKind,team:Team=this.playerTeam){return factionUnitDefinition(kind,team===this.playerTeam?this.playerFaction:this.enemyFaction);}
+  unitDefinition(kind:UnitKind,team:Team=this.playerTeam){const base=factionUnitDefinition(kind,team===this.playerTeam?this.playerFaction:this.enemyFaction);return this.metricBattle?metricUnitDefinition(base,kind):base;}
 
   spawn(kind: UnitKind, team: Team, x: number, z: number): Entity {
     const resolved=this.unitDefinition(kind,team);
@@ -419,13 +421,14 @@ export class World {
   }
 
   logisticsConnectionOpen(a: Entity, b: Entity): boolean {
-    const max = a.kind === "hq" ? 115 : this.isFOB(a) ? 118 : 92;
+    const max = (a.kind === "hq" ? 115 : this.isFOB(a) ? 118 : 92)*(this.metricBattle?BATTLE_SCALE.logisticsRangeMultiplier:1);
     const d = Math.hypot(a.x - b.x, a.z - b.z);
     if (d > max) return false;
     // A destroyed bridge inside the corridor cuts the node connection.
     for (const f of this.mapFeatures) {
       if (f.kind !== "bridge") continue;
       const damage = this.infrastructureDamage.get(f.id) ?? 0;
+      if(this.metricBattle&&damage>=1){const dx=b.x-a.x,dz=b.z-a.z,t=Math.max(0,Math.min(1,((f.x-a.x)*dx+(f.z-a.z)*dz)/(dx*dx+dz*dz||1)));if(pointInFeature(a.x+dx*t,a.z+dz*t,f,4))return false;continue;}
       if (damage >= 1 && Math.hypot(f.x - (a.x+b.x)/2, f.z - (a.z+b.z)/2) < max * 0.9) return false;
     }
     return true;
@@ -474,9 +477,10 @@ export class World {
   }
 
   commandNodeRange(node: Entity): number {
-    if (node.kind === "hq") return 92*(1+((node.buildingLevel??1)-1)*.2);
-    if (this.isFOB(node)) return 78 + Math.min(30, (node.fobLevel ?? 1) * 10);
-    return 68*(1+((node.buildingLevel??1)-1)*.15);
+    const scale=this.metricBattle?BATTLE_SCALE.commandRangeMultiplier:1;
+    if (node.kind === "hq") return scale*92*(1+((node.buildingLevel??1)-1)*.2);
+    if (this.isFOB(node)) return scale*(78 + Math.min(30, (node.fobLevel ?? 1) * 10));
+    return scale*68*(1+((node.buildingLevel??1)-1)*.15);
   }
 
   hasCommandLink(entity: Entity): boolean {
@@ -767,7 +771,7 @@ export class World {
     return {
       mapSize:this.mapSize,terrain:this.terrain.snapshot(),
       playerTeam: this.playerTeam, playerFaction: this.playerFaction, enemyFaction: this.enemyFaction,
-      platformRosterOnly:this.platformRosterOnly, networkMode: this.networkMode, incomeMultiplier: this.incomeMultiplier, victoryMode: this.victoryMode,
+      metricBattle:this.metricBattle,platformRosterOnly:this.platformRosterOnly, networkMode: this.networkMode, incomeMultiplier: this.incomeMultiplier, victoryMode: this.victoryMode,
       objectiveDriven: this.objectiveDriven, externalVictoryMode: this.externalVictoryMode,
       airCargoLastSpawn: [...this.airCargoLastSpawn] as [number,number],
       roadTruckLastSpawn: [...this.roadTruckLastSpawn] as [number,number],
@@ -792,7 +796,7 @@ export class World {
     if((s.mapSize??this.mapSize)!==this.mapSize){setMapSize(s.mapSize??this.mapSize);ensureHeightCache();this.nav=new NavGrid(this.entities,this.mapFeatures);this.waterNav=new WaterNavGrid(this.mapFeatures);this.spatial=new SpatialHash(16);this.spatial.rebuild(this.entities);this.vision=new Vision();this.vision.setFeatures(this.mapFeatures);this.vision.forestObscuration=(a,b)=>this.terrain.obscuration(a,b);}
     this.terrain.restore(s.terrain);
     this.playerTeam=s.playerTeam; this.playerFaction=s.playerFaction; this.enemyFaction=s.enemyFaction;
-    this.platformRosterOnly=s.platformRosterOnly??false;this.networkMode=s.networkMode; this.incomeMultiplier=s.incomeMultiplier; this.victoryMode=s.victoryMode;
+    this.metricBattle=s.metricBattle??false;this.platformRosterOnly=s.platformRosterOnly??false;this.networkMode=s.networkMode; this.incomeMultiplier=s.incomeMultiplier; this.victoryMode=s.victoryMode;
     this.objectiveDriven=s.objectiveDriven; this.externalVictoryMode=s.externalVictoryMode;
     this.airCargoLastSpawn=[...s.airCargoLastSpawn]; this.roadTruckLastSpawn=[...s.roadTruckLastSpawn];
     this.logisticsPriority[0]=s.logisticsPriority[0]; this.logisticsPriority[1]=s.logisticsPriority[1];

@@ -1,3 +1,4 @@
+import {aircraftMobility} from "../battleScale";
 import type { World } from "../World";
 import mobility from "../../data/mobility.json";
 import {heightAt} from "../heightmap";
@@ -18,7 +19,7 @@ export function freeAirSlot(w:World,pad:Entity):number {
 }
 export function airParkingPoint(u:Entity,pad:Entity):Point {
   const slot=u.airHomeSlot??0;
-  return pad.kind==="helipad"?airFacilityPoint(pad,mobility.helicopter.padOffset+Math.floor(slot/3)*mobility.helicopter.parkingSpacing,(slot%3===0?0:slot%3===1?-1:1)*mobility.helicopter.parkingSpacing):airFacilityPoint(pad,-4+Math.floor(slot/2)*mobility.aircraft.parkingSpacing,mobility.aircraft.parkingOffset+(slot%2)*mobility.aircraft.parkingSpacing);
+  return pad.kind==="helipad"?airFacilityPoint(pad,mobility.helicopter.padOffset+Math.floor(slot/3)*mobility.helicopter.parkingSpacing,(slot%3===0?0:slot%3===1?-1:1)*mobility.helicopter.parkingSpacing):airFacilityPoint(pad,-4+Math.floor(slot/2)*aircraftMobility(u).parkingSpacing,aircraftMobility(u).parkingOffset+(slot%2)*aircraftMobility(u).parkingSpacing);
 }
 export function stationAircraft(w:World,u:Entity,pad:Entity,slot=freeAirSlot(w,pad)):void {
   u.airMissionHomeId=pad.id;u.airHomeSlot=Math.max(0,slot);u.airState="grounded";u.airSortieTime=0;u.airTaxiPhase="apron";u.motionSpeed=0;
@@ -105,11 +106,12 @@ export function assignAirMission(
     u.mode = "patrol";
     u.dest=point?{...point}:null;
     if (point) {
+      const radius=u.def.metricScale?Math.max(400,u.def.speed*u.def.speed/aircraftMobility(u).lateralAcceleration):18;
       u.patrolPoints = [
-        { x: point.x + 18, z: point.z },
-        { x: point.x, z: point.z + 18 },
-        { x: point.x - 18, z: point.z },
-        { x: point.x, z: point.z - 18 },
+        { x: point.x + radius, z: point.z },
+        { x: point.x, z: point.z + radius },
+        { x: point.x - radius, z: point.z },
+        { x: point.x, z: point.z - radius },
       ];
       u.patrolIndex = 0;
       u.dest = u.patrolPoints[0];

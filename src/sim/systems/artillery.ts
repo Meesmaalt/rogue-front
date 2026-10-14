@@ -1,3 +1,4 @@
+import {BATTLE_SCALE} from "../battleScale";
 import {isIndirectUnit,equipmentModule} from "../equipment";
 import type { World } from "../World";
 import type { Entity, Point } from "../types";
@@ -64,7 +65,7 @@ export function updateArtillery(w: World, _dt: number): void {
     u.turretYaw=turnToward(u.turretYaw,aim,u.def.turnRate*_dt);
     if(Math.abs(wrapAngle(aim-u.turretYaw))>.2)continue;
     const shots = u.artilleryShotsInSalvo ?? 0;
-    const spread=3.8/(equipmentModule(u,"weapon")?.accuracyMultiplier??1);
+    const spread=(w.metricBattle?Math.max(3.8,d*BATTLE_SCALE.indirectDispersionAngle):3.8)/(equipmentModule(u,"weapon")?.accuracyMultiplier??1);
     fireGroundProjectile(w, u, mission.x + (w.rng()-0.5)*spread, mission.z + (w.rng()-0.5)*spread);
     u.cooldown = (SALVO_INTERVAL[u.kind==="inf"?"mortar":u.kind] ?? 1)*(equipmentModule(u,"weapon")?.cooldownMultiplier??1);
     u.lastCombatTime = w.time;

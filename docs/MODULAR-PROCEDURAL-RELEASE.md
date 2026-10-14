@@ -24,7 +24,7 @@ AI toodab põhiklasse ja varustab teeninduskohas osa jalaväest tanki- ja õhut�
 
 Uutes lahingutes mõjutab sihtimiskvaliteet otselasu hajuvust ja juhitava raketi pööramisvõimet. Füüsilist tabamust ei lükata enam teise juhusliku tabamusotsusega tagasi. Liikuva mürsu teel kontrollitakse esimest vaenlase keha. Soomuse külg tuleneb tegelikust saabumissuunast. Ballistiline gravitatsioon on 9,81 m/s². HEAT-kaitse ja piiratud aktiivkaitselaengud mõjutavad päriselt kahjustust ja rakette. Madal varustus ei vähenda enam relva füüsilist maksimumkaugust.
 
-Relvaulatused, kaardisuurused ja lennukiirus on endiselt senise mänguskaala numbrid. Päris kauguste jaoks tuleb suurendada kaarti ja teha navigeerimise/LOS koormuseelarve; üks gravitatsioonikonstant ei tee kogu mängu realistlikuks. Järgmine tervik on 4–6 km kaart koos teepõhise kaugliikumise, kiirenduse/pidurduse ja lennuvälja lähenemiskoridoridega.
+Relvaulatused, kaardisuurused ja lennukiirus on endiselt senise mänguskaala numbrid. Päris kauguste jaoks tuleb suurendada kaarti ja teha navigeerimise/LOS koormuseelarve; üks gravitatsioonikonstant ei tee kogu mängu realistlikuks. Järgnev v9 väljalase lisab 4–6 km kaardid, ühised relva-/liikumisprofiilid ja lennuvälja lähenemiskoridorid; vt [METRIC-BATTLE-RELEASE.md](METRIC-BATTLE-RELEASE.md). Käesoleva lõigu väike mõõtkava kirjeldab v2–v8 taastamisteed.
 
 ## Salvestus ja kontroll
 

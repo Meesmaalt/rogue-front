@@ -12,7 +12,7 @@ import type { FactionId } from "./sim/factions";
 import { FACTION_LIST, FACTIONS } from "./sim/factions";
 import { DeckBuilder } from "./ui/DeckBuilder";
 import { World } from "./sim/World";
-import { heightAt, loadHeightmap, setBases, ensureHeightCache, setProceduralSeed, setTerrainProfile, setMapSize } from "./sim/heightmap";
+import { heightAt, loadHeightmap, setBases, setProceduralSeed, setTerrainProfile, setMapSize } from "./sim/heightmap";
 import { createRenderContext } from "./render/Renderer";
 import { createTerrain,syncForestTerrain,syncGarrisonTerrain,syncBridgeTerrain,animateRiverTerrain } from "./render/Terrain";
 import {TerrainCulling} from "./render/TerrainCulling";
@@ -86,10 +86,11 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   setProceduralSeed(mission.seed);
   setTerrainProfile(mission.map.terrainProfile,mission.map.landforms);
   if(mission.map.heightmap)await loadHeightmap(mission.map.heightmap,mission.map.maxHeight);
-  ensureHeightCache(); // rebuild cache now that heightmap + bases are final
+  // World bakes heights once after adding hydrology to the final bases/landforms.
 
   const skirmish = !!skirmishDifficulty;
   const world = new World(mission.seed, !skirmish, mission.map.resources, mission.map.features ?? [], mission.map.bases, mission.map.baseDefenses ?? true);
+  world.metricBattle=mission.id.startsWith("procedural-v9-");
   const multiplayer = !!multiplayerRoom && !skirmish;
   const net = multiplayer ? new LockstepClient() : null;
   const networkPackets: Array<{ tick: number; commands: import("./sim/types").Command[] }> = [];
@@ -140,7 +141,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const performancePanel=new PerformancePanel(loadSettings().performanceOverlay??false);
   const gpuTimer=new GpuTimer(ctx.renderer.getContext());
   const gl=ctx.renderer.getContext(),debug=gl.getExtension("WEBGL_debug_renderer_info");
-  performancePanel.configure({clientBuild:"procedural-platforms1/performance-v3",mapId:mission.id,seed:mission.seed,mapSize:mission.map.size,buildingCount:world.mapFeatures.filter(f=>f.kind==="building").length,
+  performancePanel.configure({clientBuild:"metric-battle-v9/performance-v3",mapId:mission.id,seed:mission.seed,mapSize:mission.map.size,buildingCount:world.mapFeatures.filter(f=>f.kind==="building").length,
     browser:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,deviceMemoryGB:(navigator as Navigator&{deviceMemory?:number}).deviceMemory??null,
     graphics:debug?{vendor:gl.getParameter(debug.UNMASKED_VENDOR_WEBGL),renderer:gl.getParameter(debug.UNMASKED_RENDERER_WEBGL)}:{renderer:gl.getParameter(gl.RENDERER)},
     webglVersion:gl.getParameter(gl.VERSION),gpuTimerSupported:gpuTimer.supported,devicePixelRatio:window.devicePixelRatio});

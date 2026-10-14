@@ -1,3 +1,4 @@
+import {createMetricRunway} from "./MetricRunway";
 import {syncEquipmentVisual} from "./EquipmentVisual";
 import * as THREE from "three";
 import mobility from "../data/mobility.json";
@@ -142,7 +143,7 @@ export class UnitRenderer {
       const spotted=e.team===world.playerTeam||world.isSpottedByTeam(e,world.playerTeam);
       let v = this.views.get(e.id);
       if(!spotted){if(v){v.group.visible=false;v.resetPose=true;}continue;}
-      this.bounds.center.set(e.x,e.y+e.def.height*.5,e.z);this.bounds.radius=Math.max(10,e.def.radius*2,e.def.height);
+      this.bounds.center.set(e.x,e.y+e.def.height*.5,e.z);this.bounds.radius=Math.max(e.kind==="airbase"&&e.def.metricScale?240:10,e.def.radius*2,e.def.height);
       const onScreen=this.frustum.intersectsSphere(this.bounds);
       if(!v&&!onScreen&&e.def.speed>0)continue;
       if (!v) {
@@ -179,6 +180,7 @@ export class UnitRenderer {
           mesh.castShadow = staticBuilding;
           mesh.receiveShadow = true;
         });
+        if(e.kind==="airbase"&&e.def.metricScale)m.group.add(createMetricRunway(e));
         this.scene.add(m.group);
         const guns:THREE.Object3D[]=[],gears:THREE.Object3D[]=[],turrets:THREE.Group[]=[],legs:THREE.Object3D[]=[],members:THREE.Object3D[]=[];
         lod.traverse(o=>{if(o.name==="Gun"){o.userData.restZ=o.position.z;o.userData.restX=o.rotation.x;guns.push(o);}if(o.name==="LandingGear")gears.push(o);if(o.name==="Turret")turrets.push(o as THREE.Group);if(o.name==="LeftLeg"||o.name==="RightLeg"){o.userData.restLegX=o.rotation.x;o.userData.walkPhase=Math.floor(legs.length/2)*.8;legs.push(o);}if(o.name.startsWith("SquadMember")){o.userData.squadPosition=o.position.clone();members.push(o);}});

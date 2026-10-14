@@ -12,7 +12,8 @@
 - [x] Tegelik trajektoori tabamus, saabumissuunast soomus, 9,81 m/s² gravitatsioon, HEAT-kaitse ja laost täidetav APS.
 - [x] Varustuse UI/mudelilisad, salvestus/hash ja sihitud sim/render kontrollid. Vt MODULAR-PROCEDURAL-RELEASE.md.
 - [ ] Uue reeglistiku brauseris lahing, varustuse kasutatavus, tasakaal ja F8 FPS-võrdlus.
-- [ ] 4–6 km kaardi navigatsiooni/LOS eelarve ning ulatuste, kiirenduse/pidurduse ja lennukoridoride häälestamine.
+- [x] 4–6 km kaardi navigatsiooni/LOS eelarve ning ulatuste, kiirenduse/pidurduse ja lennukoridoride häälestamine. V9 meetrites profiilid, kohalik pidurdus, rajaga joondatud lennuring ja hõredad ruumipäringud; vt METRIC-BATTLE-RELEASE.md.
+- [ ] V9 lahingu brauseris tasakaal, kitsaste linnavahede kasutatavus ja F8 FPS/GPU võrdlus.
 
 
 Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on järgmise arenduse alus; hilisemad vanad etapid ja märkeruudud jäävad ajalooliseks loendiks. Pakett loetakse tehtuks põhiplaani lõpetamistingimuste järgi, mitte funktsiooni nime olemasolu järgi.
