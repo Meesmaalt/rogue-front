@@ -54,12 +54,12 @@ it("A1: faction work duration determines completion and finite materials, withou
  expect(stock-depot.ammoStock!).toBeCloseTo(.01*Math.max(1,variant.cost/duration*.12));expect(depot.ammoStock).toBeLessThan(before);
  expect(original.buildTime).toBe(UNITS.tank.buildTime);
 });
-it("A1: road/forest class factors and low-supply range share rules; stale attack IDs reveal no live destination",()=>{
+it("A1: road/forest class factors and physical range share rules; stale attack IDs reveal no live destination",()=>{
  const w=fixture([{id:"road",kind:"road",x:0,z:-200,width:12,depth:90},{id:"forest",kind:"cover",appearance:"forest",x:50,z:-200,width:50,depth:80}]);
  const foot=w.spawn("inf",0,0,-200),wheel=w.spawn("apc",0,0,-200),tank=w.spawn("tank",0,0,-200),target=w.spawn("tank",1,30,-200);
  expect(groundTerrainFactor(w,wheel)).toBe(1.28);expect(groundTerrainFactor(w,foot)).toBe(1.08);expect(groundTerrainFactor(w,tank)).toBe(1.22);
  expect(groundTerrainFactor(w,foot,50,-200)).toBeGreaterThan(groundTerrainFactor(w,tank,50,-200));
- tank.supply=5;tank.upgrades.add("range");expect(weaponRange(tank,weaponSpec(tank))).toBeCloseTo(weaponSpec(tank).range*1.2*.9);
+ tank.supply=5;tank.upgrades.add("range");expect(weaponRange(tank,weaponSpec(tank))).toBeCloseTo(weaponSpec(tank).range*1.2);
  target.spottedUntil[0]=0;w.issue({type:"attack",ids:[tank.id],targetId:target.id});applyCommands(w);expect(tank.target).toBeNull();expect(tank.dest).toBeNull();
  target.spottedUntil[0]=1;w.issue({type:"attack",ids:[tank.id],targetId:target.id});applyCommands(w);expect(tank.dest?.x).toBe(30);
  target.spottedUntil[0]=0;target.x=160;tank.standingOrder="holdfire";w.spatial.rebuild(w.entities);updateUnits(w,1/30);

@@ -4,7 +4,6 @@ import {Rng} from "./rng";
 import config from "../data/map-generation.json";
 import {buildOrganicTown,buildMountainRanges,ridgeReliefAt,subtractParcel,parcelArea,convexHull} from "./regionalLandscape";
 import {buildVariedSettlement,buildIndustrialClusters} from "./settlements";
-import tidebreaker from "../data/missions/operation-tidebreaker.json";
 import greenValley from "../data/maps/green-valley.json";
 
 export type MapArchetype="balanced"|"river"|"highlands"|"urban"|"coastal"|"forest";
@@ -274,9 +273,8 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
 
 export const FOCUS_MAP=greenValley as unknown as MissionDef;
 export const GENERATED_MAP=generateProceduralMap(62510,"balanced");
-export const CURATED_MAPS:readonly MissionDef[]=[FOCUS_MAP,tidebreaker as unknown as MissionDef];
+export const CURATED_MAPS:readonly MissionDef[]=[];
 export function getPlayableMap(id:string):MissionDef|undefined {
-  const fixed=CURATED_MAPS.find(m=>m.id===id);if(fixed)return fixed;
   const regional=/^procedural-v(3|4|5|6|7|8)-(balanced|river|highlands|urban|coastal|forest)-(1536|1792|2048)-(\d+)$/.exec(id);
   if(regional)return Number(regional[4])<=4294967295?generateProceduralMap(Number(regional[4]),regional[2] as MapArchetype,Number(regional[3]),Number(regional[1]) as 3|4|5|6|7|8):undefined;
   const match=/^procedural-(?:v2-)?(balanced|river|highlands|urban|coastal|forest)-(\d+)$/.exec(id);

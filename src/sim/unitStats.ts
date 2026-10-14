@@ -13,7 +13,7 @@ export function effectiveArmor(u:Entity,face:"front"|"side"|"rear"):number {
 }
 export function weaponPenetration(u:Entity,spec:WeaponSpec):number {return spec.penetration*(u.upgrades.has("weapon")?upgrades.weapon.penetrationMultiplier:1);}
 export function weaponDamage(u:Entity,spec:WeaponSpec):number {return spec.damage*(u.upgrades.has("weapon")?upgrades.weapon.damageMultiplier:1);}
-export function slotRange(u:Entity,spec:Pick<WeaponSpec,"range">):number {return spec.range*(u.upgrades.has("range")?upgrades.range.rangeMultiplier:1)*((u.supply??100)>10?1:.9);}
+export function slotRange(u:Entity,spec:Pick<WeaponSpec,"range">):number {return spec.range*(u.upgrades.has("range")?upgrades.range.rangeMultiplier:1);}
 export function groundMobilityClass(u:Entity):"infantry"|"tracked"|"wheeled" {
   return u.squadMaxMembers||u.def.category==="infantry"?"infantry":["apc","reconVehicle","logiTruck"].includes(u.kind)?"wheeled":"tracked";
 }

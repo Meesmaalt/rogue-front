@@ -117,6 +117,7 @@ export interface Entity {
   roadPathRetryAt?: number;
   avoidanceSide?:number;avoidanceUntil?:number;navWaiting?:boolean;
   components?: { engine: number; tracks: number; turret: number; weapon: number; crew: number; ammo: number };
+ equipment?:Partial<Record<"weapon"|"protection"|"mobility",string>>;equipmentCharges?:number;refit?:{slot:"weapon"|"protection"|"mobility";module:string;progress:number;seconds:number};
  supply?: number; maxSupply?: number; role?: "line" | "support" | "siege" | "air-superiority" | "air-ground" | "logistics"; holdPosition: boolean; patrolPoints: Point[]; patrolIndex: number; upgrades: Set<string>; cargo: number; logisticsTarget: Point | null; logisticsHome: Point | null; logisticsPhase: "idle" | "loading" | "unloading"; productionQueue: UnitKind[]; productionProgress: number; rallyPoint: Point | null;
   constructionProgress: number;
   upgrading?: boolean; upgradeProgress?: number; upgradeTime?: number; upgradeKind?: "producer";
@@ -184,7 +185,7 @@ export interface Projectile {
   hitRoll?:number;missX?:number;missZ?:number;
 }
 
-export type Command = ({type:"face-building";ids:number[];x:number;z:number} | {type:"enter-building";ids:number[];featureId:string} | {type:"leave-building";ids:number[];x?:number;z?:number} | {
+export type Command = ({type:"configure-unit";ids:number[];slot:"weapon"|"protection"|"mobility";module:string} | {type:"cancel-refit";ids:number[]} | {type:"face-building";ids:number[];x:number;z:number} | {type:"enter-building";ids:number[];featureId:string} | {type:"leave-building";ids:number[];x?:number;z?:number} | {
   type: "move"; ids: number[]; x: number; z: number; append?: boolean; facing?:number
 } | { type: "fast-move"; ids: number[]; x: number; z: number; append?: boolean; facing?:number } | { type: "amove"; ids: number[]; x: number; z: number; append?: boolean; facing?:number } | { type: "attack"; ids: number[]; targetId: number } |
   { type: "formation"; kind: "box" | "line" | "wedge" | "column" } | { type: "stop"; ids: number[] } | { type: "repair"; ids: number[]; targetId: number } | { type: "rally"; ids: number[]; x: number; z: number } | { type: "patrol"; ids: number[]; x: number; z: number } | { type: "hold"; ids: number[] } |

@@ -1,3 +1,4 @@
+import {isIndirectUnit} from "../equipment";
 import {airportDepot,externalDepotReady,externalEntry} from "../externalSupply";
 import {ROAD_TRUCK_MAX_PER_DEPOT} from "../constants";
 import {collectionSource,depositPayload,withdrawPayload,serviceFuelAvailable,needsBackhaul} from "../stockLogistics";
@@ -59,7 +60,7 @@ export function nearestEnemy(w: World, u: Entity, range: number): Entity | null 
     // Real War priority orders: focus supply / power / AA when set
     if (u.priorityFocus && e.kind === u.priorityFocus) priority -= 80;
     if(d<=reach&&Math.sqrt(distSq)>=spec.minimumRange){
-      if(["artillery","mortar","mlrs"].includes(u.kind)||w.vision.hasLineOfSight(u,e))priority-=mobility.combat.clearShotPreference;
+      if(isIndirectUnit(u)||w.vision.hasLineOfSight(u,e))priority-=mobility.combat.clearShotPreference;
       else priority+=mobility.combat.blockedShotPenalty;
     }
     if (priority < bestScore || priority===bestScore&&e.id<(best?.id??Infinity)) { bestScore = priority; best = e; }
@@ -103,7 +104,7 @@ function firingPosition(w:World,u:Entity,target:Entity,range:number):Point|null 
   for(const factor of (u.def.category==="infantry"?cfg.infantryFiringFactors:cfg.vehicleFiringFactors))for(const offset of [0,.35,-.35,.7,-.7,1.1,-1.1,1.6,-1.6,Math.PI]){
     const r=Math.max(spec.minimumRange+u.def.radius+target.def.radius,radius*factor),a=angle+offset+(u.id%3-1)*.06,p={x:target.x+Math.sin(a)*r,z:target.z+Math.cos(a)*r};
     if(!w.nav.isWalkableWorld(p.x,p.z,u.def.radius)||!bodyClear(w,u,p)||reservations.some(q=>dist2d(p,q)<u.def.radius+q.radius+cfg.firingPositionGap))continue;
-    if(!["artillery","mortar","mlrs"].includes(u.kind)&&!w.vision.hasLineOfSight({...u,...p,y:heightAt(p.x,p.z)},target))continue;
+    if(!isIndirectUnit(u)&&!w.vision.hasLineOfSight({...u,...p,y:heightAt(p.x,p.z)},target))continue;
     const cover=u.def.category==="infantry"?coverValueAt(w,p.x,p.z)/34*cfg.coverPreference:0;
     candidates.push({point:p,score:dist2d(u,p)-cover+Math.abs(offset)*3+(radius-r)*.3});
   }
@@ -509,6 +510,7 @@ export function updateUnits(w: World, dt: number): void {
 
 function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): void {
   const d = u.def;u.navWaiting=false;
+  if(u.refit){u.motionSpeed=0;return;}
   const transporting=d.domain!=="air"&&transportCapacity(u)>0&&prepareTransport(w,u);
   if (u.kind === "cargoPlane") { updateCargoPlane(w, u, dt); return; }
   if (u.kind === "transport"&&u.supplyDepotId!=null) { updateTransport(w, u, dt); return; }
@@ -556,7 +558,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
   u.cooldown = Math.max(0, u.cooldown - dt);
   if(u.weaponCooldowns)for(let i=1;i<u.weaponCooldowns.length;i++)u.weaponCooldowns[i]=Math.max(0,u.weaponCooldowns[i]-dt);
 
-  if (u.fireMission && !u.artilleryDisplace && ["artillery","mortar","mlrs"].includes(u.kind)) {u.target=null;u.motionSpeed=Math.max(0,(u.motionSpeed??0)-mobilityProfile(u).braking*dt);return;}
+  if (u.fireMission && !u.artilleryDisplace && isIndirectUnit(u)) {u.target=null;u.motionSpeed=Math.max(0,(u.motionSpeed??0)-mobilityProfile(u).braking*dt);return;}
   if (!d.damage && d.speed === 0) return;
 
   const isAir = d.armor === "air";
@@ -643,7 +645,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
   if (mayAcquire&&u.mode !== "attack") {
     const lim = u.mode === "move" ? effectiveRange : Math.max(effectiveRange, u.aggro);
     const tick = Math.floor(w.time * 30);
-    const reconsider=!!u.target&&(tick+u.id)%mobility.combat.reconsiderTicks===0&&(!canEngage(u,u.target)||(!["artillery","mortar","mlrs"].includes(u.kind)&&!w.vision.hasLineOfSight(u,u.target)));
+    const reconsider=!!u.target&&(tick+u.id)%mobility.combat.reconsiderTicks===0&&(!canEngage(u,u.target)||(!isIndirectUnit(u)&&!w.vision.hasLineOfSight(u,u.target)));
     const needNew = !u.target || u.target.dead || !isSpottedBy(u.target,u.team,w.time) || !canEngage(u,u.target) || dist2d(u, u.target) - u.target.def.radius > lim * 1.15 || reconsider;
     if (needNew) {
       if ((tick + u.id) % 4 === 0 || !u.target || u.target.dead || reconsider) {
@@ -668,7 +670,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
   const stopFactor=u.combatHoldingTarget!=null?mobility.combat.holdingRange:mobility.combat.stoppingRange;
   const inRange = !!target && dist2d(u, target) - target.def.radius <= effectiveRange * stopFactor;
   let goal: Point | null = null;
-  const indirect=["artillery","mortar","mlrs"].includes(u.kind);
+  const indirect=isIndirectUnit(u);
   const clearShot=!target || indirect || w.vision.hasLineOfSight(u,target);
   if(transporting)goal=u.dest;
   else if(target&&u.mode!=="move"&&u.mode!=="enter-building"){

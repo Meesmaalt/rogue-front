@@ -1,3 +1,4 @@
+import {CORE_PLATFORMS} from "../sim/platforms";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { FactionId } from "../sim/factions";
@@ -14,7 +15,7 @@ const root = `${import.meta.env.BASE_URL}models/art/`;
 
 /** Preload before creating views. Bounded concurrent requests, reused by games
  * and arsenal. No geometry/material allocation for individual unit instances. */
-export async function loadArtModels(factions: readonly FactionId[], kinds = ART_KINDS): Promise<void> {
+export async function loadArtModels(factions: readonly FactionId[], kinds = ART_KINDS.filter(k=>CORE_PLATFORMS.has(k)||k==="cargoPlane"||k==="logiTruck")): Promise<void> {
   const jobs = factions.flatMap(faction => kinds.flatMap(kind => [false,true].map(tactical=>({ faction, kind, tactical }))));
   let cursor = 0;
   await Promise.all(Array.from({ length: Math.min(4, jobs.length) }, async () => {

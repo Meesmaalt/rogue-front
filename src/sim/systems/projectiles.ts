@@ -1,3 +1,5 @@
+import physics from "../../data/physics.json";
+import {equipmentModule} from "../equipment";
 import {impactGarrisonBuildings,GARRISON_RULES} from "../garrison";
 import type { World } from "../World";
 import type { Projectile,Entity } from "../types";
@@ -8,21 +10,22 @@ import { damage, hitFace,armorValue,weaponDamageMultiplier,penetrationFactor } f
 function blocked(w:World,obstacles:readonly Entity[],p:Projectile,x:number,y:number,z:number):boolean {
   if(y<=heightAt(x,z)+.12)return true;
   for(const f of w.terrain.coverFeaturesAt(x,z))if(f.kind!=="water"&&featureBlocksMovement(f)&&pointInFeature(x,z,f)&&y<heightAt(x,z)+(f.kind==="building"&&(w.infrastructureDamage.get(f.id)??0)>=1?GARRISON_RULES.rubbleHeight:f.height??3))return true;
-  for(const e of obstacles)if(!e.dead&&e.def.speed===0&&e.id!==p.sourceId&&e!==p.target&&Math.hypot(e.x-x,e.z-z)<e.def.radius&&y<e.y+e.def.height)return true;
+  for(const e of obstacles)if(!(w.platformRosterOnly&&e.team!==p.team)&&!e.dead&&e.def.speed===0&&e.id!==p.sourceId&&e!==p.target&&Math.hypot(e.x-x,e.z-z)<e.def.radius&&y<e.y+e.def.height)return true;
   return false;
 }
 function penetrationMultiplier(p:Projectile,e:Entity):number {
-  const armor=armorValue(e,hitFace(p.launchX??p.x,p.launchZ??p.z,e));
-  return penetrationFactor(p.warhead??"he",p.penetration??0,armor,e.def.category==="infantry"||e.def.armor==="air",Math.hypot(p.x-(p.launchX??p.x),p.z-(p.launchZ??p.z)));
+  const armor=armorValue(e,hitFace(p.x-p.vx,p.z-p.vz,e));
+  const mult=penetrationFactor(p.warhead??"he",p.penetration??0,armor,e.def.category==="infantry"||e.def.armor==="air",Math.hypot(p.x-(p.launchX??p.x),p.z-(p.launchZ??p.z)));
+  return mult*(p.warhead==="heat"?1-(equipmentModule(e,"protection")?.heatProtection??0):1);
 
 }
 function impact(w:World,p:Projectile,terrain:boolean):void {
-  const opts={weapon:p.weapon,fromX:p.launchX??p.x,fromZ:p.launchZ??p.z,sourceId:p.sourceId,penetration:p.penetration,suppressionPower:p.suppressionPower};
+  const opts={weapon:p.weapon,fromX:p.x-p.vx,fromZ:p.z-p.vz,sourceId:p.sourceId,penetration:p.penetration,suppressionPower:p.suppressionPower};
   let result:"penetration"|"ricochet"|"ground"|"airburst"|"miss"=terrain?"ground":"miss";
   impactGarrisonBuildings(w,p,(u,amount)=>damage(w,u,amount,opts));
   const target=p.target;
   let hit:Entity|null=null;
-  if(!terrain&&target&&!target.dead&&Math.hypot(target.x-p.x,target.z-p.z)<=target.def.radius+1&&Math.abs(target.y+target.def.height*.45-p.y)<Math.max(2,target.def.height*.6)&&(p.hitRoll??0)<=(p.hitChance??1)){
+  if(!terrain&&target&&!target.dead&&Math.hypot(target.x-p.x,target.z-p.z)<=target.def.radius+1&&Math.abs(target.y+target.def.height*.45-p.y)<Math.max(2,target.def.height*.6)&&(w.platformRosterOnly||(p.hitRoll??0)<=(p.hitChance??1))){
     const mult=penetrationMultiplier(p,target);hit=target;result=mult>0?"penetration":"ricochet";
     if(mult>0)damage(w,target,(p.impactDamage??p.damage)*mult,opts);
     else {target.suppression=Math.min(100,(target.suppression??0)+4);target.morale=Math.max(0,(target.morale??100)-1);}
@@ -61,7 +64,7 @@ export function updateProjectiles(w:World,dt:number):void {
       const source=w.byId.get(p.sourceId),t=p.target;
       if(!t||t.dead||(p.guidance==="command"&&(!source||source.dead||(source.suppression??0)>85||!w.isSpottedByTeam(t,p.team)||!w.vision.hasLineOfSight(source,t))))p.guidanceLost=true;
       else {
-        const miss=(p.hitRoll??0)>(p.hitChance??1);
+        const miss=!w.platformRosterOnly&&(p.hitRoll??0)>(p.hitChance??1);
         p.tx=t.x+(miss?p.missX??0:0);p.tz=t.z+(miss?p.missZ??0:0);p.aimY=t.y+t.def.height*.45;
       }
     }
@@ -78,10 +81,13 @@ export function updateProjectiles(w:World,dt:number):void {
     if(guided){
       p.speed=Math.min(p.maxSpeed??p.speed,p.speed+(p.acceleration??0)*dt);
       if(!p.guidanceLost){
-        const old=Math.hypot(p.vx,p.vy,p.vz)||1,dot=Math.max(-1,Math.min(1,(p.vx*dx+p.vy*dy+p.vz*dz)/(old*d))),angle=Math.acos(dot),blend=Math.min(1,(p.turnRate??3.2)*dt/Math.max(.001,angle));
+        const old=Math.hypot(p.vx,p.vy,p.vz)||1,dot=Math.max(-1,Math.min(1,(p.vx*dx+p.vy*dy+p.vz*dz)/(old*d))),angle=Math.acos(dot),blend=Math.min(1,(p.turnRate??3.2)*(w.platformRosterOnly?Math.max(physics.minimumGuidanceQuality,p.hitChance??1):1)*dt/Math.max(.001,angle));
         let vx=p.vx/old*(1-blend)+dx/d*blend,vy=p.vy/old*(1-blend)+dy/d*blend,vz=p.vz/old*(1-blend)+dz/d*blend,len=Math.hypot(vx,vy,vz)||1;
         p.vx=vx/len*p.speed;p.vy=vy/len*p.speed;p.vz=vz/len*p.speed;
       }else {const old=Math.hypot(p.vx,p.vy,p.vz)||1;p.vx=p.vx/old*p.speed;p.vy=p.vy/old*p.speed;p.vz=p.vz/old*p.speed;}
+    }
+    if(w.platformRosterOnly&&p.weapon==='missile'&&p.warhead==='heat'&&p.target&&!p.target.dead&&p.target.team!==p.team&&(p.target.equipmentCharges??0)>=1&&equipmentModule(p.target,'protection')?.interceptCharges&&Math.hypot(p.target.x-p.x,p.target.y+1-p.y,p.target.z-p.z)<p.target.def.radius+physics.activeProtectionRadius){
+      p.target.equipmentCharges=(p.target.equipmentCharges??0)-1;w.events.push({type:'impact',x:p.x,y:p.y,z:p.z,weapon:p.weapon,visual:p.visual,result:'miss',size:1});w.projectiles.splice(i,1);continue;
     }
     const nx=p.x+p.vx*dt,ny=p.y+p.vy*dt-(ballistic?.5*(p.gravity??0)*dt*dt:0),nz=p.z+p.vz*dt;
     if(ballistic)p.vy-=(p.gravity??0)*dt;
@@ -89,7 +95,16 @@ export function updateProjectiles(w:World,dt:number):void {
     for(let j=1;j<=steps;j++){const t=j/steps,x=p.px+(nx-p.px)*t,y=p.py+(ny-p.py)*t,z=p.pz+(nz-p.pz)*t;if(blocked(w,obstacles,p,x,y,z)){p.x=x;p.y=Math.max(heightAt(x,z)+.12,y);p.z=z;terrain=true;break;}}
     if(!terrain){p.x=nx;p.y=ny;p.z=nz;}
     let crossed=false;
-    if(!terrain&&p.target&&!p.target.dead){const target=p.target,dx=nx-p.px,dy=ny-p.py,dz=nz-p.pz,len=dx*dx+dy*dy+dz*dz||1;
+    if(w.platformRosterOnly&&!terrain){
+      const dx=nx-p.px,dy=ny-p.py,dz=nz-p.pz,length=dx*dx+dy*dy+dz*dz||1;let first=Infinity,victim:Entity|null=null;
+      w.spatial.queryRadius((nx+p.px)/2,(nz+p.pz)/2,Math.hypot(dx,dz)/2+physics.collisionSearchPadding,e=>{
+        if(e.dead||e.team===p.team||e.loadedIntoId!=null||e.id===p.sourceId)return;
+        const t=Math.max(0,Math.min(1,((e.x-p.px!)*dx+(e.y+e.def.height*.45-p.py!)*dy+(e.z-p.pz!)*dz)/length));
+        if(t<first&&Math.hypot(e.x-(p.px!+dx*t),e.y+e.def.height*.45-(p.py!+dy*t),e.z-(p.pz!+dz*t))<=Math.max(.5,e.def.radius)){first=t;victim=e;}
+      });
+      if(victim){p.target=victim;p.x=p.px+dx*first;p.y=p.py+dy*first;p.z=p.pz+dz*first;crossed=true;}
+    }
+    if(!crossed&&!terrain&&p.target&&!p.target.dead){const target=p.target,dx=nx-p.px,dy=ny-p.py,dz=nz-p.pz,len=dx*dx+dy*dy+dz*dz||1;
       const t=Math.max(0,Math.min(1,((target.x-p.px)*dx+(target.y+target.def.height*.45-p.py)*dy+(target.z-p.pz)*dz)/len));
       const x=p.px+dx*t,y=p.py+dy*t,z=p.pz+dz*t;
       crossed=Math.hypot(target.x-x,target.y+target.def.height*.45-y,target.z-z)<=Math.max(.5,target.def.radius);

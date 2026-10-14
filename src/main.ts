@@ -1,3 +1,5 @@
+import {validateDeck,defaultDeck} from "./sim/deck";
+import {isIndirectUnit} from "./sim/equipment";
 import {maxHitPoints} from "./sim/unitStats";
 import "./style.css";
 import * as THREE from "three";
@@ -27,7 +29,6 @@ import { CommandController } from "./input/CommandController";
 import { Hud } from "./ui/Hud";
 import { Minimap } from "./ui/Minimap";
 import { Overlay } from "./ui/Overlay";
-import { MISSIONS } from "./data/missions";
 import { MissionController } from "./sim/Mission";
 import { loadWorld, saveWorld } from "./sim/SaveState";
 import { ReplayRecorder } from "./sim/Replay";
@@ -42,7 +43,6 @@ import { getAuthToken } from "./net/Api";
 import { createSkirmish } from "./sim/scenario";
 import { getPlayableMap } from "./sim/proceduralMap";
 import { MatchModeController, MODE_RULES, type MatchMode } from "./sim/gameModes";
-import { completeCampaignMission, nextCampaignMission, loadCampaign } from "./sim/campaign";
 
 const queryParams = new URLSearchParams(location.search);
 const queryMission = queryParams.get("mission");
@@ -119,7 +119,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   world.enemyFaction = (FACTION_LIST.find(f => f !== faction) ?? "russia") as FactionId;
   try {
     const raw = sessionStorage.getItem("rogue-front.activeDeck");
-    if (raw && skirmish && !queryParams.has("resume")) { const deck = JSON.parse(raw); if (deck.faction === faction) world.setActiveDeck(deck); }
+    if (raw && skirmish && !queryParams.has("resume")) { const deck = JSON.parse(raw); if (deck.faction === faction) world.setActiveDeck(validateDeck(deck).length?defaultDeck(faction):deck); }
   } catch { /* */ }
   const activeMode: MatchMode = skirmish ? (queryGameMode && Object.hasOwn(MODE_RULES,queryGameMode) ? queryGameMode : "skirmish") : "assault";
   const modeController = new MatchModeController(world, activeMode, mission);
@@ -131,6 +131,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   if (multiplayer) world.setNetworkMode(0);
 
   if(mission.id==="tutorial-logistics"&&!skirmish&&!multiplayer){world.ai.setProfile("defensive","easy");world.ai.attackTimer=240;}
+  world.platformRosterOnly=true;
   replayRecorder.reset(world);
 
   const topCanvas = document.getElementById("overlay") as HTMLCanvasElement;
@@ -139,7 +140,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const performancePanel=new PerformancePanel(loadSettings().performanceOverlay??false);
   const gpuTimer=new GpuTimer(ctx.renderer.getContext());
   const gl=ctx.renderer.getContext(),debug=gl.getExtension("WEBGL_debug_renderer_info");
-  performancePanel.configure({clientBuild:"minimap-bulk-fog1/performance-v3",mapId:mission.id,seed:mission.seed,mapSize:mission.map.size,buildingCount:world.mapFeatures.filter(f=>f.kind==="building").length,
+  performancePanel.configure({clientBuild:"procedural-platforms1/performance-v3",mapId:mission.id,seed:mission.seed,mapSize:mission.map.size,buildingCount:world.mapFeatures.filter(f=>f.kind==="building").length,
     browser:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,deviceMemoryGB:(navigator as Navigator&{deviceMemory?:number}).deviceMemory??null,
     graphics:debug?{vendor:gl.getParameter(debug.UNMASKED_VENDOR_WEBGL),renderer:gl.getParameter(debug.UNMASKED_RENDERER_WEBGL)}:{renderer:gl.getParameter(gl.RENDERER)},
     webglVersion:gl.getParameter(gl.VERSION),gpuTimerSupported:gpuTimer.supported,devicePixelRatio:window.devicePixelRatio});
@@ -198,6 +199,8 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   hud.onOrder=order=>{if(!running||paused)return;if(order==="stop"){commands.cancelOrders();world.issue({type:"stop",ids:selection.selectedIds()});}else if(order==="focus"){const list=selection.selectedIds().map(id=>world.byId.get(id)).filter(e=>e&&!e.dead);if(list.length)cam.jumpTo(list.reduce((n,e)=>n+e!.x,0)/list.length,list.reduce((n,e)=>n+e!.z,0)/list.length);}else {commands.armOrder(order);hud.setWarning(order==="fast"?"Kiirliigu: klõps kaardil või minikaardil":order==="unload"?"Välju transpordist: klõps sihtpunktile":order==="attack"?"Ründeliikumine: klõps kaardil või minikaardil":"Liigu: klõps sihtpunktile");}};
   hud.onProduce = (kind, producerId) => { if (running && !paused) world.issue({ type: "produce", kind, producerId }); };
   hud.onBuild = (kind) => { if (running && !paused) commands.startBuild(kind); };
+  hud.onEquipment=(ids,slot,module)=>{if(running&&!paused)world.issue({type:"configure-unit",ids,slot,module});};
+  hud.onCancelRefit=ids=>{if(running&&!paused)world.issue({type:"cancel-refit",ids});};
   hud.onUnitUpgrade=(ids,upgrade)=>{if(running&&!paused)world.issue({type:"upgrade",ids,upgrade});};
   hud.onResearch=tech=>{if(running&&!paused)world.issue({type:"research",tech});};
   hud.onUpgradeSupply = (ids) => { if (running && !paused) world.issue({ type: "upgrade", ids, upgrade: "supply-depot" }); };
@@ -221,7 +224,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   hud.onAirReturn=ids=>{if(running&&!paused){commands.cancelOrders();world.issue({type:"air-return",ids});hud.setWarning("EVAC: lennuvägi naaseb baasi");}};
   hud.onAirMission=(ids,mission)=>{if(running&&!paused){commands.startAirMission(ids,mission);hud.setWarning("Õhuoperatsioon: paremklõps sihtpunktile, Esc tühistab");}};
   hud.onCancelProduce = (producerId) => { if (running && !paused) world.issue({ type: "cancel-produce", producerId }); };
-  const saveKey = SAVE_PREFIX + mission.id + (mission.id==="roheorg"?".layout16":mission.id==="operation-tidebreaker"?".coast3":mission.id==="tutorial-logistics"?".training16":"") + ".imports1." + (skirmish ? activeMode : "campaign") + "." + faction;
+  const saveKey = SAVE_PREFIX + mission.id + (mission.id==="roheorg"?".layout16":mission.id==="operation-tidebreaker"?".coast3":mission.id==="tutorial-logistics"?".training16":"") + ".platforms1." + (skirmish ? activeMode : "campaign") + "." + faction;
   const sessionContext=JSON.stringify({mission:mission.id,seed:mission.seed,heightmap:mission.map.heightmap,terrain:mission.map.terrainProfile,maxHeight:mission.map.maxHeight,mode:skirmish?activeMode:"campaign",faction});
   // Avoid reading/copying a potentially multi-megabyte snapshot five times a second.
   const readSaveAvailability=()=>{try{return !multiplayer&&localStorage.getItem(saveKey)!==null;}catch{return false;}};
@@ -241,16 +244,11 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const showBattleResult = (restored=false) => {
     const status=world.status;if(status==="running")return;
     let persistenceFailed=false;
-    let campaign=loadCampaign();
-    if(status==="won"&&!skirmish&&!multiplayer){
-      try{campaign=completeCampaignMission(mission);}catch{persistenceFailed=true;}
-      try{MissionController.markCompleted(mission.id);}catch{persistenceFailed=true;}
-    }
     // Loading an ended snapshot must not overwrite its replay with an empty recorder.
     if(!restored){try{localStorage.setItem("rogue-front.replay.v1."+mission.id,JSON.stringify(replayRecorder.file()));}catch{persistenceFailed=true;}}
-    const next=status==="won"&&!skirmish&&!multiplayer?nextCampaignMission(mission.id,campaign):undefined;
+
     const reason=(restored?"Taastatud tulemus · ":"")+(skirmish?(world.matchController?.label()??modeController.label()):mission.name);
-    hud.showResult(status,world.time,reason+(persistenceFailed?" · Edenemise või replay salvestamine ebaõnnestus":""),next?.missionId,!multiplayer);
+    hud.showResult(status,world.time,reason+(persistenceFailed?" · Edenemise või replay salvestamine ebaõnnestus":""),undefined,!multiplayer);
     if(persistenceFailed)hud.setWarning("Tulemus säilib ekraanil, kuid brauseri salvestusruum ei võimaldanud kõiki andmeid salvestada.");
   };
   const loadGame = (resumePaused=false) => {
@@ -308,7 +306,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     if (k === "f1") selection.selectFilter(u => ["tank","ifv","apc"].includes(u.kind));
     if (k === "f2") selection.selectFilter(u => ["inf","atInf","mgInf","reconInf","sniper","manpad","atgm","mortar","special","engineer"].includes(u.kind));
     if (k === "f3") selection.selectFilter(u => u.def.armor === "air" || ["heli","gunship","fighter","interceptor","bomber"].includes(u.kind));
-    if (k === "f4") selection.selectFilter(u => ["artillery","mortar","mlrs","aa","spaa","manpad","logiTruck"].includes(u.kind));
+    if (k === "f4") selection.selectFilter(u => isIndirectUnit(u) || ["aa","spaa","manpad","logiTruck"].includes(u.kind));
   });
 
   let hudAcc = 1;
@@ -416,9 +414,9 @@ if (queryMission) {
   if ((queryMode === "multiplayer" || queryMode === "spectator") && !getAuthToken()) { location.href = location.pathname; throw new Error("Multiplayer requires account authentication"); }
   const queryFaction = (queryParams.get("faction") as FactionId | null) ?? (localStorage.getItem("rogue-front.faction") as FactionId | null) ?? "usa";
   const bootFaction = (FACTION_LIST.includes(queryFaction as FactionId) ? queryFaction : "usa") as FactionId;
-  const selectedMission = MISSIONS.find(m => m.id === queryMission) ?? getPlayableMap(queryMission);
+  const selectedMission = getPlayableMap(queryMission);
   if (!selectedMission)showMenu("Seda kaarti või operatsiooni ei leitud. Vali menüüst uus lahing.");
-  else void boot(selectedMission, queryRoom || undefined, queryMode === "skirmish" ? (queryDifficulty || "normal") : undefined, bootFaction, queryMode === "spectator", querySpectateToken || "").catch((err: unknown) => {
+  else void boot(selectedMission, queryRoom || undefined, queryMode !== "multiplayer" && queryMode !== "spectator" ? (queryDifficulty || "normal") : undefined, bootFaction, queryMode === "spectator", querySpectateToken || "").catch((err: unknown) => {
     console.error(err);
     const reason=err instanceof Error&&/WebGL/i.test(err.message)
       ? "Brauser ei saanud WebGL 2 3D-vaadet käivitada. Kontrolli brauseri riistvarakiirendust ja graafikadraiverit või proovi teist toetatud brauserit. Graafikakvaliteedi vähendamine ei asenda puuduvat WebGL-i tuge."

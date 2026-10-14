@@ -1,3 +1,5 @@
+import {isIndirectUnit} from "../equipment";
+import {beginEquipmentRefit} from "../equipment";
 import {orderGarrison,leaveGarrison,requestGarrisonExit} from "../garrison";
 import {queuePassenger,transportCapacity,isPassenger} from "../transport";
 import {travelPathCost} from "../unitStats";
@@ -16,7 +18,7 @@ function mobile(w: World, ids: number[], team?: Entity["team"]): Entity[] {
   const out: Entity[] = [];
   for (const id of ids) {
     const e = w.byId.get(id);
-    if (e && !e.dead && e.def.speed > 0 && e.logisticsRoute!=="strategic" && e.loadedIntoId==null && (team === undefined || e.team === team)) out.push(e);
+    if (e && !e.dead && e.def.speed > 0 && !e.refit && e.logisticsRoute!=="strategic" && e.loadedIntoId==null && (team === undefined || e.team === team)) out.push(e);
   }
   return out;
 }
@@ -263,6 +265,7 @@ function apply(w: World, c: Command): void {
         for (const u of c.ids.map(id => w.byId.get(id)).filter((e): e is Entity => !!e && !e.dead && e.team === team && e.kind === "supply")) w.upgradeFOB(team, u.id);
         break;
       }
+      if(w.platformRosterOnly)break;
       for(const u of mobile(w,c.ids,team)){
         const status=unitUpgradeStatus(w,u,c.upgrade);if(!status.allowed)continue;
         const before=maxHitPoints(u);u.upgrades.add(c.upgrade);
@@ -274,6 +277,12 @@ function apply(w: World, c: Command): void {
       w.credits = w.teamCredits[w.playerTeam]; w.resources = w.teamResources[w.playerTeam];
       break;
     }
+    case "configure-unit": {
+      const team=c.team??w.playerTeam;
+      for(const id of c.ids){const u=w.byId.get(id);if(u&&u.team===team)beginEquipmentRefit(w,u,c.slot,c.module);}
+      w.credits=w.teamCredits[w.playerTeam];w.resources=w.teamResources[w.playerTeam];break;
+    }
+    case "cancel-refit": {const team=c.team??w.playerTeam;for(const id of c.ids){const u=w.byId.get(id);if(u&&u.team===team)u.refit=undefined;}break;}
     case "load": {
       const selected=mobile(w,c.ids,c.team),target=w.byId.get(c.targetId);
       if(!target)break;
@@ -288,7 +297,7 @@ function apply(w: World, c: Command): void {
       break;
     }
     case "fire-mission": {
-      const artillery = mobile(w, c.ids, c.team).filter(u => ["artillery","mortar","mlrs"].includes(u.kind)&&!u.garrisonId);
+      const artillery = mobile(w, c.ids, c.team).filter(u => isIndirectUnit(u)&&!u.garrisonId);
       for (const u of artillery) { replaceTask(w,u);u.fireMission = {x:c.x,z:c.z}; u.mode = "attack"; u.target = null; u.dest = null; }
       break;
     }

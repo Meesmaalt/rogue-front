@@ -2,6 +2,10 @@
 
 Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 16, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
 
+## Aktiivne mängureeglistik · 14.10.2026
+
+Mängukaardid on ainult protseduurkaardid. Ajaloolised Roheoru/Murdlaine kirjeldused allpool on regressioonitaust. `platforms.json` piirab tootmise 15 põhiklassile; `equipment.json` kirjeldab 16 vahetatavat komponenti. `configure-unit`/`cancel-refit` käsud käivad fikseeritud sim-sammu kaudu; `equipment.ts` hooldus ei täida moona ega paranda tasuta. `physics.json` juhib uue reeglistiku trajektoore. Komponendid ja pooleliolev töö sisalduvad snapshot/replay räsis. Detailid: [MODULAR-PROCEDURAL-RELEASE.md](MODULAR-PROCEDURAL-RELEASE.md).
+
 ## Põhimõte
 Kolm kihti, sõltuvused ainult allapoole: **ui/input → sim ← render** (render ja ui *loevad* sim olekut, annavad käske, kuid sim ei tea neist midagi).
 

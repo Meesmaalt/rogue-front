@@ -83,7 +83,7 @@ export class DeckBuilder {
       <div class="deck-panel">
         <header class="deck-head">
           <h1>Doktriini deck</h1>
-          <p class="deck-blurb">${fac.doctrineBlurb}</p>
+          <p class="deck-blurb">${fac.doctrineBlurb}</p><p class="deck-blurb">Põhiklassi relvakoorem, kaitsevarustus ja jõuülekanne muudetakse lahingus töötava lao juures.</p>
           <div class="deck-factions">
             ${FACTION_LIST.map(id => `
               <button type="button" class="deck-fac ${id === this.faction ? "active" : ""}" data-fac="${id}">

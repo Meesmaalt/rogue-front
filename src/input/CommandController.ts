@@ -1,3 +1,4 @@
+import {isIndirectUnit} from "../sim/equipment";
 import {formationPoints} from "../sim/systems/commands";
 import type {SimEvent,Entity} from "../sim/types";
 import {transportCapacity,isPassenger} from "../sim/transport";
@@ -97,7 +98,7 @@ export class CommandController {
       if(k===keys.attackMove)this.armOrder("attack");
       if(k===keys.hold){this.cancelOrders();this.world.issue({type:"hold",ids:this.ids()});this.notify("Valitud üksused hoiavad positsiooni");}
       if(k===keys.patrol)this.armOrder("patrol");
-      if (k === "f") { const hasArtillery=this.ids().some(id=>["artillery","mortar","mlrs"].includes(this.world.byId.get(id)?.kind??"")); if(hasArtillery){this.armOrder("fire");} }
+      if (k === "f") { const hasArtillery=this.ids().some(id=>isIndirectUnit(this.world.byId.get(id))); if(hasArtillery){this.armOrder("fire");} }
       if(k==="g")this.armOrder("fast");
       if(k==="u")this.armOrder("unload");
       if(k==="e"&&!e.ctrlKey&&!e.altKey&&!e.metaKey){const ids=this.ids().filter(id=>{const u=this.world.byId.get(id);return u?.def.armor==="air"||u?.kind==="airbase"||u?.kind==="helipad";});if(ids.length){this.cancelOrders();this.world.issue({type:"air-return",ids});this.notify("EVAC: lennuvägi naaseb baasi");}}
@@ -137,7 +138,7 @@ export class CommandController {
       if (this.airOrder) {const p=this.picker.groundAt(e.clientX,e.clientY);this.world.issue({type:"air-mission",...this.airOrder,x:p.x,z:p.z});this.ack(p.x,p.z,0x55b7ff);this.notify("Õhuoperatsiooni käsk antud");this.cancelOrders();return;}
       if (this.fireMissionMode) {
         const p = this.picker.groundAt(e.clientX,e.clientY);
-        const ids = this.ids().filter(id => ["artillery","mortar","mlrs"].includes(this.world.byId.get(id)?.kind ?? ""));
+        const ids = this.ids().filter(id => isIndirectUnit(this.world.byId.get(id)));
         if (ids.length) { this.world.issue({type:"fire-mission",ids,x:p.x,z:p.z}); this.ack(p.x,p.z,0xff7a33); }
         this.cancelOrders();return;
       }
@@ -225,7 +226,7 @@ export class CommandController {
   moveTo(x: number, z: number, append = false): void {
     if (!this.enabled) return;
     if(this.buildMode)return;
-    if(this.fireMissionMode){const ids=this.ids().filter(id=>["artillery","mortar","mlrs"].includes(this.world.byId.get(id)?.kind??""));if(ids.length)this.world.issue({type:"fire-mission",ids,x,z});this.cancelOrders();this.ack(x,z,0xff7a33);return;}
+    if(this.fireMissionMode){const ids=this.ids().filter(id=>isIndirectUnit(this.world.byId.get(id)));if(ids.length)this.world.issue({type:"fire-mission",ids,x,z});this.cancelOrders();this.ack(x,z,0xff7a33);return;}
     if(this.patrolMode){this.world.issue({type:"patrol",ids:this.ids(),x,z});this.cancelOrders();this.ack(x,z,0x79c9ff);return;}
     if(this.airOrder){this.world.issue({type:"air-mission",...this.airOrder,x,z});this.cancelOrders();this.ack(x,z,0x55b7ff);return;}
     if(this.logisticsOrder){const order=this.logisticsOrder;if(order.action==="route")this.world.issue({type:"logistics-route",ids:order.ids,x,z,append:true});else{const index=this.world.resourcePoints.findIndex(r=>Math.hypot(r.x-x,r.z-z)<=r.radius+20&&(r.controlledBy===this.world.playerTeam||this.world.vision.isVisible(this.world.playerTeam,r.x,r.z)));if(index<0)return;this.world.issue({type:"logistics-source",ids:order.ids,sourceIndex:index});}this.cancelOrders();this.ack(x,z,0xa4d57c);return;}

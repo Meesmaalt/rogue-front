@@ -1,0 +1,250 @@
+{
+  "serviceRadius": 80,
+  "standard": {
+    "cost": 0,
+    "repairCost": 5,
+    "seconds": 5
+  },
+  "modules": {
+    "support-mg": {
+      "name": "Kuulipilduja toetus",
+      "slot": "weapon",
+      "kinds": [
+        "inf"
+      ],
+      "cost": 55,
+      "repairCost": 6,
+      "seconds": 8,
+      "description": "Tuletoetus ja tugevam mahasurumine; väiksem tankitõrjevõime.",
+      "weaponSource": "mgInf"
+    },
+    "anti-tank": {
+      "name": "Tankitõrjerühm",
+      "slot": "weapon",
+      "kinds": [
+        "inf"
+      ],
+      "cost": 95,
+      "repairCost": 11,
+      "seconds": 8,
+      "description": "Juhitav tankitõrjerakett ja automaatrelvad; vähem liikuvust.",
+      "weaponSource": "atgm",
+      "speedMultiplier": 0.88
+    },
+    "anti-air": {
+      "name": "Õhutõrjerühm",
+      "slot": "weapon",
+      "kinds": [
+        "inf"
+      ],
+      "cost": 85,
+      "repairCost": 10,
+      "seconds": 8,
+      "description": "Kantav õhutõrjerakett ja automaatrelvad.",
+      "weaponSource": "manpad",
+      "speedMultiplier": 0.92
+    },
+    "mortar-team": {
+      "name": "Miinipilduja",
+      "slot": "weapon",
+      "kinds": [
+        "inf"
+      ],
+      "cost": 75,
+      "repairCost": 9,
+      "seconds": 8,
+      "description": "Kaudtuli; rühm liigub aeglasemalt.",
+      "weaponSource": "mortar",
+      "speedMultiplier": 0.8
+    },
+    "marksman": {
+      "name": "Täpsusrelvad",
+      "slot": "weapon",
+      "kinds": [
+        "reconInf"
+      ],
+      "cost": 70,
+      "repairCost": 8,
+      "seconds": 8,
+      "description": "Pikem tuleulatus; madalam laskesagedus.",
+      "weaponSource": "sniper"
+    },
+    "he-ammo": {
+      "name": "Lõhkemürsud",
+      "slot": "weapon",
+      "kinds": [
+        "tank"
+      ],
+      "cost": 80,
+      "repairCost": 10,
+      "seconds": 8,
+      "description": "Parem jalaväe ja hoonete vastu; nõrk raske soomuse vastu.",
+      "primary": {
+        "name": "120/125 mm HE",
+        "warhead": "he",
+        "visual": "cannon",
+        "damage": 38,
+        "penetration": 5,
+        "splash": 5,
+        "cooldown": 5
+      }
+    },
+    "autocannon": {
+      "name": "Automaatkahuri torn",
+      "slot": "weapon",
+      "kinds": [
+        "apc"
+      ],
+      "cost": 90,
+      "repairCost": 11,
+      "seconds": 8,
+      "description": "Automaatkahur ja tankitõrjeraketid; vähem dessandikohti.",
+      "weaponSource": "ifv",
+      "speedMultiplier": 0.92,
+      "seatPenalty": 3
+    },
+    "sam": {
+      "name": "Raketipõhine õhutõrje",
+      "slot": "weapon",
+      "kinds": [
+        "spaa"
+      ],
+      "cost": 100,
+      "repairCost": 12,
+      "seconds": 8,
+      "description": "Õhutõrjeraketid asendavad kahurikoorma.",
+      "weaponSource": "aa",
+      "speedMultiplier": 0.94
+    },
+    "precision": {
+      "name": "Täpsuslaskemoon",
+      "slot": "weapon",
+      "kinds": [
+        "artillery",
+        "mlrs"
+      ],
+      "cost": 100,
+      "repairCost": 12,
+      "seconds": 8,
+      "description": "Väiksem hajuvus ja lõhkeala; aeglasem laadimine.",
+      "accuracyMultiplier": 1.25,
+      "splashMultiplier": 0.7,
+      "cooldownMultiplier": 1.2
+    },
+    "rocket-pods": {
+      "name": "Rakettide tuletoetus",
+      "slot": "weapon",
+      "kinds": [
+        "heli"
+      ],
+      "cost": 90,
+      "repairCost": 11,
+      "seconds": 8,
+      "description": "Raketid ja kahur jalaväe vastu.",
+      "weaponSource": "casHeli",
+      "speedMultiplier": 0.94
+    },
+    "strike": {
+      "name": "Maapealne rünnak",
+      "slot": "weapon",
+      "kinds": [
+        "fighter"
+      ],
+      "cost": 120,
+      "repairCost": 15,
+      "seconds": 8,
+      "description": "Õhuvõitluskoorma asemel ründerelvad.",
+      "weaponSource": "attackAircraft",
+      "speedMultiplier": 0.92
+    },
+    "multirole": {
+      "name": "Mitmeotstarbeline koorem",
+      "slot": "weapon",
+      "kinds": [
+        "fighter"
+      ],
+      "cost": 150,
+      "repairCost": 18,
+      "seconds": 8,
+      "description": "Õhk-õhk ja õhk-maa relvad; raskem koorem.",
+      "weaponSource": "multirole",
+      "speedMultiplier": 0.88
+    },
+    "reactive": {
+      "name": "Reaktiivsoomus",
+      "slot": "protection",
+      "kinds": [
+        "tank",
+        "apc",
+        "ifv",
+        "spaa",
+        "artillery",
+        "mlrs"
+      ],
+      "cost": 110,
+      "repairCost": 13,
+      "seconds": 12,
+      "description": "HEAT-kaitse paraneb; kiirus −12%.",
+      "speedMultiplier": 0.88,
+      "heatProtection": 0.35,
+      "armorMultiplier": 1.08,
+      "requiresTech": "advanced-armor"
+    },
+    "aps": {
+      "name": "Aktiivkaitse",
+      "slot": "protection",
+      "kinds": [
+        "tank",
+        "apc",
+        "ifv"
+      ],
+      "cost": 150,
+      "repairCost": 18,
+      "seconds": 12,
+      "description": "Kuni 4 HEAT-raketi tõrjet. Laadimine kulutab päris laovaru.",
+      "speedMultiplier": 0.95,
+      "interceptCharges": 4,
+      "requiresBuilding": "landStrategy",
+      "requiresTech": "advanced-armor"
+    },
+    "reinforced": {
+      "name": "Lisakaitse",
+      "slot": "protection",
+      "kinds": [
+        "tank",
+        "apc",
+        "ifv",
+        "spaa",
+        "artillery",
+        "mlrs",
+        "heli"
+      ],
+      "cost": 85,
+      "repairCost": 10,
+      "seconds": 12,
+      "description": "Soomus tugevam, kiirus −15%.",
+      "armorMultiplier": 1.25,
+      "speedMultiplier": 0.85
+    },
+    "engine": {
+      "name": "Võimsam jõuülekanne",
+      "slot": "mobility",
+      "kinds": [
+        "tank",
+        "apc",
+        "ifv",
+        "spaa",
+        "artillery",
+        "mlrs",
+        "heli"
+      ],
+      "cost": 100,
+      "repairCost": 12,
+      "seconds": 12,
+      "description": "Kiirus +12%; kütusekulu +25%.",
+      "speedMultiplier": 1.12,
+      "fuelMultiplier": 1.25
+    }
+  },
+  "aiServiceTicks": 60
+}

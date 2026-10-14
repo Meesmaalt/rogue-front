@@ -1,5 +1,15 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Protseduurkaart ja põhiklassid · 14.10.2026
+
+- [x] Ainult protseduurkaardid mängumenüüs ja online ruumide serverivalideerimises; kampaania/fikseeritud kaartide valiku eemaldamine.
+- [x] 15 põhiklassi, 16 komponenti ja teeninduskohas ajaga/kuluga vahetamine; baas ja kaardiväline varustus säilivad.
+- [x] Tegelik trajektoori tabamus, saabumissuunast soomus, 9,81 m/s² gravitatsioon, HEAT-kaitse ja laost täidetav APS.
+- [x] Varustuse UI/mudelilisad, salvestus/hash ja sihitud sim/render kontrollid. Vt MODULAR-PROCEDURAL-RELEASE.md.
+- [ ] Uue reeglistiku brauseris lahing, varustuse kasutatavus, tasakaal ja F8 FPS-võrdlus.
+- [ ] 4–6 km kaardi navigatsiooni/LOS eelarve ning ulatuste, kiirenduse/pidurduse ja lennukoridoride häälestamine.
+
+
 Põhiplaan: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allolev järjekord on järgmise arenduse alus; hilisemad vanad etapid ja märkeruudud jäävad ajalooliseks loendiks. Pakett loetakse tehtuks põhiplaani lõpetamistingimuste järgi, mitte funktsiooni nime olemasolu järgi.
 
 - [x] Kasutatava alpha ulatuse, viie viimistluspaketi ja alpha/beta lõpetamiskriteeriumide uuendamine (08.10.2026).

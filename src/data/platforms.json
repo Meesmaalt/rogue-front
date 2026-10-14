@@ -1,0 +1,44 @@
+{
+  "land": [
+    "inf",
+    "engineer",
+    "reconInf",
+    "tank",
+    "apc",
+    "ifv",
+    "spaa",
+    "artillery",
+    "mlrs"
+  ],
+  "air": [
+    "heli",
+    "transport",
+    "fighter"
+  ],
+  "sea": [
+    "frigate",
+    "submarine",
+    "landingcraft"
+  ],
+  "aliases": {
+    "special": "reconInf",
+    "sniper": "reconInf",
+    "atInf": "inf",
+    "mgInf": "inf",
+    "mortar": "inf",
+    "manpad": "inf",
+    "atgm": "inf",
+    "lightTank": "tank",
+    "tankDestroyer": "tank",
+    "reconVehicle": "apc",
+    "gunship": "heli",
+    "casHeli": "heli",
+    "interceptor": "fighter",
+    "bomber": "fighter",
+    "ecm": "fighter",
+    "multirole": "fighter",
+    "attackAircraft": "fighter",
+    "destroyer": "frigate",
+    "missileBoat": "frigate"
+  }
+}

@@ -6,7 +6,7 @@ it("each faction starts with a legal combined-arms deck including engineer, reco
  for(const faction of FACTION_LIST){
   const deck=defaultDeck(faction);
   expect(validateDeck(deck)).toEqual([]);expect(deckActivationTotal(deck)).toBeLessThanOrEqual(DEFAULT_RULES.maxActivation);
-  for(const kind of ["engineer","reconInf","tank","apc","manpad","mortar","transport"])expect(deck.slots.some(s=>s.kind===kind),`${faction} ${kind}`).toBe(true);
+  for(const kind of ["engineer","reconInf","tank","apc","spaa","artillery","transport"])expect(deck.slots.some(s=>s.kind===kind),`${faction} ${kind}`).toBe(true);
  }
 });
 it("malformed stored decks recover per faction without replacing an editable over-budget deck",()=>{

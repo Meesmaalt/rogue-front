@@ -1,0 +1,8 @@
+{
+  "gravity": 9.81,
+  "dispersionAngle": 0.04,
+  "minimumDispersion": 0.5,
+  "collisionSearchPadding": 16,
+  "activeProtectionRadius": 6,
+  "minimumGuidanceQuality": 0.25
+}

@@ -26,7 +26,7 @@ export function createSkirmish(w: World, ready = false, generated = false): void
       const pad=w.entities.find(e=>e.team===team&&e.kind==="helipad")!;
       const helicopter=w.spawn("heli",team,pad.x,pad.z);stationAircraft(w,helicopter,pad);
       const forward=generated?{x:b.x*.58,z:b.z*.58}:{x:-sign*82,z:sign*50};
-      const kinds=["tank","tank","apc","inf","inf","reconVehicle"] as const;
+      const kinds=["tank","tank","apc","inf","inf",generated?"reconInf":"reconVehicle"] as const;
       kinds.forEach((kind,i)=>{
         const wanted={x:forward.x+(i%3-1)*9,z:forward.z+Math.floor(i/3)*9*sign};
         const p=generated?w.nav.nearestWalkable(wanted,w.unitDefinition(kind,team).radius):wanted;if(!p)return;

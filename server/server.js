@@ -1,3 +1,4 @@
+import {isProceduralMapId} from "./map-policy.js";
 import http from "node:http";
 import { randomUUID, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
@@ -115,12 +116,13 @@ function createRoom(hostUser, input) {
   const id = roomKey(input.id || randomUUID().slice(0, 8));
   if (!id || rooms.has(id)) return null;
   const missionId = String(input.missionId || "").slice(0, 80);
+  if(!isProceduralMapId(missionId))return null;
   const name = displayName(input.name) || `${hostUser.displayName} lobby`;
   const room = {
     id,
     name,
     missionId,
-    mapId: String(input.mapId || "").slice(0, 80),
+    mapId: missionId,
     rules: sanitizeRules(input.rules),
     hostId: hostUser.id,
     status: "waiting",
@@ -350,7 +352,7 @@ const httpServer = http.createServer(async (req, res) => {
       }
       if (req.method === "POST" && action === "settings") {
         if (!ensureRoomCanEdit(room, user.id)) return response(res, 403, { error: "Ainult host saab lobby seadeid muuta." });
-        const b = await body(req); if (b.name != null) room.name = displayName(b.name) || room.name; if (b.missionId) room.missionId = String(b.missionId).slice(0, 80); if (b.mapId) room.mapId = String(b.mapId).slice(0, 80); room.rules = sanitizeRules(b.rules); for (const m of room.members.values()) m.ready = false;
+        const b = await body(req); if(!isProceduralMapId(String(b.missionId??room.missionId)))return response(res,400,{error:"Vali protseduurkaart."}); if (b.name != null) room.name = displayName(b.name) || room.name; if (b.missionId) room.missionId = String(b.missionId).slice(0, 80); room.mapId=room.missionId; room.rules = sanitizeRules(b.rules); for (const m of room.members.values()) m.ready = false;
         broadcastRoom(room, { type: "room", room: roomView(room) }); return response(res, 200, { room: roomView(room) });
       }
       if (req.method === "GET" && action === "chat") {

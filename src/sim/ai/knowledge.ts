@@ -12,7 +12,7 @@ export function knownContacts(w:World,team:Team):IntelContact[] {
 }
 export function visibleEnemies(w:World,team:Team):Entity[] {return w.entities.filter(e=>!e.dead&&e.team!==team&&e.loadedIntoId==null&&w.isSpottedByTeam(e,team));}
 export function fieldCombat(e:Entity):boolean {return !e.dead&&!e.underConstruction&&e.loadedIntoId==null&&e.def.speed>0&&e.def.damage>0&&!['engineer','logiTruck','cargoPlane','transport'].includes(e.kind);}
-export function availableCombat(e:Entity):boolean {return fieldCombat(e)&&!e.garrisonId&&!e.garrisonOrderId&&!['resupply','retreat','recon'].includes(e.aiIntent??'');}
+export function availableCombat(e:Entity):boolean {return fieldCombat(e)&&!e.refit&&!e.garrisonId&&!e.garrisonOrderId&&!['resupply','retreat','recon'].includes(e.aiIntent??'');}
 export function ammunitionFraction(u:Entity):number {
  const fractions=(u.def.weapons??[weaponSpec(u)]).map((s,i)=>s.damage>0?(s.ammoCapacity>0?Math.min(1,weaponAmmo(u,i)/s.ammoCapacity):1):0);
  return Math.max(0,...fractions);

@@ -121,10 +121,10 @@ it("combat readout: probability equals launched shot and preview preserves simul
   expect(w.projectiles.at(-1)?.hitChance).toBe(chance);
   expect(shotAccuracy(w,u,target,spec,10)).toBeGreaterThan(shotAccuracy(w,u,target,spec,spec.range));
 });
-it("combat readout: per-slot range includes upgrades, low supply and target radius at boundary",()=>{
+it("combat readout: per-slot range includes upgrades, supply-independent reach and target radius at boundary",()=>{
   const w=tacticalWorld(),u=w.spawn("manpad",0,-20,-200),target=w.spawn("fighter",1,20,-200),spec=weaponSpec(u,0);
   u.upgrades.add("range");u.supply=5;u.cooldown=0;
-  const range=weaponRange(u,spec);expect(range).toBeCloseTo(spec.range*1.2*.9);
+  const range=weaponRange(u,spec);expect(range).toBeCloseTo(spec.range*1.2);
   target.x=u.x+range+target.def.radius-.01;target.z=u.z;
   expect(selectWeapon(u,target,true)).toBe(0);
   target.x+=.02;expect(selectWeapon(u,target,true)).toBe(-1);

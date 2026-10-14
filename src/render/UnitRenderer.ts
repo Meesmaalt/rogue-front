@@ -1,3 +1,4 @@
+import {syncEquipmentVisual} from "./EquipmentVisual";
 import * as THREE from "three";
 import mobility from "../data/mobility.json";
 import {sampleMotion,smoothMotion,type MotionPose} from "./MotionPresentation";
@@ -205,6 +206,7 @@ export class UnitRenderer {
       if(v.members.length){const alive=Math.max(1,e.squadMembers??e.squadMaxMembers!),spread=v.spread=smoothMotion(v.spread,1-Math.min(.45,(e.suppression??0)/220),mobility.presentation.squadSpreadResponse,frameDt);
         for(const o of v.members){o.visible=Number(o.name.slice("SquadMember".length))<Math.min(alive,e.garrisonId?2:alive);const origin=o.userData.squadPosition as THREE.Vector3;o.position.x=origin.x*spread*(e.garrisonId?.2:1);o.position.z=origin.z*spread*(e.garrisonId?.2:1);}
       }
+      if(syncEquipmentVisual(v.group,e))this.shadowDirty=true;
       const buildingLevel = e.buildingLevel ?? (e.upgrades.has("producer-3") ? 3 : e.upgrades.has("producer-2") ? 2 : 1);
       if (v.staticBuilding && v.lastBuildingLevel !== buildingLevel) {
         this.shadowDirty=true;

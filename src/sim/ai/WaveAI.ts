@@ -1,3 +1,4 @@
+import {canonicalPlatform} from "../platforms";
 import {knownContacts,availableCombat,fieldCombat,needsRecovery,componentDamage,issueGroundObjective,offensiveForce,AI_RULES} from "./knowledge";
 import logisticsRules from "../../data/logistics.json";
 import {researchStatus,unitUpgradeStatus} from "../unitStats";
@@ -510,6 +511,7 @@ export class WaveAI {
     return Math.min(w.teamCredits[1],w.teamResources[1])-this.pendingBudgetUsed-cost>=reserve;
   }
   private buy(w: World, kind: UnitKind, producer: UnitKind, reserve=AI_RULES.economyReserve): boolean {
+    if(w.platformRosterOnly)kind=canonicalPlatform(kind);
     const def = w.entities.filter(e =>
       !e.dead && !e.underConstruction && e.team === 1 && e.kind === producer &&
       e.productionQueue.length+(this.pendingProduction.get(e.id)??0)<AI_RULES.productionQueueTarget&&w.canProduceAtLevel(e,kind)&&w.productionOperational(e,kind).operational
@@ -521,6 +523,7 @@ export class WaveAI {
   }
 
   private count(w: World, kind: UnitKind): number {
+    if(w.platformRosterOnly)kind=canonicalPlatform(kind);
     return (this.pendingUnits[kind]??0)+w.entities.filter(e => !e.dead && e.team === 1 && e.kind === kind).length + w.entities.filter(e=>!e.dead&&e.team===1).reduce((n,e)=>n+e.productionQueue.filter(k=>k===kind).length,0);
   }
 

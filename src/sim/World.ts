@@ -1,3 +1,5 @@
+import {updateEquipment} from "./equipment";
+import {CORE_PLATFORMS} from "./platforms";
 import {dispatchExternalHelicopters,airportDepot,externalEntry} from "./externalSupply";
 import {receiveResourceCargo,stockCapacity,stockTotal,STOCK_KEYS,needsBackhaul} from "./stockLogistics";
 import {updateGarrisons} from "./garrison";
@@ -68,6 +70,7 @@ export class World {
   /** Phase 86-90: dynamic frontline, deployment and reinforcement layer. */
   readonly frontline: FrontlineController;
   externalVictoryMode = false;
+  platformRosterOnly = false;
   matchController: import("./gameModes").MatchModeController | null = null;
   missionController: import("./Mission").MissionController | null = null;
   teamFormations: ["box"|"line"|"wedge"|"column", "box"|"line"|"wedge"|"column"] = ["box","box"];
@@ -212,6 +215,7 @@ export class World {
     return elite.includes(kind) ? 3 : advanced.includes(kind) ? 2 : 1;
   }
   canProduceAtLevel(producer: Entity, kind: UnitKind): boolean {
+    if(this.platformRosterOnly&&!CORE_PLATFORMS.has(kind))return false;
     return this.producerLevel(producer) >= this.unitRequiredBuildingLevel(kind);
   }
   /** Phase 71: integrated operational state for production/logistics/command.
@@ -763,7 +767,7 @@ export class World {
     return {
       mapSize:this.mapSize,terrain:this.terrain.snapshot(),
       playerTeam: this.playerTeam, playerFaction: this.playerFaction, enemyFaction: this.enemyFaction,
-      networkMode: this.networkMode, incomeMultiplier: this.incomeMultiplier, victoryMode: this.victoryMode,
+      platformRosterOnly:this.platformRosterOnly, networkMode: this.networkMode, incomeMultiplier: this.incomeMultiplier, victoryMode: this.victoryMode,
       objectiveDriven: this.objectiveDriven, externalVictoryMode: this.externalVictoryMode,
       airCargoLastSpawn: [...this.airCargoLastSpawn] as [number,number],
       roadTruckLastSpawn: [...this.roadTruckLastSpawn] as [number,number],
@@ -788,7 +792,7 @@ export class World {
     if((s.mapSize??this.mapSize)!==this.mapSize){setMapSize(s.mapSize??this.mapSize);ensureHeightCache();this.nav=new NavGrid(this.entities,this.mapFeatures);this.waterNav=new WaterNavGrid(this.mapFeatures);this.spatial=new SpatialHash(16);this.spatial.rebuild(this.entities);this.vision=new Vision();this.vision.setFeatures(this.mapFeatures);this.vision.forestObscuration=(a,b)=>this.terrain.obscuration(a,b);}
     this.terrain.restore(s.terrain);
     this.playerTeam=s.playerTeam; this.playerFaction=s.playerFaction; this.enemyFaction=s.enemyFaction;
-    this.networkMode=s.networkMode; this.incomeMultiplier=s.incomeMultiplier; this.victoryMode=s.victoryMode;
+    this.platformRosterOnly=s.platformRosterOnly??false;this.networkMode=s.networkMode; this.incomeMultiplier=s.incomeMultiplier; this.victoryMode=s.victoryMode;
     this.objectiveDriven=s.objectiveDriven; this.externalVictoryMode=s.externalVictoryMode;
     this.airCargoLastSpawn=[...s.airCargoLastSpawn]; this.roadTruckLastSpawn=[...s.roadTruckLastSpawn];
     this.logisticsPriority[0]=s.logisticsPriority[0]; this.logisticsPriority[1]=s.logisticsPriority[1];
@@ -849,6 +853,7 @@ export class World {
     this.spatial.rebuild(this.entities);
     this.updateIntel();
     updateArtillery(this, dt);
+    updateEquipment(this,dt);
     updateUnits(this, dt);
     updateMorale(this, dt);
     updateProjectiles(this, dt);

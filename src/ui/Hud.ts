@@ -1,3 +1,5 @@
+import {equipmentCards} from "./EquipmentCard";
+import type {EquipmentSlot} from "../sim/equipment";
 import {externalHelicopterCapacity,externalHelicopterInterval} from "../sim/externalSupply";
 import { restartBattleUrl } from "./SavedSessions";
 import {tutorialGuide} from "./TutorialGuide";
@@ -8,7 +10,7 @@ import logisticsRules from "../data/logistics.json";
 import {stockCapacity,stockTotal,logisticsStatus} from "../sim/stockLogistics";
 import {isGarrisonBuilding,garrisonCapacity,garrisonOccupants,buildingCondition,garrisonWeaponUsable,GARRISON_RULES} from "../sim/garrison";
 import {transportCapacity,occupiedSeats} from "../sim/transport";
-import {maxHitPoints,weaponPenetration,mobilityProfile,groundTerrainFactor,unitUpgradeStatus,researchStatus,UNIT_UPGRADES,type UnitUpgrade} from "../sim/unitStats";
+import {maxHitPoints,weaponPenetration,mobilityProfile,groundTerrainFactor,researchStatus,type UnitUpgrade} from "../sim/unitStats";
 import {airUnitsForOrder,supportsAirMission,airOperationStatus} from "../sim/systems/airDoctrine";
 import {effectiveWeaponRange,weaponAmmo,weaponCooldown,weaponImpactEstimate,movingFireFactor,weaponRange,shotAccuracy,weaponCanTarget,hitFace,armorValue,weaponFireBlocker,targetCoverValue,type AccuracyStep} from "../sim/systems/combat";
 import "./hud.css";
@@ -26,7 +28,6 @@ import type { FactionId } from "../sim/factions";
 import { FACTIONS, FACTION_LIST, factionLandUnits, factionAirUnits, factionSeaUnits } from "../sim/factions";
 import { BUILDINGS } from "../sim/buildings";
 import { MODE_RULES, type MatchMode } from "../sim/gameModes";
-import { CAMPAIGN, loadCampaign, isUnlocked } from "../sim/campaign";
 
 function logisticsCard(w:World,u:Entity):string {
  if(u.kind==='supply'){
@@ -50,7 +51,7 @@ function weaponCards(world:World,u:Pick<Entity,"def"|"team"|"activeWeapon"|"ammo
     const ammo=s.ammoCapacity>0?`${Math.floor(weaponAmmo(u,i))}/${s.ammoCapacity} moon`:"Moonapiiranguta";
     const usable=!live||garrisonWeaponUsable(live,s);
     const state=own?(!usable?"Hoones puudub selle relva laskepositsioon":target?block??"Valmis laskma":weaponCooldown(u,i)>0?`Laadib · ${weaponCooldown(u,i).toFixed(1)} s`:s.ammoCapacity>0&&weaponAmmo(u,i)<s.ammoUsePerShot?"Moon otsas":"Valmis · luuratud sihtmärk puudub"):"Relva põhiandmed";
-    return `<div class="weapon-card compact-weapon" style="--weapon-color:${WEAPON_RANGE_COLORS[i%WEAPON_RANGE_COLORS.length]}"><div class="weapon-heading"><span class="weapon-role-icon" title="${role}">${icon(symbol)}</span><b>${i===(u.activeWeapon??0)?"▸ ":""}${s.name}</b><strong>${ammo}</strong></div><div class="weapon-essential"><span>${role}</span><b>${s.minimumRange?`${s.minimumRange}–`:""}${range} m</b>${own?`<button data-range-slot="${i}" ${!usable?"disabled":""} aria-pressed="${usable&&showRanges&&(rangeSlot==null||rangeSlot===i)}">◎ Ulatus</button>`:""}</div><small class="weapon-state${usable&&target&&!block?" ready":""}">${state}</small><details class="weapon-analysis" data-detail-key="weapon-${i}"><summary>AP, kahjustus ja tabamisvõimalus</summary><span>AP baas ${s.penetration} · ${Math.round(s.accuracy*100)}% baas paigal / ${movingFireFactor(u.def,s)===0?"peatub":Math.round(s.accuracy*movingFireFactor(u.def,s)*100)+"% liikudes"} · Laadimise baas ${s.cooldown.toFixed(1)} s</span><div class="damage-strip" title="Ühe õnnestunud tabamuse baaskahjustus terve meeskonnaga ja ilma relvauuendusteta, lähikaugus ja avatud maastik. Tank E/K/T = esi/külg/taga. Sihtmärgid on vastasfraktsiooni põhiüksused; tegelik tabamus sõltub kaugusest, kattest, meeskonnast ja seisundist."><span>Jalavägi <b>${value(weaponImpactEstimate(s,inf))}</b></span><span>IFV <b>${value(weaponImpactEstimate(s,ifv))}</b></span><span>Tank E/K/T <b>${["front","side","rear"].map(f=>value(weaponImpactEstimate(s,tank,f as "front"|"side"|"rear"))).join("/")}</b></span><span>Kopter <b>${value(weaponImpactEstimate(s,heli))}</b></span></div><small>${s.guidance==="none"?s.flight==="ballistic"?"Ballistiline kaudtuli":"Juhitamatu":{command:"Juhtimine vajab laskuri kontakti",infrared:"Infrapuna · iseseisev juhtimine",radar:"Radarjuhtimine"}[s.guidance]} · Kulu ${s.ammoUsePerShot} moon/lasu · Surve ${s.suppressionPower} · ${s.speed} m/s mürsk · ${s.warhead.toUpperCase()}</small>${own?liveWeaponReadout(world,live!,i):""}</details></div>`;
+    return `<div class="weapon-card compact-weapon" style="--weapon-color:${WEAPON_RANGE_COLORS[i%WEAPON_RANGE_COLORS.length]}"><div class="weapon-heading"><span class="weapon-role-icon" title="${role}">${icon(symbol)}</span><b>${i===(u.activeWeapon??0)?"▸ ":""}${s.name}</b><strong>${ammo}</strong></div><div class="weapon-essential"><span>${role}</span><b>${s.minimumRange?`${s.minimumRange}–`:""}${range} m</b>${own?`<button data-range-slot="${i}" ${!usable?"disabled":""} aria-pressed="${usable&&showRanges&&(rangeSlot==null||rangeSlot===i)}">◎ Ulatus</button>`:""}</div><small class="weapon-state${usable&&target&&!block?" ready":""}">${state}</small><details class="weapon-analysis" data-detail-key="weapon-${i}"><summary>AP, kahjustus ja sihtimine</summary><span>AP baas ${s.penetration} · ${Math.round(s.accuracy*100)}% baas paigal / ${movingFireFactor(u.def,s)===0?"peatub":Math.round(s.accuracy*movingFireFactor(u.def,s)*100)+"% liikudes"} · Laadimise baas ${s.cooldown.toFixed(1)} s</span><div class="damage-strip" title="Ühe õnnestunud tabamuse baaskahjustus terve meeskonnaga ja ilma relvauuendusteta, lähikaugus ja avatud maastik. Tank E/K/T = esi/külg/taga. Sihtmärgid on vastasfraktsiooni põhiüksused; tegelik tabamus sõltub kaugusest, kattest, meeskonnast ja seisundist."><span>Jalavägi <b>${value(weaponImpactEstimate(s,inf))}</b></span><span>IFV <b>${value(weaponImpactEstimate(s,ifv))}</b></span><span>Tank E/K/T <b>${["front","side","rear"].map(f=>value(weaponImpactEstimate(s,tank,f as "front"|"side"|"rear"))).join("/")}</b></span><span>Kopter <b>${value(weaponImpactEstimate(s,heli))}</b></span></div><small>${s.guidance==="none"?s.flight==="ballistic"?"Ballistiline kaudtuli":"Juhitamatu":{command:"Juhtimine vajab laskuri kontakti",infrared:"Infrapuna · iseseisev juhtimine",radar:"Radarjuhtimine"}[s.guidance]} · Kulu ${s.ammoUsePerShot} moon/lasu · Surve ${s.suppressionPower} · ${s.speed} m/s mürsk · ${s.warhead.toUpperCase()}</small>${own?liveWeaponReadout(world,live!,i):""}</details></div>`;
   }).join("");
 }
 
@@ -69,19 +70,15 @@ function liveWeaponReadout(world:World,u:Entity,index:number):string {
   const block=weaponFireBlocker(world,u,target,index);
   const steps:AccuracyStep[]=[],chance=shotAccuracy(world,u,target,spec,distance,steps);
   const faceName={front:"esi",side:"külg",rear:"taga"}[face];
-  return reach+`<div class="shot-preview"><b>${world.unitDisplayName(target.kind,target.team)} · ${distance.toFixed(1)} m</b><strong>${compatible?Math.round(chance*100)+"% tabamisvõimalus":"—"}</strong><small>${block||"Relv valmis · sihtmärk ulatuses ja sihitud"}</small>${compatible?`<small>AP ${apAt(distance)} vs ${faceName}soomus ${armorValue(target,face)} · Hinnanguline lennuaeg ${(distance/Math.max(1,spec.speed)).toFixed(1)} s</small><details class="accuracy-details" data-detail-key="accuracy-${index}"><summary>Tabamisvõimaluse arvutus</summary><small>Ühe käivitatud lasu tõenäosus; ei taga läbistamist ega lasu luba. Mürsu teekond ja sihtmärgi seisund võivad pärast lasku muutuda.</small><table><tbody>${steps.map(step=>`<tr><td>${step.label}</td><td>${(step.chance*100).toFixed(1)}%</td></tr>`).join("")}</tbody></table><small>Iga rida näitab tõenäosust pärast vastavat tegurit.</small></details>`:""}</div>`+reference;
+  return reach+`<div class="shot-preview"><b>${world.unitDisplayName(target.kind,target.team)} · ${distance.toFixed(1)} m</b><strong>${compatible?Math.round(chance*100)+(world.platformRosterOnly?"% sihtimiskvaliteet":"% tabamisvõimalus"):"—"}</strong><small>${block||"Relv valmis · sihtmärk ulatuses ja sihitud"}</small>${compatible?`<small>AP ${apAt(distance)} vs ${faceName}soomus ${armorValue(target,face)} · Hinnanguline lennuaeg ${(distance/Math.max(1,spec.speed)).toFixed(1)} s</small><details class="accuracy-details" data-detail-key="accuracy-${index}"><summary>Tabamisvõimaluse arvutus</summary><small>Sihtimiskvaliteet mõjutab hajuvust ja juhtimist. Tabamuse ning läbistuse määravad mürsu trajektoor, tabamissuund ja soomus.</small><table><tbody>${steps.map(step=>`<tr><td>${step.label}</td><td>${(step.chance*100).toFixed(1)}%</td></tr>`).join("")}</tbody></table><small>Iga rida näitab tõenäosust pärast vastavat tegurit.</small></details>`:""}</div>`+reference;
 }
 
 function unitDevelopmentCards(world:World,u:Entity,running:boolean):string {
   if(u.kind==="landStrategy"){
     const status=researchStatus(world,u.team,"advanced-armor");
-    return `<div class="unit-development"><b>Täiustatud soomuse uuring</b><small>Avab maasoomukite soomuspaketi; üksuste uuendused ostetakse eraldi.</small><button data-research-armor ${!running||!status.allowed?"disabled":""}>Uuri · ${status.cost} krediiti + ${status.cost} ressurssi</button><small>${status.reason||"Strateegiakeskus töötab"}</small></div>`;
+    return `<div class="unit-development"><b>Täiustatud soomuse uuring</b><small>Avab reaktiivsoomuse ja aktiivkaitse. Komponendid paigaldatakse lao juures.</small><button data-research-armor ${!running||!status.allowed?"disabled":""}>Uuri · ${status.cost} krediiti + ${status.cost} ressurssi</button><small>${status.reason||"Strateegiakeskus töötab"}</small></div>`;
   }
-  if(u.def.speed<=0||u.def.damage<=0)return "";
-  return `<details class="unit-development" data-detail-key="development"><summary>Üksuse uuendused</summary>${(["armor","weapon","range"] as const).filter(k=>k!=="armor"||u.def.category==="armor").map(k=>{
-    const status=unitUpgradeStatus(world,u,k),spec=UNIT_UPGRADES[k];
-    return `<div><b>${spec.name}</b><small>${spec.description}</small><button data-unit-upgrade="${k}" ${!running||!status.allowed?"disabled":""}>${u.upgrades.has(k)?"Paigaldatud":"Paigalda"} · ${spec.cost} krediiti + ${spec.cost} ressurssi + ${spec.repairCost} remondivaru</button><small>${status.reason||"Peatatud üksus · ühendatud ladu"}</small></div>`;
-  }).join("")}</details>`;
+  return equipmentCards(world,u,running);
 }
 
 function terrainReadout(w:World,u:Entity):string {
@@ -155,6 +152,8 @@ export class Hud {
   onSave: () => void = () => {};
   onLoad: () => void = () => {};
   onBuild: (kind: "barracks"|"factory"|"helipad"|"airbase"|"refinery"|"supply"|"radar"|"bunker"|"aa"|"generator"|"shipyard"|"landCommand"|"airCommand"|"seaCommand"|"combatEngineer"|"landStrategy"|"airStrategy"|"seaStrategy") => void = () => {};
+  onEquipment:(ids:number[],slot:EquipmentSlot,module:string)=>void=()=>{};
+  onCancelRefit:(ids:number[])=>void=()=>{};
   onUnitUpgrade:(ids:number[],upgrade:UnitUpgrade)=>void=()=>{};
   onResearch:(tech:"advanced-armor")=>void=()=>{};
   onUpgradeSupply: (ids: number[]) => void = () => {};
@@ -301,6 +300,8 @@ export class Hud {
     root.querySelectorAll<HTMLButtonElement>("[data-order]").forEach(b=>b.onclick=()=>this.onOrder(b.dataset.order as "move"|"fast"|"attack"|"unload"|"stop"|"focus"));
     this.buttons.forEach(b=>b.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();this.inspectedKind=b.dataset.kind as UnitKind;}));
     this.el.selP.addEventListener("click",e=>{
+      const gear=(e.target as HTMLElement).closest<HTMLButtonElement>("[data-equipment]");if(gear&&!gear.disabled)this.onEquipment([...this.selectedIds],gear.dataset.slot as EquipmentSlot,gear.dataset.equipment!);
+      const cancel=(e.target as HTMLElement).closest<HTMLButtonElement>("[data-cancel-refit]");if(cancel&&!cancel.disabled)this.onCancelRefit([...this.selectedIds]);
       const upgrade=(e.target as HTMLElement).closest<HTMLButtonElement>("[data-unit-upgrade]");if(upgrade&&!upgrade.disabled)this.onUnitUpgrade([...this.selectedIds],upgrade.dataset.unitUpgrade as UnitUpgrade);
       const research=(e.target as HTMLElement).closest<HTMLButtonElement>("[data-research-armor]");if(research&&!research.disabled)this.onResearch("advanced-armor");
 
@@ -659,29 +660,16 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     });
   }
 
-  showMissionSelect(missions: readonly MissionDef[], completed: ReadonlySet<string>, onSelect: (mission: MissionDef) => void): void {
+  showMissionSelect(missions: readonly MissionDef[], _completed: ReadonlySet<string>, _onSelect: (mission: MissionDef) => void): void {
     this.el.scrT.textContent = "Rogue Front";
     this.el.scrP.textContent = "Vali mängurežiim.";
     const card=this.el.scrB.parentElement!; this.el.scrB.hidden=true; card.querySelectorAll(".mission-list,.mode-list").forEach(n=>n.remove());
     const modes=document.createElement("div"); modes.className="mode-list mission-list";
     const sk=document.createElement("button"); sk.className="mission-choice"; sk.innerHTML="<span>SKIRMISH vs AI</span><small>BAAS · MAJANDUS · EHITUS · LAHING</small>";
     sk.onclick=()=>this.showSkirmishMaps(missions); modes.appendChild(sk);
-    const camp=document.createElement("button"); camp.className="mission-choice"; camp.innerHTML="<span>KAMPAANIA</span><small>MISSIOONID JA EESMÄRGID</small>";
-    camp.onclick=()=>{modes.remove(); this.showCampaignList(missions,completed,onSelect);}; modes.appendChild(camp);
     const mp=document.createElement("button"); mp.className="mission-choice"; mp.innerHTML="<span>MITMIKMÄNG 1v1</span><small>LOCKSTEP</small>";
     mp.onclick=()=>{const room=prompt("Lobby nimi:","ALPHA-01")?.trim(); if(room)this.onMultiplayer(missions[0]!,room);}; modes.appendChild(mp);
     card.appendChild(modes); this.el.screen.hidden=false;
-  }
-  private showCampaignList(missions: readonly MissionDef[], completed: ReadonlySet<string>, onSelect:(m:MissionDef)=>void):void{
-    const card=this.el.scrB.parentElement!; const list=document.createElement("div"); list.className="mission-list";
-    const state=loadCampaign();
-    for(const mission of missions){
-      const node=CAMPAIGN.find(n=>n.missionId===mission.id); const unlocked=node ? isUnlocked(node,state) : completed.has(mission.id);
-      const done=node ? state.completed.includes(node.id) : completed.has(mission.id);
-      const b=document.createElement("button"); b.className="mission-choice"; b.disabled=!unlocked;
-      b.innerHTML=`<span>${mission.name}</span><small>${done?"LÕPETATUD · "+(node?.reward.commandXP??0)+" XP":unlocked?mission.map.name:"LUKUS — eelmine operatsioon lõpetamata"}</small>`;
-      if(unlocked)b.onclick=()=>{this.el.screen.hidden=true;onSelect(mission)}; list.appendChild(b);
-    } card.appendChild(list);
   }
   private showSkirmishMaps(missions: readonly MissionDef[]):void{
     const card=this.el.scrB.parentElement!; card.querySelectorAll(".mission-list,.secondary").forEach(n=>n.remove());

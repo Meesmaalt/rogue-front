@@ -89,7 +89,7 @@ export function defaultDeck(faction: FactionId): FactionDeck {
   const roster = rosterForFaction(faction);
   const deck: FactionDeck = { faction, name:`${FACTIONS[faction].short} standard`, slots:[], updatedAt:Date.now() };
   // Keep construction, transport, recon, indirect fire and AA available in a legal starter.
-  const preferred: UnitKind[] = ["inf","engineer","reconInf","tank","apc","ifv","atInf","mortar","manpad","atgm","heli","fighter","transport","multirole"];
+  const preferred: UnitKind[] = ["inf","engineer","reconInf","tank","apc","ifv","spaa","artillery","heli","fighter","transport"];
   for (const kind of preferred.filter(k=>roster.includes(k))) {
     const candidate = { ...deck, slots:[...deck.slots,{kind,count:1}] };
     if (!validateDeck(candidate).length) deck.slots = candidate.slots;

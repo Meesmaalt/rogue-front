@@ -1,3 +1,4 @@
+import platforms from "../data/platforms.json";
 import type { UnitKind } from "./types";
 
 /** Playable nations – equipment names + doctrine skew (Wargame identity). */
@@ -178,15 +179,15 @@ export function factionUnitName(faction: FactionId, kind: UnitKind, fallback: st
 }
 
 export function factionLandUnits(_faction: FactionId): UnitKind[] {
-  return ["inf", "engineer", "special", "atInf", "mgInf", "reconInf", "sniper", "mortar", "manpad", "atgm", "tank", "lightTank", "tankDestroyer", "reconVehicle", "apc", "ifv", "spaa", "artillery", "mlrs"];
+  return platforms.land as UnitKind[];
 }
 
 export function factionAirUnits(_faction: FactionId): UnitKind[] {
-  return ["heli", "gunship", "casHeli", "transport", "fighter", "interceptor", "bomber", "ecm", "multirole", "attackAircraft"];
+  return platforms.air as UnitKind[];
 }
 
 export function factionSeaUnits(_faction: FactionId): UnitKind[] {
-  return ["destroyer", "submarine", "landingcraft", "frigate", "missileBoat"];
+  return platforms.sea as UnitKind[];
 }
 
 export function factionForTeam(
