@@ -23,11 +23,11 @@ function clip(points:Point[],nx:number,nz:number,limit:number):Point[] {
 }
 
 export const GENERATED_MAP_SIZES:readonly number[]=config.largeSizes;
-export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4=4):MissionDef {
+export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5=5):MissionDef {
   // 1280 retains v2 geometry for existing saved matches; v3 sizes are deliberately bounded.
   const legacy=requestedSize===config.size;
   if(!legacy&&!GENERATED_MAP_SIZES.includes(requestedSize))throw new Error("Kaardi suurus pole toetatud");
-  const regional=!legacy&&generationVersion===4,profile=config.profiles[archetype];
+  const regional=!legacy&&generationVersion>=4,profile=config.profiles[archetype];
   const seed=inputSeed>>>0,rng=new Rng(seed),size=requestedSize,half=size/2,features:MapFeatureDef[]=[];
   const random=(lo:number,hi:number)=>lo+rng.next()*(hi-lo);
   const baseX=size*random(.36,.40),baseZ=size*random(.33,.37);
@@ -193,7 +193,7 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
       resources[i].facilityOffset=safe;const yard=features.find(f=>f.id===`resource-yard-${i}`)!;yard.x=chosen.x+safe.x;yard.z=chosen.z+safe.z;
     }
   }
-  const landforms=forestCenters.slice(0,2).map(p=>({...p,width:180,depth:145,height:archetype==="highlands"?28:random(12,20)}));
+  const landforms:NonNullable<MissionDef["map"]["landforms"]>=forestCenters.slice(0,2).map(p=>({...p,width:180,depth:145,height:archetype==="highlands"?28:random(12,20)}));
   if(!legacy){
     // Height and woods share regional centers, creating defensible ridges with concealed approaches.
     for(const t of towns.slice(4,6))landforms.push({x:t.x+Math.sign(t.x)*80,z:t.z,width:150,depth:110,height:archetype==="highlands"?24:11});
@@ -203,6 +203,15 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
     for(let i=0;i<profile.hills;i++){
       const side=i%2===0?-1:1,width=random(profile.hillWidth[0],profile.hillWidth[1]);
       landforms.push({x:side*size*random(.20,.37),z:size*random(-.34,.34),width,depth:width*random(.65,.92),height:random(profile.hillHeight[0],profile.hillHeight[1])});
+    }
+  }
+  if(generationVersion===5&&!legacy&&archetype==="highlands"){
+    landforms.length=0;const relief=config.ridgeRelief;
+    for(let i=0;i<relief.count;i++)for(let attempt=0;attempt<48;attempt++){
+      const width=random(relief.width[0],relief.width[1]),depth=random(relief.depth[0],relief.depth[1]);
+      const p={x:(i%2?-1:1)*size*random(.16,.37),z:size*random(-.35,.35)};
+      if(resources.some(r=>distance(p,r)<width+relief.clearance)||bases.some(b=>distance(p,b)<width+b.r)||towns.some(t=>distance(p,t)<width+65)||landforms.some(f=>distance(p,f)<width+f.width*.6))continue;
+      landforms.push({...p,width,depth,height:random(relief.height[0],relief.height[1]),shape:"ridge",rotation:random(-Math.PI,Math.PI)});break;
     }
   }
   // Canonical millimetre coordinates keep generated map hashes stable across clients.
@@ -221,8 +230,8 @@ export const GENERATED_MAP=generateProceduralMap(62510,"balanced");
 export const CURATED_MAPS:readonly MissionDef[]=[FOCUS_MAP,tidebreaker as unknown as MissionDef];
 export function getPlayableMap(id:string):MissionDef|undefined {
   const fixed=CURATED_MAPS.find(m=>m.id===id);if(fixed)return fixed;
-  const regional=/^procedural-v(3|4)-(balanced|river|highlands|urban|coastal|forest)-(1536|1792|2048)-(\d+)$/.exec(id);
-  if(regional)return Number(regional[4])<=4294967295?generateProceduralMap(Number(regional[4]),regional[2] as MapArchetype,Number(regional[3]),Number(regional[1]) as 3|4):undefined;
+  const regional=/^procedural-v(3|4|5)-(balanced|river|highlands|urban|coastal|forest)-(1536|1792|2048)-(\d+)$/.exec(id);
+  if(regional)return Number(regional[4])<=4294967295?generateProceduralMap(Number(regional[4]),regional[2] as MapArchetype,Number(regional[3]),Number(regional[1]) as 3|4|5):undefined;
   const match=/^procedural-(?:v2-)?(balanced|river|highlands|urban|coastal|forest)-(\d+)$/.exec(id);
   if(!match||Number(match[2])>4294967295)return undefined;
   const map=generateProceduralMap(Number(match[2]),match[1] as MapArchetype,config.size);

@@ -11,6 +11,7 @@ import { World } from "./sim/World";
 import { heightAt, loadHeightmap, setBases, ensureHeightCache, setProceduralSeed, setTerrainProfile, setMapSize } from "./sim/heightmap";
 import { createRenderContext } from "./render/Renderer";
 import { createTerrain,syncForestTerrain,syncGarrisonTerrain,syncBridgeTerrain,animateRiverTerrain } from "./render/Terrain";
+import {TerrainCulling} from "./render/TerrainCulling";
 import { RtsCamera } from "./render/RtsCamera";
 import { loadArtModels } from "./render/ArtModels";
 import { RangeOverlay } from "./render/RangeOverlay";
@@ -136,6 +137,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const performancePanel=new PerformancePanel(loadSettings().performanceOverlay??false);
   const terrainView=createTerrain(mission.map.theme, world.mapFeatures, mission.map.bases);ctx.scene.add(terrainView);
 
+  const terrainCulling=new TerrainCulling(terrainView);
   const cam = new RtsCamera(ctx.camera, heightAt, ctx.sun, topCanvas);
   cam.jumpTo(world.bases[world.playerTeam].x,world.bases[world.playerTeam].z);
   const units = new UnitRenderer(ctx.scene,ctx.camera);
@@ -335,7 +337,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     },
     (alpha, frameDt) => {
       performancePanel.begin();
-      cam.update(frameDt);
+      cam.update(frameDt);terrainCulling.sync(ctx.camera);
       selection.prune();
       const events = world.drainEvents();
       units.handleEvents(events);commands.handleEvents(events);
@@ -381,7 +383,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       if(fpsElapsed>=500){hud.setFps(Math.round(fpsFrames*1000/fpsElapsed));fpsFrames=0;fpsStarted=fpsNow;}
       performancePanel.mark("HUD");
     },
-    metrics=>performancePanel.record(metrics,{calls:ctx.renderer.info.render.calls,triangles:ctx.renderer.info.render.triangles,units:world.entities.length,worldTime:world.time,quality:visualQuality,width:glCanvas.width,height:glCanvas.height}),
+    metrics=>performancePanel.record(metrics,{calls:ctx.renderer.info.render.calls,triangles:ctx.renderer.info.render.triangles,units:world.entities.length,worldTime:world.time,quality:visualQuality,terrainGroupsVisible:terrainCulling.visibleGroups,terrainGroupsTotal:terrainCulling.totalGroups,width:glCanvas.width,height:glCanvas.height}),
     ()=>performancePanel.enabled,
   );
   const resumeKey=queryParams.get("resume");

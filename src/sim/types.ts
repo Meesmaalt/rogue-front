@@ -250,7 +250,7 @@ export interface MissionMapDef {
   name: string;
   theme: "desert" | "mountains" | "city" | "temperate";
   terrainProfile?: "farmland";
-  landforms?:Array<{x:number;z:number;width:number;depth:number;height:number}>;
+  landforms?:Array<{x:number;z:number;width:number;depth:number;height:number;shape?:"ridge";rotation?:number}>;
   baseDefenses?: boolean;
   heightmap: string;
   maxHeight: number;

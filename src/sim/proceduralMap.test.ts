@@ -1,7 +1,7 @@
 import {afterEach,expect,it} from "vitest";
 import {generateProceduralMap,getPlayableMap} from "./proceduralMap";
 import {pointInFeature,featureCorners} from "./mapFeatures";
-import {MAP_SIZE,setMapSize,setBases,setTerrainProfile,setProceduralSeed,resetHeightmap} from "./heightmap";
+import {MAP_SIZE,setMapSize,setBases,setTerrainProfile,setProceduralSeed,heightAt,resetHeightmap} from "./heightmap";
 import {World} from "./World";
 import {createSkirmish} from "./scenario";
 import {findPath} from "./nav/Pathfinder";
@@ -79,4 +79,13 @@ it("v4 archetypes change relief and settlement silhouettes while preserving v3 r
  expect(houses(forest).filter(f=>f.id.startsWith("town-")).every(f=>f.buildingStyle==="rural")).toBe(true);
  const old=generateProceduralMap(62510,"balanced",1792,3);expect(old.id).toBe("procedural-v3-balanced-1792-62510");expect(getPlayableMap(old.id)).toEqual(old);
  expect(getPlayableMap(city.id)).toEqual(city);
+});
+
+it("v5 mountain relief uses compact rotated ridges while v4 maps retain the previous hills",()=>{
+ const m=generateProceduralMap(27,"highlands"),old=generateProceduralMap(27,"highlands",1792,4);
+ expect(m.id).toContain("procedural-v5-");expect(getPlayableMap(old.id)).toEqual(old);expect(getPlayableMap(m.id)).toEqual(m);
+ expect(m.map.landforms!.length).toBeGreaterThan(0);expect(m.map.landforms!.every(f=>f.shape==="ridge"&&f.width<=185&&f.depth<=120)).toBe(true);
+ expect(old.map.landforms!.every(f=>!f.shape&&f.width>=230)).toBe(true);
+ const ridge=m.map.landforms![0],angle=ridge.rotation!;setMapSize(m.map.size);setBases([]);setTerrainProfile("farmland",[ridge]);setProceduralSeed(m.seed);
+ expect(heightAt(ridge.x,ridge.z)-heightAt(ridge.x+Math.cos(angle)*ridge.width*1.1,ridge.z-Math.sin(angle)*ridge.width*1.1)).toBeGreaterThan(30);
 });

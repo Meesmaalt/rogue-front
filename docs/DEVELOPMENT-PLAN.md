@@ -164,3 +164,9 @@ Vana v2 generaatori geomeetria jääb salvestuste taastamiseks alles. Kampaaniao
 Kasutaja suurema kaardi jõnksumise tagasiside järel vähendati kaugmaja draw-kulu ühe atlasega materjalile, valmistati maastiku shaderid/tekstuurid ette laadimisel ja eemaldati iga hooneuuenduse täis-nav-scan. Muudatused ei tõenda veel brauseris mõõdetud kaadriaega: GPU panning test on endiselt avatud värav.
 
 V4 piirkonnad kasutavad päriselt erinevaid kõrgendikke ja hoonestust; Kõrgustik on kõrgem/väiksemate küladega, Jõeäär laugem, Metsapiirkond madalate hõredate küladega ja Linnapiirkond suurema keskuse, kõrgemate elamute ning tööstushoonetega. Kaardi suurus jätkuvalt maksimaalselt 2048 m, samad kaks autoritud näidist. Vanad v2/v3 maastikud ei muutu nende ID-dega jätkamisel. Build + 11 sihitud kontrolli läbisid; screenshot/reference ning päris FPS/mängutunnetus ei ole kinnitatud.
+
+## 14.10 — jätkuv pan-stutter ja kompaktsem mäestik
+
+Kasutaja kinnitas, et eelmine shader/nav/maja draw pakett ei lõpetanud panning FPS langust. Uus pakett jagab kogu maapinna frustumiga lõigatavateks tükkideks ning piirab staatilise maja/metsa subtree renderdamist. Maastiku efekti mõõdetakse geomeetria ja F8 loenditega; GPU FPS paranemist ega täielikku jõnksude kadumist ei väideta. Suurte kaartide jõudluse brauserivärav jääb avatuks.
+
+V5 kõrgustiku kompaktsemad pööratud harjad ja tugevam nõlvatoon vastavad laia/nõrgalt nähtava reljeefi tagasisidele. Baasid/ressursialad jäetakse mäe jalami paigutusest eemale; vanu kõrgusvälju ei kirjutata üle. Sihitud kontrollid kinnitavad pindade UV/normaalide ühenduse, kaamera järgi LOD nähtavuse taastumise, v4 kaardi taastamise ning suurima kaardi nav ja tegeliku tarne. Vaate tegelik hinnang vajab kasutaja GPU-d.

@@ -15,11 +15,41 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
   const group = new THREE.Group();
   const forestLayout=theme==="temperate"?sampleForest(features):undefined;
 
-  const geo = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE, SEG, SEG);
+  const grain = makeGrainTexture(theme);
+
+  const material=new THREE.MeshStandardMaterial({
+    vertexColors:true,map:theme==="temperate"?makeLandscapeTexture(features,bases,forestLayout!):grain,
+    bumpMap:grain,bumpScale:theme==="temperate"?.045:.10,roughness:.92,metalness:0,
+  });
+  const ground=new THREE.Group();ground.name="terrain";
+  for(const geometry of createGroundTiles(theme,bases)){
+    const tile=new THREE.Mesh(geometry,material);tile.receiveShadow=true;ground.add(tile);
+  }
+  group.add(ground);
+  if (theme !== "temperate") group.add(createRocks(rnd, bases, features));
+  else {group.add(createLandscapeBackdrop(features));group.add(createForest(features,forestLayout));}
+  if(theme!=="temperate")group.add(createDecals(rnd));
+  group.add(batchStaticScene(createMapFeatures(features,theme==="temperate")));
+  freezeTerrainTransforms(group);
+  return group;
+}
+
+/** World UVs and shared edge heights let the renderer cull distant ground tiles. */
+export function createGroundTiles(theme:"desert"|"mountains"|"city"|"temperate"="temperate",bases:readonly (Point&{r:number})[]=[]):THREE.BufferGeometry[]{
+  const tiles:THREE.BufferGeometry[]=[],columns=Math.ceil(MAP_SIZE/terrainConfig.render.groundTileSize),span=MAP_SIZE/columns,segments=Math.ceil(terrainConfig.render.groundSegments/columns);
+  for(let iz=0;iz<columns;iz++)for(let ix=0;ix<columns;ix++){
+  const geo = new THREE.PlaneGeometry(span,span,segments,segments);
   geo.rotateX(-Math.PI / 2);
-  const pos = geo.attributes.position;
-  for (let i = 0; i < pos.count; i++) pos.setY(i, groundHeightAt(pos.getX(i), pos.getZ(i)));
+  geo.translate(-MAP_SIZE/2+(ix+.5)*span,0,-MAP_SIZE/2+(iz+.5)*span);
+  const pos = geo.attributes.position,uv=geo.attributes.uv;
+  for (let i = 0; i < pos.count; i++){pos.setY(i,groundHeightAt(pos.getX(i),pos.getZ(i)));uv.setXY(i,(pos.getX(i)+MAP_SIZE/2)/MAP_SIZE,(MAP_SIZE/2-pos.getZ(i))/MAP_SIZE);}
   geo.computeVertexNormals();
+  const normal=geo.attributes.normal,gradient=new THREE.Vector3();
+  for(let i=0;i<pos.count;i++){
+    const x=pos.getX(i),z=pos.getZ(i);
+    gradient.set(-(groundHeightAt(x+2,z)-groundHeightAt(x-2,z))/4,1,-(groundHeightAt(x,z+2)-groundHeightAt(x,z-2))/4).normalize();
+    normal.setXYZ(i,gradient.x,gradient.y,gradient.z);
+  }
 
   const nrm = geo.attributes.normal;
   const col = new Float32Array(pos.count * 3);
@@ -34,7 +64,7 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i), n = nrm.getY(i);
     const nz = Math.sin(x * 0.31) * Math.cos(z * 0.27) * 0.5 + 0.5;
-    c.copy(sand).lerp(dust, nz * 0.55 + rnd() * 0.12);
+    c.copy(sand).lerp(dust,nz*.55+(Math.sin(x*.071+z*.113)*.5+.5)*.12);
     const sl = Math.max(0, 0.9 - n) * 4.5;
     if (sl > 0) c.lerp(rock, Math.min(0.85, sl));
     if (y > 13) c.lerp(rock, Math.min(0.7, (y - 13) / 10));
@@ -44,32 +74,18 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
       // Clear paved base pad like Real War bases
       if (d < b.r * 0.85) c.lerp(pad, 0.72 * (1 - d / (b.r * 0.85)));
     }
-    if (theme === "temperate") c.setScalar(1-Math.min(.18,sl*.12));
+    if (theme === "temperate") {
+      const light=Math.max(0,nrm.getX(i)*.54+nrm.getY(i)*.73+nrm.getZ(i)*.43),shade=.78+.22*light;
+      const stone=Math.min(.26,Math.max(0,.92-n)*1.3);
+      c.setRGB(shade*(1-stone*.12),shade*(1-stone*.06),shade*(1+stone*.16));
+    }
     col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
   }
   geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
 
-  const grain = makeGrainTexture(theme);
-
-  const terrain = new THREE.Mesh(
-    geo,
-    new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      map: theme==="temperate"?makeLandscapeTexture(features,bases,forestLayout!):grain,
-      bumpMap:grain,bumpScale:theme==="temperate"?.045:.10,
-      roughness: 0.92,
-      metalness: 0,
-    }),
-  );
-  terrain.name = "terrain";
-  terrain.receiveShadow = true;
-  group.add(terrain);
-  if (theme !== "temperate") group.add(createRocks(rnd, bases, features));
-  else {group.add(createLandscapeBackdrop(features));group.add(createForest(features,forestLayout));}
-  if(theme!=="temperate")group.add(createDecals(rnd));
-  group.add(batchStaticScene(createMapFeatures(features,theme==="temperate")));
-  freezeTerrainTransforms(group);
-  return group;
+  geo.computeBoundingSphere();tiles.push(geo);
+  }
+  return tiles;
 }
 
 /** Non-playable distant land closes the rectangular board edge with one static,

@@ -51,10 +51,11 @@ export class RtsCamera {
     this.rotationSpeed+=((Number(k.has("alt+e"))-Number(k.has("alt+q")))*1.6-this.rotationSpeed)*response;
     this.yaw+=this.rotationSpeed*dt;
     const speed=40+this.dist*.9,s=Math.sin(this.yaw),c=Math.cos(this.yaw),length=Math.max(1,Math.hypot(f,r));
-    this.vx+=((-s*f+c*r)*speed/length-this.vx)*response;
-    this.vz+=((-c*f-s*r)*speed/length-this.vz)*response;
-    this.x=clamp(this.x+this.vx*dt,-MAP_SIZE/2+15,MAP_SIZE/2-15);
-    this.z=clamp(this.z+this.vz*dt,-MAP_SIZE/2+15,MAP_SIZE/2-15);
+    const targetX=(-s*f+c*r)*speed/length,targetZ=(-c*f-s*r)*speed/length;
+    // Integrate the response curve, not the end-of-frame velocity: long frames must not overshoot.
+    this.x=clamp(this.x+targetX*dt+(this.vx-targetX)*response/mobility.presentation.cameraResponse,-MAP_SIZE/2+15,MAP_SIZE/2-15);
+    this.z=clamp(this.z+targetZ*dt+(this.vz-targetZ)*response/mobility.presentation.cameraResponse,-MAP_SIZE/2+15,MAP_SIZE/2-15);
+    this.vx+=(targetX-this.vx)*response;this.vz+=(targetZ-this.vz)*response;
     this.dist+=(this.targetDist-this.dist)*(1-Math.exp(-mobility.presentation.cameraZoomResponse*dt));
     this.groundY+=(this.heightAt(this.x,this.z)-this.groundY)*(1-Math.exp(-mobility.presentation.cameraHeightResponse*dt));
     const cp = Math.cos(this.pitch), sp2 = Math.sin(this.pitch);
