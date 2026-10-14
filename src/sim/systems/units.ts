@@ -447,7 +447,7 @@ function updateTransport(w: World, u: Entity, dt: number): void {
     u.supplyDepotId=replacement.id;u.logisticsHome={x:replacement.x-replacement.def.radius-5,z:replacement.z};return;
   }
   const home=u.logisticsHome??{x:depot.x-depot.def.radius-5,z:depot.z};u.logisticsHome=home;
-  if(outOfFuel(u)&&u.y-heightAt(u.x,u.z)>3){u.hp=0;u.dead=true;w.lossValue[u.team]+=u.def.cost;w.roadCargoLost[u.team]+=u.cargo;u.cargo=0;w.events.push({type:"death",x:u.x,y:u.y,z:u.z,big:false,kind:u.kind});return;}
+  if(outOfFuel(u)&&u.y-heightAt(u.x,u.z)>3){u.hp=0;u.dead=true;w.lossValue[u.team]+=u.def.cost;w.roadCargoLost[u.team]+=u.cargo;u.cargo=0;w.events.push({type:"death",x:u.x,y:u.y,z:u.z,big:false,kind:u.kind,team:u.team});return;}
   if(outOfFuel(u)){u.motionSpeed=0;u.mode="idle";u.dest=null;return;}
   const valid=(i:number)=>{const rp=w.resourcePoints[i];return (depot.preferredResourceIndex==null||depot.preferredResourceIndex===i)&&!!rp&&rp.controlledBy===u.team&&rp.active&&(rp.disabledUntil??0)<=w.time;};
   if(u.cargo<=0){

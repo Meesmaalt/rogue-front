@@ -500,5 +500,36 @@
       9595990,
       6909288
     ]
+  },
+  "naturalLandscape": {
+    "parcelScaleExponent": 0.65,
+    "edgeStep": 60,
+    "edgeInset": [
+      4,
+      16
+    ],
+    "hills": 28,
+    "attempts": 80,
+    "width": [
+      95,
+      250
+    ],
+    "depthRatio": [
+      0.55,
+      1.1
+    ],
+    "height": [
+      4,
+      18
+    ],
+    "highlandHeight": [
+      12,
+      35
+    ],
+    "roadClearance": 22,
+    "forestDensity": [
+      0.88,
+      1.0
+    ]
   }
 }

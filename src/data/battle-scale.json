@@ -175,5 +175,70 @@
   "fogObserversPerUpdate": 8,
   "commandRangeMultiplier": 12,
   "logisticsRangeMultiplier": 12,
-  "indirectDispersionAngle": 0.015
+  "indirectDispersionAngle": 0.015,
+  "weaponOverrides": {
+    "heli": {
+      "autocannon": {
+        "range": 850
+      },
+      "rocket": {
+        "range": 1300
+      },
+      "atgm": {
+        "range": 2400
+      }
+    },
+    "casHeli": {
+      "autocannon": {
+        "range": 850
+      },
+      "rocket": {
+        "range": 1300
+      }
+    },
+    "fighter": {
+      "aam": {
+        "range": 4500
+      }
+    },
+    "multirole": {
+      "aam": {
+        "range": 4500
+      },
+      "bomb": {
+        "range": 900
+      }
+    },
+    "attackAircraft": {
+      "autocannon": {
+        "range": 1100
+      },
+      "bomb": {
+        "range": 900
+      },
+      "rocket": {
+        "range": 1300
+      }
+    },
+    "tank": {
+      "mg": {
+        "range": 600
+      }
+    },
+    "apc": {
+      "mg": {
+        "range": 650
+      }
+    }
+  },
+  "readyAirfield": {
+    "x": -60,
+    "z": -50,
+    "supplyX": -35,
+    "supplyZ": -40,
+    "aircraft": [
+      "standard",
+      "multirole"
+    ]
+  }
 }

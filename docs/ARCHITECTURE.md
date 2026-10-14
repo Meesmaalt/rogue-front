@@ -10,6 +10,10 @@ Mängukaardid on ainult protseduurkaardid. Ajaloolised Roheoru/Murdlaine kirjeld
 
 `battle-scale.json` määrab uue 4/6 km reeglistiku. `World.metricBattle` valib `metricUnitDefinition` kaudu tegelikud ulatused ja kiirused enne üksuste loomist; salvestus säilitab lipu/definitsioonid. `metricScale` valib üksuse lennuprofiili ja ühise lennuvälja geomeetria. Nav/veenav/kõrguspuhver on piiratud 1024 rakuni ühe telje kohta, udu 256 rakuni. Udu jooksva ajastuse olek on snapshot/räsi osa. `SpatialHash` valib piiratud päringualal tiheda või järjestatud hõreda läbimise. Piirid ja testid: [METRIC-BATTLE-RELEASE.md](METRIC-BATTLE-RELEASE.md).
 
+## Loomulik maastik ja heli · v10
+
+`naturalLandscape.ts` lisab kompaktse madala reljeefi ja muudab metsa servi, hoides kruntide/teede piirid. `farmland-natural` kõrgusprofiil jätab vana farmland kõrguse taastamistee alles. Puude/bushide paigutus on andmepõhise piiriga ning jagatud sim-vegetatsiooniga. Valmis algus kasutab lennuvälja ja stardivarustuse selgesõnalist granti. `battle-scale.json.weaponOverrides` eristab platvormide relvaulatusi. `AudioManager` loeb sündmusi ning kaamera asukohta, juhib eraldi master/SFX/music siine ja piirab hääli; audio ei muuda simi. Detailid: [NATURAL-LANDSCAPE-AUDIO-RELEASE.md](NATURAL-LANDSCAPE-AUDIO-RELEASE.md).
+
 ## Põhimõte
 Kolm kihti, sõltuvused ainult allapoole: **ui/input → sim ← render** (render ja ui *loevad* sim olekut, annavad käske, kuid sim ei tea neist midagi).
 

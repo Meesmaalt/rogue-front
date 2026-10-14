@@ -618,19 +618,19 @@ function canopyTexture():THREE.DataTexture {
 
 interface ForestPoint {x:number;z:number;s:number;angle:number;pine:boolean}
 /** One deterministic placement source for canopy batches and baked ground shade. */
-export function sampleForest(features:readonly MapFeatureDef[]):Map<string,ForestPoint[]> {
+export function sampleForest(features:readonly MapFeatureDef[],budget=terrainConfig.forest.placementBudget):Map<string,ForestPoint[]> {
   const rnd=mulberry32(104),cells=new Map<string,ForestPoint[]>();
   const index=new MapFeatureIndex(features),spacing=new Map<string,Array<{x:number;z:number;s:number}>>();
   const forests=features.filter(f=>f.appearance==="forest");
   const requested=forests.reduce((n,f)=>n+Math.ceil(f.width*f.depth/terrainConfig.forest.treeArea),0);
-  const ratio=Math.min(1,terrainConfig.forest.placementBudget/Math.max(1,requested));
+  const ratio=Math.min(1,budget/Math.max(1,requested));
   for(const f of forests){
     const c=Math.cos(f.rotation??0),s=Math.sin(f.rotation??0);
     for(let i=0;i<Math.floor(Math.ceil(f.width*f.depth/terrainConfig.forest.treeArea)*ratio);i++){
       const lx=(rnd()-.5)*f.width,lz=(rnd()-.5)*f.depth,x=f.x+lx*c+lz*s,z=f.z-lx*s+lz*c;
       const nearby=index.at(x,z);
       if(nearby.some(block=>(["building","road","bridge","water","wall"].includes(block.kind)||block.appearance==="yard")&&pointInFeature(x,z,block,2))||rnd()>forestDensityAt(x,z,nearby))continue;
-      const pine=rnd()<.25,scale=(terrainConfig.forest.treeScaleMinimum+rnd()*terrainConfig.forest.treeScaleVariation)*((f.height??8)<5?.58:1);
+      const pine=rnd()<(.25+Math.min(.4,Math.max(0,heightAt(x,z)-12)/80)),scale=(terrainConfig.forest.treeScaleMinimum+rnd()*terrainConfig.forest.treeScaleVariation)*((f.height??8)<5?terrainConfig.forest.hedgeScale:1);
       const bx=Math.floor(x/3),bz=Math.floor(z/3);let crowded=false;
       for(let dx=-1;dx<=1&&!crowded;dx++)for(let dz=-1;dz<=1&&!crowded;dz++)crowded=(spacing.get(`${bx+dx}/${bz+dz}`)??[]).some(p=>Math.hypot(p.x-x,p.z-z)<(p.s+scale)*1.15);
       if(crowded)continue;
@@ -657,7 +657,7 @@ export function sampleUnderstory(points:readonly ForestPoint[],features:readonly
 /** Opaque leaf texture and three cell LODs keep detail local, without alpha leaf overdraw. */
 export function createForest(features:readonly MapFeatureDef[],cells=sampleForest(features)):THREE.Group {
   const rnd=mulberry32(818),group=new THREE.Group(),trunkGeometry=new THREE.CylinderGeometry(.1,.22,terrainConfig.forest.trunkHeight,5);
-  const closeGeometry=createCanopyGeometry(12,8),crownGeometry=createCanopyGeometry(8,5),farGeometry=createCanopyGeometry(6,3);
+  const closeGeometry=createCanopyGeometry(12,8),crownGeometry=createCanopyGeometry(8,5),farGeometry=new THREE.IcosahedronGeometry(1,0);
   const trunkMaterial=new THREE.MeshStandardMaterial({color:0x625a49,roughness:1});
   const crownMaterial=new THREE.MeshStandardMaterial({color:0xffffff,map:canopyTexture(),vertexColors:true,roughness:1,metalness:0});
   const d=new THREE.Object3D(),tint=new THREE.Color();

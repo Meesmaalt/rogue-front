@@ -201,7 +201,7 @@ export type SimEvent =
   | { type: "hit"; x: number; y: number; z: number }
   | { type: "build-complete"; team: Team; x: number; y: number; z: number; kind: UnitKind }
   | { type: "repair-complete"; team: Team; x: number; y: number; z: number; kind: UnitKind }
-  | { type: "death"; x: number; y: number; z: number; big: boolean; kind?: UnitKind }
+  | { type: "death"; x: number; y: number; z: number; big: boolean; kind?: UnitKind; team?: Team }
   | { type: "supply-delivered"; team: Team; x: number; z: number; amount: number };
 
 
@@ -251,7 +251,7 @@ export interface MissionMapDef {
   id: string;
   name: string;
   theme: "desert" | "mountains" | "city" | "temperate";
-  terrainProfile?: "farmland";
+  terrainProfile?: "farmland" | "farmland-natural";
   landforms?:Array<{x:number;z:number;width:number;depth:number;height:number;shape?:"ridge";rotation?:number}>;
   baseDefenses?: boolean;
   heightmap: string;

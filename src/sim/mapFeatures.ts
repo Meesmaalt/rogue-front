@@ -46,8 +46,8 @@ export function featureCorners(f: MapFeatureDef): Point[] {
 export function isSeaFeature(f:MapFeatureDef):boolean {return f.kind==="water"&&(f.waterBody==="sea"||f.waterBody!=="lake"&&f.width>=128);}
 export function polygonEdgeDistance(x:number,z:number,points:readonly Point[]):number {
   let best=Infinity;
-  for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length],dx=b.x-a.x,dz=b.z-a.z,t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/(dx*dx+dz*dz||1)));best=Math.min(best,Math.hypot(x-a.x-dx*t,z-a.z-dz*t));}
-  return best;
+  for(let i=0;i<points.length;i++){const a=points[i],b=points[(i+1)%points.length],dx=b.x-a.x,dz=b.z-a.z,t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/(dx*dx+dz*dz||1)));best=Math.min(best,(x-a.x-dx*t)**2+(z-a.z-dz*t)**2);}
+  return Math.sqrt(best);
 }
 export function pointInFeature(x: number, z: number, f: MapFeatureDef, padding = 0): boolean {
   if(f.polygon){

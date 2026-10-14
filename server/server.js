@@ -206,7 +206,7 @@ function tryMatchmake() {
     }
     if (!best) continue;
     const ua=userById(a.userId), ub=userById(best.userId);
-    const room=createRoom(ua,{ name:`Ranked: ${ua.displayName} vs ${ub.displayName}`, missionId:"procedural-v9-balanced-4096-62510", mapId:"procedural-v9-balanced-4096-62510", rules:{income:"standard",fog:"wargame",victory:"hq"}, faction:a.faction, deck:a.deck });
+    const room=createRoom(ua,{ name:`Ranked: ${ua.displayName} vs ${ub.displayName}`, missionId:"procedural-v10-balanced-4096-62510", mapId:"procedural-v10-balanced-4096-62510", rules:{income:"standard",fog:"wargame",victory:"hq"}, faction:a.faction, deck:a.deck });
     if (!room) continue;
     room.members.set(ub.id, makeMember(ub,best.faction,best.deck,false)); room.ranked=true; room.ratings={ [ua.id]:a.rating ?? 1000, [ub.id]:best.rating ?? 1000 };
     matchmaking.delete(ua.id); matchmaking.delete(ub.id);

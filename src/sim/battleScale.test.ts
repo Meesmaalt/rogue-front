@@ -43,3 +43,6 @@ it('200 units with metre-scale optics and movement fit the 30 Hz CPU tick budget
  const w=fixture();const units=Array.from({length:200},(_,i)=>w.spawn('inf',0,-150+(i%20)*4,Math.floor(i/20)*4));w.issue({type:'move',ids:units.map(u=>u.id),x:400,z:200});
  for(let i=0;i<10;i++)w.tick(1/30);const started=performance.now();for(let i=0;i<60;i++)w.tick(1/30);expect((performance.now()-started)/60).toBeLessThan(1000/30);expect(units.some(u=>(u.motionSpeed??0)>1)).toBe(true);
 });
+it('helicopter cannon, rockets and ATGM retain separate platform ranges',()=>{
+ const heli=metricUnitDefinition(UNITS.heli,'heli'),ifv=metricUnitDefinition(UNITS.ifv,'ifv');expect(heli.weapons!.find(s=>s.profile==='autocannon')!.range).toBe(850);expect(heli.weapons!.find(s=>s.profile==='rocket')!.range).toBe(1300);expect(heli.weapons!.find(s=>s.profile==='atgm')!.range).toBe(2400);expect(ifv.weapons!.find(s=>s.profile==='autocannon')!.range).toBe(1800);
+});

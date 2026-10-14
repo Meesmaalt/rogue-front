@@ -1,5 +1,15 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Näidisalgus, loomulik maastik ja heli · 15.10.2026
+
+- [x] Valmis alguses lennuväli ja kaks täisvarustuses lennukit mõlemale poolele; standard-/mitmeotstarbeline koorem ja ühendatud ladu.
+- [x] Platvormipõhised relvakaugused, sh kopterikahuri 850 m piir.
+- [x] V10 väiksemad parcelid, ebakorrapärased metsaservad, täiendavad kõrgendikud ja kõrgusdetail; lennuraja hooldusala.
+- [x] Tihedam piiratud eelarvega canopy/põõsad, madalamad hekid ja odavam kaugvõra.
+- [x] Kauguse/stereoga kihilised heliefektid ning eraldi muusikasiinil originaalne taustakompositsioon. Vt NATURAL-LANDSCAPE-AUDIO-RELEASE.md.
+- [ ] V10 maastiku ja heli brauseris vaatlus/kuulamine ning F8 FPS-võrdlus.
+
+
 ## Viie testitõrke parandused · 14.10.2026
 
 - [x] Ehituse/õhuoperatsioonide füüsilise kestuse, fraktsiooni täpsuse ja kütusereservi regressioonide parandamine.

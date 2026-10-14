@@ -59,21 +59,28 @@
     "burntCover": 0.18,
     "lodDistance": 220,
     "treeArea": 12,
-    "treeScaleMinimum": 0.7,
-    "treeScaleVariation": 0.35,
-    "crownRadius": 3.2,
+    "treeScaleMinimum": 0.8,
+    "treeScaleVariation": 0.6,
+    "crownRadius": 3.8,
     "crownHeight": 2.6,
     "trunkHeight": 4,
     "crownBaseHeight": 4.1,
-    "placementBudget": 65000,
-    "understoryBudget": 6500,
+    "placementBudget": 130000,
+    "understoryBudget": 9000,
     "understoryPerTree": 0.45,
     "understoryRadius": 1.9,
-    "understoryHeight": 1.1
+    "understoryHeight": 1.1,
+    "hedgeScale": 0.42
   },
   "render": {
     "groundTileSize": 256,
     "groundSegments": 192,
     "visibilityMargin": 32
+  },
+  "natural": {
+    "detailScale": 32,
+    "detailHeight": 1.2,
+    "microScale": 12,
+    "microHeight": 0.35
   }
 }

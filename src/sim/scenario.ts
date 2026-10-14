@@ -1,3 +1,5 @@
+import {BATTLE_SCALE} from "./battleScale";
+import {equipStartingUnit} from "./equipment";
 import {stationAircraft} from "./systems/airDoctrine";
 import type { World } from "./World";
 
@@ -22,9 +24,15 @@ export function createSkirmish(w: World, ready = false, generated = false): void
   if (ready) {
     for (const team of [0,1] as const) {
       const b=w.bases[team], sign=team===0?1:-1;
-      for (const [kind,dx,dz] of [["generator",-20,-18],["supply",0,-25],["landCommand",-22,4],["barracks",20,18],["factory",0,28],["airCommand",25,-20],["helipad",25,0]] as const) w.spawn(kind,team,b.x+dx*sign,b.z+dz*sign);
+      for (const [kind,dx,dz] of [["generator",-20,-18],["supply",0,-25],["landCommand",-22,4],["barracks",20,18],["factory",0,28],["airCommand",25,-20],["helipad",25,0]] as const) w.spawn(kind,team,b.x+(w.metricBattle&&kind==="supply"?BATTLE_SCALE.readyAirfield.supplyX:dx)*sign,b.z+(w.metricBattle&&kind==="supply"?BATTLE_SCALE.readyAirfield.supplyZ:dz)*sign);
       const pad=w.entities.find(e=>e.team===team&&e.kind==="helipad")!;
       const helicopter=w.spawn("heli",team,pad.x,pad.z);stationAircraft(w,helicopter,pad);
+      if(w.metricBattle){
+        const point=w.nav.nearestWalkable({x:b.x+BATTLE_SCALE.readyAirfield.x*sign,z:b.z+BATTLE_SCALE.readyAirfield.z*sign},w.unitDefinition("airbase",team).radius);
+        if(!point)throw new Error("Näidisbaasi lennuvälja asukoht puudub");
+        const airport=w.spawn("airbase",team,point.x,point.z);
+        for(const module of BATTLE_SCALE.readyAirfield.aircraft){const plane=w.spawn("fighter",team,airport.x,airport.z);if(module!=="standard")equipStartingUnit(w,plane,"weapon",module);stationAircraft(w,plane,airport);}
+      }
       const forward=generated?{x:b.x*.58,z:b.z*.58}:{x:-sign*82,z:sign*50};
       const kinds=["tank","tank","apc","inf","inf",generated?"reconInf":"reconVehicle"] as const;
       kinds.forEach((kind,i)=>{

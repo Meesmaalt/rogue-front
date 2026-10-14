@@ -372,7 +372,7 @@ export function damage(w: World, t: Entity, amount: number, opts?: {
       const d = Math.hypot(e.x - t.x, e.z - t.z);
       if (d < 28) e.morale = Math.max(0, (e.morale ?? 100) - (14 - d * 0.3));
     }
-    w.events.push({ type: "death", x: t.x, y: t.y + t.def.height * 0.5, z: t.z, big: t.def.speed === 0, kind: t.kind });
+    w.events.push({ type: "death", x: t.x, y: t.y + t.def.height * 0.5, z: t.z, big: t.def.speed === 0, kind: t.kind, team:t.team });
   }
 }
 

@@ -69,3 +69,9 @@ export function updateEquipment(w:World,dt:number):void {
   if(capacity&&(u.equipmentCharges??0)<capacity&&(u.motionSpeed??0)<.5&&!u.target){const d=serviceDepot(w,u);if(d&&(d.ammoStock??0)>=dt){const take=Math.min(dt,capacity-(u.equipmentCharges??0));d.ammoStock=(d.ammoStock??0)-take;u.equipmentCharges=(u.equipmentCharges??0)+take;}}
  }
 }
+
+/** Explicit ready-preset grant, before play: the paid in-match refit path remains unchanged. */
+export function equipStartingUnit(w:World,u:Entity,slot:EquipmentSlot,id:string):void {
+ const module=EQUIPMENT[id];if(!module||module.slot!==slot||!module.kinds.includes(u.kind))throw new Error('Invalid starter equipment');
+ applyEquipment(w,u,slot,id);u.ammo=u.maxAmmo;u.secondaryAmmo=u.def.weapons?.map((s,i)=>i?s.ammoCapacity:0);
+}

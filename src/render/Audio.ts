@@ -1,81 +1,84 @@
-import type { SimEvent } from "../sim/types";
-import { loadSettings, type GameSettings } from "../ui/Settings";
-
-/** Väike Web Audio helikiht: ei vaja binaarseid helifaile ega välist runtime-sõltuvust. */
+import type {SimEvent} from '../sim/types';
+import {loadSettings,type GameSettings} from '../ui/Settings';
+import config from '../data/audio.json';
+type Channel='sfx'|'music';
+export function spatialSound(x:number,z:number,listener:{x:number;z:number;yaw:number}):{gain:number;pan:number}{
+ const dx=x-listener.x,dz=z-listener.z,distance=Math.hypot(dx,dz);
+ return {gain:distance>config.maxDistance?0:1/(1+(distance/config.referenceDistance)**2),pan:Math.max(-.85,Math.min(.85,(dx*Math.cos(listener.yaw)-dz*Math.sin(listener.yaw))/Math.max(1,distance)))};
+}
+/** Original procedural score and layered positional effects. Audio never changes simulation. */
 export class AudioManager {
-  private ctx: AudioContext | null = null;
-  private settings: GameSettings = loadSettings();
-  private musicTimer: number | null = null;
-  private musicStep = 0;
-  private noiseBuffer:AudioBuffer|null=null;
-  private lastShot=new Map<string,number>();
-
-  private ensure(): AudioContext | null {
-    if (!this.ctx) {
-      try { this.ctx = new AudioContext(); } catch { return null; }
-    }
-    if (this.ctx.state === "suspended") void this.ctx.resume();
-    return this.ctx;
+ private ctx:AudioContext|null=null;
+ private settings:GameSettings=loadSettings();
+ private master:GainNode|null=null;private sfx:GainNode|null=null;private music:GainNode|null=null;
+ private musicTimer:number|null=null;private musicStep=0;private activity=0;
+ private noiseBuffer:AudioBuffer|null=null;
+ private listener={x:0,z:0,yaw:0};
+ private readonly voices:Record<Channel,number>={sfx:0,music:0};
+ private readonly lastShot=new Map<string,number>();
+ private lastUnderAttack=-10;
+ private ensure():AudioContext|null {
+  if(!this.ctx){try{
+   const ctx=this.ctx=new AudioContext(),compressor=ctx.createDynamicsCompressor();
+   this.master=ctx.createGain();this.sfx=ctx.createGain();this.music=ctx.createGain();
+   compressor.threshold.value=-18;compressor.ratio.value=4;compressor.attack.value=.008;compressor.release.value=.2;
+   this.sfx.connect(compressor);compressor.connect(this.master);this.music.connect(this.master);this.master.connect(ctx.destination);
+   const delay=ctx.createDelay(1),echo=ctx.createGain(),feedback=ctx.createGain();delay.delayTime.value=.28;echo.gain.value=.16;feedback.gain.value=.18;this.music.connect(delay);delay.connect(echo).connect(this.master);delay.connect(feedback).connect(delay);
+   this.applyVolumes();
+  }catch{this.ctx=null;return null;}}
+  return this.ctx;
+ }
+ private applyVolumes():void {const t=this.ctx?.currentTime??0;this.master?.gain.setTargetAtTime(this.settings.masterVolume,t,.04);this.sfx?.gain.setTargetAtTime(this.settings.sfxVolume,t,.04);this.music?.gain.setTargetAtTime(this.settings.musicVolume*(1-this.activity*.3),t,.12);}
+ setSettings(settings:GameSettings):void{this.settings=settings;this.applyVolumes();}
+ setListener(x:number,z:number,yaw:number):void{this.listener={x,z,yaw};}
+ unlock():void{const ctx=this.ensure();if(ctx?.state==='suspended')void ctx.resume();}
+ pause():void{this.stopMusic();if(this.ctx?.state==='running')void this.ctx.suspend();}
+ resume():void{if(this.ctx?.state==='suspended')void this.ctx.resume();}
+ startMusic():void{if(this.musicTimer!==null)return;this.musicTick();this.musicTimer=window.setInterval(()=>this.musicTick(),config.musicStepMs);}
+ stopMusic():void{if(this.musicTimer!==null){clearInterval(this.musicTimer);this.musicTimer=null;}}
+ private reserve(channel:Channel):boolean{if(this.voices[channel]>=(channel==='sfx'?config.maxSfxVoices:config.maxMusicVoices))return false;this.voices[channel]++;return true;}
+ private route(node:AudioNode,channel:Channel,pan:number):StereoPannerNode{
+  const panner=this.ctx!.createStereoPanner();panner.pan.value=pan;node.connect(panner).connect(channel==='sfx'?this.sfx!:this.music!);return panner;
+ }
+ private noise(duration:number,cutoff:number,volume:number,pan=0,channel:Channel='sfx'):void{
+  const ctx=this.ctx;if(!ctx||ctx.state!=='running'||!this.reserve(channel))return;
+  if(!this.noiseBuffer){this.noiseBuffer=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate);const samples=this.noiseBuffer.getChannelData(0);for(let i=0;i<samples.length;i++)samples[i]=Math.random()*2-1;}
+  const source=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain(),now=ctx.currentTime;
+  source.buffer=this.noiseBuffer;filter.type='lowpass';filter.frequency.setValueAtTime(cutoff,now);filter.frequency.exponentialRampToValueAtTime(Math.max(80,cutoff*.18),now+duration);
+  gain.gain.setValueAtTime(Math.max(.0001,volume),now);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);source.connect(filter).connect(gain);const panner=this.route(gain,channel,pan);
+  source.onended=()=>{this.voices[channel]--;source.disconnect();filter.disconnect();gain.disconnect();panner.disconnect();};source.start(now,Math.random()*.5);source.stop(now+duration);
+ }
+ private tone(freq:number,duration:number,type:OscillatorType,volume:number,pan=0,channel:Channel='sfx',attack=.008):void{
+  const ctx=this.ctx;if(!ctx||ctx.state!=='running'||!this.reserve(channel))return;
+  const source=ctx.createOscillator(),filter=ctx.createBiquadFilter(),gain=ctx.createGain(),now=ctx.currentTime;source.type=type;source.frequency.setValueAtTime(freq,now);
+  if(channel==='sfx')source.frequency.exponentialRampToValueAtTime(Math.max(25,freq*.55),now+duration);
+  filter.type='lowpass';filter.frequency.value=channel==='music'?1100:2200;gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(Math.max(.0001,volume),now+attack);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
+  source.connect(filter).connect(gain);const panner=this.route(gain,channel,pan);source.onended=()=>{this.voices[channel]--;source.disconnect();filter.disconnect();gain.disconnect();panner.disconnect();};source.start(now);source.stop(now+duration+.02);
+ }
+ events(events:readonly SimEvent[],playerTeam=0):void{
+  const ctx=this.ctx;if(!ctx||ctx.state!=='running'||this.settings.masterVolume<=0||this.settings.sfxVolume<=0)return;
+  for(const e of events){const mix='x' in e&&'z' in e?spatialSound(e.x,e.z,this.listener):{gain:1,pan:0};if(mix.gain<.008)continue;
+   if(e.type==='fire'){
+    const kind=e.visual??e.weapon??'rifle',profile=(config.shots as Record<string,number[]>)[kind]??config.shots.rifle,now=ctx.currentTime;
+    if(now-(this.lastShot.get(kind)??-10)<profile[4])continue;this.lastShot.set(kind,now);this.activity=Math.min(1,this.activity+mix.gain*.12);
+    this.noise(profile[0],profile[1]/(1+(1-mix.gain)*1.2),profile[2]*mix.gain,mix.pan);this.tone(profile[3],profile[0]*.65,'triangle',profile[2]*.5*mix.gain,mix.pan);
+   }else if(e.type==='impact'){
+    if(e.result==='ricochet'){this.tone(1800,.16,'sine',.06*mix.gain,mix.pan);this.noise(.12,3800,.06*mix.gain,mix.pan);}
+    else if(e.weapon==='bullet')this.noise(.055,2100,.055*mix.gain,mix.pan);
+    else{const heavy=['bomb','howitzer','mlrs'].includes(e.visual??'');this.noise(heavy?.85:.42,heavy?500:1000,(heavy?.3:.2)*mix.gain,mix.pan);this.tone(heavy?38:62,heavy?.7:.35,'sine',.2*mix.gain,mix.pan);}
+   }else if(e.type==='death'){
+    this.noise(e.big?.9:.25,e.big?650:1400,(e.big?.28:.1)*mix.gain,mix.pan);this.tone(e.big?42:85,.4,'triangle',.12*mix.gain,mix.pan);
+    if(e.team===playerTeam&&ctx.currentTime-this.lastUnderAttack>4){this.lastUnderAttack=ctx.currentTime;this.tone(220,.18,'sine',.045);}
+   }else if(e.type==='build-complete'&&e.team===playerTeam)this.tone(523,.28,'sine',.06);
+   else if(e.type==='repair-complete'&&e.team===playerTeam)this.tone(659,.18,'sine',.04);
   }
-  setSettings(settings: GameSettings): void { this.settings = settings; }
-  unlock(): void { this.ensure(); }
-  pause(): void { if (this.ctx?.state === "running") void this.ctx.suspend(); }
-  resume(): void { if (this.ctx?.state === "suspended") void this.ctx.resume(); }
-  startMusic(): void {
-    if (this.musicTimer !== null) return;
-    this.musicTimer = window.setInterval(() => this.musicTick(), 1200);
-  }
-  stopMusic(): void { if (this.musicTimer !== null) { clearInterval(this.musicTimer); this.musicTimer = null; } }
-  private lastUnderAttack = 0;
-  events(events: readonly SimEvent[], _playerTeam = 0): void {
-    for (const e of events) {
-      if (e.type === "fire") {
-        const kind=e.visual??e.weapon??"rifle",now=this.ctx?.currentTime??0;
-        if(now-(this.lastShot.get(kind)??-1)<(kind==="bullet"?.055:.08))continue;this.lastShot.set(kind,now);
-        if(["atgm","sam","aam","manpad","rocket","rpg","mlrs"].includes(kind))this.noise(kind==="sam"||kind==="mlrs"?.5:.28,kind==="rpg"?1000:650,.16);
-        else if(["sabot","howitzer","mortar"].includes(kind)){this.noise(kind==="howitzer"?.36:.22,kind==="mortar"?850:430,.22);this.tone(kind==="mortar"?92:48,.22,"triangle",.14);}
-        else if(kind==="autocannon"||kind==="flak")this.noise(.11,1500,.17);
-        else if(kind==="sniper"){this.noise(.14,1800,.18);this.tone(105,.1,"triangle",.08);}
-        else if(kind!=="bomb")this.noise(.065,2300,.12);
-      }
-      else if(e.type==="impact"){
-        if(e.result==="ricochet")this.tone(1700,.12,"triangle",.08);
-        else if(e.weapon==="bullet")this.noise(.035,1400,.04);
-        else {const heavy=["bomb","howitzer","mlrs"].includes(e.visual??"");this.noise(heavy?.48:.23,heavy?250:550,heavy?.22:.12);this.tone(heavy?38:65,.2,"triangle",.1);}
-      }
-      else if (e.type === "hit") this.tone(75, .05, "sawtooth", .1);
-      else if (e.type === "death") {
-        this.tone(e.big ? 48 : 62, e.big ? .24 : .12, "sawtooth", e.big ? .2 : .13);
-        // Own unit death → under attack sting (throttled)
-        if (performance.now() - this.lastUnderAttack > 4000) {
-          this.lastUnderAttack = performance.now();
-          this.tone(90, .08, "square", .14);
-          this.tone(60, .18, "sawtooth", .12);
-        }
-      }
-      else if (e.type === "build-complete") this.tone(520, .12, "sine", .12);
-      else if (e.type === "repair-complete") this.tone(720, .08, "sine", .1);
-    }
-  }
-  private noise(duration:number,cutoff:number,volume:number):void {
-    const ctx=this.ensure();if(!ctx||this.settings.masterVolume<=0)return;
-    if(!this.noiseBuffer){this.noiseBuffer=ctx.createBuffer(1,ctx.sampleRate,ctx.sampleRate);const data=this.noiseBuffer.getChannelData(0);for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;}
-    const source=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain(),now=ctx.currentTime;
-    source.buffer=this.noiseBuffer;filter.type="lowpass";filter.frequency.setValueAtTime(cutoff,now);filter.frequency.exponentialRampToValueAtTime(100,now+duration);
-    gain.gain.setValueAtTime(Math.max(.0001,volume*this.settings.masterVolume*this.settings.sfxVolume),now);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
-    source.connect(filter).connect(gain).connect(ctx.destination);source.start(now);source.stop(now+duration);source.onended=()=>{source.disconnect();filter.disconnect();gain.disconnect();};
-  }
-  private musicTick(): void {
-    const notes = [110, 131, 147, 98, 123, 147, 110, 82];
-    this.tone(notes[this.musicStep++ % notes.length], .16, "triangle", .055, this.settings.musicVolume);
-  }
-  private tone(freq: number, duration: number, type: OscillatorType, gainValue: number, channel = 1): void {
-    const ctx = this.ensure(); if (!ctx || this.settings.masterVolume <= 0) return;
-    const now = ctx.currentTime, osc = ctx.createOscillator(), gain = ctx.createGain();
-    osc.type = type; osc.frequency.setValueAtTime(freq, now);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, gainValue * this.settings.masterVolume * channel * this.settings.sfxVolume), now + .008);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-    osc.connect(gain).connect(ctx.destination); osc.start(now); osc.stop(now + duration + .02);
-  }
+ }
+ private musicTick():void{
+  if(!this.ctx||this.ctx.state!=='running'||this.settings.masterVolume<=0||this.settings.musicVolume<=0)return;
+  this.activity*=.86;this.applyVolumes();const step=this.musicStep++,root=config.roots[Math.floor(step/16)%config.roots.length];
+  if(step%16===0)config.chordRatios.forEach((r,i)=>this.tone(root*2*r,5.9,'triangle',.027,(i-1.5)*.18,'music',.65));
+  if(step%4===0){this.tone(root,.8,'sine',.05,0,'music',.025);this.tone(55,.16,'sine',.03,0,'music');}
+  if(step%2===0){const ratio=config.chordRatios[config.arp[Math.floor(step/2)%config.arp.length]];this.tone(root*4*ratio,.7,'sine',.022,Math.sin(step*.2)*.45,'music',.03);}
+  if(step%4===2)this.noise(.055,3200,.012,.25,'music');
+ }
 }
