@@ -16,7 +16,7 @@ const DEFAULT_BASES: readonly BaseDef[] = [
 let activeBases: readonly BaseDef[] = DEFAULT_BASES;
 let activeHeightmap: HeightmapSource | null = null;
 let proceduralSeed = 1;
-export interface TerrainLandform {x:number;z:number;width:number;depth:number;height:number}
+export interface TerrainLandform {x:number;z:number;width:number;depth:number;height:number;shape?:"ridge";rotation?:number}
 let activeLandforms:readonly TerrainLandform[]=terrain.farmland.landforms;
 let terrainProfile: "farmland" | undefined;
 export function setTerrainProfile(profile?: "farmland",landforms?:readonly TerrainLandform[]): void { terrainProfile=profile; activeLandforms=landforms??terrain.farmland.landforms;activeHeightmap=null; cacheValid=false; heightCache=null; }
@@ -91,7 +91,12 @@ function valueNoise(x:number,z:number,scale:number): number {
 function rawH(x: number, z: number): number {
   if (terrainProfile === "farmland") {
     let h=1.8+valueNoise(x,z,100)*2.6+valueNoise(x+13,z-17,45)*.7;
-    for(const f of activeLandforms){const d=((x-f.x)/f.width)**2+((z-f.z)/f.depth)**2;h+=f.height*Math.exp(-d*2);}
+    for(const f of activeLandforms){
+      if(f.shape==="ridge"){
+        const a=f.rotation??0,dx=x-f.x,dz=z-f.z,u=dx*Math.cos(a)-dz*Math.sin(a),v=dx*Math.sin(a)+dz*Math.cos(a),d=(u/f.width)**2+(v/f.depth)**2;
+        if(d<1)h+=f.height*(1-d)**2;
+      }else {const d=((x-f.x)/f.width)**2+((z-f.z)/f.depth)**2;h+=f.height*Math.exp(-d*2);}
+    }
     return h;
   }
   const broad=(valueNoise(x,z,90)-0.5)*22;

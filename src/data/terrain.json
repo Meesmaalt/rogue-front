@@ -66,5 +66,10 @@
     "trunkHeight": 4,
     "crownBaseHeight": 4.1,
     "placementBudget": 60000
+  },
+  "render": {
+    "groundTileSize": 256,
+    "groundSegments": 192,
+    "visibilityMargin": 32
   }
 }

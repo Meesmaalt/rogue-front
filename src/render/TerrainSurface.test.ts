@@ -1,6 +1,7 @@
+import * as THREE from "three";
 import {afterEach,expect,it} from "vitest";
-import {createRiverSurface,createCanopyGeometry,createLandscapeBackdrop,sampleForest} from "./Terrain";
-import {resetHeightmap,MAP_SIZE,groundHeightAt} from "../sim/heightmap";
+import {createGroundTiles,createRiverSurface,createCanopyGeometry,createLandscapeBackdrop,sampleForest} from "./Terrain";
+import {resetHeightmap,setMapSize,MAP_SIZE,groundHeightAt} from "../sim/heightmap";
 import {pointInFeature,type MapFeatureDef} from "../sim/mapFeatures";
 afterEach(resetHeightmap);
 it("overlapping river pieces render the union once with upward normals and shared world UVs",()=>{
@@ -61,4 +62,17 @@ it("the distant landscape is outside playable bounds with an exactly grounded in
   const water=coast.geometry.getAttribute("position");
   for(let i=0;i<water.count;i++)if(water.getX(i)<-half)expect(water.getY(i)).toBeCloseTo(.7);
   coast.geometry.dispose();
+});
+
+it("large ground tiles keep continuous world UVs/normals and submit a bounded visible subset",()=>{
+ setMapSize(2048);const tiles=createGroundTiles();expect(tiles.length).toBe(64);
+ const camera=new THREE.PerspectiveCamera(42,1,1,1400);camera.position.set(0,220,220);camera.lookAt(0,0,0);camera.updateMatrixWorld();
+ const frustum=new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
+ expect(tiles.filter(g=>frustum.intersectsSphere(g.boundingSphere!)).length).toBeLessThan(tiles.length/2);
+ const shared=new Map<string,number[]>();
+ for(const g of tiles){const p=g.getAttribute("position"),n=g.getAttribute("normal"),uv=g.getAttribute("uv");
+  for(let i=0;i<p.count;i++){expect(uv.getX(i)).toBeCloseTo((p.getX(i)+1024)/2048);expect(uv.getY(i)).toBeCloseTo((1024-p.getZ(i))/2048);
+   if(Math.abs(p.getX(i)%256)<.001||Math.abs(p.getZ(i)%256)<.001){const key=`${p.getX(i).toFixed(3)}/${p.getZ(i).toFixed(3)}`,value=[p.getY(i),n.getX(i),n.getY(i),n.getZ(i)],before=shared.get(key);if(before)value.forEach((v,j)=>expect(v).toBeCloseTo(before[j],4));else shared.set(key,value);}
+  }g.dispose();
+ }
 });

@@ -4,7 +4,7 @@ import type { FrameMetrics } from "../core/GameLoop";
 const CAPACITY = 600;
 const STAGES = ["vaated", "3D", "udu", "HUD"] as const;
 type Stage = typeof STAGES[number];
-interface SceneMetrics { calls: number; triangles: number; units: number; worldTime: number; quality: string; width: number; height: number }
+interface SceneMetrics { calls: number; triangles: number; units: number; worldTime: number; quality: string; width: number; height: number;terrainGroupsVisible?:number;terrainGroupsTotal?:number }
 
 /** Optional bounded diagnostics. CPU submission is deliberately not labelled GPU time. */
 export class PerformancePanel {
@@ -79,6 +79,7 @@ export class PerformancePanel {
       `CPU vaated ${ms(stageMeans.vaated)} · 3D ${ms(stageMeans["3D"])}\n` +
       `udu ${ms(stageMeans.udu)} · HUD ${ms(stageMeans.HUD)} ms\n` +
       `Joonistuskäsud ${scene.calls} · kolmnurgad ${scene.triangles}\n` +
+      `Maastikugrupid ${scene.terrainGroupsVisible??0}/${scene.terrainGroupsTotal??0}\n` +
       `Sim-sammud ${this.steps} · mahajäämus ${ms(frame.debtMs)} ms\n` +
       `Mänguaeg ${ms(scene.worldTime)} s · taustapaus ${ms(this.suspended/1000)} s\nGPU aeg: mõõtmata`;
   }
