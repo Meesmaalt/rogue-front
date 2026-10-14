@@ -276,6 +276,15 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   let running = false;
   const setEnabled = (on: boolean) => { selection.enabled = commands.enabled = minimap.enabled = on; };
   const facBlur = FACTIONS[world.playerFaction]?.doctrineBlurb ?? "";
+  // Compile every static material (including hidden LODs) before free camera movement.
+  cam.update(0);units.sync(world,1,selection.selected,0,visualQuality);
+  const terrainTextures=new Set<THREE.Texture>();
+  terrainView.traverse(o=>{if(!(o instanceof THREE.Mesh))return;for(const m of Array.isArray(o.material)?o.material:[o.material]){
+    if(m instanceof THREE.MeshStandardMaterial){for(const t of [m.map,m.bumpMap,m.normalMap])if(t)terrainTextures.add(t);}
+    else if(m instanceof THREE.MeshBasicMaterial&&m.map)terrainTextures.add(m.map);
+  }});
+  for(const texture of terrainTextures)ctx.renderer.initTexture(texture);
+  await ctx.renderer.compileAsync(ctx.scene,ctx.camera);
   hud.showBriefing(skirmish ? { ...mission, name: "Skirmish — " + mission.map.name, briefing: (mission.id === "roheorg"||mission.id.startsWith("procedural-")) ? mission.briefing + "\n\n" + modeController.label() + "\n\n" + (queryParams.get("deployment")==="base" ? "Ehita generaator → varustusladu → maaväe juhtimiskeskus → tehas. Saada insener ressursipunkti." : "Baas ja väike lahingugrupp on valmis. Saada luure ette; tugevda koosseisu Maa-paneelist. Insener käivitab koduse ressursipunkti kogumise.") + "\n\nF1: vali soomus · Fookus: kaamera valikule\nRündeliiku + parem klõps: liigu ja võitle\nInsener / juhtimishoone → Ehita: baas ja FOB\nMoon, kütus ja remont vajavad tegelikku varustust." : modeController.label() + "\n\nREAL WAR baas:\n1) Generaator → varustusladu → maaväe juhtimiskeskus → tehas\n2) Saada teine insener ressursipunkti; ta käivitab kogumise\n3) Veokid toovad raha ja ammo/kütusevaru. Katkenud tarne peatab tootmise\n\nWARGAME lahing:\n• Optika/recon — kes näeb, tulistab\n• Supply raadius — ammo/kütus; forward ladu risk\n• Flank ja moraal loevad\n• Õhk: CAP / Strike / SEAD; ilma AA-ta kaotad\n\nDoktriin: " + facBlur + "\n\nKlahvid: F1 soomus F2 jala F3 õhk F4 toetus · Ctrl+1-9 grupid" } : mission, () => { if(multiplayer)return; running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); }, hasSave(), () => loadGame());
 
   addEventListener("keydown", (e) => {

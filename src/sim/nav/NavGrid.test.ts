@@ -51,6 +51,13 @@ describe("NavGrid", () => {
 });
 
 describe("Map features", () => {
+  it("clears only recorded building cells and preserves new static features under an old footprint",()=>{
+    const w=new World(1),b=w.spawn("bunker",0,0,0);w.nav.syncBuildings(w.entities);
+    expect(w.nav.isWalkableWorld(0,0)).toBe(false);
+    w.nav.syncBuildings([]);expect(w.nav.isWalkableWorld(0,0)).toBe(true);
+    w.nav.syncBuildings([b]);w.nav.syncFeatures([{id:"new-wall",kind:"wall",x:0,z:0,width:12,depth:12}]);
+    w.nav.syncBuildings([]);expect(w.nav.isWalkableWorld(0,0)).toBe(false);
+  });
   it("blocks static tactical geometry while leaving roads open", () => {
     const n = new NavGrid([], [
       { id: "wall", kind: "wall", x: 0, z: 0, width: 20, depth: 4 },

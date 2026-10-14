@@ -466,8 +466,8 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
         // Small paving/apron grounds the facade without covering neighbouring roads.
         if(!landscapeAtlas)group.add(drapedStrip({...f,kind:"cover",appearance:"yard",depth:f.depth+3},f.width+3,0x8f9181,.025,undefined,features));
         const variant=Number(f.id.split("-").at(-1))||0,house=new THREE.LOD();
-        house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,false,f.color),0);
-        house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,true,f.color),235, .15);
+        house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,false,f.color,f.buildingStyle),0);
+        house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,true,f.color,f.buildingStyle),235, .15);
         house.userData.structureId=f.id;house.userData.structureHeight=h;
         house.position.set(f.x,y,f.z);house.rotation.y=f.rotation??0;group.add(house);
         mesh.geometry.dispose();(mesh.material as THREE.Material).dispose();

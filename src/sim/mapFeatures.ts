@@ -20,6 +20,7 @@ export interface MapFeatureDef {
   label?: string;
   appearance?: "forest" | "field" | "farmhouse" | "hedge" | "resource-industrial" | "resource-oil" | "yard";
   color?: number;
+  buildingStyle?:"residential"|"rowhouse"|"industrial"|"rural";
   shape?:"ellipse";density?:number;
   polygon?:Point[];
   waterBody?:"river"|"lake"|"sea";
