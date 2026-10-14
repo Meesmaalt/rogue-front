@@ -3,7 +3,7 @@ import {loadSettings,saveSettings} from "./Settings";
 import type { FrameMetrics } from "../core/GameLoop";
 
 const CAPACITY = 600;
-const STAGES = ["kaamera", "üksused", "maastik", "efektid", "3D", "udu", "HUD"] as const;
+const STAGES = ["kaamera", "üksused", "maastik", "efektid", "3D", "udu", "sildid", "minikaart", "HUD"] as const;
 type Stage = typeof STAGES[number];
 interface SceneMetrics { cameraX?:number;cameraY?:number;cameraZ?:number;gpuMs?:number|null;gpuSampleAgeFrames?:number|null;geometries?:number;textures?:number; calls: number; triangles: number; units: number; worldTime: number; quality: string; width: number; height: number;terrainGroupsVisible?:number;terrainGroupsTotal?:number }
 
@@ -26,8 +26,8 @@ export class PerformancePanel {
   private spikes = 0;
   private nextRefresh = 0;
   private stamp = 0;
-  private stages: Record<Stage, number> = { kaamera:0,üksused:0,maastik:0,efektid:0,"3D":0,udu:0,HUD:0 };
-  private stageTotals: Record<Stage, number> = { kaamera:0,üksused:0,maastik:0,efektid:0,"3D":0,udu:0,HUD:0 };
+  private stages: Record<Stage, number> = { kaamera:0,üksused:0,maastik:0,efektid:0,"3D":0,udu:0,sildid:0,minikaart:0,HUD:0 };
+  private stageTotals: Record<Stage, number> = { kaamera:0,üksused:0,maastik:0,efektid:0,"3D":0,udu:0,sildid:0,minikaart:0,HUD:0 };
   private readonly history: object[] = [];
 
   constructor(enabled = false) {
@@ -88,7 +88,8 @@ export class PerformancePanel {
       `CPU kaamera ${ms(stageMeans.kaamera)} · üksused ${ms(stageMeans.üksused)}\n` +
       `maastik ${ms(stageMeans.maastik)} · efektid ${ms(stageMeans.efektid)}\n` +
       `3D ${ms(stageMeans["3D"])} · ` +
-      `udu ${ms(stageMeans.udu)} · HUD ${ms(stageMeans.HUD)} ms\n` +
+      `udu ${ms(stageMeans.udu)} · sildid ${ms(stageMeans.sildid)} ms\n` +
+      `minikaart ${ms(stageMeans.minikaart)} · HUD ${ms(stageMeans.HUD)} ms\n` +
       `Joonistuskäsud ${scene.calls} · kolmnurgad ${scene.triangles}\n` +
       `Maastikugrupid ${scene.terrainGroupsVisible??0}/${scene.terrainGroupsTotal??0}\n` +
       `Sim-sammud ${this.steps} · mahajäämus ${ms(frame.debtMs)} ms\n` +

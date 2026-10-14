@@ -4,6 +4,7 @@ import type { Picker } from "../input/Picker";
 import type { Entity } from "../sim/types";
 import { MAP_SIZE, heightAt } from "../sim/heightmap";
 import { featureBlocksMovement } from "../sim/mapFeatures";
+import { MinimapFog } from "./MinimapFog";
 
 const S = 176;
 
@@ -50,17 +51,15 @@ export class Minimap {
   private base: HTMLCanvasElement;
   private bridgeSignature="";
   private dragging = false;
-  private frame = 0;
   private elapsed=.1;
-  /** Throttle full fog fill (expensive nested loop). */
-  private fogCache: HTMLCanvasElement | null = null;
-  private fogFrame = -10;
+  private readonly fog: MinimapFog;
 
   constructor(private readonly canvas: HTMLCanvasElement, private readonly world: World, private readonly picker: Picker) {
     const layer=(f:World["mapFeatures"][number])=>f.appearance==="field"?0:f.appearance==="forest"?1:f.appearance==="yard"?2:f.kind==="road"?3:f.kind==="water"?4:f.kind==="bridge"?5:6;
     this.features=[...world.mapFeatures].sort((a,b)=>layer(a)-layer(b));
     this.ctx = canvas.getContext("2d")!;
     this.base = this.makeBase();
+    this.fog = new MinimapFog(world.vision);
     this.bridgeSignature=this.bridgeState();
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
     canvas.addEventListener("mousedown", (e) => {
@@ -76,7 +75,6 @@ export class Minimap {
   draw(frameDt:number): void {
     this.elapsed+=frameDt;if(this.elapsed<.1)return;this.elapsed=0;
     const c = this.ctx;
-    this.frame++;
     const bridgeState=this.bridgeState();
     if(bridgeState!==this.bridgeSignature){this.base=this.makeBase();this.bridgeSignature=bridgeState;}
     c.drawImage(this.base, 0, 0);
@@ -87,29 +85,8 @@ export class Minimap {
     }
 
 
-    // Fog – rebuild every 3rd frame into cache
-    if (this.frame - this.fogFrame >= 3 || !this.fogCache) {
-      this.fogFrame = this.frame;
-      if (!this.fogCache) {
-        this.fogCache = document.createElement("canvas");
-        this.fogCache.width = this.fogCache.height = S;
-      }
-      const fc = this.fogCache.getContext("2d")!;
-      fc.clearRect(0, 0, S, S);
-      const cellW = S / this.world.vision.width, cellH = S / this.world.vision.height;
-      for (let iz = 0; iz < this.world.vision.height; iz++) {
-        for (let ix = 0; ix < this.world.vision.width; ix++) {
-          const p = this.world.vision.cellToWorld(ix, iz);
-          const state = this.world.vision.stateAt(this.world.playerTeam, p.x, p.z);
-          if (state === 2) continue;
-          const x = (p.x + MAP_SIZE / 2) / MAP_SIZE * S;
-          const y = (p.z + MAP_SIZE / 2) / MAP_SIZE * S;
-          fc.fillStyle = state === 0 ? "rgba(5,8,9,.86)" : "rgba(5,8,9,.48)";
-          fc.fillRect(x, y, cellW + 0.5, cellH + 0.5);
-        }
-      }
-    }
-    c.drawImage(this.fogCache, 0, 0);
+    // Retain the full visibility grid; upload once when its revision/team changes.
+    this.fog.draw(c, this.world.playerTeam, S, S);
 
     // Industrial/resource sites: territory is economically meaningful, not just a score point.
     for (const r of this.world.resourcePoints) {
