@@ -82,7 +82,7 @@ it("v4 archetypes change relief and settlement silhouettes while preserving v3 r
 });
 
 it("v5 mountain relief uses compact rotated ridges while v4 maps retain the previous hills",()=>{
- const m=generateProceduralMap(27,"highlands"),old=generateProceduralMap(27,"highlands",1792,4);
+ const m=generateProceduralMap(27,"highlands",1792,5),old=generateProceduralMap(27,"highlands",1792,4);
  expect(m.id).toContain("procedural-v5-");expect(getPlayableMap(old.id)).toEqual(old);expect(getPlayableMap(m.id)).toEqual(m);
  expect(m.map.landforms!.length).toBeGreaterThan(0);expect(m.map.landforms!.every(f=>f.shape==="ridge"&&f.width<=185&&f.depth<=120)).toBe(true);
  expect(old.map.landforms!.every(f=>!f.shape&&f.width>=230)).toBe(true);

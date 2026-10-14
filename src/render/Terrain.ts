@@ -234,7 +234,10 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
     ctx.fillStyle=`#${(f.color??0x969572).toString(16).padStart(6,"0")}`;ctx.fillRect(-f.width/2,-f.depth/2,f.width,f.depth);
     ctx.globalCompositeOperation="multiply";ctx.fillStyle=cropPattern;ctx.fillRect(-f.width/2,-f.depth/2,f.width,f.depth);ctx.globalCompositeOperation="source-over";
     ctx.strokeStyle=f.color===0x927b70?"rgba(49,35,29,.23)":"rgba(63,67,42,.15)";ctx.lineWidth=.35;
-    for(let x=-f.width/2+1;x<f.width/2;x+=f.width>30?1.4:2.4){ctx.beginPath();ctx.moveTo(x,-f.depth/2);ctx.lineTo(x,f.depth/2);ctx.stroke();}
+    ctx.save();ctx.rotate(-(f.cropRotation??0));
+    const cropSpan=f.cropRotation!=null?Math.hypot(f.width,f.depth):Math.max(f.width,f.depth);
+    for(let x=-cropSpan/2+1;x<cropSpan/2;x+=f.width>30?1.4:2.4){ctx.beginPath();ctx.moveTo(x,-cropSpan/2);ctx.lineTo(x,cropSpan/2);ctx.stroke();}
+    ctx.restore();
     ctx.strokeStyle="rgba(60,65,44,.18)";ctx.lineWidth=1.2;ctx.strokeRect(-f.width/2+1.5,-f.depth/2+1.5,f.width-3,f.depth-3);
     for(let i=0;i<22;i++){ctx.fillStyle=`rgba(208,205,165,${.02+rnd()*.025})`;ctx.fillRect(-f.width/2+rnd()*f.width,-f.depth/2,1+rnd()*3,f.depth);}
   });
@@ -244,6 +247,17 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
     gradient.addColorStop(0,"rgba(49,68,43,.78)");gradient.addColorStop(.65,"rgba(57,74,46,.68)");gradient.addColorStop(1,"rgba(67,81,51,0)");
     ctx.fillStyle=gradient;ctx.beginPath();if(f.shape==="ellipse")ctx.arc(0,0,1,0,Math.PI*2);else ctx.rect(-1,-1,2,2);ctx.fill();
   });
+  // Rock/scree belongs to the shared height field, so relief reads at strategic zoom.
+  const rockCanvas=document.createElement("canvas");rockCanvas.width=rockCanvas.height=512;
+  const rc=rockCanvas.getContext("2d")!,rockData=rc.createImageData(512,512);
+  for(let iz=0;iz<512;iz++)for(let ix=0;ix<512;ix++){
+    const x=(ix+.5)/512*MAP_SIZE-half,z=(iz+.5)/512*MAP_SIZE-half,h=heightAt(x,z);
+    const slope=Math.hypot(heightAt(x+3,z)-heightAt(x-3,z),heightAt(x,z+3)-heightAt(x,z-3))/6;
+    const exposed=Math.min(.78,Math.max(0,(h-27)/35)*Math.min(1,slope*2+.25));
+    if(exposed<=0)continue;
+    const i=(iz*512+ix)*4,grain=rnd()*15;rockData.data.set([137+grain,137+grain,128+grain,Math.round(exposed*255)],i);
+  }
+  rc.putImageData(rockData,0,0);ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(rockCanvas,0,0,2048,2048);ctx.restore();
   // Mud and meadow banks follow the continuous watercourse, underneath bridges.
   ctx.lineCap="round";
   for(const width of [48,37,29]){

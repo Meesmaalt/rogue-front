@@ -179,5 +179,45 @@
       120
     ],
     "clearance": 70
+  },
+  "organicSettlements": {
+    "loopSegments": 20,
+    "spokeStride": 5,
+    "streetWidth": 4.8,
+    "lotSpacing": 11,
+    "frontageOffset": 11.5,
+    "lotClearance": 0.6,
+    "houseColors": [
+      9985868,
+      9066825,
+      6450031,
+      11510673
+    ],
+    "centerGrowth": 1.3
+  },
+  "mountainRanges": {
+    "peaksPerBelt": 7,
+    "peakSpacing": 0.075,
+    "alongRadius": 0.1,
+    "acrossRadius": 0.032,
+    "mountainHeight": [
+      38,
+      58
+    ],
+    "roadClearance": 10,
+    "obstacleSampleSpacing": 16,
+    "beltPosition": [
+      0.435,
+      0.448
+    ]
+  },
+  "landUse": {
+    "minimumArea": 120,
+    "parcelSpacing": 110,
+    "mountainForestHeight": 4,
+    "hedgeChance": 0.6,
+    "maxParcelPieces": 12,
+    "hedgeMinimumLength": 35,
+    "minimumCompactness": 0.018
   }
 }

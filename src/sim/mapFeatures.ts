@@ -20,6 +20,8 @@ export interface MapFeatureDef {
   label?: string;
   appearance?: "forest" | "field" | "farmhouse" | "hedge" | "resource-industrial" | "resource-oil" | "yard";
   color?: number;
+  /** Crop-row direction only; polygon bounds remain axis aligned for spatial queries. */
+  cropRotation?:number;
   buildingStyle?:"residential"|"rowhouse"|"industrial"|"rural";
   shape?:"ellipse";density?:number;
   polygon?:Point[];
