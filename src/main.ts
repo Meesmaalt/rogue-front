@@ -139,7 +139,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const performancePanel=new PerformancePanel(loadSettings().performanceOverlay??false);
   const gpuTimer=new GpuTimer(ctx.renderer.getContext());
   const gl=ctx.renderer.getContext(),debug=gl.getExtension("WEBGL_debug_renderer_info");
-  performancePanel.configure({clientBuild:"settlements-v7/performance-v2",mapId:mission.id,seed:mission.seed,mapSize:mission.map.size,buildingCount:world.mapFeatures.filter(f=>f.kind==="building").length,
+  performancePanel.configure({clientBuild:"settlements-v8/performance-v2",mapId:mission.id,seed:mission.seed,mapSize:mission.map.size,buildingCount:world.mapFeatures.filter(f=>f.kind==="building").length,
     browser:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,deviceMemoryGB:(navigator as Navigator&{deviceMemory?:number}).deviceMemory??null,
     graphics:debug?{vendor:gl.getParameter(debug.UNMASKED_VENDOR_WEBGL),renderer:gl.getParameter(debug.UNMASKED_RENDERER_WEBGL)}:{renderer:gl.getParameter(gl.RENDERER)},
     webglVersion:gl.getParameter(gl.VERSION),gpuTimerSupported:gpuTimer.supported,devicePixelRatio:window.devicePixelRatio});

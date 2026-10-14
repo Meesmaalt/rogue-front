@@ -9,7 +9,7 @@ it("keeps roof silhouette and textured facades with one distant-house draw",()=>
     createImageData:(w:number,h:number)=>({data:new Uint8ClampedArray(w*h*4)}),
     putImageData:()=>{},fillRect:()=>{},drawImage:()=>{},fillStyle:"",
   })})});
-  for(const style of ["residential","rowhouse","industrial","apartment","shop","barn","warehouse"] as const)for(const height of [3.6,6.4])for(const variant of [1,3]){
+  for(const style of ["residential","rowhouse","industrial","apartment","shop","barn","warehouse","civic"] as const)for(const height of [3.6,6.4])for(const variant of [1,3]){
     const near=createCivilianBuilding(6.4,7.2,height,variant,false,undefined,style),far=createCivilianBuilding(6.4,7.2,height,variant,true,undefined,style);
     const nearBounds=new THREE.Box3().setFromObject(near),farBounds=new THREE.Box3().setFromObject(far);
     expect(Math.abs(nearBounds.max.y-farBounds.max.y)).toBeLessThan(.2);
@@ -17,7 +17,8 @@ it("keeps roof silhouette and textured facades with one distant-house draw",()=>
     expect((facade(near).material as THREE.MeshStandardMaterial).map).toBeTruthy();
     expect(far.children).toHaveLength(1);expect((facade(far).material as THREE.MeshStandardMaterial).vertexColors).toBe(true);
     expect(near.children).toHaveLength(1);expect((facade(near).material)).toBe(facade(far).material);
-    expect(farBounds.max.y).toBeGreaterThan(height);
+    expect(farBounds.max.y).toBeGreaterThanOrEqual(height-1e-5);
+    if(style==="civic")expect(farBounds.max.y).toBeLessThanOrEqual(height+1e-5);
     for(const g of [near,far])g.traverse(o=>{if(o instanceof THREE.Mesh){expect([...o.geometry.attributes.position.array].every(Number.isFinite)).toBe(true);o.geometry.dispose();}});
   }
 });

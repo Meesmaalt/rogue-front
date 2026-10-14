@@ -25,7 +25,7 @@ function clip(points:Point[],nx:number,nz:number,limit:number):Point[] {
 }
 
 export const GENERATED_MAP_SIZES:readonly number[]=config.largeSizes;
-export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5|6|7=7):MissionDef {
+export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5|6|7|8=8):MissionDef {
   // 1280 retains v2 geometry for existing saved matches; v3 sizes are deliberately bounded.
   const legacy=requestedSize===config.size;
   if(!legacy&&!GENERATED_MAP_SIZES.includes(requestedSize))throw new Error("Kaardi suurus pole toetatud");
@@ -106,7 +106,7 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
   // Compact lots follow streets. A town transform rotates its whole ward, never individual random houses.
   for(let ti=0;ti<towns.length;ti++){
     const style=regional?profile.styles[ti%profile.styles.length] as MapFeatureDef["buildingStyle"]:undefined;
-    if(landscape&&generationVersion>=7){features.push(...buildVariedSettlement(ti,towns[ti],rng,features,archetype==="forest"));continue;}
+    if(landscape&&generationVersion>=7){features.push(...buildVariedSettlement(ti,towns[ti],rng,features,archetype==="forest",generationVersion>=8));continue;}
     if(landscape){
       features.push(...buildOrganicTown(ti,towns[ti],style,profile.height,profile.houseChance,rng,features));continue;
     }
@@ -277,8 +277,8 @@ export const GENERATED_MAP=generateProceduralMap(62510,"balanced");
 export const CURATED_MAPS:readonly MissionDef[]=[FOCUS_MAP,tidebreaker as unknown as MissionDef];
 export function getPlayableMap(id:string):MissionDef|undefined {
   const fixed=CURATED_MAPS.find(m=>m.id===id);if(fixed)return fixed;
-  const regional=/^procedural-v(3|4|5|6|7)-(balanced|river|highlands|urban|coastal|forest)-(1536|1792|2048)-(\d+)$/.exec(id);
-  if(regional)return Number(regional[4])<=4294967295?generateProceduralMap(Number(regional[4]),regional[2] as MapArchetype,Number(regional[3]),Number(regional[1]) as 3|4|5|6|7):undefined;
+  const regional=/^procedural-v(3|4|5|6|7|8)-(balanced|river|highlands|urban|coastal|forest)-(1536|1792|2048)-(\d+)$/.exec(id);
+  if(regional)return Number(regional[4])<=4294967295?generateProceduralMap(Number(regional[4]),regional[2] as MapArchetype,Number(regional[3]),Number(regional[1]) as 3|4|5|6|7|8):undefined;
   const match=/^procedural-(?:v2-)?(balanced|river|highlands|urban|coastal|forest)-(\d+)$/.exec(id);
   if(!match||Number(match[2])>4294967295)return undefined;
   const map=generateProceduralMap(Number(match[2]),match[1] as MapArchetype,config.size);

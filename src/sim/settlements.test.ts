@@ -26,7 +26,7 @@ it('seeded settlements mix real footprints and sizes and retain clear roads and 
 });
 it('v7 includes connected three-building factory yards and restores older v6 identities',()=>{
  for(const seed of [27,62510,8103]){
-  const m=generateProceduralMap(seed),f=m.map.features!;
+  const m=generateProceduralMap(seed,"balanced",1792,7),f=m.map.features!;
   for(const house of f.filter(x=>x.kind==='building')){const hit=f.find(x=>(x.kind==='road'||x.kind==='water')&&footprintsOverlap(house,x,.5));expect(hit,house.id+' / '+hit?.id).toBeUndefined();}
   expect(m.id).toContain('procedural-v7-');expect(getPlayableMap(m.id)).toEqual(m);
   const factories=f.filter(f=>f.id.startsWith('industry-')&&f.buildingStyle==='industrial');expect(factories.length).toBeGreaterThan(0);
@@ -36,7 +36,7 @@ it('v7 includes connected three-building factory yards and restores older v6 ide
 });
 it('dense v7 streets and industries preserve regional economic routes',()=>{
  for(const [seed,type,size] of [[62510,'balanced',1792],[27,'urban',1536],[8103,'highlands',2048]] as const){
-  const m=generateProceduralMap(seed,type,size),map=m.map;
+  const m=generateProceduralMap(seed,type,size,7),map=m.map;
   setMapSize(size);setBases(map.bases);setTerrainProfile(map.terrainProfile,map.landforms);setProceduralSeed(seed);
   const w=new World(seed,false,map.resources,map.features,map.bases,false);
   expect(findPath(w.nav,map.bases[0],map.bases[1],1.5).length).toBeGreaterThan(1);
@@ -46,7 +46,7 @@ it('dense v7 streets and industries preserve regional economic routes',()=>{
 
 it('v7 generation succeeds over seed boundaries and all archetypes',()=>{
  for(const seed of [0,1,2,3,27,8103,62510,4294967295])for(const type of ['balanced','river','highlands','urban','coastal','forest'] as const){
-  const m=generateProceduralMap(seed,type);
+  const m=generateProceduralMap(seed,type,1792,7);
   expect(m.map.resources).toHaveLength(9);expect(m.map.features!.filter(f=>f.kind==='building').length).toBeGreaterThan(100);
  }
 },30000);

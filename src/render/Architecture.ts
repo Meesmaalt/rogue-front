@@ -64,29 +64,40 @@ function facade(g:THREE.Group,w:number,d:number,h:number,floors:number,wall:THRE
   for(const x of [-w/2+.12,w/2-.12])box(g,.07,h,.09,x,h/2,d/2+.12,frames);
 }
 /** Original civilian models: gable roof, facade, sill, rain pipes, chimney and annex. */
-export function createCivilianBuilding(width:number,depth:number,height:number,variant=0,tactical=false,roofColor?:number,style:MapFeatureDef["buildingStyle"]="residential"):THREE.Group {
-  const g=new THREE.Group(),wall=material([0xb9b4a3,0xa39f91,0xc5bba7,0x9a9d8e][variant%4],(style==="industrial"||style==="warehouse")?"metal":height>8?"facade3":height>5?"facade2":"facade1"),concrete=material(0x8c8e83,"concrete"),tiles=material(roofColor??[0x706259,0x565f61,0x8a7060][variant%3],"roof");
+export function createCivilianBuilding(width:number,depth:number,height:number,variant=0,tactical=false,roofColor?:number,style:MapFeatureDef["buildingStyle"]="residential",facadeColor?:number):THREE.Group {
+  const g=new THREE.Group(),wall=material(facadeColor??[0xb9b4a3,0xa39f91,0xc5bba7,0x9a9d8e][variant%4],(style==="industrial"||style==="warehouse")?"metal":height>8?"facade3":height>5?"facade2":"facade1"),concrete=material(0x8c8e83,"concrete"),tiles=material(roofColor??[0x706259,0x565f61,0x8a7060][variant%3],"roof");
   // Height describes the whole house, rather than a wall plus an extra tall roof.
-  const rise=(style==="industrial"||style==="apartment")?.24:Math.min(1.25,height*.22),wallHeight=height-rise-.2;
+  const bodyHeight=style==="civic"?height*.65:height;
+  const rise=(style==="industrial"||style==="apartment")?.24:Math.min(1.25,bodyHeight*.22),wallHeight=bodyHeight-rise-.2;
   box(g,width+.3,.2,depth+.3,0,.1,0,concrete);
   box(g,width,wallHeight,depth,0,wallHeight/2+.2,0,wall);
   if(style==="industrial"||style==="apartment")box(g,width+.35,.24,depth+.35,0,height-.12,0,material(0x7c8384,"metal"));
   else if(style==="rowhouse"||variant%4===1)hipRoof(g,width+.35,depth+.35,wallHeight+.2,rise,tiles);else roof(g,width+.35,depth+.35,wallHeight+.2,rise,tiles);
   box(g,1.15,1.95,.10,0,1.18,depth/2+.06,material(0x514f43,"metal"));
   box(g,1.65,.14,.85,0,.12,depth/2+.35,concrete);
-  box(g,.42,.85,.45,width*.25,height-.05,-depth*.2,material(0x8a786b,"brick"));
+  if(style!=="civic")box(g,.42,.85,.45,width*.25,height-.05,-depth*.2,material(0x8a786b,"brick"));
   if(style==="industrial"){
     box(g,2,height*.6,2,-width*.35,height*1.3,-depth*.3,material(0x8a786b,"brick"));
     for(const x of [-width*.22,width*.22])box(g,width*.25,3,.16,x,1.7,depth/2+.1,material(0x514f43,"metal"));
   }
-  if(style==="apartment")box(g,width*.7,.6,depth*.6,0,height+.3,0,concrete);
+  if(style==="civic"){
+    const towerW=Math.min(3.6,width*.28),towerD=Math.min(3.8,depth*.28),towerZ=-depth*.18;
+    box(g,towerW,height*.3,towerD,0,height*.8,towerZ,wall);
+    const tower=new THREE.Group();hipRoof(tower,towerW+.2,towerD+.2,height*.95,height*.05,tiles);tower.position.z=towerZ;g.add(tower);
+    for(const side of [-1,1])box(g,towerW*.48,towerW*.48,.08,0,height*.83,towerZ+side*(towerD/2+.04),concrete);
+  }
+  if(style==="apartment"){
+    box(g,width*.7,.6,depth*.6,0,height+.3,0,concrete);
+    if(!tactical)for(let y=3;y<height-1;y+=3)for(const side of [-1,1])box(g,width*.28,.13,.7,side*width*.26,y,depth/2+.26,concrete);
+  }
+  if(style==="rowhouse")for(const side of [-1,1])box(g,1.1,1.9,.1,side*width*.28,1.1,depth/2+.08,material(0x514f43,"metal"));
   if(style==="shop"){box(g,width*.8,.16,1.7,0,2.6,depth/2+.7,tiles);box(g,width*.6,1.3,.12,0,1.7,depth/2+.09,material(0x334951,undefined,.35));}
   if(style==="barn"||style==="warehouse")box(g,width*.45,height*.55,.14,0,height*.29,depth/2+.1,material(0x514f43,"metal"));
   if(!tactical){
     // Windows are baked into the shared facade atlas in both LODs.
     // Keep small close-view rain pipes, rather than hundreds of window boxes.
     for(const x of [-width/2+.12,width/2-.12])box(g,.07,wallHeight,.09,x,wallHeight/2+.2,depth/2+.12,concrete);
-    box(g,.55,.1,.6,width*.25,height+.42,-depth*.2,concrete);
+    if(style!=="civic")box(g,.55,.1,.6,width*.25,height+.42,-depth*.2,concrete);
     // Alternate a porch and a small storefront; avoid giant overlapping annexes.
     if(variant%3===0){box(g,2,.12,1.2,0,.15,depth/2+.55,concrete);box(g,2.2,.12,1.4,0,2.35,depth/2+.6,tiles);}
     if(variant%3===1){box(g,2,.95,.12,-width*.23,1.45,depth/2+.1,material(0x334951,undefined,.35));box(g,2.2,.12,.75,-width*.23,2.1,depth/2+.35,tiles);}

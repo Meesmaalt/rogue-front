@@ -6,6 +6,9 @@ export class TerrainCulling {
   private readonly entries:Array<{lod:THREE.LOD;bounds:THREE.Sphere}>=[];
   private readonly frustum=new THREE.Frustum();
   private readonly projection=new THREE.Matrix4();
+  private readonly previousProjection=new THREE.Matrix4();
+  private readonly previousCameraWorld=new THREE.Matrix4();
+  private camera:THREE.Camera|undefined;
   visibleGroups=0;
   get totalGroups():number{return this.entries.length;}
   constructor(terrain:THREE.Group,margin=terrainConfig.render.visibilityMargin){
@@ -18,7 +21,10 @@ export class TerrainCulling {
     });
   }
   sync(camera:THREE.Camera):void {
-    camera.updateMatrixWorld();this.frustum.setFromProjectionMatrix(this.projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
+    camera.updateMatrixWorld();
+    if(this.camera===camera&&this.previousProjection.equals(camera.projectionMatrix)&&this.previousCameraWorld.equals(camera.matrixWorld))return;
+    this.camera=camera;this.previousProjection.copy(camera.projectionMatrix);this.previousCameraWorld.copy(camera.matrixWorld);
+    this.frustum.setFromProjectionMatrix(this.projection.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
     this.visibleGroups=0;
     for(const {lod,bounds} of this.entries){
       lod.visible=this.frustum.intersectsSphere(bounds);

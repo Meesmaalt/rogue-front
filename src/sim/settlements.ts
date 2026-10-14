@@ -2,7 +2,7 @@ import config from '../data/map-generation.json';
 import {Rng} from './rng';
 import {featureCorners,type MapFeatureDef} from './mapFeatures';
 import type {Point} from './types';
-export type SettlementLayout='oldtown'|'grid'|'ribbon'|'fork';
+export type SettlementLayout='oldtown'|'grid'|'ribbon'|'fork'|'crescent'|'courtyard';
 export interface Settlement extends Point {angle:number;blocks:number}
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
 /** Separating-axis footprint test allows close neighbours without overlapping rotated lots. */
@@ -17,10 +17,11 @@ export function footprintsOverlap(a:MapFeatureDef,b:MapFeatureDef,clearance=0):b
  }
  return true;
 }
-export function buildVariedSettlement(index:number,town:Settlement,rng:Rng,existing:readonly MapFeatureDef[],rural=false):MapFeatureDef[] {
+export function buildVariedSettlement(index:number,town:Settlement,rng:Rng,existing:readonly MapFeatureDef[],rural=false,refined=false):MapFeatureDef[] {
  const cfg=config.settlementVariety,random=(a:number,b:number)=>a+(b-a)*rng.next();
  const role=index===0?'city':index===1?'town':index%3===2?'hamlet':'village';
- const layout=(role==='hamlet'?'ribbon':cfg.layouts[Math.floor(rng.next()*cfg.layouts.length)]) as SettlementLayout;
+ const refinement=config.settlementRefinement,layouts=refined?refinement.layouts:cfg.layouts;
+ const layout=(role==='hamlet'?'ribbon':layouts[Math.floor(rng.next()*layouts.length)]) as SettlementLayout;
  const scale=cfg.roles[role],span=town.blocks*cfg.blockSpan*random(scale.spread[0],scale.spread[1]);
  const transform=(x:number,z:number):Point=>({x:town.x+x*Math.cos(town.angle)+z*Math.sin(town.angle),z:town.z-x*Math.sin(town.angle)+z*Math.cos(town.angle)});
  const streets:MapFeatureDef[]=[],features:MapFeatureDef[]=[];
@@ -29,7 +30,19 @@ export function buildVariedSettlement(index:number,town:Settlement,rng:Rng,exist
  const extent=town.blocks*config.blockDepth/2+35,spineX=-town.blocks*config.blockWidth/2+Math.ceil(town.blocks/2)*config.blockWidth;
  // Preserve the regional connection anchors independently of the settlement shape.
  road('spine',transform(spineX,-Math.max(extent,span)),transform(spineX,Math.max(extent,span)));
- if(layout==='grid'){
+ if(refined&&layout==='grid'){
+  const count=role==='city'?cfg.cityGridStreets:cfg.villageGridStreets,gap=span*2/count;
+  const nodes=Array.from({length:count+1},(_,ix)=>Array.from({length:count+1},(_,iz)=>transform(-span+ix*gap+(ix>0&&ix<count?random(-gap*refinement.gridJitter,gap*refinement.gridJitter):0),-span+iz*gap+(iz>0&&iz<count?random(-gap*refinement.gridJitter,gap*refinement.gridJitter):0))));
+  for(let i=0;i<=count;i++){line(`cross-${i}`,nodes[i]);line(`block-${i}`,nodes.map(row=>row[i]));}
+ }else if(refined&&(layout==='crescent'||layout==='courtyard')){
+  const points=Array.from({length:cfg.loopSegments+1},(_,i)=>{
+   const a=(layout==='crescent'?.2:0)+i/cfg.loopSegments*Math.PI*(layout==='crescent'?1.6:2);
+   return transform(Math.cos(a)*span,Math.sin(a)*span*.72);
+  });line('perimeter',points);
+  const anchor=transform(spineX,0);
+  for(const i of [0,Math.floor(cfg.loopSegments/3),Math.floor(cfg.loopSegments*2/3),cfg.loopSegments])road(`connector-${i}`,anchor,points[i]);
+  if(layout==='courtyard')line('cross-ward',[points[Math.floor(cfg.loopSegments/4)],transform(-span*.25,0),points[Math.floor(cfg.loopSegments*3/4)]]);
+ }else if(layout==='grid'){
   const count=role==='city'?cfg.cityGridStreets:cfg.villageGridStreets,gap=span*2/count;
   for(let i=0;i<=count;i++){
    const offset=-span+i*gap;
@@ -56,21 +69,34 @@ export function buildVariedSettlement(index:number,town:Settlement,rng:Rng,exist
  }
  road('boundary',town,transform(town.blocks*config.blockWidth/2,0));
  const blockers=[...existing,...streets].filter(f=>['building','road','bridge','water'].includes(f.kind));
- const houses:MapFeatureDef[]=[];
+ const houses:MapFeatureDef[]=[],parks:MapFeatureDef[]=[];
+ let civicPlaced=false;
+ if(refined&&role!=='hamlet'){
+  for(let i=0;i<refinement.parkCount;i++)for(let attempt=0;attempt<12;attempt++){
+   const p=transform(random(-span*.65,span*.65),random(-span*.65,span*.65)),width=random(refinement.parkWidth[0],refinement.parkWidth[1]);
+   const park:MapFeatureDef={id:`town-${index}-park-${i}`,kind:'cover',appearance:'forest',...p,width,depth:width*1.15,shape:'ellipse',height:4.5,density:refinement.parkDensity,blocksMovement:false,label:role==='city'?'Linnapark':'Külasalu'};
+   if(blockers.some(f=>footprintsOverlap(park,f,3))||parks.some(f=>footprintsOverlap(park,f,3)))continue;
+   parks.push(park);features.push(park);break;
+  }
+ }
+ const paletteIndex=refined?Math.floor(rng.next()*refinement.facades.length):0;
+
  for(const street of streets){
   const angle=street.rotation??0,length=street.depth;
   for(const side of [-1,1]){
    let cursor=-length/2+cfg.cornerSetback;
    while(cursor<length/2-cfg.cornerSetback){
     const core=role==='city'||role==='town';
-    const styles=rural?cfg.ruralStyles:core?cfg.urbanStyles:cfg.villageStyles;
-    const style=styles[Math.floor(rng.next()*styles.length)] as NonNullable<MapFeatureDef['buildingStyle']>,def=cfg.buildings[style];
+    const tEstimate=cursor+5,pEstimate={x:street.x+Math.sin(angle)*tEstimate,z:street.z+Math.cos(angle)*tEstimate},central=distance(pEstimate,town)<span*refinement.centerRadius;
+    const styles=rural?cfg.ruralStyles:refined&&core?(central?refinement.centerStyles:refinement.edgeStyles):core?cfg.urbanStyles:cfg.villageStyles;
+    const style=refined&&!civicPlaced&&role!=='hamlet'&&central?'civic':styles[Math.floor(rng.next()*styles.length)] as NonNullable<MapFeatureDef['buildingStyle']>,def=cfg.buildings[style];
     const width=random(def.width[0],def.width[1]),depth=random(def.depth[0],def.depth[1]),height=random(def.height[0],def.height[1]);
     const t=cursor+width/2;cursor+=width+random(scale.gap[0],scale.gap[1]);
     if(t+width/2>length/2-cfg.cornerSetback||rng.next()>scale.occupancy)continue;
     const offset=side*(street.width/2+depth/2+cfg.frontSetback);
-    const house:MapFeatureDef={id:`town-${index}-house-${houses.length}`,kind:'building',appearance:'farmhouse',x:street.x+Math.sin(angle)*t+Math.cos(angle)*offset,z:street.z+Math.cos(angle)*t-Math.sin(angle)*offset,width,depth,height,rotation:angle+Math.PI/2+(side<0?Math.PI:0),buildingStyle:style,color:cfg.roofColors[Math.floor(rng.next()*cfg.roofColors.length)],label:def.label,garrisonCapacity:style==='apartment'?3:1};
-    if(blockers.some(f=>footprintsOverlap(house,f,cfg.minimumClearance))||houses.some(f=>footprintsOverlap(house,f,cfg.minimumClearance)))continue;
+    const house:MapFeatureDef={id:`town-${index}-house-${houses.length}`,kind:'building',appearance:'farmhouse',x:street.x+Math.sin(angle)*t+Math.cos(angle)*offset,z:street.z+Math.cos(angle)*t-Math.sin(angle)*offset,width,depth,height,rotation:angle+Math.PI/2+(side<0?Math.PI:0),buildingStyle:style,color:(refined?(core?refinement.cityRoofs:refinement.villageRoofs):cfg.roofColors)[Math.floor(rng.next()*(refined?3:cfg.roofColors.length))],...(refined?{facadeColor:refinement.facades[(paletteIndex+(houses.length%3===0?1:0))%refinement.facades.length],district:rural?'rural' as const:central?'center' as const:'residential' as const}:{}),label:style==='civic'&&role!=='city'?'Külakeskus':def.label,garrisonCapacity:style==='apartment'?3:1};
+    if(blockers.some(f=>footprintsOverlap(house,f,cfg.minimumClearance))||houses.some(f=>footprintsOverlap(house,f,cfg.minimumClearance))||parks.some(f=>footprintsOverlap(house,f,2)))continue;
+    if(style==='civic')civicPlaced=true;
     houses.push(house);features.push(house,{id:`garden-${house.id}`,kind:'cover',appearance:'yard',x:house.x,z:house.z,width:width+1,depth:depth+2,rotation:house.rotation,color:0x919981,blocksMovement:false});
    }
   }

@@ -436,7 +436,69 @@
           6
         ],
         "label": "Ladu"
+      },
+      "civic": {
+        "width": [
+          10,
+          13
+        ],
+        "depth": [
+          11,
+          14
+        ],
+        "height": [
+          10,
+          14
+        ],
+        "label": "Raekoda"
       }
     }
+  },
+  "settlementRefinement": {
+    "layouts": [
+      "oldtown",
+      "grid",
+      "ribbon",
+      "fork",
+      "crescent",
+      "courtyard"
+    ],
+    "gridJitter": 0.12,
+    "centerRadius": 0.7,
+    "centerStyles": [
+      "apartment",
+      "rowhouse",
+      "rowhouse",
+      "shop",
+      "shop"
+    ],
+    "edgeStyles": [
+      "residential",
+      "residential",
+      "rowhouse",
+      "rural"
+    ],
+    "parkCount": 2,
+    "parkWidth": [
+      13,
+      22
+    ],
+    "parkDensity": 0.48,
+    "facades": [
+      13155238,
+      11974306,
+      13748405,
+      11055013
+    ],
+    "cityRoofs": [
+      6708827,
+      7694430,
+      8416352
+    ],
+    "villageRoofs": [
+      9265230,
+      9595990,
+      6909288
+    ]
   }
 }
