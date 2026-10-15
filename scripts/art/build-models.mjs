@@ -159,7 +159,7 @@ function batch(node){
   }
   for(const [material,geometries]of buckets){const joined=mergeGeometries(geometries);const g=mergeVertices(joined,1e-5);joined.dispose();g.computeBoundingSphere();const m=new T.Mesh(g,material);m.name=material.name;node.add(m);for(const geo of geometries)geo.dispose();}
 }
-const kinds=['tank','lightTank','ifv','apc','reconVehicle','tankDestroyer','artillery','mlrs','spaa','fighter','interceptor','multirole','attackAircraft','ecm','bomber','heli','gunship','casHeli','transport','cargoPlane','logiTruck'];
+const kinds=JSON.parse(await readFile(new URL('../../src/data/art-models.json',import.meta.url),'utf8'));
 const manifest={version:2,author:'Rogue Front original art',models:[]};
 for(const f of Object.keys(palettes)){await mkdir(new URL(f+'/',out),{recursive:true});for(const kind of kinds)for(const lod of ['detail','tactical']){detail=lod==='detail';materialSet(f);let p;
   if(kind==='tank'||kind==='lightTank')p=tank(f,kind);else if(['ifv','apc','reconVehicle','tankDestroyer'].includes(kind))p=armored(f,kind);else if(kind==='artillery'||kind==='mlrs')p=artillery(f,kind);else if(kind==='spaa')p=spaa(f);else if(kind==='logiTruck')p=truck(f,kind);else if(['heli','gunship','casHeli','transport'].includes(kind))p=helicopter(f,kind);else p=jet(f,kind);

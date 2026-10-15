@@ -1,0 +1,23 @@
+[
+  "tank",
+  "lightTank",
+  "ifv",
+  "apc",
+  "reconVehicle",
+  "tankDestroyer",
+  "artillery",
+  "mlrs",
+  "spaa",
+  "fighter",
+  "interceptor",
+  "multirole",
+  "attackAircraft",
+  "ecm",
+  "bomber",
+  "heli",
+  "gunship",
+  "casHeli",
+  "transport",
+  "cargoPlane",
+  "logiTruck"
+]

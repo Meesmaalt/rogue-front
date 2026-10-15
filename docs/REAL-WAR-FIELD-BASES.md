@@ -20,7 +20,7 @@ Puude pindalatihedus suureneb ning lähi-LOD lisab madalad põõsad. Põõsad ei
 
 Sõjaväehoonete madalad kamuflaažkatused, avatud varjualused, kastid, tünnid, antennid, mahutid, tornid ja töökojad lähtuvad kasutaja Real Wari näidispildi vormidest. Geomeetria on projekti oma. Lennuvälja lennuraja ja parkimiskohtade asukohad säilivad. Bunkri ja õhutõrje relvatornid kasutavad endiselt olemasolevaid liikuvaid mudeleid.
 
-![Mudelite geomeetria ja tekstuuride CPU eelvaade; mitte mängu GPU ekraanitõmmis](images/fieldbase-models.png)
+![Mudelite geomeetria ja tekstuuride CPU eelvaade; mitte mängu GPU ekraanitõmmis](images/fieldbase-models.webp)
 
 Eelvaade näitab tegelike mudelite geomeetriat/UV-tekstuure eraldi CPU projitseerimisega. See ei kinnita mängu valgustust, GPU renderdust ega FPS-i.
 

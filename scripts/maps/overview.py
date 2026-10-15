@@ -22,4 +22,4 @@ for ax,p,title in zip(axes[0],paths,['Enne · kattuvad kihid','Pärast · korras
  for i,b in enumerate(m['bases']):ax.add_patch(Circle((b['x'],b['z']),b['r'],color='#c0bbb0',alpha=.8));ax.text(b['x'],b['z'],'BAAS '+str(i+1),fontsize=8,ha='center',color='#283327')
  for r in m['resources']:ax.plot(r['x'],r['z'],'o',ms=5,color='#e4cb85',mec='#535846')
  ax.set(xlim=(-half,half),ylim=(half,-half),aspect='equal',title=title);ax.set_xlabel('meetrit');ax.set_ylabel('meetrit')
-fig.suptitle('Kaardiandmete paigutusskeem · mitte mängu render',fontsize=11);fig.tight_layout();fig.savefig(root/'docs/checks/roheorg-layout-comparison.png',dpi=150);plt.close(fig)
+fig.suptitle('Kaardiandmete paigutusskeem · mitte mängu render',fontsize=11);fig.tight_layout();fig.savefig(root/'docs/checks/roheorg-layout-comparison.webp',dpi=150,pil_kwargs={'lossless':True,'method':6,'exact':True});plt.close(fig)

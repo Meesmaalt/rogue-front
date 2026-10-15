@@ -1,5 +1,13 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Failide ja väljalaske korrastus · 15.10.2026
+
+- [x] 18 kontrollpildi kadudeta WebP, pikslivõrdlus ja dokumentatsiooniviited; generaatori uuendus.
+- [x] Kontrollitud kompaktne dist: 83 kasutamata GLB eemaldamine ainult väljalaskest, ühine mudelinimekiri, originaalide säilitamine ja neli paketikontrolli.
+- [x] Production-GLB MIME/gzip/proksipakkimine ja vahemälu korduvkontroll; Dockeri kontekstide korrastus. Vt CLEANUP-RELEASE.md.
+- [ ] Pärast production-redeploy'd Nginxi HTTP gzip-vastuse kontroll.
+
+
 ## Liikumisfüüsika ja vedrustus · 15.10.2026
 
 - [x] Meetrites maasõidukite nõlvajõud, haarduvus, koormatud veoki kiirendus ning kurvi eel pidurdamine; peatumise teepikkuse integraator.

@@ -27,6 +27,6 @@ Need on stiliseeritud originaalmudelid. Sama perekonna rollivariandid jagavad ge
 - `npm run build`: TypeScript ja Vite tootmisbuild läbisid. Mittetõkestav API impordi bundleri teade jääb.
 - `npx vitest run src/sim/CoreLoop.test.ts src/sim/SaveState.test.ts`: 6/6 testi. Sealhulgas kahe perspektiivi decki piirang, päris tootmine, sama hash ja snapshot'i taastamine.
 - Kaks eraldi autentitud brauserikonteksti + päris Node/WS server: USA vs Hiina, esimene tick, hiirega liikumiskäsk mõlemale kliendile, socketi katkestus ja sama lehe reconnect, 20 ühist ticki ning sunnitud desync'i peatamine mõlemal poolel. Pageerror'e ei olnud. `art-multiplayer-check.json`.
-- Seitsme mudeli brauserivaatlus ja kampaanialahingu avamine: `art-browser-check.json`; pildid `docs/checks/arsenal-*.png` ja `art-in-battle.png`.
+- Seitsme mudeli brauserivaatlus ja kampaanialahingu avamine: `art-browser-check.json`; pildid `docs/checks/arsenal-*.webp` ja `art-in-battle.webp`.
 
 Täielikku testikomplekti selles art-uuenduses ei korratud. Docker/Nginx konfiguratsiooni konteinerkäivitust, WAN-võrku, serveri taaskäivitust ega pikka võrgulahingut ei kontrollitud. Serveri ruumid ja käsuajalugu on mälus; taaskäivituse järel aktiivset lahingut ei taastata. GPU 60 FPS-i ei väideta: brauserikontroll kasutas tarkvaralist WebGL-i.

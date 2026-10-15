@@ -18,7 +18,7 @@ Brauseriplatvorm säilib. Peamenüü üksiklahing keskendub Roheorule; vanad kaa
 ## Kontroll
 `npm run build`; valitud regressioonid `npx vitest run src/sim/Roheorg.test.ts src/sim/CoreLoop.test.ts src/sim/SaveState.test.ts` (8 kontrolli). Need katavad takistusest möödumise, valmis baasi tootmisvõime, tegeliku lahingukahju ja moona tarbimise, salvestuse deterministliku jätkamise, majandus-/tootmisahela ja kahe meeskonna samasuse.
 
-Brauseri tulemused ja pildid: `docs/checks/roheorg-browser.json`, `roheorg-start.png`, `roheorg-battle.png`. Need kirjeldavad konkreetset läbimängu, mitte kogu mängu valmimise tõendit. Tarkvaraline WebGL ei anna mängija GPU jõudluse mõõtmist.
+Brauseri tulemused ja pildid: `docs/checks/roheorg-browser.json`, `roheorg-start.webp`, `roheorg-battle.webp`. Need kirjeldavad konkreetset läbimängu, mitte kogu mängu valmimise tõendit. Tarkvaraline WebGL ei anna mängija GPU jõudluse mõõtmist.
 
 Pildikaartide taastamine: installi Playwright koos Chromiumiga ja PIL; käivita projekti juures `node scripts/art/capture-thumbnails.cjs`. Soovi korral `PLAYWRIGHT_MODULE` ja `CHROMIUM_EXECUTABLE` keskkonnamuutujad.
 

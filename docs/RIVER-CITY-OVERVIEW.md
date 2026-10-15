@@ -1,6 +1,6 @@
 # Roheorg: jõgi, linnad, metsad ja taktikaline üldvaade
 
-Kasutaja võrdluspilt: reference/wargame-overview.png. Eesmärk on loetav taktikaline kaart: jõgi määrab ületuskohad, linnad ja metsad annavad erinevaid lahingupositsioone ning kaugelt tuntakse üksusi märkide järgi.
+Kasutaja võrdluspilt: reference/wargame-overview.webp. Eesmärk on loetav taktikaline kaart: jõgi määrab ületuskohad, linnad ja metsad annavad erinevaid lahingupositsioone ning kaugelt tuntakse üksusi märkide järgi.
 
 ## Tegelik ühendus
 

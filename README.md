@@ -193,3 +193,9 @@ GLB-d ja tekstuurid on projektis olemas. Ainult art’i uuesti genereerimine vaj
 Selle uuenduse põhikontroll: 6 simulatsiooni/save-load testi, tootmisbuild, mudelite brauserivaatlus ja kahe brauserikliendi start/käsk/reconnect/desync. Ülevaade ning piirangud: [docs/ART-MULTIPLAYER-RELEASE.md](docs/ART-MULTIPLAYER-RELEASE.md).
 
 Suure kaardi maapind on kuni 256 m tükkides: nähtamatu piirkonna geomeetriat ei saadeta tervikuna igal kaadril renderdusse. Metsa/maja LOD-grupid lülitatakse kaamera frustumist väljaspool enne detailide läbimist välja. F8 jõudluspaneel näitab nähtavate maastikugruppide arvu koos kaadriaegade ja draw/triangle näitudega; see võimaldab jätkuvaid jõnkse eristada sim/render koormuseks. Tegelik GPU FPS pole arenduskeskkonnas kinnitatud.
+
+### Kompaktne väljalase
+
+`npm run build` teeb kontrollitud kompaktse `dist` paketi: mängu põhiklasside, logistika ja arsenali mudelid säilivad; vanade mittevalitavate masinatüüpide GLB-d ning kasutamata esialgsed asendusmudelid jäävad ainult lähtepuusse. Kõigi mudelite allikad ja kvaliteet säilivad. `npm run test:release` kontrollib paketi ressursse ja baitide vastavust originaalidele.
+
+Production-Nginx kasutab GLB jaoks õiget MIME-tüüpi ja gzip-pakkimist. Dockerisse ei kopeerita ajaloolisi raporteid, kontrollpilte ega multiplayeri eraldi konteksti. Dokumentatsiooni PNG-de kadudeta WebP teisendus: `python3 scripts/art/compact-doc-images.py` (Pillow; kontrollib dekodeeritud RGBA piksleid). Muudatused rakenduvad pärast tavalist pull/build/redeploy käiku. Täpsemad mahud ja kontrollid: [CLEANUP-RELEASE.md](docs/CLEANUP-RELEASE.md).

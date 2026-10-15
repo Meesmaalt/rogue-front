@@ -2,3 +2,10 @@ node_modules
 dist
 .git
 *.log
+.DS_Store
+# Historical reports and screenshots are development evidence, not build inputs.
+docs
+checks
+prototype
+# The multiplayer service has its own Docker build context.
+server

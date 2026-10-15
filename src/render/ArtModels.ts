@@ -1,3 +1,4 @@
+import artKinds from "../data/art-models.json";
 import {CORE_PLATFORMS} from "../sim/platforms";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -5,7 +6,7 @@ import type { FactionId } from "../sim/factions";
 import type { Team, UnitKind } from "../sim/types";
 import type { Model } from "./models";
 
-export const ART_KINDS: UnitKind[] = ["tank", "lightTank", "ifv", "apc", "reconVehicle", "tankDestroyer", "artillery", "mlrs", "spaa", "fighter", "interceptor", "multirole", "attackAircraft", "ecm", "bomber", "heli", "gunship", "casHeli", "transport", "cargoPlane", "logiTruck"];
+export const ART_KINDS = artKinds as UnitKind[];
 const cache = new Map<string, THREE.Group>();
 const inflight = new Map<string, Promise<void>>();
 const textures = new Map<FactionId, Promise<{camo:THREE.Texture;roughness:THREE.Texture;normal:THREE.Texture}>>();

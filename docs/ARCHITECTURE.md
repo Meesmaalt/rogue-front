@@ -22,6 +22,10 @@ Mängukaardid on ainult protseduurkaardid. Ajaloolised Roheoru/Murdlaine kirjeld
 
 `groundDynamics.ts` annab meetrites maasõidukite pinnase/nõlva jõud, teepikkuse integraatori ja kurvi eel pidurdamise piirkiiruse. Sama moodul seob lennuki kalde tsentripetaalkiirendusega. Lisanduvat salvestatavat sim-olekut pole. `MotionPresentation.springSuspension` on ainult renderduses kasutatav analüütiline summutatud vedru; `Fx` võtab liikumistolmu jaoks tegeliku fikseeritud sammu nihke. Parameetrid on `mobility.json`-is. Detailid: [MOVEMENT-PHYSICS-RELEASE.md](MOVEMENT-PHYSICS-RELEASE.md).
 
+## Kompaktne väljalase
+
+`art-models.json` jagab mudeliliikide nimekirja renderdaja, generaatori ja `scripts/release/compact.mjs` vahel. Standardbuild kontrollib ja säilitab 66 vajalikku detail-/kaugmudelit; ajaloolised varad jäävad lähtepuusse. `dist` puhastatakse Vite buildi järel. Nginx määrab GLB MIME-tüübi ja gzip-pakkimise; dokumentatsiooni pildid on pikslitäpselt kadudeta WebP-d ning jäävad Dockeri põhikontekstist välja. Detailid: [CLEANUP-RELEASE.md](CLEANUP-RELEASE.md).
+
 ## Põhimõte
 Kolm kihti, sõltuvused ainult allapoole: **ui/input → sim ← render** (render ja ui *loevad* sim olekut, annavad käske, kuid sim ei tea neist midagi).
 
