@@ -1,5 +1,13 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Teravad pinnad ja F-kiirliikumine · 15.10.2026
+
+- [x] Maanteed eraldi maailmamõõdus asfalttekstuuriga ja geomeetriliste märgistustega; maapinna kolmnurkadega lõigatud, ruumiliselt kahte materjalipartiisse koondatud pind. Kaardi 2048 px atlas ei määra enam tee teravust.
+- [x] 512 px korduv mikropind, tugevam keskmise/kõrge kvaliteedi detail ning säilimine tavalisel mängusuumil; sama shaderi proovide arv ja piiratud tekstuurimälu.
+- [x] F → vasakklõps sihtpunktile, Shift-vahepunktid ja Esc; G säilib alternatiivina, suurtükituli T peal. Sim kasutab olemasolevat kiirusega kaalutud teede marsruuti.
+- [ ] Tegelik brauseripildi/FPS kontroll: Chromiumi headless-shell allalaadimine tagastas katkise ZIP-i.
+
+
 ## Vahemere maastik, hoonete tootmine ja heli · v13
 
 - [x] v13 avatum Vahemere maastik: väiksem metsapind, terrakotakatused, soe kivifassaad, osal seemnetel keskne kustunud kraater ja möödaviiv tee; v2–v12 taastamine säilib.

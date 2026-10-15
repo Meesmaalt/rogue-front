@@ -77,10 +77,10 @@
     "groundSegments": 192,
     "visibilityMargin": 32,
     "detail": {
-      "textureSize": 256,
+      "textureSize": 512,
       "worldSpan": 24,
-      "fadeStart": 180,
-      "fadeEnd": 650,
+      "fadeStart": 550,
+      "fadeEnd": 2200,
       "rockHeight": 18,
       "rockHeightRange": 45,
       "rockSlope": 0.28,
@@ -92,13 +92,13 @@
           "anisotropy": 2
         },
         "medium": {
-          "albedo": 0.18,
-          "bump": 0.065,
-          "anisotropy": 4
+          "albedo": 0.28,
+          "bump": 0.055,
+          "anisotropy": 8
         },
         "high": {
-          "albedo": 0.26,
-          "bump": 0.09,
+          "albedo": 0.36,
+          "bump": 0.075,
           "anisotropy": 8
         }
       }
@@ -120,6 +120,15 @@
       "apronStart": -92,
       "apronEnd": 105,
       "surfaceOffset": 0.12
+    },
+    "roads": {
+      "textureSize": 256,
+      "worldSpan": 6,
+      "chunkSpan": 1024,
+      "anisotropy": 8,
+      "dashPeriod": 10,
+      "dashLength": 3,
+      "markingWidth": 0.22
     }
   },
   "natural": {

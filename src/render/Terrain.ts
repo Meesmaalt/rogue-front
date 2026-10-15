@@ -1,3 +1,4 @@
+import {createRoadSurfaces,roadTexture as asphaltTexture} from "./RoadSurface";
 import {groundLayout,withAirfieldAprons} from "./GroundSurface";
 import {applyTerrainDetail,createTerrainDetailTexture,terrainNoise} from "./TerrainDetail";
 import terrainConfig from "../data/terrain.json";
@@ -30,6 +31,7 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
     const tile=new THREE.Mesh(geometry,material);tile.receiveShadow=true;ground.add(tile);
   }
   group.add(ground);
+  if(theme==="temperate")group.add(createRoadSurfaces(features));
   if (theme !== "temperate") group.add(createRocks(rnd, bases, features));
   else {group.add(createLandscapeBackdrop(features));group.add(createForest(features,forestLayout));}
   if(theme!=="temperate")group.add(createDecals(rnd));
@@ -747,18 +749,6 @@ function fieldTexture():THREE.CanvasTexture {
   const c=canvas.getContext("2d")!,rnd=mulberry32(4104),data=c.createImageData(128,128);
   for(let z=0;z<128;z++)for(let x=0;x<128;x++){const i=(z*128+x)*4,furrow=(x%8)<2,v=furrow?170+rnd()*15:220+rnd()*30;data.data[i]=v;data.data[i+1]=v;data.data[i+2]=v;data.data[i+3]=255;}
   c.putImageData(data,0,0);const t=new THREE.CanvasTexture(canvas);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(3,3);t.anisotropy=8;cachedFieldTexture=t;return t;
-}
-
-
-let cachedAsphalt:THREE.CanvasTexture|undefined;
-function asphaltTexture():THREE.CanvasTexture {
-  if(cachedAsphalt)return cachedAsphalt;
-  const cv=document.createElement("canvas");cv.width=cv.height=256;const c=cv.getContext("2d")!,rnd=mulberry32(144);
-  const data=c.createImageData(256,256);
-  for(let i=0;i<256*256;i++){const v=210+rnd()*40;data.data[i*4]=data.data[i*4+1]=data.data[i*4+2]=v;data.data[i*4+3]=255;}
-  c.putImageData(data,0,0);c.strokeStyle="rgba(75,75,71,.3)";c.lineWidth=1;
-  for(let i=0;i<7;i++){c.beginPath();let x=rnd()*256,y=rnd()*256;c.moveTo(x,y);for(let j=0;j<4;j++){x+=rnd()*24-12;y+=rnd()*24-12;c.lineTo(x,y);}c.stroke();}
-  const t=new THREE.CanvasTexture(cv);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;cachedAsphalt=t;return t;
 }
 
 

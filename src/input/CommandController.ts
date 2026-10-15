@@ -71,6 +71,7 @@ export class CommandController {
     el.addEventListener("mouseleave",()=>{this.pointer=null;this.hoverHint="";});
     el.addEventListener("mousedown",e=>{
       if(!this.enabled)return;
+      if(e.button===0&&this.fastMoveMode){e.preventDefault();e.stopImmediatePropagation();this.selection.drag=null;const p=this.picker.groundAt(e.clientX,e.clientY);this.moveTo(p.x,p.z,e.shiftKey);return;}
       if(e.button===0){if(this.buildMode)this.issueAt(e);else if(this.targeting)this.cancelOrders();return;}
       if(e.button!==2)return;
       e.preventDefault();
@@ -98,8 +99,8 @@ export class CommandController {
       if(k===keys.attackMove)this.armOrder("attack");
       if(k===keys.hold){this.cancelOrders();this.world.issue({type:"hold",ids:this.ids()});this.notify("Valitud üksused hoiavad positsiooni");}
       if(k===keys.patrol)this.armOrder("patrol");
-      if (k === "f") { const hasArtillery=this.ids().some(id=>isIndirectUnit(this.world.byId.get(id))); if(hasArtillery){this.armOrder("fire");} }
-      if(k==="g")this.armOrder("fast");
+      if (k === "t"&&!e.ctrlKey&&!e.altKey&&!e.metaKey) { const hasArtillery=this.ids().some(id=>isIndirectUnit(this.world.byId.get(id))); if(hasArtillery){this.armOrder("fire");} }
+      if((k==="f"||k==="g")&&!e.ctrlKey&&!e.altKey&&!e.metaKey){e.preventDefault();this.armOrder("fast");this.notify("Kiirliigu mööda teid: klõpsa sihtkohta. Shift lisab vahepunkti; Esc tühistab.");}
       if(k==="u")this.armOrder("unload");
       if(k==="e"&&!e.ctrlKey&&!e.altKey&&!e.metaKey){const ids=this.ids().filter(id=>{const u=this.world.byId.get(id);return u?.def.armor==="air"||u?.kind==="airbase"||u?.kind==="helipad";});if(ids.length){this.cancelOrders();this.world.issue({type:"air-return",ids});this.notify("EVAC: lennuvägi naaseb baasi");}}
       if (k === "l") { const depots=this.selection.selectedIds().filter(id=>this.world.byId.get(id)?.kind==="supply"); if(depots.length) this.world.issue({type:"logistics-route",ids:depots,x:0,z:0,clear:true}); }

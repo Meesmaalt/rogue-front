@@ -2,6 +2,15 @@
 
 Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 16, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
 
+## Pinna teravus ja kiirliikumine
+
+`RoadSurface.ts` eemaldab tee eraldusvõime sõltuvuse kaardi suurusest: asfalt kordub iga 6 maailmameetri järel ja märgistused on geomeetria. `groundRectangle` lõikab pinna tegelike maapinnakolmnurkade järgi; mõlemal teeristmiku harul on sama maailmamõõdus UV. 1024 m ruumiplokis on kuni kaks jagatud materjaliga partiid, mitte joonistuskutse iga tänavalõigu/triibu kohta. Teeandmed, navivõrk ja generaator ei muutu. Vana atlas jääb kaugmaastiku põhjavärviks.
+
+Mikropinna tekstuur on 512² RGBA (1 MiB ilma mip-tasemeteta), asfalt 256² (0,25 MiB), sõltumata kaardi suurusest. Suurendasime detaili nähtavuskaugust 550–2200 meetrini, sest varasem 180–650 kaugus kustutas detaili tavalisel kõrgemal mängukaameral. Keskmine/kõrge kvaliteet kasutab sama arvu shaderi tekstuuriproove; madala taseme väljalülitus säilib.
+
+F või G aktiveerib kiirliikumise. Sihtkoha vasakklõps tarbitakse enne valiku muutmist; paremklõps/minikaart jätkavad töötamist. Shift säilitab režiimi ning lisab vahepunkte, Esc tühistab. Suurtüki tulemissioon on T-klahvil. Simulatsiooni `fast-move` kasutab olemasolevat `travelPathCost` kaalutud A*-rada ja tegelikku maantee kiirust; uut üldist kiiruskordajat ei lisata.
+
+
 ## Hoonete tootmine ja Vahemere maastik · v13
 
 Uute missioonide serveri/worker'i tee kasutab v13 generaatorit. `mediterranean` konfiguratsioon vähendab ühendatud metsamassiive ning jätab kõrged nõlvad avatuks; põllud ja elamud kasutavad kuiva Vahemere paletti. Iga kolmas seeme lisab keskse kustunud kaldeera: olemasolevate kompaktsete reljeefikernelite ring, kivine `cropPattern: bare` atlasekiht ning kesktee möödumine. Keskne ressurss nihkub kraatrist väljapoole. Kaardid läbivad sama navigatsiooni/lennuraja kontrolli. v2–v12 taastamine ja v12 kompaktne lahingumõõtkava säilivad.

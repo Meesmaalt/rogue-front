@@ -48,3 +48,19 @@ it('right drag previews placement and submits one facing order only on release; 
  f.el.dispatchEvent(event('mousedown',{button:2,clientX:100,clientY:100,shiftKey:false}));f.commands.cancelOrders();
  f.root.dispatchEvent(event('mouseup',{button:2,clientX:160,clientY:100,shiftKey:false}));expect(f.w.pending).toHaveLength(1);
 });
+
+it('F arms fast move and a destination left click issues it without replacing the selection',()=>{
+ const f=fixture();f.root.dispatchEvent(event('keydown',{key:'f',repeat:false}));
+ expect(f.commands.fastMoveMode).toBe(true);expect(f.w.pending).toHaveLength(0);
+ f.pick(f.b);f.click();expect(f.w.pending).toHaveLength(1);
+ expect(f.w.pending[0]).toMatchObject({type:'fast-move',ids:[f.a.id],x:60,z:45});
+ expect([...f.selection.selected]).toEqual([f.a.id]);expect(f.commands.targeting).toBe(false);
+});
+it('F queues road waypoints with Shift, Escape cancels, and artillery fire remains on T',()=>{
+ const f=fixture(),gun=f.w.spawn('artillery',0,0,0);f.selection.selected.clear();f.selection.selected.add(gun.id);
+ f.root.dispatchEvent(event('keydown',{key:'f',repeat:false}));expect(f.commands.fireMissionMode).toBe(false);f.click(true);
+ expect(f.w.pending[0]).toMatchObject({type:'fast-move',append:true,ids:[gun.id]});expect(f.commands.fastMoveMode).toBe(true);
+ f.root.dispatchEvent(event('keydown',{key:'Escape',repeat:false}));expect(f.commands.targeting).toBe(false);
+ f.root.dispatchEvent(event('keydown',{key:'t',repeat:false}));expect(f.commands.fireMissionMode).toBe(true);f.right();
+ expect(f.w.pending.at(-1)).toMatchObject({type:'fire-mission',ids:[gun.id]});
+});

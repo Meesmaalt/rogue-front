@@ -11,7 +11,7 @@ const compile=(material:THREE.MeshStandardMaterial)=>{
  material.onBeforeCompile(shader,{} as THREE.WebGLRenderer);return shader;
 };
 it('packed micro-surface pixels are deterministic, bounded and contain multiple scales of detail',()=>{
- const bytes=terrainDetailPixels();expect(bytes).toEqual(terrainDetailPixels());expect(bytes.byteLength).toBe(256*256*4);
+ const bytes=terrainDetailPixels();expect(bytes).toEqual(terrainDetailPixels());expect(bytes.byteLength).toBe(config.render.detail.textureSize**2*4);
  let opaque=true;const red=new Set<number>(),green=new Set<number>(),blue=new Set<number>();for(let i=0;i<bytes.length;i+=4){red.add(bytes[i]);green.add(bytes[i+1]);blue.add(bytes[i+2]);opaque &&= bytes[i+3]===255;}
  expect(opaque).toBe(true);expect(red.size).toBeGreaterThan(100);expect(green.size).toBeGreaterThan(100);expect(blue.size).toBeGreaterThan(100);
 });
@@ -19,13 +19,13 @@ it('periodic patches meet at the texture borders without changing world detail s
  for(const [x,z] of [[.25,.73],[-.01,2.2],[4.1,-8.2]])expect(terrainNoise(x,z,4)).toBeCloseTo(terrainNoise(x+4,z-4,4),12);
  for(const size of [4096,6144]){
   const texture=createTerrainDetailTexture(size);expect(texture.repeat.x*24/size).toBeCloseTo(1,12);expect(texture.generateMipmaps).toBe(true);expect(texture.minFilter).toBe(THREE.LinearMipmapLinearFilter);expect(texture.colorSpace).toBe(THREE.NoColorSpace);
-  expect(texture.image.data.byteLength).toBeLessThan(512*512*4);texture.dispose();
+  expect(texture.image.data.byteLength).toBeLessThanOrEqual(512*512*4);texture.dispose();
  }
 });
 it('detail reuses the bump sampler, fades both albedo and normal relief, and preserves standard lighting',()=>{
  const texture=createTerrainDetailTexture(4096),material=new THREE.MeshStandardMaterial({bumpMap:texture});applyTerrainDetail(material,texture);
  const shader=compile(material);expect(shader.fragmentShader).toContain('texture2D(bumpMap, vBumpMapUv)');expect(shader.fragmentShader).toContain('(dHdxy_fwd() * rfTerrainFade)');expect(shader.fragmentShader).toContain('dot(vViewPosition, vViewPosition)');expect(shader.fragmentShader).toContain('#include <lights_physical_fragment>');
- expect(shader.uniforms.rfTerrainStrength.value).toBe(config.render.detail.quality.medium.albedo);expect(shader.uniforms.rfTerrainFadeRange.value).toEqual(new THREE.Vector2(180**2,650**2));
+ expect(shader.uniforms.rfTerrainStrength.value).toBe(config.render.detail.quality.medium.albedo);expect(shader.uniforms.rfTerrainFadeRange.value).toEqual(new THREE.Vector2(550**2,2200**2));
  texture.dispose();material.dispose();
 });
 it('quality changes update shared uniforms with no new meshes, geometry, material or shader variants',()=>{
