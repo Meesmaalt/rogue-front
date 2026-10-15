@@ -70,7 +70,31 @@
     "baseCapacity": 2,
     "capacityPerLevel": 1,
     "hoverArrivalSpeed": 0.9,
-    "hoverRadius": 0.3
+    "hoverRadius": 0.3,
+    "yawRate": 0.52,
+    "cruiseYawRate": 0.3,
+    "takeoffClearance": 8,
+    "rotorSpoolTime": 1.2,
+    "emergency": {
+      "warningFraction": 0.15,
+      "landFraction": 0.05,
+      "resetFraction": 0.3,
+      "stoppingLookAhead": 3,
+      "searchRings": [
+        0,
+        15,
+        30,
+        60,
+        120,
+        240
+      ],
+      "samples": 16,
+      "clearance": 2,
+      "approachSpeed": 12,
+      "descentRadius": 12,
+      "approachHeight": 10,
+      "autorotationRate": 6
+    }
   },
   "aircraft": {
     "altitude": 80,
@@ -176,7 +200,9 @@
     "rangeAccuracyLoss": 0.22,
     "settledCannonBonus": 0.055,
     "helicopterLosSearchAngle": 0.3,
-    "helicopterMissileAimTolerance": 0.55
+    "helicopterMissileAimTolerance": 0.14,
+    "helicopterGunTraverse": 0.85,
+    "helicopterTurretRate": 1.3
   },
   "naval": {
     "acceleration": 1.5,

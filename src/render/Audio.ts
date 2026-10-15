@@ -1,3 +1,4 @@
+import {aircraftEngineProfile} from './AircraftAudio';
 import type {Entity,SimEvent,UnitKind} from '../sim/types';
 import type {AudioCue} from './AudioVisual';
 import {loadSettings,type GameSettings} from '../ui/Settings';
@@ -8,7 +9,7 @@ type EngineClass=keyof typeof config.engines;
 const INFANTRY=new Set<string>(config.infantryKinds);
 const ENGINE_CLASS=new Map<string,EngineClass>();
 for(const [cls,kinds] of Object.entries(config.engineKinds))for(const k of kinds)ENGINE_CLASS.set(k,cls as EngineClass);
-interface EngineVoice{cls:EngineClass;sources:AudioScheduledSourceNode[];osc:OscillatorNode;filter:BiquadFilterNode;gain:GainNode;panner:StereoPannerNode;lfo:OscillatorNode|null;nodes:AudioNode[];approach:number}
+interface EngineVoice{cls:EngineClass;sources:AudioScheduledSourceNode[];osc:OscillatorNode;filter:BiquadFilterNode;gain:GainNode;panner:StereoPannerNode;lfo:OscillatorNode|null;nodes:AudioNode[];approach:number;noiseSource:AudioBufferSourceNode;noiseFilter:BiquadFilterNode;noiseGain:GainNode;turbine:OscillatorNode|null;lastState?:string}
 export function spatialSound(x:number,z:number,listener:{x:number;z:number;yaw:number}):{gain:number;pan:number}{
  const dx=x-listener.x,dz=z-listener.z,distance=Math.hypot(dx,dz);
  return {gain:distance>config.maxDistance?0:1/(1+(distance/config.referenceDistance)**2),pan:Math.max(-.85,Math.min(.85,(dx*Math.cos(listener.yaw)-dz*Math.sin(listener.yaw))/Math.max(1,distance)))};
@@ -19,6 +20,7 @@ export class AudioManager {
  private settings:GameSettings=loadSettings();
  private master:GainNode|null=null;private sfx:GainNode|null=null;private music:GainNode|null=null;
  private musicTimer:number|null=null;private musicStep=0;private activity=0;
+ private readonly engineBuffers=new Map<EngineClass,AudioBuffer>();
  private noiseBuffer:AudioBuffer|null=null;
  private ambience:{src:AudioBufferSourceNode;lfo:OscillatorNode;gain:GainNode}|null=null;
  /** Rendering hook: called together with matching sounds so visuals stay in sync. */
@@ -89,17 +91,26 @@ export class AudioManager {
   for(const c of cands.slice(0,config.engineVoices)){
    const voice=this.engineVoices.get(c.e.id)??this.makeEngine(c.e.id,c.cls);if(!voice)break;keep.add(c.e.id);
    const p=config.engines[c.cls],t=ctx.currentTime,air=c.cls==='heli'||c.cls==='jet'||c.cls==='prop';
-   const r=c.cls==='hum'?1:Math.max(air?.45:0,Math.min(1,c.speed/Math.max(1,c.e.def.speed)));
+   const phase=air?aircraftEngineProfile(c.e):null;
+   const r=phase?.power??(c.cls==='hum'?1:Math.min(1,c.speed/Math.max(1,c.e.def.speed))),rpm=phase?.rpm??r;
    const dist=Math.max(1,Math.hypot(this.listener.x-c.e.x,this.listener.z-c.e.z)),approach=(c.vx*(this.listener.x-c.e.x)+c.vz*(this.listener.z-c.e.z))/dist;
-   const doppler=1+Math.max(-.3,Math.min(.3,approach/config.dopplerSpeed));
-   voice.osc.frequency.setTargetAtTime(p[0]*(.75+.7*r)*doppler,t,.15);
+   const soundSpeed=air?config.aircraft.dopplerSoundSpeed:config.dopplerSpeed,doppler=soundSpeed/Math.max(soundSpeed*.7,Math.min(soundSpeed*1.3,soundSpeed-approach));
+   voice.osc.frequency.setTargetAtTime(p[0]*(air?.6+.4*rpm:.75+.7*r)*doppler,t,.15);
    voice.filter.frequency.setTargetAtTime(p[1]*(.7+.8*r),t,.15);
-   voice.gain.gain.setTargetAtTime(p[2]*c.mix.gain*(.3+.7*r),t,.15);
+   voice.gain.gain.setTargetAtTime(p[2]*c.mix.gain*(air?r:.3+.7*r),t,.15);
    voice.panner.pan.setTargetAtTime(c.mix.pan,t,.1);
-   voice.lfo?.frequency.setTargetAtTime(p[4]*(.8+.4*r),t,.2);
+   voice.lfo?.frequency.setTargetAtTime(p[4]*(air?rpm:.8+.4*r),t,.2);
    if(c.cls==='ship'&&r>.3&&Math.random()<.3)this.noise(.3,950,.03*c.mix.gain,c.mix.pan,'sfx',.04,.05);
    if(c.cls==='jet'&&voice.approach>0&&approach<=0&&dist<config.flyby.maxDist&&c.speed>config.flyby.minSpeed){this.noise(1.1,2600,config.flyby.volume*c.mix.gain,c.mix.pan,'sfx',.2,.05);this.tone(70,.5,'sine',.1*c.mix.gain,c.mix.pan);}
-   voice.approach=approach;
+   voice.noiseSource.playbackRate?.setTargetAtTime(air?Math.max(.1,rpm)*doppler:1,t,.3);
+   voice.noiseFilter.frequency.setTargetAtTime(p[3]*(.3+.7*r)/(1+(1-c.mix.gain)*2),t,.25);
+   voice.noiseGain.gain.setTargetAtTime((c.cls==='jet'?1.8:c.cls==='heli'?1.3:.7)*Math.max(.02,r),t,.2);
+   voice.turbine?.frequency.setTargetAtTime(config.aircraft.turbineFrequency*(.35+.65*rpm)*doppler,t,.35);
+   if(air&&voice.lastState!==undefined&&voice.lastState!==c.e.airState){
+    if(c.e.airState==='taxi'){this.noise(.8,2100,config.aircraft.transitionVolume*c.mix.gain,c.mix.pan,'sfx',.25,.1);}
+    if(c.e.airState==='landing'&&c.cls!=='heli'){this.noise(.45,3200,config.aircraft.transitionVolume*c.mix.gain,c.mix.pan,'sfx',.015,.08);}
+   }
+   voice.lastState=c.e.airState;voice.approach=approach;
   }
   for(const [id,v] of this.engineVoices)if(!keep.has(id))this.dropEngine(id,v);void step;
  }
@@ -168,18 +179,32 @@ export class AudioManager {
   g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(config.birds.volume,now+.015);g.gain.exponentialRampToValueAtTime(.0001,now+.18);
   const panner=this.route(g,'music',pan);o.connect(g);o.onended=()=>{this.voices.music--;o.disconnect();g.disconnect();panner.disconnect();};o.start(now);o.stop(now+.2);
  }
+ /** Shared coloured turbulence; helicopter blade pulses add broadband slap instead of a buzzy saw. */
+ private engineNoise(cls:EngineClass):AudioBuffer|null {
+  const cached=this.engineBuffers.get(cls);if(cached)return cached;
+  const ctx=this.ctx;if(!ctx)return null;
+  const buf=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate),samples=buf.getChannelData(0);let low=0;
+  for(let i=0;i<samples.length;i++){
+   const white=Math.random()*2-1;low=.96*low+.04*white;
+   const phase=i/ctx.sampleRate*Math.PI*2*config.engines.heli[4],pulse=((1+Math.cos(phase))*.5)**config.aircraft.rotorPulseSharpness;
+   samples[i]=cls==='heli'?low*2+white*(config.aircraft.rotorTurbulence+pulse*.7)+Math.sin(phase)*.15:low*2.2+white*.35;
+  }
+  this.engineBuffers.set(cls,buf);return buf;
+ }
  private makeEngine(id:number,cls:EngineClass):EngineVoice|null{
-  const ctx=this.ctx,sfx=this.sfx,buf=this.getNoise();if(!ctx||!sfx||!buf)return null;
+  const ctx=this.ctx,sfx=this.sfx,buf=this.engineNoise(cls);if(!ctx||!sfx||!buf)return null;
   const p=config.engines[cls],osc=ctx.createOscillator(),filter=ctx.createBiquadFilter(),chop=ctx.createGain(),gain=ctx.createGain(),panner=ctx.createStereoPanner();
   const noise=ctx.createBufferSource(),nf=ctx.createBiquadFilter(),ng=ctx.createGain(),sources:AudioScheduledSourceNode[]=[osc,noise],nodes:AudioNode[]=[osc,filter,chop,gain,panner,noise,nf,ng];
-  osc.type=cls==='hum'?'sine':'sawtooth';osc.frequency.value=p[0];filter.type='lowpass';filter.frequency.value=p[1];
+  osc.type=cls==='hum'||cls==='heli'||cls==='jet'||cls==='prop'?'sine':'sawtooth';osc.frequency.value=p[0];filter.type='lowpass';filter.frequency.value=p[1];
   noise.buffer=buf;noise.loop=true;nf.type='lowpass';nf.frequency.value=p[3];ng.gain.value=cls==='jet'?1.6:.7;
   chop.gain.value=p[4]>0?.65:1;gain.gain.value=.0001;panner.pan.value=0;
   let lfo:OscillatorNode|null=null;
   if(p[4]>0){lfo=ctx.createOscillator();const depth=ctx.createGain();lfo.type='sine';lfo.frequency.value=p[4];depth.gain.value=.35;lfo.connect(depth);depth.connect(chop.gain);sources.push(lfo);nodes.push(lfo,depth);}
+  let turbine:OscillatorNode|null=null;
+  if(cls==='heli'||cls==='jet'||cls==='prop'){turbine=ctx.createOscillator();const tg=ctx.createGain();turbine.type='sine';turbine.frequency.value=config.aircraft.turbineFrequency;tg.gain.value=config.aircraft.turbineVolume;turbine.connect(tg);tg.connect(chop);sources.push(turbine);nodes.push(turbine,tg);}
   osc.connect(filter);filter.connect(chop);noise.connect(nf);nf.connect(ng);ng.connect(chop);chop.connect(gain);gain.connect(panner);panner.connect(sfx);
   const t=ctx.currentTime;for(const src of sources)src.start(t);
-  const voice:EngineVoice={cls,sources,osc,filter,gain,panner,lfo,nodes,approach:0};this.engineVoices.set(id,voice);return voice;
+  const voice:EngineVoice={cls,sources,osc,filter,gain,panner,lfo,nodes,approach:0,noiseSource:noise,noiseFilter:nf,noiseGain:ng,turbine};this.engineVoices.set(id,voice);return voice;
  }
  private dropEngine(id:number,v:EngineVoice):void{
   this.engineVoices.delete(id);const at=(this.ctx?.currentTime??0)+.05;
@@ -302,8 +327,9 @@ export class AudioManager {
  }
  events(events:readonly SimEvent[],playerTeam=0):void{
   const ctx=this.ctx;if(!ctx||ctx.state!=='running'||this.settings.masterVolume<=0||this.settings.sfxVolume<=0)return;
-  for(const e of events){const mix='x' in e&&'z' in e?spatialSound(e.x,e.z,this.listener):{gain:1,pan:0};if(mix.gain<.008)continue;
-   if(e.type==='fire'){
+  for(const e of events){const mix='x' in e&&'z' in e?spatialSound(e.x,e.z,this.listener):{gain:1,pan:0};if(mix.gain<.008&&e.type!=='air-fuel-warning')continue;
+   if(e.type==='air-fuel-warning'&&e.team===playerTeam){this.ui(e.emergency?'siren':'warn');this.onCue({kind:'alert',x:e.x,z:e.z});}
+   else if(e.type==='fire'){
     const kind=e.visual??e.weapon??'rifle',profile=(config.shots as Record<string,number[]>)[kind]??config.shots.rifle,now=ctx.currentTime;
     if(now-(this.lastShot.get(kind)??-10)<profile[4])continue;this.lastShot.set(kind,now);this.activity=Math.min(1,this.activity+mix.gain*.12);
     const distanceFilter=1+(1-mix.gain)*2;

@@ -47,6 +47,8 @@ export function requestAirReturn(u:Entity):void {
   u.airState=u.airState==="taxi"&&u.def.category!=="heli"?"landing":"returning";u.airReturnReason="manual";u.airLandingPhase="approach";
 }
 export function airOperationStatus(w:World,u:Entity):string {
+  if(u.emergencyLanded)return "Hädamaandunud · vajab kütust";
+  if(u.emergencyLandingPoint)return "Hädamaandumine · kütusevaru kriitiline";
   const pad=w.byId.get(u.airMissionHomeId??-1);
   if(u.airState==="grounded"&&pad&&!pad.dead&&w.productionOperational(pad).operational){if(!hasAirMissionAmmo(u))return "Baasis · missiooni laskemoon otsas";if((u.fuel??0)<=(u.maxFuel??0)*.3)return "Baasis · tankimise ootel";}
   if(u.airState==="grounded")return pad&&!pad.dead?(w.productionOperational(pad).operational?"Baasis · valmis missiooniks":"Baasis · "+w.productionOperational(pad).reason):"Baasis · lennurajatis puudub";

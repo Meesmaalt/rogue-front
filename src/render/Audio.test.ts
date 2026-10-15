@@ -47,7 +47,7 @@ it('moving vehicles and aircraft get bounded engine voices that are released whe
  const unit=(id:number,kind:string,x:number,moving:boolean)=>({id,kind,dead:false,x,z:0,px:moving?x-.1:x,pz:0,def:{speed:10}}) as unknown as Entity;
  const list=[unit(1,'tank',100,true),unit(2,'heli',200,false),unit(3,'tank',300,false),...Array.from({length:20},(_,i)=>unit(10+i,'fighter',50+i*30,true))];
  ctx.currentTime=1;audio.engines(list,.2);const count=ctx.sources.length;
- expect(count).toBeGreaterThan(0);expect(count).toBeLessThanOrEqual(8*3);
+ expect(count).toBeGreaterThan(0);expect(count).toBeLessThanOrEqual(8*4);
  ctx.currentTime=2;audio.engines(list,.2);expect(ctx.sources.length).toBe(count);
  audio.engines([],.2);audio.pause();audio.resume();ctx.currentTime=3;audio.engines([],.2);expect(ctx.sources.length).toBe(count);
 });

@@ -1,4 +1,6 @@
-import {runwayEdgePoint} from "../cargoApproach";
+import {updateHelicopterEmergency} from "../emergencyLanding";
+import {turnHelicopter,helicopterYawRate} from "../aircraftHandling";
+import {runwayEdgePoint,cargoDepartureRunway} from "../cargoApproach";
 import {groundDynamics,usesGroundDynamics,groundSpeedStep,cornerApproachSpeed,coordinatedBank} from "../groundDynamics";
 import physics from "../../data/physics.json";
 import {BATTLE_SCALE,aircraftMobility,helicopterMobility} from "../battleScale";
@@ -356,8 +358,8 @@ function moveAirTo(u: Entity, target: Point, dt: number, w: World, cruise=false)
   const lineHeading=final&&!helicopter&&u.def.metricScale&&runway?runway.heading-Math.atan2((u.x-runway.x)*Math.cos(runway.heading)-(u.z-runway.z)*Math.sin(runway.heading),BATTLE_SCALE.aircraft.lineLookAhead):travelHeading;
   const desiredHeading=helicopter&&u.target&&u.mode!=="move"&&u.mode!=="patrol"?Math.atan2(u.target.x-u.x,u.target.z-u.z):lineHeading,oldHeading=u.heading;
   const speed=u.motionSpeed??0;
-  const turnRate=helicopter?Math.min(u.def.turnRate,1.8):final&&!u.def.metricScale?Math.max(1.2,u.def.turnRate):Math.min(u.def.turnRate,Math.min(aircraftMobility(u).lateralAcceleration,physics.gravity*Math.tan(profile.maxBank))/Math.max(12,speed));
-  u.heading=turnToward(u.heading,desiredHeading,turnRate*dt);
+  const turnRate=helicopter?helicopterYawRate(u):final&&!u.def.metricScale?Math.max(1.2,u.def.turnRate):Math.min(u.def.turnRate,Math.min(aircraftMobility(u).lateralAcceleration,physics.gravity*Math.tan(profile.maxBank))/Math.max(12,speed));
+  u.heading=helicopter?turnHelicopter(u,desiredHeading,dt):turnToward(u.heading,desiredHeading,turnRate*dt);
   const delta=wrapAngle(u.heading-oldHeading)/dt;
   const bank=u.def.metricScale&&!helicopter?coordinatedBank(speed,delta,profile.maxBank):Math.max(-profile.maxBank,Math.min(profile.maxBank,-delta*(helicopter?.18:.48)));
   if(!helicopter)u.flightBank=(u.flightBank??0)+(bank-(u.flightBank??0))*Math.min(1,dt*3);
@@ -455,19 +457,20 @@ function updateCargoPlane(w:World,u:Entity,dt:number):void {
   u.cargo=0;u.logisticsPhase='loading';u.airState='taxi';u.airTaxiPhase='apron';
  }
  if(u.airState==='taxi'){
+  const departure=cargoDepartureRunway(base,profile.runwayStart,profile.runwayEnd);
   if(u.airTaxiPhase==='apron'){
    if(runwayOccupied(w,u,base))return;
    if(!taxiTo(u,airFacilityPoint(base,BATTLE_SCALE.cargo.parkingForward),dt))return;u.airTaxiPhase='lining-up';
   }
   if(u.airTaxiPhase==='lining-up'){
-   const start=airFacilityPoint(base,profile.runwayStart);
+   const start=airFacilityPoint(departure,profile.runwayStart);
    if(dist2d(u,start)>.3){taxiTo(u,start,dt);return;}
-   u.heading=turnToward(u.heading,base.heading,u.def.turnRate*dt);
-   if(Math.abs(wrapAngle(u.heading-base.heading))>.03)return;u.airTaxiPhase='runway';u.motionSpeed=0;
+   u.heading=turnToward(u.heading,departure.heading,u.def.turnRate*dt);
+   if(Math.abs(wrapAngle(u.heading-departure.heading))>.03)return;u.airTaxiPhase='runway';u.motionSpeed=0;
   }
-  u.heading=base.heading;u.motionSpeed=Math.min(u.def.speed,(u.motionSpeed??0)+profile.acceleration*dt);u.x+=Math.sin(u.heading)*u.motionSpeed*dt;u.z+=Math.cos(u.heading)*u.motionSpeed*dt;u.y=heightAt(u.x,u.z);
-  const forward=(u.x-base.x)*Math.sin(base.heading)+(u.z-base.z)*Math.cos(base.heading);
-  if(forward<profile.runwayEnd)return;u.airState='airborne';u.logisticsTarget=runwayEdgePoint(w.mapSize,base,BATTLE_SCALE.cargo.exitMargin,true);
+  u.heading=departure.heading;u.motionSpeed=Math.min(u.def.speed,(u.motionSpeed??0)+profile.acceleration*dt);u.x+=Math.sin(u.heading)*u.motionSpeed*dt;u.z+=Math.cos(u.heading)*u.motionSpeed*dt;u.y=heightAt(u.x,u.z);
+  const forward=(u.x-departure.x)*Math.sin(departure.heading)+(u.z-departure.z)*Math.cos(departure.heading);
+  if(forward<profile.runwayEnd)return;u.airState='airborne';u.logisticsTarget=runwayEdgePoint(w.mapSize,departure,BATTLE_SCALE.cargo.exitMargin,true);
  }
  if(u.airState==='airborne'){
   const exit=u.logisticsTarget!;moveAirTo(u,exit,dt,w,true);if(dist2d(u,exit)<20)u.dead=true;
@@ -565,6 +568,7 @@ export function updateUnits(w: World, dt: number): void {
 
 function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): void {
   const d = u.def;u.navWaiting=false;
+  if(updateHelicopterEmergency(w,u,dt))return;
   if(u.refit){u.motionSpeed=0;return;}
   const transporting=d.domain!=="air"&&transportCapacity(u)>0&&prepareTransport(w,u);
   if (u.kind === "cargoPlane") { updateCargoPlane(w, u, dt); return; }
@@ -646,8 +650,8 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       if(!pad){u.airState=helicopter&&u.y-heightAt(u.x,u.z)>3?"airborne":"grounded";u.mode="idle";u.dest=null;u.motionSpeed=0;return;}
       u.airSortieTime=(u.airSortieTime??0)+dt;
       if(helicopter){
-        u.y=Math.min(heightAt(u.x,u.z)+helicopterMobility(u).altitude,u.y+helicopterMobility(u).climbRate*dt);u.motionSpeed=0;
-        if(u.airSortieTime<helicopterMobility(u).takeoffTime)return;
+        u.y=Math.min(heightAt(u.x,u.z)+helicopterMobility(u).altitude,u.y+helicopterMobility(u).climbRate*dt);u.motionSpeed=0;u.flightVx=u.flightVz=0;
+        if(u.airSortieTime<helicopterMobility(u).takeoffTime||u.y-heightAt(u.x,u.z)<mobility.helicopter.takeoffClearance)return;
       }else {
         if(u.airTaxiPhase==="apron"||u.airTaxiPhase==null){
           const holding=airFacilityPoint(pad,aircraftMobility(u).runwayStart,aircraftMobility(u).parkingOffset);
@@ -915,13 +919,13 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
   if (target) {
     const absWant = Math.atan2(target.x - u.x, target.z - u.z);
     if (d.turret) {
-      if(d.category==="heli"&&!goal&&u.mode!=="move")u.heading=turnToward(u.heading,absWant,Math.min(1.8,d.turnRate)*dt);
-      const want = wrapAngle(absWant - u.heading);
-      u.turretYaw = turnToward(u.turretYaw, want, (u.kind === "tank" ? 2.4 : 3.2) * dt);
+      if(d.category==="heli"&&!goal&&u.mode!=="move")u.heading=turnHelicopter(u,absWant,dt);
+      const relative=wrapAngle(absWant-u.heading),want=d.category==="heli"?Math.max(-mobility.combat.helicopterGunTraverse,Math.min(mobility.combat.helicopterGunTraverse,relative)):relative;
+      u.turretYaw=turnToward(u.turretYaw,want,(d.category==="heli"?mobility.combat.helicopterTurretRate:u.kind==="tank"?2.4:3.2)*dt);
     } else {
       // Hull must turn toward target (infantry, fixed guns)
       if (!goal && (inRange || u.mode === "attack" || u.mode === "hold")) {
-        u.heading = turnToward(u.heading, absWant, d.turnRate * dt);
+        u.heading=d.category==="heli"?turnHelicopter(u,absWant,dt):turnToward(u.heading,absWant,d.turnRate*dt);
       }
     }
   }

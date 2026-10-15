@@ -25,3 +25,12 @@ it.each([0,Math.PI*.75,-Math.PI/4])('metric cargo lands aligned, parks, delivers
  }
  expect(landed).toBe(true);expect(parked).toBe(true);expect(w.airCargoDelivered[0]).toBe(300);expect(departed).toBe(true);expect(plane.dead).toBe(true);expect(plane.cargo).toBe(0);
 },20000);
+
+import {cargoDepartureRunway} from './cargoApproach';
+it.each([Math.PI*.75,-Math.PI/4])('cargo departure uses the same runway toward its own rear at %s',heading=>{
+ const pad={x:heading>0?-760:760,z:heading>0?700:-700,heading},start=-100,end=240;
+ const out=cargoDepartureRunway(pad,start,end),arrival=runwayEdgePoint(2048,pad,60),exit=runwayEdgePoint(2048,out,60,true);
+ expect(exit.x).toBeCloseTo(arrival.x);expect(exit.z).toBeCloseTo(arrival.z);
+ expect(out.x+Math.sin(out.heading)*start).toBeCloseTo(pad.x+Math.sin(heading)*end);
+ expect(out.z+Math.cos(out.heading)*start).toBeCloseTo(pad.z+Math.cos(heading)*end);
+});

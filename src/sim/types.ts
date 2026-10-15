@@ -169,6 +169,7 @@ export interface Entity {
   motionReverse?: boolean; flightVx?: number; flightVz?: number;
   motionSpeed?: number; flightBank?: number; flightPitch?: number; flightOrbitCenter?: Point; airLandingPhase?: "approach"|"final";
   airHomeSlot?:number;airTaxiPhase?:"apron"|"lining-up"|"runway";combatPosition?:Point;combatPositionTarget?:number;combatPositionAnchor?:Point;combatPositionRetryAt?:number;taskApproachIndex?:number;
+  airFuelWarned?:boolean;emergencyLandingPoint?:Point;emergencyLanded?:boolean;
   airState?: AirState; airMissionHomeId?: number | null; airSortieTime?: number; airMission?: AirMission; airMissionPoint?: Point | null; fireMission?: Point | null; lastCombatTime: number; morale?: number; disabledUntil?: number; builderIds: number[]; underConstruction: boolean; cargoUnitIds: number[]; loadedIntoId: number | null; transportTargetId: number | null; unloadPoint: Point | null; standingOrder?: "hold" | "patrol" | "attack" | "holdfire" | null; priorityFocus?: "supply" | "generator" | "aa" | null; preDeployOrder?: { mode: "move" | "attack" | "hold"; x?: number; z?: number } | null;
 }
 
@@ -184,6 +185,7 @@ export interface Projectile {
   aimY?: number; launchX?: number; launchZ?: number;boostTime?:number;cruiseAltitude?:number;
   px?:number;py?:number;pz?:number;profile?:string;visual?:string;flight?:ProjectileFlight;guidance?:Guidance;guidanceLost?:boolean;
   warhead?:"kinetic"|"heat"|"he";gravity?:number;flightTime?:number;suppressionPower?:number;
+  motorTime?:number;lateralAcceleration?:number;drag?:number;seekerAngle?:number;nextGuidanceAt?:number;
   hitRoll?:number;missX?:number;missZ?:number;
 }
 
@@ -196,6 +198,7 @@ export type Command = ({type:"configure-unit";ids:number[];slot:"weapon"|"protec
   { type: "research"; tech: "air" | "advanced-armor" } | { type: "produce"; kind: UnitKind; producerId?: number } | { type: "cancel-produce"; producerId: number } | { type: "load"; ids: number[]; targetId: number } | { type: "unload"; ids: number[]; x: number; z: number } | { type: "fire-mission"; ids: number[]; x: number; z: number } | { type: "standing"; ids: number[]; mode: "hold" | "patrol" | "attack" | "holdfire"; x?: number; z?: number } | { type: "predeploy"; ids: number[]; mode: "move" | "attack" | "hold"; x?: number; z?: number } | { type: "priority"; ids: number[]; focus: "supply" | "generator" | "aa" } | { type: "depot-priority"; ids: number[]; focus: "ammo" | "fuel" | "repair" | "balanced" } | { type: "logistics-source"; ids:number[]; sourceIndex:number|null; paused?:boolean } | { type: "logistics-route"; ids: number[]; x: number; z: number; append?: boolean; clear?: boolean } | {type:"air-return";ids:number[]} | { type: "air-mission"; ids: number[]; mission: "cap" | "strike" | "sead" | "ground"; x?: number; z?: number }) & { team?: Team };
 
 export type SimEvent =
+  | {type:"air-fuel-warning";team:Team;unitId:number;x:number;z:number;emergency:boolean}
   | {type:"order-rejected";team:Team;unitId:number;x:number;z:number;message:string}
   | { type: "impact"; x: number; y: number; z: number; weapon: string;visual?:string;result?:"penetration"|"ricochet"|"ground"|"airburst"|"miss"|"intercept";size?:number }
   | { type: "fire"; team: Team; x: number; y: number; z: number; sourceId?: number; weapon?: string; caliber?: number;visual?:string;dx?:number;dy?:number;dz?:number;weaponIndex?:number }

@@ -125,7 +125,7 @@ export function updateTacticalSupply(w: World, dt: number): void {
     const needsFuel=(e.fuel??0)<(e.maxFuel??0);
     const depot=tacticalSupplyDepot(w,e,depots),portDepot=e.def.domain==="sea"?depot:null;
     if(portDepot&&(portDepot.repairStock??0)>0&&(e.hp<maxHitPoints(e)||Math.max(0,...Object.values(e.components??{}))>0)){const hp=Math.min(Math.max(maxHitPoints(e)-e.hp,Math.max(0,...Object.values(e.components??{}))),logisticsRules.naval.repairPerSecond*eff*dt,(portDepot.repairStock??0)*logisticsRules.naval.repairPerStock);e.hp=Math.min(maxHitPoints(e),e.hp+hp);portDepot.repairStock=(portDepot.repairStock??0)-hp/logisticsRules.naval.repairPerStock;if(e.components)for(const key of ["engine","tracks","turret","weapon","crew","ammo"] as const)e.components[key]=Math.max(0,e.components[key]-hp);}
-    const inRadius=!!depot && (e.def.armor!=="air" || e.kind==="transport" && e.y-depot.y<3 && (e.motionSpeed??0)<.5);
+    const inRadius=!!depot && (e.def.armor!=="air" || (e.kind==="transport"||e.emergencyLanded) && e.y-depot.y<3 && (e.motionSpeed??0)<.5);
     const home=w.byId.get(e.airMissionHomeId??-1);
     const groundAirService=e.def.armor==='air'&&['grounded','rearming'].includes(e.airState??'')&&!!home&&!home.dead&&!home.underConstruction&&(home.disabledUntil??0)<=w.time&&w.hasCommandLink(home)&&w.powerStatus(e.team).ratio>=.25&&Math.hypot(e.x-home.x,e.z-home.z)<35&&e.y-heightAt(e.x,e.z)<3;
     const supplied=(inRadius||groundAirService)&&!!depot&&((depot.ammoStock??0)>0||(depot.fuelStock??0)>0);
@@ -143,7 +143,7 @@ export function updateTacticalSupply(w: World, dt: number): void {
       }
     }
     // A stranded ground vehicle can be rescued by a nearby physical fuel convoy.
-    if(e.def.domain==="land"&&needsFuel&&(!inRadius||!depot||serviceFuelAvailable(depot)<=0)){
+    if((e.def.domain==="land"||e.emergencyLanded)&&needsFuel&&(!inRadius||!depot||serviceFuelAvailable(depot)<=0)){
       const donor=fuelConvoys[e.team].find(n=>n!==e&&!n.dead&&n.team===e.team&&n.kind==="logiTruck"&&(n.logisticsPayload?.fuel??0)>0&&Math.hypot(n.x-e.x,n.z-e.z)<=logisticsRules.mobileRefuelRadius);
       if(donor?.logisticsPayload){const take=Math.max(0,Math.min((e.maxFuel??0)-(e.fuel??0),donor.logisticsPayload.fuel,logisticsRules.mobileRefuelRate*eff*dt));donor.logisticsPayload.fuel-=take;donor.cargo=Math.max(0,donor.cargo-take);e.fuel=(e.fuel??0)+take;}
     }

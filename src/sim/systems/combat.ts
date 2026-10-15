@@ -107,7 +107,8 @@ export function weaponFireBlocker(w:World,u:Entity,t:Entity,index:number):string
   const angle=Math.atan2(t.x-u.x,t.z-u.z),delta=Math.abs(wrapAngle(angle-u.heading));
   if(u.firingArc<Math.PI*2-.01&&delta>u.firingArc*.5)return "Sihtmärk väljaspool laskesektorit";
   if(!(u.def.domain==="sea"&&spec.weapon==="missile")){
-    const fixedRack=u.def.category==="heli"&&spec.weapon==="missile";
+    const fixedRack=u.def.category==="heli"&&(spec.weapon==="missile"||!u.def.turret);
+    if(u.def.category==="heli"&&!fixedRack&&delta>mobility.combat.helicopterGunTraverse)return "Sihtmärk väljaspool kopterikahuri laskesektorit";
     const error=Math.abs(wrapAngle(angle-u.heading-(!fixedRack&&u.def.turret?u.turretYaw:0)));
     if(fixedRack)return error<mobility.combat.helicopterMissileAimTolerance?null:"Pöörab raketirakke sihtmärgile";
     if(error>=(u.def.turret?mobility.combat.turretAimTolerance:mobility.combat.hullAimTolerance))return u.def.turret?"Pöörab torni sihtmärgile":"Pöörab relva sihtmärgile";
@@ -289,7 +290,8 @@ export function fireProjectile(w: World, u: Entity, t: Entity, x: number, y: num
   const missShot=hitRoll>hitChance;
   if(w.platformRosterOnly){const spread=(1-hitChance)*Math.max(physics.minimumDispersion,Math.hypot(t.x-x,t.z-z)*(w.metricBattle?(spec.flight==="ballistic"?BATTLE_SCALE.indirectDispersionAngle:BATTLE_SCALE.dispersionAngle):physics.dispersionAngle))*Math.sqrt(hitRoll);
     const ax=tx+Math.cos(angle)*spread,az=tz+Math.sin(angle)*spread;
-    launchProjectile(w,u,spec,index,x,y,z,spec.flight==="guided"?t.x:ax,t.y+t.def.height*.45,spec.flight==="guided"?t.z:az,t,dealt,hitChance,penetration,hitRoll,0,0);
+    const seekerSpread=(1-hitChance)*Math.max(t.def.radius*physics.missiles.targetRadiusErrorFactor,Math.hypot(t.x-x,t.z-z)*physics.missiles.seekerErrorAngle)*Math.sqrt(hitRoll);
+    launchProjectile(w,u,spec,index,x,y,z,spec.flight==="guided"?t.x:ax,t.y+t.def.height*.45,spec.flight==="guided"?t.z:az,t,dealt,hitChance,penetration,hitRoll,spec.flight==="guided"?Math.cos(angle)*seekerSpread:0,spec.flight==="guided"?Math.sin(angle)*seekerSpread:0);
     w.projectiles[w.projectiles.length-1].damage=base;return;
   }
   launchProjectile(w,u,spec,index,x,y,z,spec.flight==="guided"?t.x:tx+(missShot?missX:0),t.y+t.def.height*.45,spec.flight==="guided"?t.z:tz+(missShot?missZ:0),t,dealt,hitChance,penetration,hitRoll,missX,missZ);
@@ -300,15 +302,18 @@ function launchProjectile(w:World,u:Entity,spec:WeaponSpec,index:number,x:number
   const dx=tx-x,dz=tz-z,dy=ty-y,length=Math.hypot(dx,dy,dz)||1;
   const speed=spec.flight==="guided"?spec.launchSpeed:spec.speed;
   const flightTime=Math.max(spec.minFlight,Math.hypot(dx,dz)/Math.max(1,speed),.1);
-  const ballistic=spec.flight==="ballistic",gravity=w.platformRosterOnly&&ballistic?physics.gravity:spec.gravity;
+  const ballistic=spec.flight==="ballistic"||(w.platformRosterOnly&&spec.weapon==="missile"&&spec.flight==="direct"),gravity=w.platformRosterOnly&&ballistic?physics.gravity:spec.gravity;
   const vertical=spec.launch==="vertical";
-  const vx=vertical?0:ballistic?dx/flightTime:dx/length*speed,vz=vertical?0:ballistic?dz/flightTime:dz/length*speed;
-  const vy=vertical?speed:ballistic?(dy+.5*gravity*flightTime*flightTime)/flightTime:dy/length*speed;
-  const p:Projectile={id:w.nextId++,team:u.team,x,y,z,px:x,py:y,pz:z,vx,vy,vz,tx,tz,aimY:ty,target,sourceId:u.id,damage:dealt,impactDamage:dealt,speed,splash:spec.splash,weapon:spec.weapon,profile:spec.profile,visual:spec.visual,flight:spec.flight,guidance:spec.guidance,warhead:spec.warhead,gravity,flightTime,suppressionPower:spec.suppressionPower,launchX:u.x,launchZ:u.z,age:0,lifetime:Math.max(8,flightTime+4,length/Math.max(1,speed)+4),turnRate:spec.turnRate,acceleration:spec.acceleration,maxSpeed:spec.speed,boostTime:spec.boostTime,cruiseAltitude:spec.cruiseAltitude,penetration,hitChance,hitRoll,missX,missZ};
+  const aircraftRack=w.platformRosterOnly&&spec.flight==="guided"&&u.def.armor==="air";
+  const vx=vertical?0:aircraftRack?Math.sin(u.heading)*speed:ballistic?dx/flightTime:dx/length*speed,vz=vertical?0:aircraftRack?Math.cos(u.heading)*speed:ballistic?dz/flightTime:dz/length*speed;
+  const vy=vertical?speed:aircraftRack?0:ballistic?(dy+.5*gravity*flightTime*flightTime)/flightTime:dy/length*speed;
+  const p:Projectile={id:w.nextId++,team:u.team,x,y,z,px:x,py:y,pz:z,vx,vy,vz,tx,tz,aimY:ty,target,sourceId:u.id,damage:dealt,impactDamage:dealt,speed,splash:spec.splash,weapon:spec.weapon,profile:spec.profile,visual:spec.visual,flight:ballistic?"ballistic":spec.flight,guidance:spec.guidance,warhead:spec.warhead,gravity,flightTime,suppressionPower:spec.suppressionPower,launchX:u.x,launchZ:u.z,age:0,lifetime:Math.max(8,flightTime+4,length/Math.max(1,speed)+4),turnRate:spec.turnRate,acceleration:spec.acceleration,maxSpeed:spec.speed,boostTime:spec.boostTime,cruiseAltitude:spec.cruiseAltitude,penetration,hitChance,hitRoll,missX,missZ};
+  if(aircraftRack&&!vertical){p.vx+=u.flightVx??Math.sin(u.heading)*(u.motionSpeed??0);p.vz+=u.flightVz??Math.cos(u.heading)*(u.motionSpeed??0);p.speed=Math.hypot(p.vx,p.vy,p.vz);}
+  if(w.platformRosterOnly&&spec.flight==="guided"&&spec.visual!=="torpedo"){const cfg=physics.missiles,profile=(cfg.profiles as Record<string,{motorSeconds:number;lateralAcceleration:number;seekerAngle:number}>)[spec.profile];p.motorTime=profile?.motorSeconds??cfg.motorSeconds;p.lateralAcceleration=profile?.lateralAcceleration??cfg.lateralAcceleration;p.drag=cfg.drag;p.seekerAngle=profile?.seekerAngle??cfg.seekerAngle;p.nextGuidanceAt=0;}
   w.projectiles.push(p);
   if(index===0&&spec.weapon==="cannon")u.gunElevation=Math.atan2(vy,Math.hypot(vx,vz));
   if(index===0){if(spec.ammoCapacity>0)u.ammo=Math.max(0,(u.ammo??0)-spec.ammoUsePerShot);}else {u.secondaryAmmo??=[];u.secondaryAmmo[index]=Math.max(0,weaponAmmo(u,index)-spec.ammoUsePerShot);}
-  w.events.push({type:"fire",team:u.team,x,y,z,sourceId:u.id,weapon:spec.weapon,caliber:spec.damage,visual:spec.visual,dx:dx/length,dy:dy/length,dz:dz/length,weaponIndex:index});
+  w.events.push({type:"fire",team:u.team,x,y,z,sourceId:u.id,weapon:spec.weapon,caliber:spec.damage,visual:spec.visual,dx:p.vx/Math.max(.001,Math.hypot(p.vx,p.vy,p.vz)),dy:p.vy/Math.max(.001,Math.hypot(p.vx,p.vy,p.vz)),dz:p.vz/Math.max(.001,Math.hypot(p.vx,p.vy,p.vz)),weaponIndex:index});
 }
 
 export function damage(w: World, t: Entity, amount: number, opts?: {

@@ -7,3 +7,9 @@ export function runwayEdgePoint(size:number,pad:Point&{heading:number},margin:nu
  const distance=Math.max(1,Math.min(tx>0?tx:Infinity,tz>0?tz:Infinity));
  return {x:pad.x+dx*distance,z:pad.z+dz*distance};
 }
+
+/** Same physical runway in reverse: departures leave through the arrival rear edge. */
+export function cargoDepartureRunway<T extends Point&{heading:number}>(pad:T,start:number,end:number):T {
+ const shift=start+end;
+ return {...pad,x:pad.x+Math.sin(pad.heading)*shift,z:pad.z+Math.cos(pad.heading)*shift,heading:pad.heading+Math.PI};
+}

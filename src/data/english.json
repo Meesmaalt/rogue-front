@@ -468,5 +468,10 @@
   "Mängijad": "Players",
   "Ruum": "Room",
   "Saada": "Send",
-  "Sõnum": "Message"
+  "Sõnum": "Message",
+  "Kütus alla 5% — hädamaandumine!": "Fuel below 5% — emergency landing!",
+  "Kütusevaru alla 15% — naase baasi.": "Fuel below 15% — return to base.",
+  "Sihtmärk väljaspool kopterikahuri laskesektorit": "Target outside helicopter gun traverse",
+  "Hädamaandunud · vajab kütust": "Emergency landing complete · needs fuel",
+  "Hädamaandumine · kütusevaru kriitiline": "Emergency landing · critical fuel"
 }

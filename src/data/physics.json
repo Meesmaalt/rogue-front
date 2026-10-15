@@ -4,5 +4,49 @@
   "minimumDispersion": 0.5,
   "collisionSearchPadding": 16,
   "activeProtectionRadius": 6,
-  "minimumGuidanceQuality": 0.25
+  "minimumGuidanceQuality": 0.25,
+  "missiles": {
+    "motorSeconds": 6,
+    "lateralAcceleration": 140,
+    "drag": 0.00065,
+    "seekerAngle": 1.05,
+    "seekerDelay": 0.25,
+    "guidanceInterval": 0.1,
+    "maximumLeadSeconds": 2,
+    "turnEnergyLoss": 0.12,
+    "seekerErrorAngle": 0.012,
+    "targetRadiusErrorFactor": 4,
+    "profiles": {
+      "atgm": {
+        "motorSeconds": 7,
+        "lateralAcceleration": 70,
+        "seekerAngle": 1.15
+      },
+      "sam": {
+        "motorSeconds": 6,
+        "lateralAcceleration": 220,
+        "seekerAngle": 1.05
+      },
+      "aam": {
+        "motorSeconds": 5,
+        "lateralAcceleration": 300,
+        "seekerAngle": 1.2
+      },
+      "manpad": {
+        "motorSeconds": 4,
+        "lateralAcceleration": 150,
+        "seekerAngle": 0.95
+      },
+      "anti-ship": {
+        "motorSeconds": 12,
+        "lateralAcceleration": 50,
+        "seekerAngle": 1.1
+      },
+      "cruise": {
+        "motorSeconds": 18,
+        "lateralAcceleration": 45,
+        "seekerAngle": 1.2
+      }
+    }
+  }
 }

@@ -367,6 +367,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       cam.update(frameDt);terrainCulling.sync(ctx.camera);performancePanel.mark("kaamera");
       selection.prune();
       const events = world.drainEvents();
+      for(const event of events)if(event.type==="air-fuel-warning"&&event.team===world.playerTeam)hud.setWarning(`${world.unitDisplayName(world.byId.get(event.unitId)?.kind??"heli",event.team)}: ${event.emergency?"Kütus alla 5% — hädamaandumine!":"Kütusevaru alla 15% — naase baasi."}`);
       units.handleEvents(events);commands.handleEvents(events);
       hoverAcc+=frameDt;if(hoverAcc>=.08){hoverAcc%=.08;commands.updateHover();}
       const visualAlpha=paused||!running||world.status!=="running"?1:alpha;

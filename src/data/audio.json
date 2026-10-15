@@ -56,19 +56,19 @@
   "engineVoices": 8,
   "dopplerSpeed": 160,
   "engineKinds": {
-    "tracked": ["tank", "lightTank", "tankDestroyer", "artillery", "mlrs", "spaa", "aa"],
+    "tracked": ["tank", "lightTank", "tankDestroyer", "artillery", "mlrs", "spaa", "aa", "sam", "howitzer"],
     "wheeled": ["apc", "ifv", "reconVehicle", "logiTruck", "supply"],
     "heli": ["heli", "transport", "gunship", "casHeli"],
-    "jet": ["fighter", "interceptor", "bomber", "ecm", "multirole", "attackAircraft"],
-    "prop": ["cargoPlane"],
+    "jet": ["fighter", "interceptor", "bomber", "ecm", "multirole", "attackAircraft", "cargoPlane"],
+    "prop": [],
     "ship": ["destroyer", "submarine", "landingcraft", "frigate", "missileBoat"],
     "hum": ["generator", "refinery", "factory"]
   },
   "engines": {
     "tracked": [38, 360, 0.09, 280, 0],
     "wheeled": [62, 520, 0.07, 460, 0],
-    "heli": [54, 560, 0.11, 340, 18],
-    "jet": [90, 1100, 0.11, 1800, 0],
+    "heli": [25, 850, 0.16, 1500, 18],
+    "jet": [70, 1700, 0.15, 4200, 0],
     "prop": [78, 680, 0.085, 560, 26],
     "ship": [29, 260, 0.075, 190, 0],
     "hum": [48, 200, 0.04, 160, 0]
@@ -88,5 +88,24 @@
   },
   "whistle": { "minGain": 0.12, "delay": 0.3, "volume": 0.08 },
   "muffle": { "nearDist": 150, "farDist": 600, "nearHz": 16000, "farHz": 4500 },
-  "flyby": { "maxDist": 500, "minSpeed": 6, "volume": 0.22 }
+  "flyby": { "maxDist": 500, "minSpeed": 6, "volume": 0.22 },
+  "aircraft": {
+    "idlePower": 0.055,
+    "idleRpm": 0.18,
+    "takeoffPower": 1,
+    "taxiPower": 0.24,
+    "taxiRpm": 0.56,
+    "hoverPower": 0.78,
+    "approachPower": 0.42,
+    "approachRpm": 0.74,
+    "cruisePower": 0.65,
+    "cruiseRpm": 0.85,
+    "autorotationRpm": 0.65,
+    "turbineFrequency": 1250,
+    "turbineVolume": 0.16,
+    "transitionVolume": 0.065,
+    "rotorPulseSharpness": 10,
+    "rotorTurbulence": 0.18,
+    "dopplerSoundSpeed": 343
+  }
 }

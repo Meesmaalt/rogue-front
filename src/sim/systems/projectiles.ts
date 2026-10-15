@@ -1,3 +1,4 @@
+import {stepMissile,missileTrackingPoint} from "../missileDynamics";
 import physics from "../../data/physics.json";
 import {equipmentModule} from "../equipment";
 import {impactGarrisonBuildings,GARRISON_RULES} from "../garrison";
@@ -68,13 +69,14 @@ export function updateProjectiles(w:World,dt:number):void {
     const p=w.projectiles[i];p.px=p.x;p.py=p.y;p.pz=p.z;p.age=(p.age??0)+dt;
     if(p.age>(p.lifetime??16)){w.projectiles.splice(i,1);continue;}
     const guided=(p.flight??(p.weapon==="missile"?"guided":"direct"))==="guided";
-    const ballistic=p.flight==="ballistic";
+    const ballistic=p.flight==="ballistic",physicalMissile=guided&&p.motorTime!=null;
     if(guided&&!p.guidanceLost){
       const source=w.byId.get(p.sourceId),t=p.target;
       if(!t||t.dead||(p.guidance==="command"&&(!source||source.dead||(source.suppression??0)>85||!w.isSpottedByTeam(t,p.team)||!w.vision.hasLineOfSight(source,t))))p.guidanceLost=true;
       else {
-        const miss=!w.platformRosterOnly&&(p.hitRoll??0)>(p.hitChance??1);
-        p.tx=t.x+(miss?p.missX??0:0);p.tz=t.z+(miss?p.missZ??0:0);p.aimY=t.y+t.def.height*.45;
+        if(physicalMissile){if(p.age>=(p.nextGuidanceAt??0)){const aim=missileTrackingPoint(p,t);p.tx=aim.x;p.tz=aim.z;p.aimY=aim.y;p.nextGuidanceAt=p.age+physics.missiles.guidanceInterval;}}
+        else {const miss=!w.platformRosterOnly&&(p.hitRoll??0)>(p.hitChance??1);
+        p.tx=t.x+(miss?p.missX??0:0);p.tz=t.z+(miss?p.missZ??0:0);p.aimY=t.y+t.def.height*.45;}
       }
     }
     let ty=p.aimY??heightAt(p.tx,p.tz)+.15;
@@ -87,7 +89,8 @@ export function updateProjectiles(w:World,dt:number):void {
     if(p.age<(p.boostTime??0))ty=Math.max(ty,p.y+30);
     const boost=p.age<(p.boostTime??0);
     const dx=boost?0:p.tx-p.x,dy=ty-p.y,dz=boost?0:p.tz-p.z,d=Math.hypot(dx,dy,dz)||.001;
-    if(guided){
+    if(physicalMissile)stepMissile(p,dx,dy,dz,dt);
+    else if(guided){
       p.speed=Math.min(p.maxSpeed??p.speed,p.speed+(p.acceleration??0)*dt);
       if(!p.guidanceLost){
         const old=Math.hypot(p.vx,p.vy,p.vz)||1,dot=Math.max(-1,Math.min(1,(p.vx*dx+p.vy*dy+p.vz*dz)/(old*d))),angle=Math.acos(dot),blend=Math.min(1,(p.turnRate??3.2)*(w.platformRosterOnly?Math.max(physics.minimumGuidanceQuality,p.hitChance??1):1)*dt/Math.max(.001,angle));
@@ -124,7 +127,7 @@ export function updateProjectiles(w:World,dt:number):void {
       crossed=Math.hypot(target.x-x,target.y+target.def.height*.45-y,target.z-z)<=Math.max(.5,target.def.radius);
       if(crossed){p.x=x;p.y=y;p.z=z;}
     }
-    const arrived=!p.guidanceLost&&(ballistic?(p.age>=(p.flightTime??1)):d<=p.speed*dt+.25&&(!guided||p.vx*dx+p.vy*dy+p.vz*dz>0));
+    const arrived=!physicalMissile&&!p.guidanceLost&&(ballistic?(p.age>=(p.flightTime??1)):d<=p.speed*dt+.25&&(!guided||p.vx*dx+p.vy*dy+p.vz*dz>0));
     if(terrain||arrived||crossed){if(arrived&&!terrain&&!crossed){p.x=p.tx;p.y=ty;p.z=p.tz;}impact(w,p,terrain);w.projectiles.splice(i,1);}
   }
 }

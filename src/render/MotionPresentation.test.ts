@@ -63,3 +63,10 @@ it('suspension compresses, settles and gives the same response at 30 and 120 FPS
  const held={...a};springSuspension(a,-.08,0);expect(a).toEqual(held);
  springSuspension(a,-.2,1/30,true);expect(a).toEqual({value:-.2,velocity:0});
 });
+
+import {usesFlightHeight} from './MotionPresentation';
+it('vertical helicopter takeoff uses interpolated height throughout taxi, without a state-change jump',()=>{
+ const e={x:0,px:0,y:8,py:7.8,z:0,pz:0,heading:0,pHeading:0,airState:'taxi' as const,def:{speed:50,armor:'air' as const,category:'heli' as const}},p=pose();
+ sampleMotion(e,.5,p);expect(usesFlightHeight(e)).toBe(true);expect(p.y).toBeCloseTo(7.9);expect(usesFlightHeight({...e,airState:'airborne'})).toBe(true);
+ expect(usesFlightHeight({...e,def:{...e.def,category:'air'}})).toBe(false);
+});

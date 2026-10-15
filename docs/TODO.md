@@ -1,5 +1,14 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Õhusõidukid, raketid ja kütusereserv · 15.10.2026
+
+- [x] Kopteri stardifaasis renderdatakse tegelikku interpoleeritud kõrgust; rootorid kiirenevad/aeglustuvad sujuvalt. Liikumine ja sihtimine jagavad üht aeglasemat pööramispiiri, raketirakid ning kahuri sektor piiravad tegelikku laskmist.
+- [x] Lennufaasi järgi tühi käik, ruleerimine, hoovõtt, hõljumine ja lähenemine; kihiline turbiin/õhuvool/rootorilaba impulss ning õhusõidukite füüsilise helikiirusega Doppler. Kaubalennuk on reaktiivmootoriga.
+- [x] Põhiklasside juhitavatel rakettidel piiratud normaal-/pöördekiirendus, lõplik mootoritöö, õhutakistus, gravitatsioon, energia kadu pöördes, diskreetne ennakuga otsing ja stardil määratud sihtimishälve; sektori kaotamisel lukk katkeb. Mööduvat raketti ei telepordita sihtpunkti.
+- [x] Kaubalennuk maandub tagalast ja stardib samalt rajalt vastassuunas tagasi tagalasse; parkimine/hoovõtt ja päris last säilivad.
+- [x] Kopteri kütusehoiatus 15%, 5% juures kohaliku vaba maa otsing, pidurdus/laskumine ning tühja paagiga autorotatsioon. Maandunud üksus/passengerid säilivad; väljumine ja tegeliku konvoikütusega päästmine töötavad. Olek ja rakettide lennu jätkamine salvestuvad deterministlikult.
+- [ ] Tegeliku WebGL stardi/suumi ja kõlaritega helikõla ülevaatus: kohalikku Chromiumit ei ole; geomeetria-/heli-/simulatsioonitest ei asenda kuulamist.
+
 ## Seemnevalik, lennuväli, keel ja tuletoetus · 15.10.2026
 
 - [x] Kohalik tühistatav worker, kiire eelvaade enne navikontrolli lõppu ning sisestatud seemne päris kasutamine; kompaktsete reljeefikernelite täpne väljalõige kiirendab kõrguspuhvrit.
