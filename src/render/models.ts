@@ -374,7 +374,7 @@ export function createModel(kind: UnitKind, team: Team, faction: FactionId = tea
     mergeStaticParts(g);return {group:g,turret};
   }
   if(infantryKinds.has(kind))return infantryModel(kind,team,faction,tactical);
-  if (["reconVehicle","lightTank","tankDestroyer","spaa","sam"].includes(kind)) {
+  if (["irSam","reconVehicle","lightTank","tankDestroyer","spaa","sam"].includes(kind)) {
     const hullColor = kind === "reconVehicle" ? 0x66705a : kind === "lightTank" ? 0x6f7650 : body;
     if (kind === "reconVehicle") {
       for (const side of [-1, 1]) for (const z of [-1.55, -0.5, 0.6, 1.65]) wheel(side * 1.28, z, g, 0.42);
@@ -406,7 +406,9 @@ export function createModel(kind: UnitKind, team: Team, faction: FactionId = tea
       g.add(box(2.8, 0.95, 4.3, hullColor, 0, 1.0, 0));
       turret = new THREE.Group(); turret.position.y = 1.75;
       turret.add(box(1.8, 0.5, 1.7, hullColor, 0, 0.3, 0));
-      if(kind==="sam"){for(const sx of [-.7,.7])for(const y of [.6,1.05])detailBox(.4,.36,2.8,DARK,sx,y,.2,turret,-.55);}
+      if(kind==="sam"){detailBox(.15,1.4,.15,METAL,0,1.7,-.4,turret);detailBox(1.5,.9,.2,0x788579,0,2.5,-.4,turret);}
+      if(kind==="irSam")detailBox(.45,.38,.5,0x364e52,0,1.8,.9,turret);
+      if(kind==="sam"||kind==="irSam"){for(const sx of [-.7,.7])for(const y of [.6,1.05])detailBox(.4,.36,2.8,DARK,sx,y,.2,turret,-.55);}
       else for (const sx of [-0.38, 0.38]) { barrel(2.4, 0.08, 0.62, 0.75, turret); detailBox(0.16,0.18,0.55,METAL,sx,0.8,0.15,turret); }
       detailBox(0.65,0.5,0.7,METAL,0,0.9,-0.15,turret); antenna(g, -1.0, 1.8, -1.3, 1.5);
       g.add(turret);
@@ -415,7 +417,7 @@ export function createModel(kind: UnitKind, team: Team, faction: FactionId = tea
     return {group:g,turret};
   }
   if (["casHeli","ecm","multirole","attackAircraft"].includes(kind)) {
-    const isJet = kind === "attackAircraft" || kind === "multirole";
+    const isJet = kind === "attackAircraft" || kind === "multirole" || kind === "ecm";
     if (!isJet) {
       const fus = new THREE.Mesh(new THREE.CapsuleGeometry(0.48, 2.8, 6, 10), mat(body,0.68,0.18));
       fus.rotation.x=Math.PI/2; fus.position.y=2.75; g.add(fus);

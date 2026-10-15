@@ -8,7 +8,7 @@ export function producerKind(kind: UnitKind): "barracks" | "factory" | "helipad"
   if(kind==="cruiseLauncher")return "missileCommand";
   if(kind==="airTransport")return "airbase";
   if (["inf","engineer","special","atInf","mgInf","reconInf","sniper","mortar","manpad","atgm"].includes(kind)) return "barracks";
-  if (["sam","howitzer","tank","apc","ifv","artillery","mlrs","reconVehicle","lightTank","tankDestroyer","spaa"].includes(kind)) return "factory";
+  if (["irSam","sam","howitzer","tank","apc","ifv","artillery","mlrs","reconVehicle","lightTank","tankDestroyer","spaa"].includes(kind)) return "factory";
   if (["heli","transport","gunship","casHeli"].includes(kind)) return "helipad";
   if (["fighter","interceptor","bomber","ecm","multirole","attackAircraft"].includes(kind)) return "airbase";
   if (["destroyer","submarine","landingcraft","frigate","missileBoat"].includes(kind)) return "shipyard";

@@ -25,8 +25,8 @@ const metricAircraft={...mobility.aircraft,...data.aircraft};
 const metricHelicopter={...mobility.helicopter,...data.helicopter};
 const compactAircraft={...metricAircraft,altitude:data.compact.airAltitude,approachAltitude:90};
 const compactHelicopter={...metricHelicopter,altitude:data.compact.helicopterAltitude};
-const metricAirlift={...metricAircraft,altitude:expansion.airlift.flightAltitude};
-export function aircraftMobility(u:Entity){if(u.kind==='airTransport'&&u.def.metricScale&&!u.def.compactScale)return metricAirlift;return u.def.compactScale?compactAircraft:u.def.metricScale?metricAircraft:mobility.aircraft;}
+const metricAirlift={...metricAircraft,...data.aircraftRoles.heavy,altitude:expansion.airlift.flightAltitude};
+export function aircraftMobility(u:Entity){if(u.def.metricScale&&(u.kind==='cargoPlane'||u.kind==='bomber'))return {...(u.def.compactScale?compactAircraft:metricAircraft),...data.aircraftRoles[u.kind==='bomber'?'bomber':'heavy']};if(u.kind==='airTransport'&&u.def.metricScale&&!u.def.compactScale)return metricAirlift;return u.def.compactScale?compactAircraft:u.def.metricScale?metricAircraft:mobility.aircraft;}
 export function helicopterMobility(u:Entity){return u.def.compactScale?compactHelicopter:u.def.metricScale?metricHelicopter:mobility.helicopter;}
 
 export function displayedWeaponDistance(spec:{rangeScale?:number},distance:number):number{return distance/(spec.rangeScale??1);}

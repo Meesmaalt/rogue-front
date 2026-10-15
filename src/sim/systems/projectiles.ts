@@ -76,7 +76,7 @@ export function updateProjectiles(w:World,dt:number):void {
     if(guided&&!p.guidanceLost){
       const source=w.byId.get(p.sourceId),t=p.target;
       if(p.pointGuidance&&!t){/* Coordinate guidance has no entity lock to lose. */}
-      else if(!t||t.dead||(p.guidance==="command"&&(!source||source.dead||(source.suppression??0)>85||!w.isSpottedByTeam(t,p.team)||!w.vision.hasLineOfSight(source,t))))p.guidanceLost=true;
+      else if(!t||t.dead||(p.profile==='anti-radiation'&&(t.disabledUntil??0)>w.time)||(p.guidance==="command"&&(!source||source.dead||(source.suppression??0)>85||!w.isSpottedByTeam(t,p.team)||!w.vision.hasLineOfSight(source,t))))p.guidanceLost=true;
       else {
         if(physicalMissile){if(p.age>=(p.nextGuidanceAt??0)){const aim=missileTrackingPoint(p,t);p.tx=aim.x;p.tz=aim.z;p.aimY=aim.y;p.nextGuidanceAt=p.age+physics.missiles.guidanceInterval;}}
         else {const miss=!w.platformRosterOnly&&(p.hitRoll??0)>(p.hitChance??1);

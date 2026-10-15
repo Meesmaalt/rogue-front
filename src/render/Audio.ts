@@ -17,6 +17,9 @@ export function spatialSound(x:number,z:number,listener:{x:number;z:number;yaw:n
 /** Original procedural score and layered positional effects. Audio never changes simulation. */
 export class AudioManager {
  private ctx:AudioContext|null=null;
+ private entityAudible:(e:Entity)=>boolean=()=>true;
+ private pointAudible:(x:number,z:number)=>boolean=()=>true;
+ setAudibility(entity:(e:Entity)=>boolean,point:(x:number,z:number)=>boolean):void {this.entityAudible=entity;this.pointAudible=point;}
  private settings:GameSettings=loadSettings();
  private master:GainNode|null=null;private sfx:GainNode|null=null;private music:GainNode|null=null;
  private musicTimer:number|null=null;private musicStep=0;private activity=0;
@@ -79,7 +82,7 @@ export class AudioManager {
   this.engineClock+=dt;if(this.engineClock<.125)return;const step=this.engineClock;this.engineClock=0;
   const cands:Array<{e:Entity;cls:EngineClass;mix:{gain:number;pan:number};speed:number;vx:number;vz:number;score:number}>=[];
   for(const e of entities){
-   if(e.dead)continue;const cls=ENGINE_CLASS.get(e.kind);if(!cls)continue;
+   if(e.dead||!this.entityAudible(e))continue;const cls=ENGINE_CLASS.get(e.kind);if(!cls)continue;
    if(cls==='hum'&&(e as {underConstruction?:boolean}).underConstruction)continue;
    const mix=spatialSound(e.x,e.z,this.listener);if(mix.gain<.03)continue;
    const vx=(e.x-e.px)*30,vz=(e.z-e.pz)*30,speed=Math.hypot(vx,vz);
@@ -126,6 +129,7 @@ export class AudioManager {
     if(e.def.building){const prev=this.knownHp.get(e.id);if(prev!==undefined&&e.hp<prev-1&&!constructing){baseHit=true;hitAt={x:e.x,z:e.z};}this.knownHp.set(e.id,e.hp);}
    }
    if(e.team===playerTeam&&e.maxSupply&&e.supply!==undefined&&e.supply<e.maxSupply*config.lowSupply.ratio&&!(e as {underConstruction?:boolean}).underConstruction&&e.def.weapon!=='none')lowSupply=true;
+   if(!this.entityAudible(e))continue;
    const building=(e as {underConstruction?:boolean}).underConstruction===true;
    if(!building&&!INFANTRY.has(e.kind))continue;
    const mix=spatialSound(e.x,e.z,this.listener);
@@ -327,7 +331,7 @@ export class AudioManager {
  }
  events(events:readonly SimEvent[],playerTeam=0):void{
   const ctx=this.ctx;if(!ctx||ctx.state!=='running'||this.settings.masterVolume<=0||this.settings.sfxVolume<=0)return;
-  for(const e of events){const mix='x' in e&&'z' in e?spatialSound(e.x,e.z,this.listener):{gain:1,pan:0};if(mix.gain<.008&&e.type!=='air-fuel-warning'&&e.type!=='strategic-launch')continue;
+  for(const e of events){if('x' in e&&'z' in e&&!this.pointAudible(e.x,e.z)&&e.type!=='air-fuel-warning'&&e.type!=='strategic-launch')continue;const mix='x' in e&&'z' in e?spatialSound(e.x,e.z,this.listener):{gain:1,pan:0};if(mix.gain<.008&&e.type!=='air-fuel-warning'&&e.type!=='strategic-launch')continue;
    if(e.type==='strategic-launch'){this.ui('siren');this.onCue({kind:'siren',x:e.x,z:e.z});}
    else if(e.type==='air-fuel-warning'&&e.team===playerTeam){this.ui(e.emergency?'siren':'warn');this.onCue({kind:'alert',x:e.x,z:e.z});}
    else if(e.type==='fire'){

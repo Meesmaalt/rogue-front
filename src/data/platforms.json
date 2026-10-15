@@ -13,13 +13,19 @@
     "mortar",
     "sam",
     "howitzer",
-    "cruiseLauncher"
+    "cruiseLauncher",
+    "irSam"
   ],
   "air": [
     "heli",
     "transport",
     "fighter",
-    "airTransport"
+    "airTransport",
+    "interceptor",
+    "bomber",
+    "ecm",
+    "multirole",
+    "attackAircraft"
   ],
   "sea": [
     "frigate",
@@ -37,11 +43,6 @@
     "reconVehicle": "apc",
     "gunship": "heli",
     "casHeli": "heli",
-    "interceptor": "fighter",
-    "bomber": "fighter",
-    "ecm": "fighter",
-    "multirole": "fighter",
-    "attackAircraft": "fighter",
     "destroyer": "frigate",
     "missileBoat": "frigate"
   }

@@ -29,7 +29,13 @@
     "ifv": 14,
     "airTransport": 121,
     "cruiseLauncher": 9,
-    "groundHandler": 10
+    "groundHandler": 10,
+    "irSam": 12,
+    "bomber": 150,
+    "ecm": 190,
+    "multirole": 200,
+    "interceptor": 230,
+    "attackAircraft": 175
   },
   "opticsMultiplier": 18,
   "dispersionAngle": 0.003,
@@ -39,9 +45,9 @@
     "braking": 18,
     "climbRate": 35,
     "descentRate": 22,
-    "maxBank": 0.85,
+    "maxBank": 1.22,
     "minimumSpeed": 0.45,
-    "lateralAcceleration": 12,
+    "lateralAcceleration": 32,
     "runwayStart": -85,
     "runwayEnd": 195,
     "taxiSpeed": 12,
@@ -55,7 +61,7 @@
     "altitudeClearance": 40,
     "approachRadius": 1200,
     "headingTolerance": 0.4,
-    "orbitMinimum": 400,
+    "orbitMinimum": 160,
     "lineLookAhead": 120,
     "missedApproachDistance": 80,
     "landingCapture": 26,
@@ -176,6 +182,21 @@
       "range": 4000,
       "minimumRange": 200,
       "speed": 25
+    },
+    "air-cannon": {
+      "range": 1200,
+      "minimumRange": 0,
+      "speed": 1100
+    },
+    "anti-radiation": {
+      "range": 4200,
+      "minimumRange": 300,
+      "speed": 750
+    },
+    "ir-sam": {
+      "range": 3200,
+      "minimumRange": 80,
+      "speed": 600
     }
   },
   "airspaceMargin": 2000,
@@ -206,6 +227,9 @@
     "fighter": {
       "aam": {
         "range": 4500
+      },
+      "air-cannon": {
+        "range": 1200
       }
     },
     "multirole": {
@@ -241,6 +265,11 @@
       "howitzer": {
         "range": 5500,
         "minimumRange": 250
+      }
+    },
+    "spaa": {
+      "ir-sam": {
+        "range": 1800
       }
     }
   },
@@ -314,5 +343,19 @@
     "runwayStart": -100,
     "runwayEnd": 240,
     "runwayWidth": 36
+  },
+  "aircraftRoles": {
+    "heavy": {
+      "maxBank": 0.85,
+      "lateralAcceleration": 12
+    },
+    "bomber": {
+      "maxBank": 1,
+      "lateralAcceleration": 18
+    },
+    "fighter": {
+      "maxBank": 1.22,
+      "lateralAcceleration": 32
+    }
   }
 }

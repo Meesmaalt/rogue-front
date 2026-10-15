@@ -530,5 +530,17 @@
   "katkendjoon: minimaalne ulatus": "dashed line: minimum range",
   "Ootab raketi laskesektorit": "Waiting for missile firing angle",
   "Lukustab raketi sihtmärki": "Acquiring missile target lock",
-  "Jälgib lastud raketi tulemust": "Assessing missile engagement"
+  "Jälgib lastud raketi tulemust": "Assessing missile engagement",
+  "Infrapunaõhutõrje": "Infrared SAM",
+  "Mobiilne passiivne IR-õhutõrje": "Mobile passive IR air defence",
+  "Mobiilne radarõhutõrje": "Mobile radar air defence",
+  "Radarivastane SEAD-lennuk": "Anti-radar SEAD aircraft",
+  "Lennukikahuri lühivalang": "Aircraft cannon burst",
+  "Radarivastane rakett": "Anti-radiation missile",
+  "Passiivne IR-õhutõrjerakett": "Passive infrared SAM",
+  "Radar ei kiirga": "Radar is not emitting",
+  "Passiivne soojusjälgimine; radarivastased raketid ei saa lukustuda": "Passive heat tracking; anti-radiation missiles cannot lock on",
+  "Pikema ulatusega radarjuhitavad raketid; haavatav SEAD-lennukitele": "Longer-range radar-guided missiles; vulnerable to SEAD aircraft",
+  "Radarivastased raketid radarite ja radarõhutõrje vastu; elektrooniline häiring": "Anti-radiation missiles against radars and radar SAMs; electronic jamming",
+  "SEAD / elektroonilise sõja lennuk": "SEAD / electronic warfare aircraft"
 }

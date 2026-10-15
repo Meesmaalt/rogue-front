@@ -50,7 +50,7 @@
   "engineVoices": 8,
   "dopplerSpeed": 160,
   "engineKinds": {
-    "tracked": ["tank", "lightTank", "tankDestroyer", "artillery", "mlrs", "spaa", "aa", "sam", "howitzer"],
+    "tracked": ["tank", "lightTank", "tankDestroyer", "artillery", "mlrs", "spaa", "aa", "sam", "irSam", "howitzer"],
     "wheeled": ["apc", "ifv", "reconVehicle", "logiTruck", "supply", "cruiseLauncher"],
     "heli": ["heli", "transport", "gunship", "casHeli"],
     "jet": ["fighter", "interceptor", "bomber", "ecm", "multirole", "attackAircraft", "cargoPlane", "airTransport"],

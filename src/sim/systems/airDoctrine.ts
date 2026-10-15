@@ -2,7 +2,7 @@ import {BATTLE_SCALE,aircraftMobility} from "../battleScale";
 import type { World } from "../World";
 import mobility from "../../data/mobility.json";
 import {heightAt} from "../heightmap";
-import {canEngage,weaponAmmo,weaponSpec,weaponRange} from "./combat";
+import {canEngage,weaponAmmo,weaponSpec,weaponRange,isRadarEmitter} from "./combat";
 import type { Entity, Point, Team,AirMission } from "../types";
 
 /** The same facility-local points drive production, taxi, landing and the model. */
@@ -75,10 +75,11 @@ export function aaThreatRadius(e:Entity):number {
 /** Automatic acquisition stays within the designated operation area and role. */
 export function airMissionAllowsTarget(u:Entity,t:Entity):boolean {
   if(!u.airMission)return true;
-  if(u.airMissionPoint&&Math.hypot(t.x-u.airMissionPoint.x,t.z-u.airMissionPoint.z)>mobility.combat.airMissionRadius)return false;
+  const radius=u.airMission==='cap'?(u.def.compactScale?(u.target===t?mobility.combat.capCompactPursuitRadius:mobility.combat.capCompactRadius):(u.target===t?mobility.combat.capPursuitRadius:mobility.combat.capMissionRadius)):u.def.metricScale?mobility.combat.capMissionRadius:mobility.combat.airMissionRadius;
+  if(u.airMissionPoint&&Math.hypot(t.x-u.airMissionPoint.x,t.z-u.airMissionPoint.z)>radius)return false;
   if(u.airMission==="cap")return t.def.armor==="air";
   if(t.def.armor==="air")return false;
-  if(u.airMission==="sead")return aaThreatRadius(t)>0;
+  if(u.airMission==="sead")return isRadarEmitter(t);
   if(u.airMission==="strike")return t.def.building===true;
   return true;
 }
@@ -87,7 +88,7 @@ export function airMissionAllowsTarget(u:Entity,t:Entity):boolean {
 export function aaThreatAt(w: World, team: Team, x: number, z: number): number {
   let threat = 0;
   for (const e of w.entities) {
-    if (e.dead || e.team === team || e.underConstruction || !w.isSpottedByTeam(e,team)) continue;
+    if (e.dead || e.def.armor==="air" || e.team === team || e.underConstruction || !w.isSpottedByTeam(e,team)) continue;
     const r = aaThreatRadius(e);
     if (r <= 0) continue;
     const d = Math.hypot(e.x - x, e.z - z);
@@ -110,7 +111,7 @@ export function assignAirMission(
     u.mode = "patrol";
     u.dest=point?{...point}:null;
     if (point) {
-      const radius=u.def.metricScale?Math.max(400,u.def.speed*u.def.speed/aircraftMobility(u).lateralAcceleration):18;
+      const radius=u.def.metricScale?Math.max(BATTLE_SCALE.aircraft.orbitMinimum,u.def.speed*u.def.speed/aircraftMobility(u).lateralAcceleration):18;
       u.patrolPoints = [
         { x: point.x + radius, z: point.z },
         { x: point.x, z: point.z + radius },
@@ -143,7 +144,7 @@ export function updateAirDoctrine(w: World, u: Entity, dt: number): void {
   u.airThreat = u.airThreat ?? 0;
   u.airWeaponCooldown = Math.max(0, (u.airWeaponCooldown ?? 0) - dt);
 
-  const mission = u.airMission ?? (u.kind === "fighter" || u.kind === "interceptor" ? "cap" : "ground");
+  const mission = u.airMission ?? (u.kind === "fighter" || u.kind === "interceptor" ? "cap" : u.kind==='ecm'?'sead':u.kind==='bomber'?'strike':"ground");
   const threat = aaThreatAt(w, u.team, u.x, u.z);
   u.airThreat = threat;
   if (threat > mobility.combat.aaRetreatThreat && mission !== "sead" && u.airState === "airborne") {
@@ -156,11 +157,11 @@ export function updateAirDoctrine(w: World, u: Entity, dt: number): void {
   }
 
   // SEAD: actively hunt AA
-  if (mission === "sead" && (!u.target || u.target.dead || aaThreatRadius(u.target)<=0)) {
+  if (mission === "sead" && (!u.target || u.target.dead || !isRadarEmitter(u.target))) {
     let best: Entity | null = null;
     let bestD = 1e9;
     for (const e of w.entities) {
-      if (e.dead || e.team === u.team || !w.isSpottedByTeam(e,u.team) || !airMissionAllowsTarget(u,e)||!canEngage(u,e)) continue;
+      if (e.dead || e.team === u.team || !isRadarEmitter(e)||(e.disabledUntil??0)>w.time||!w.isSpottedByTeam(e,u.team) || !airMissionAllowsTarget(u,e)||!canEngage(u,e)) continue;
       const d = Math.hypot(e.x - u.x, e.z - u.z);
       if (d < bestD) { bestD = d; best = e; }
     }

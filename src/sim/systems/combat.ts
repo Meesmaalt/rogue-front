@@ -54,7 +54,11 @@ export function weaponMuzzle(u:Entity,spec:WeaponSpec,index:number):{x:number;y:
   const scale=u.def.modelScale??1;
   return {x:u.x+(Math.sin(a)*(spec.muzzle+crew[1])+Math.cos(a)*(wing+crew[0]))*scale,y:u.y+spec.muzzleHeight*scale,z:u.z+(Math.cos(a)*(spec.muzzle+crew[1])-Math.sin(a)*(wing+crew[0]))*scale};
 }
-export function weaponCanTarget(spec:WeaponSpec,t:Pick<Entity,"def">):boolean {
+export function isRadarEmitter(t:Pick<Entity,'def'>&Partial<Pick<Entity,'kind'>>):boolean {
+ return t.kind==='radar'||t.def.armor!=='air'&&!!t.def.weapons?.some(s=>s.guidance==='radar'&&s.targets==='air');
+}
+export function weaponCanTarget(spec:WeaponSpec,t:Pick<Entity,"def">&Partial<Pick<Entity,'kind'>>):boolean {
+  if(spec.radarTargetsOnly&&!isRadarEmitter(t))return false;
   const air=t.def.armor==="air";
   return spec.targets==="naval"?t.def.domain==="sea":spec.targets==="air"?air:spec.targets==="armor"?!air&&t.def.speed>0&&t.def.category!=="infantry"&&t.def.domain!=="sea":spec.targets==="all"?true:!air||!!spec.targetHelicopters&&t.def.category==="heli";
 }
@@ -98,6 +102,7 @@ export function weaponFireBlocker(w:World,u:Entity,t:Entity,index:number):string
   if(!weaponCanTarget(spec,t)||spec.damage<=0)return "Sobimatu sihtmärgi liik";
   if(!garrisonWeaponAllowed(u,spec,t))return "Garnisoni relv või laskesektor ei võimalda tuld";
   if(spec.warhead==="kinetic"&&penetrationFactor(spec.warhead,weaponPenetration(u,spec),armorValue(t,hitFace(u.x,u.z,t)),t.def.category==="infantry"||t.def.armor==="air",distance)<=0)return "Soomus peatab selle mürsu";
+  if(spec.radarTargetsOnly&&(t.disabledUntil??0)>w.time)return "Radar ei kiirga";
   if(spec.ammoCapacity>0&&weaponAmmo(u,index)<spec.ammoUsePerShot)return "Moon otsas · vaja varustust";
   if(distance<spec.minimumRange)return "Sihtmärk liiga lähedal";
   if(distance-t.def.radius>weaponRange(u,spec))return "Väljaspool relva ulatust";
@@ -265,9 +270,10 @@ export function shotAccuracy(w:World,u:Entity,t:Entity,spec:WeaponSpec,distance=
   if (u.veteran > 0) hitChance += Math.min(0.08, u.veteran * 0.016);
   note("Kogemus");
   // ECM disrupts guided weapons, but does not make aircraft invulnerable.
-  if (spec.weapon === "missile" || u.def.category === "air") {
-    const ecm = w.entities.find(e => !e.dead && e.team !== u.team && e.kind === "ecm" && Math.hypot(e.x-u.x,e.z-u.z) < 46);
-    if (ecm) hitChance *= 0.68;
+  if (spec.flight === "guided" && (spec.guidance === "radar" || spec.guidance === "command")) {
+    const radius=w.compactBattle?physics.radarJamming.compactRadius:w.metricBattle?physics.radarJamming.metricRadius:physics.radarJamming.legacyRadius;
+    const ecm = w.entities.find(e => !e.dead && e.team === t.team && e.kind === "ecm" && e.airState==='airborne'&&(e.disabledUntil??0)<=w.time&&Math.hypot(e.x-t.x,e.z-t.z) < radius);
+    if (ecm) hitChance *= physics.radarJamming.accuracyMultiplier;
     note("Elektrooniline häiring");
   }
   if (t.def.category === "infantry" && u.kind !== "artillery" && u.kind !== "mortar" && u.kind !== "mlrs") {

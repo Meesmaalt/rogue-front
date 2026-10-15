@@ -579,3 +579,12 @@ Platsivalik sõltub ehitiste navigatsioonist. `World.tick` sünkroonib määrdun
 Lennuki juhitav relv vajab stabiilset suunda ja `airMissileLock` sihtmärki/aega. See seisund liigub full-save'iga ja replay hash'iga. AAM baasjahtumine on 7 s; aktiivse värske lasu hindamine väldib kohest topeltlasku. Seemnega määratud otsinguhälve läheneb eksponentsiaalselt jääkhälbele, mitte ei juhi kogu lennu jooksul sihtmärgist sama palju mööda. Raketi normaaljõu, mootoritöö, takistuse ja lukukaotuse piirangud säilivad.
 
 Lao ühine betoonpind ja üks esimese taseme maandumisplats on nähtavad kohe, sealhulgas ehitusghost'is. Kõrgematel tasemetel lisanduvad eraldi tagumised laomoodulid ja üks püsiplats taseme kohta. Tarnekopteri −30% kiirus ja pikem väljasaatmisintervall muudavad transpordi rahulikumaks; lennukite +15% kiirus ja kiirem ruleerimine on eraldi häälestatud. Kontroll piirdus kasutaja soovil puudutatud käitumiste ja build'iga; uut GPU pildi kontrolli ei väideta.
+
+
+## Õhulahingu rollid ja helifookus · 15.10.2026
+
+`platforms.json` avaldab eraldi olemasolevad viie lisarolli lennukid ja uue `irSam` passiivse maaväeplatvormi. Faction-loadout'id säilitavad lisatud õhukahuri; SEAD-i esimene relv on `anti-radiation`, mitte üldine ATGM. `weaponCanTarget` kasutab radarikiirguse nõuet nii tegelikus tulistamises kui relvavalikus. Passiivne IR-SAM ja MANPADS ei ole radarisihtmärgid. Radarhäiring hindab sihtmärgi lähedal olevat õhus ECM-lennukit ning mõjutab ainult radar-/käsujuhtimist. Radarivastane rakett kaotab jälgimise, kui radar saab disabled-oleku; ülejäänud füüsiline lend jätkub.
+
+`aircraftRoles` eristab lahingulennuki, pommitaja ja raske kaubalennuki pöördepiire. CAP saab suurema hankimis-/jälitamisala, eesmärk kasutab sihtmärgi tegelikku maailmakiirust ja järsul kursiparandusel vähendatakse kiirust. Õhuüksused ei kuulu maapealse AA vältimisriski hulka. Lennuki maailmakiirus salvestatakse olemasolevatesse flightVx/Vz väljadesse, mida loevad nii mürsu ennak kui raketi algkiirus.
+
+`AudioManager.setAudibility` saab esituskihist üksuse valiku ning kaamera nähtavuse predikaadid. Mootorihääl eemaldatakse, kui üksus pole valitud või on ekraanilt väljas; samme ja ehitust piirab sama reegel. Positsioonilised sündmused/tulekahin peavad olema ekraanil ja luurega nähtaval, strateegilised hoiatused jäävad globaalseks. Need filtrid ei muuda simulatsiooni. Kontroll piirdus 25 sihitud testiga ja tootmisbuild'iga; tegelikku WebGL pilti/helikõla peab hindama mängus.

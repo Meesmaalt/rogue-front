@@ -46,9 +46,25 @@
         "motorSeconds": 18,
         "lateralAcceleration": 45,
         "seekerAngle": 1.2
+      },
+      "anti-radiation": {
+        "motorSeconds": 8,
+        "lateralAcceleration": 180,
+        "seekerAngle": 1.2
+      },
+      "ir-sam": {
+        "motorSeconds": 5,
+        "lateralAcceleration": 240,
+        "seekerAngle": 1.05
       }
     },
     "biasConvergenceSeconds": 1.2,
     "residualBiasFraction": 0.08
+  },
+  "radarJamming": {
+    "metricRadius": 900,
+    "compactRadius": 300,
+    "legacyRadius": 80,
+    "accuracyMultiplier": 0.68
   }
 }

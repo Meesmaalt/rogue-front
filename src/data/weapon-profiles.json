@@ -300,6 +300,78 @@
       "muzzle": 5,
       "muzzleHeight": -0.1,
       "fireOnMove": true
+    },
+    "air-cannon": {
+      "name": "Lennukikahuri lühivalang",
+      "weapon": "cannon",
+      "flight": "direct",
+      "guidance": "none",
+      "visual": "autocannon",
+      "warhead": "he",
+      "targets": "air",
+      "speed": 600,
+      "range": 70,
+      "minimumRange": 0,
+      "damage": 14,
+      "cooldown": 0.42,
+      "penetration": 12,
+      "accuracy": 0.78,
+      "ammoCapacity": 90,
+      "ammoUsePerShot": 3,
+      "splash": 1,
+      "muzzle": 3.2,
+      "muzzleHeight": 0.7,
+      "muzzleSide": 0,
+      "stabilizer": "full",
+      "fireOnMove": true
+    },
+    "anti-radiation": {
+      "name": "Radarivastane rakett",
+      "weapon": "missile",
+      "flight": "guided",
+      "guidance": "radar",
+      "visual": "aam",
+      "warhead": "he",
+      "targets": "ground",
+      "speed": 240,
+      "launchSpeed": 75,
+      "acceleration": 140,
+      "turnRate": 4.3,
+      "muzzle": 1.2,
+      "muzzleHeight": 0.9,
+      "cooldown": 9,
+      "accuracy": 0.9,
+      "profile": "anti-radiation",
+      "radarTargetsOnly": true,
+      "range": 180,
+      "minimumRange": 12,
+      "damage": 85,
+      "penetration": 24,
+      "ammoCapacity": 4,
+      "splash": 7
+    },
+    "ir-sam": {
+      "name": "Passiivne IR-õhutõrjerakett",
+      "weapon": "missile",
+      "flight": "guided",
+      "guidance": "infrared",
+      "visual": "manpad",
+      "warhead": "he",
+      "targets": "air",
+      "speed": 200,
+      "launchSpeed": 55,
+      "acceleration": 150,
+      "turnRate": 4,
+      "muzzle": 1,
+      "muzzleHeight": 1.5,
+      "range": 135,
+      "minimumRange": 4,
+      "damage": 42,
+      "cooldown": 4.5,
+      "penetration": 18,
+      "accuracy": 0.8,
+      "ammoCapacity": 8,
+      "splash": 4
     }
   },
   "loadouts": {
@@ -437,6 +509,12 @@
     "spaa": [
       {
         "profile": "flak"
+      },
+      {
+        "profile": "ir-sam",
+        "ammoCapacity": 4,
+        "range": 95,
+        "damage": 32
       }
     ],
     "bunker": [
@@ -512,11 +590,17 @@
     "fighter": [
       {
         "profile": "aam"
+      },
+      {
+        "profile": "air-cannon"
       }
     ],
     "interceptor": [
       {
         "profile": "aam"
+      },
+      {
+        "profile": "air-cannon"
       }
     ],
     "bomber": [
@@ -526,7 +610,10 @@
     ],
     "ecm": [
       {
-        "profile": "atgm"
+        "profile": "anti-radiation"
+      },
+      {
+        "profile": "air-cannon"
       }
     ],
     "multirole": [
@@ -542,6 +629,9 @@
         "accuracy": 0.65,
         "ammoCapacity": 4,
         "splash": 8
+      },
+      {
+        "profile": "air-cannon"
       }
     ],
     "attackAircraft": [
@@ -557,6 +647,9 @@
         "accuracy": 0.6,
         "ammoCapacity": 180,
         "splash": 1.8
+      },
+      {
+        "profile": "air-cannon"
       }
     ],
     "artillery": [
@@ -759,6 +852,11 @@
         "minimumRange": 80,
         "muzzleHeight": 4.3,
         "muzzle": 3
+      }
+    ],
+    "irSam": [
+      {
+        "profile": "ir-sam"
       }
     ]
   }

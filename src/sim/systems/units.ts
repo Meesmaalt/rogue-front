@@ -406,14 +406,15 @@ function moveAirTo(u: Entity, target: Point, dt: number, w: World, cruise=false)
   if(!helicopter)u.flightPitch=(u.flightPitch??0)+(Math.max(-.22,Math.min(.22,-(u.y-oldY)/Math.max(1,speed*dt)))-(u.flightPitch??0))*Math.min(1,dt*3);
   const normalDesiredSpeed=outOfFuel(u)?0:helicopter?Math.min(u.def.speed,Math.sqrt(2*Math.max(0,distance-(final?0:helicopterMobility(u).hoverRadius))*profile.braking)):u.def.metricScale&&u.airState==="returning"&&!final?u.def.speed*BATTLE_SCALE.aircraft.minimumSpeed:final?(u.def.metricScale?BATTLE_SCALE.aircraft.landingSpeed:Math.min(u.def.speed*.48,Math.max(4,distance*.8))):u.def.speed*Math.max(aircraftMobility(u).minimumSpeed,1-Math.abs(u.flightBank??0)*.35);
   // Slow cargo runs before the turn: pure pursuit at cruise speed can circle a nearby drop zone forever.
-  const desiredSpeed=helicopter&&final?Math.min(normalDesiredSpeed,distance*logisticsConfig.handling.landingPositionGain):u.kind==='airTransport'&&u.mode==='transport-unload'&&!landing?Math.min(normalDesiredSpeed,Math.max(u.def.speed*expansion.airlift.minimumSpeedFraction,Math.sqrt(distance*Math.min(aircraftMobility(u).lateralAcceleration,physics.gravity*Math.tan(profile.maxBank))*expansion.airlift.turnApproachFactor))):normalDesiredSpeed;
+  const interceptSpeed=!helicopter&&!landing&&u.target?.def.armor==='air'?normalDesiredSpeed*Math.max(mobility.combat.airPursuitMinimumSpeed,Math.cos(Math.min(Math.PI/2,Math.abs(wrapAngle(desiredHeading-u.heading))))):normalDesiredSpeed;
+  const desiredSpeed=helicopter&&final?Math.min(normalDesiredSpeed,distance*logisticsConfig.handling.landingPositionGain):u.kind==='airTransport'&&u.mode==='transport-unload'&&!landing?Math.min(normalDesiredSpeed,Math.max(u.def.speed*expansion.airlift.minimumSpeedFraction,Math.sqrt(distance*Math.min(aircraftMobility(u).lateralAcceleration,physics.gravity*Math.tan(profile.maxBank))*expansion.airlift.turnApproachFactor))):interceptSpeed;
   const acceleration=desiredSpeed>speed?profile.acceleration:profile.braking;
   if(!helicopter)u.motionSpeed=speed+Math.max(-acceleration*dt,Math.min(acceleration*dt,desiredSpeed-speed));
   const step=Math.min(final||helicopter?distance:Infinity,(u.motionSpeed??0)*dt);
   const heading=final&&!helicopter&&!u.def.metricScale?desiredHeading:u.heading;
   if(helicopter){const component=Math.max(.2,1-(u.components?.engine??0)/160);
     helicopterVelocity(u,Math.sin(travelHeading)*desiredSpeed*component,Math.cos(travelHeading)*desiredSpeed*component,dt);
-  }else {u.x+=Math.sin(heading)*step;u.z+=Math.cos(heading)*step;}
+  }else {u.flightVx=Math.sin(heading)*step/dt;u.flightVz=Math.cos(heading)*step/dt;u.x+=u.flightVx*dt;u.z+=u.flightVz*dt;}
   const limit=MAP_SIZE/2+(u.def.metricScale?BATTLE_SCALE.airspaceMargin:-8);
   if(u.logisticsRoute!=="strategic"&&(Math.abs(u.x)>limit||Math.abs(u.z)>limit)){u.heading=turnToward(u.heading,Math.atan2(-u.x,-u.z),turnRate*dt*3);u.x=Math.max(-limit,Math.min(limit,u.x));u.z=Math.max(-limit,Math.min(limit,u.z));}
   void w;
@@ -849,7 +850,10 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     if (isAir && u.airState === "grounded") return;
     if(isAir){
       if(u.flightAttackExit&&(dist2d(u,u.flightAttackExit)<mobility.combat.airEgressArrival||w.time>=(u.flightAttackExitUntil??0))){u.flightAttackExit=undefined;u.flightAttackExitUntil=undefined;}
-      if(d.category!=="heli"&&target)goal=u.flightAttackExit??{x:target.x,z:target.z};
+      if(d.category!=="heli"&&target){
+        const lead=target.def.armor==='air'?Math.min(mobility.combat.airInterceptLeadSeconds,dist2d(u,target)/Math.max(1,d.speed)*mobility.combat.airInterceptLookAhead):0;
+        goal=u.flightAttackExit??{x:target.x+(target.flightVx??Math.sin(target.heading)*(target.motionSpeed??0))*lead,z:target.z+(target.flightVz??Math.cos(target.heading)*(target.motionSpeed??0))*lead};
+      }
       else if(u.flightAttackExit)goal=u.flightAttackExit;
       if(d.category!=="heli"){
         if(goal)u.flightOrbitCenter=undefined;

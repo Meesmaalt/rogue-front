@@ -390,6 +390,12 @@
           "muzzleHeight": 2.82,
           "muzzle": 0.8,
           "muzzleSide": 0.95
+        },
+        {
+          "profile": "ir-sam",
+          "ammoCapacity": 4,
+          "range": 95,
+          "damage": 32
         }
       ],
       "ability": "Mobiilne õhutõrje: kahur lähiohu ja jalaväe vastu; piiratud raketid pikemale õhuohule, peatub raketilasuks"
@@ -498,14 +504,16 @@
       "weapons": [
         {
           "name": "AIM-120 AMRAAM"
-        }
+        },
+        {}
       ]
     },
     "interceptor": {
       "weapons": [
         {
           "name": "AIM-120 AMRAAM"
-        }
+        },
+        {}
       ]
     },
     "bomber": {
@@ -515,17 +523,20 @@
     },
     "ecm": {
       "weapons": [
+        {},
         {}
       ]
     },
     "multirole": {
       "weapons": [
         {},
+        {},
         {}
       ]
     },
     "attackAircraft": {
       "weapons": [
+        {},
         {},
         {}
       ]
@@ -1027,6 +1038,12 @@
           "muzzleHeight": 2.52,
           "muzzle": 0.8,
           "muzzleSide": 0.95
+        },
+        {
+          "profile": "ir-sam",
+          "ammoCapacity": 4,
+          "range": 95,
+          "damage": 32
         }
       ],
       "ability": "Mobiilne õhutõrje: kahur lähiohu ja jalaväe vastu; piiratud raketid pikemale õhuohule, peatub raketilasuks"
@@ -1135,14 +1152,16 @@
       "weapons": [
         {
           "name": "R-77"
-        }
+        },
+        {}
       ]
     },
     "interceptor": {
       "weapons": [
         {
           "name": "R-77M"
-        }
+        },
+        {}
       ]
     },
     "bomber": {
@@ -1152,17 +1171,20 @@
     },
     "ecm": {
       "weapons": [
+        {},
         {}
       ]
     },
     "multirole": {
       "weapons": [
         {},
+        {},
         {}
       ]
     },
     "attackAircraft": {
       "weapons": [
+        {},
         {},
         {}
       ]
@@ -1664,6 +1686,12 @@
           "muzzleHeight": 2.82,
           "muzzle": 0.8,
           "muzzleSide": 0.95
+        },
+        {
+          "profile": "ir-sam",
+          "ammoCapacity": 4,
+          "range": 95,
+          "damage": 32
         }
       ],
       "ability": "Mobiilne õhutõrje: kahur lähiohu ja jalaväe vastu; piiratud raketid pikemale õhuohule, peatub raketilasuks"
@@ -1772,14 +1800,16 @@
       "weapons": [
         {
           "name": "PL-12"
-        }
+        },
+        {}
       ]
     },
     "interceptor": {
       "weapons": [
         {
           "name": "PL-15"
-        }
+        },
+        {}
       ]
     },
     "bomber": {
@@ -1789,17 +1819,20 @@
     },
     "ecm": {
       "weapons": [
+        {},
         {}
       ]
     },
     "multirole": {
       "weapons": [
         {},
+        {},
         {}
       ]
     },
     "attackAircraft": {
       "weapons": [
+        {},
         {},
         {}
       ]

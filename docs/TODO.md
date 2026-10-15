@@ -1,5 +1,15 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Õhulahing, moodsad õhutõrjed ja heli · 15.10.2026
+
+- [x] Kiirem piiratud kaldpööre lahingulennukitel; rasketele lennukitele aeglasem eriprofiil. CAP jälitamisala, kontaktide säilitamine ja tegeliku kiirusega ennak; vastase hävitaja ei sunni maapealse õhutõrje vältimisloogika kaudu koju pöörduma.
+- [x] Hävitaja, püüdur, mitmeotstarbeline lennuk, ründelennuk, raske pommitaja ja SEAD/ECM on eraldi toodetavad klassid. Lahingulennukitel ees paiknev lähimaa õhukahur, eraldi piiratud moon ja suunapiir.
+- [x] SEAD-i radarivastane rakett sihib radareid/radar-SAM-e, ei lukustu passiivsele IR-õhutõrjele; häiritud radar katkestab otsinguluku. ECM mõjutab radar-/käsujuhtimist, mitte IR-jälgimist.
+- [x] Maaväel eraldi IR-SAM ja radar-SAM, jalaväel IR-MANPADS, kahurõhutõrjel lisaks lühema ulatusega IR-raketid; tehases toodetav IR-SAM saab optilise sihtimispea.
+- [x] Mootori-/sammude-/tööheli ainult valitud ekraanil oleval üksusel; kohalikud lahinguefektid ja tulekahin ei kosta mujalt kaardilt. Üldised kütuse-/strateegilised hoiatused säilivad.
+- [x] 25 sihitud testi, TypeScript ja tootmisbuild; täistestipakki ega GPU kontrolli ei korratud.
+
+
 ## Lennujaama kasutatavus ja lennulogistika tempo · 15.10.2026
 
 - [x] 280 m rada varasema 340 m asemel, väiksemad angaarid/torn, selge AIR-terminal ning sama lennujaama valik kõigi lennujaamahoonete kaudu.

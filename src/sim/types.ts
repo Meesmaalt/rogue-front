@@ -5,7 +5,7 @@ export type UnitKind =
   | "groundHandler" | "airTransport" | "gunTurret" | "flakTurret" | "atTurret" | "missileCommand" | "icbmSilo" | "cruiseLauncher"
   | "tank" | "apc" | "ifv" | "inf" | "atInf" | "mgInf" | "reconInf" | "sniper" | "mortar" | "manpad" | "atgm" | "reconVehicle" | "lightTank" | "tankDestroyer" | "spaa" | "bunker" | "hq" | "engineer"
   | "heli" | "transport" | "cargoPlane" | "gunship" | "casHeli" | "fighter" | "interceptor" | "bomber" | "ecm" | "multirole" | "attackAircraft"
-  | "sam" | "howitzer" | "artillery" | "mlrs" | "logiTruck" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase"
+  | "irSam" | "sam" | "howitzer" | "artillery" | "mlrs" | "logiTruck" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase"
   | "supply" | "radar" | "generator" | "destroyer" | "submarine" | "landingcraft" | "frigate" | "missileBoat" | "special"
   | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer"
   | "landStrategy" | "airStrategy" | "seaStrategy";
@@ -32,7 +32,7 @@ export interface WeaponSpec {
   launch?:"vertical";boostTime?:number;cruiseAltitude?:number;
   stabilizer?:Stabilizer;fireOnMove?:boolean;muzzleSide?:number;
   profile:string;name:string;model?:string;weapon:"bullet"|"cannon"|"missile";visual:string;flight:ProjectileFlight;guidance:Guidance;
-  targetHelicopters?:boolean;
+  targetHelicopters?:boolean;radarTargetsOnly?:boolean;
   warhead:"kinetic"|"heat"|"he";targets:"ground"|"armor"|"air"|"all"|"naval";
   range:number;minimumRange:number;damage:number;cooldown:number;penetration:number;accuracy:number;splash:number;
   ammoCapacity:number;ammoUsePerShot:number;suppressionPower:number;

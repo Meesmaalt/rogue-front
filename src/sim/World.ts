@@ -218,7 +218,7 @@ export class World {
   }
   unitRequiredBuildingLevel(kind: UnitKind): number {
     const elite = ["sam","special","atgm","manpad","tankDestroyer","spaa","mlrs","gunship","casHeli","interceptor","bomber","ecm","attackAircraft","destroyer","submarine"];
-    const advanced = ["airTransport","howitzer","engineer","reconInf","sniper","mortar","apc","ifv","artillery","reconVehicle","lightTank","fighter","multirole","frigate"];
+    const advanced = ["irSam","airTransport","howitzer","engineer","reconInf","sniper","mortar","apc","ifv","artillery","reconVehicle","lightTank","fighter","multirole","frigate"];
     return elite.includes(kind) ? 3 : advanced.includes(kind) ? 2 : 1;
   }
   canProduceAtLevel(producer: Entity, kind: UnitKind): boolean {

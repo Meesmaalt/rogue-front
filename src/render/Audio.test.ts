@@ -119,3 +119,13 @@ it('audio cues carry positions for visuals: capture, impacts after the shell whi
  audio.events([{type:'impact',x:50,y:0,z:0,weapon:'cannon',visual:'howitzer',size:3}]);expect(cues.some(c=>c.kind==='impact')).toBe(false);
  vi.advanceTimersByTime(400);const hit=cues.find(c=>c.kind==='impact') as {intensity?:number}|undefined;expect(hit?.intensity).toBeGreaterThan(.5);
 });
+it('deselecting or leaving the viewport removes engines, and offscreen battle effects are silent',()=>{
+ const audio=new AudioManager();audio.setSettings({...settings,sfxVolume:1});audio.unlock();const ctx=Context.latest;
+ let selected=true,inView=true;audio.setAudibility(()=>selected&&inView,()=>inView);
+ const jet={id:1,kind:'fighter',team:0,dead:false,x:0,z:0,px:0,pz:0,airState:'airborne',def:{speed:100,category:'air'},hp:100} as Entity;
+ audio.engines([jet],.2);const engineSources=[...ctx.sources];expect(engineSources.length).toBeGreaterThan(0);
+ selected=false;ctx.currentTime=1;audio.engines([jet],.2);expect(engineSources.every(s=>s.stoppedAt>0)).toBe(true);
+ selected=true;ctx.currentTime=2;audio.engines([jet],.2);const nextSources=ctx.sources.slice(engineSources.length);expect(nextSources.length).toBeGreaterThan(0);
+ inView=false;ctx.currentTime=3;audio.engines([jet],.2);expect(nextSources.every(s=>s.stoppedAt>0)).toBe(true);
+ const count=ctx.sources.length;audio.events([{type:'fire',team:0,x:0,y:0,z:0,visual:'aam'}]);expect(ctx.sources.length).toBe(count);
+});

@@ -102,7 +102,7 @@
     "braking": 6.96,
     "climbRate": 10.0,
     "descentRate": 9.0,
-    "maxBank": 0.75,
+    "maxBank": 1.17,
     "minimumSpeed": 0.65,
     "takeoffTime": 6.0,
     "runwayStart": -14,
@@ -113,7 +113,7 @@
     "launchSeparation": 6,
     "baseCapacity": 4,
     "capacityPerLevel": 2,
-    "lateralAcceleration": 7.2
+    "lateralAcceleration": 24
   },
   "navigation": {
     "lookAhead": 7,
@@ -192,7 +192,7 @@
     "weaponMotionThreshold": 0.5,
     "turretAimTolerance": 0.14,
     "hullAimTolerance": 0.2,
-    "airMissionRadius": 140,
+    "airMissionRadius": 240,
     "aaRetreatThreat": 0.78,
     "helicopterAvoidThreat": 0.55,
     "helicopterAvoidDistance": 28,
@@ -205,7 +205,14 @@
     "helicopterTurretRate": 1.3,
     "airMissileLockSeconds": 1.2,
     "airMissileReengageSeconds": 3,
-    "airMissileAimTolerance": 0.16
+    "airMissileAimTolerance": 0.16,
+    "capMissionRadius": 1200,
+    "capPursuitRadius": 2200,
+    "capCompactRadius": 600,
+    "capCompactPursuitRadius": 1100,
+    "airInterceptLeadSeconds": 2.5,
+    "airInterceptLookAhead": 1.2,
+    "airPursuitMinimumSpeed": 0.48
   },
   "naval": {
     "acceleration": 1.5,
