@@ -171,7 +171,7 @@ export interface Entity {
   motionReverse?: boolean; flightVx?: number; flightVz?: number;
   motionSpeed?: number; flightBank?: number; flightPitch?: number; flightOrbitCenter?: Point; airLandingPhase?: "approach"|"final";
   airHomeSlot?:number;airTaxiPhase?:"apron"|"lining-up"|"runway";combatPosition?:Point;combatPositionTarget?:number;combatPositionAnchor?:Point;combatPositionRetryAt?:number;taskApproachIndex?:number;
-  groundService?:{carrierId:number;depotId:number;phase:"pickup"|"load"|"deliver"|"unload";progress:number;air:boolean;onFoot?:boolean;pickupPoint?:Point;dockSlot?:number};
+  groundService?:{carrierId:number;depotId:number;phase:"pickup"|"load"|"deliver"|"unload";progress:number;air:boolean;onFoot?:boolean;blockedTime?:number;pickupPoint?:Point;dockSlot?:number};
   logisticsManual?:boolean;groundServiceId?:number;groundServiceRetryAt?:number;logisticsPadSlot?:number;cargoDoor?:number;
   airdrop?:{x:number;z:number;descent:number};
   strategicAmmo?:Partial<Record<StrategicPayload,number>>;strategicWork?:{payload:StrategicPayload|"research";progress:number};nuclearUnlocked?:boolean;strategicCooldownUntil?:number;

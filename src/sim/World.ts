@@ -1,3 +1,4 @@
+import {visibleDepotPads} from "./depotPads";
 import {runwayEdgePoint} from "./cargoApproach";
 import {BATTLE_SCALE,metricUnitDefinition} from "./battleScale";
 import {updateEquipment} from "./equipment";
@@ -565,6 +566,8 @@ export class World {
     // Soft walkability – allow gentle slopes so crater edges don't block builds
     if (!this.nav.isWalkableWorld(x, z, r * 0.45)) return false;
     if (this.entities.some(e => !e.dead && (e.def.speed === 0 || e.underConstruction) && Math.hypot(e.x - x, e.z - z) < r + e.def.radius + 1.2)) return false;
+    // Permanent landing surfaces and leased overflow pads remain free of new buildings.
+    if(this.entities.some(e=>!e.dead&&!e.underConstruction&&e.kind==='supply'&&Math.hypot(e.x-x,e.z-z)<r+100&&visibleDepotPads(this,e).some(p=>Math.hypot(p.x-x,p.z-z)<r+logisticsConfig.handling.padRadius+1)))return false;
     // Only hard walls/chokepoints block; roads/gates/cover never do
     if (this.mapFeatures.some(f => (f.kind === "wall" || f.kind === "chokepoint") && pointInFeature(x,z,f,r+1))) return false;
     if(this.mapFeatures.some(f=>f.kind==="gate"&&f.id.startsWith("base-")&&Math.hypot(f.x-x,f.z-z)<r+12))return false;
@@ -831,6 +834,8 @@ export class World {
     if (this.status !== "running") return;
     for (const e of this.entities) { e.px = e.x; e.py = e.y; e.pFlightBank=e.flightBank??0; e.pFlightPitch=e.flightPitch??0; e.pz = e.z; e.pHeading = e.heading; e.pTurretYaw = e.turretYaw; }
     this.time += dt;
+    // Flight dispatch must see the same building grid before and after restoring a save.
+    if(this.navDirty){this.nav.syncBuildings(this.entities);this.navDirty=false;}
     // Money is credited by physical imports or resource cargo delivery, never by a passive tick.
     this.updateResourceControl(dt);
     this.logisticsPriority[0] = this.logisticsPriority[0] || "balanced";

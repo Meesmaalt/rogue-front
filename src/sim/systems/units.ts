@@ -133,6 +133,33 @@ function smoothWaypoint(w:World,u:Entity):void {
   }
 }
 
+function movePorterTo(w:World,u:Entity,goal:Point,dt:number):boolean {
+  const cfg=logisticsConfig.handling;
+  if(dist2d(u,goal)<=cfg.porterArrival){u.motionSpeed=0;u.navPath=[];return true;}
+  const changed=!u.roadPathGoal||dist2d(u.roadPathGoal,goal)>.1;
+  if(changed||!u.navPath.length||u.navPathIndex>=u.navPath.length){
+    if(!changed&&w.time<(u.roadPathRetryAt??0)){u.motionSpeed=0;return false;}
+    const parked=w.entities.filter(e=>e!==u&&!e.dead&&e.def.domain==='land'&&e.def.speed>0&&e.loadedIntoId==null&&!e.groundService&&(e.motionSpeed??0)<.1).map(e=>({x:e.x,z:e.z,radius:e.def.radius}));
+    u.navPath=findPath(w.nav,u,goal,u.def.radius,undefined,parked);u.navPathIndex=0;u.roadPathGoal={...goal};u.roadPathRetryAt=w.time+.5;
+    if(!u.navPath.length){u.motionSpeed=0;return false;}
+  }
+  while(u.navPathIndex<u.navPath.length-1&&dist2d(u,u.navPath[u.navPathIndex])<cfg.porterWaypointArrival)u.navPathIndex++;
+  const p=u.navPath[u.navPathIndex]??goal,dist=dist2d(u,p),dx=(p.x-u.x)/Math.max(.001,dist),dz=(p.z-u.z)/Math.max(.001,dist),step=Math.min(dist,u.def.speed*dt);
+  const next={x:u.x+dx*step,z:u.z+dz*step};
+  u.heading=turnToward(u.heading,Math.atan2(dx,dz),u.def.turnRate*dt);
+  const before={x:u.x,z:u.z};
+  if((w.nav.isWalkableWorld(next.x,next.z,u.def.radius)||!w.nav.isWalkableWorld(u.x,u.z,u.def.radius))&&bodyClear(w,u,next)){u.x=next.x;u.z=next.z;}
+  else groundSidestep(w,u,dx,dz,step);
+  u.motionSpeed=dist2d(before,u)/dt;u.y=heightAt(u.x,u.z);
+  const progress=dist2d({x:u.stuckX,z:u.stuckZ},p)-dist2d(u,p);
+  if(progress<cfg.porterWaypointArrival)u.stuckTime+=dt;else {u.stuckTime=0;u.stuckX=u.x;u.stuckZ=u.z;}
+  if(u.stuckTime>cfg.porterJamSeconds){
+   u.navPath=[];u.roadPathRetryAt=w.time;u.stuckTime=0;u.stuckX=u.x;u.stuckZ=u.z;u.motionSpeed=0;
+   if(u.groundService)u.groundService.blockedTime=cfg.porterJamSeconds+dt;
+  }
+  return false;
+}
+
 function moveRoadTruckTo(w: World, u: Entity, goal: Point, dt: number, arrival=3.2): boolean {
   const finalGoal=goal;
   if(!u.roadTripGoal&&dist2d(u,finalGoal)<=arrival){u.motionSpeed=0;return true;}
@@ -349,17 +376,19 @@ function moveAirTo(u: Entity, target: Point, dt: number, w: World, cruise=false)
   const landing=!cruise&&(u.airState==="returning"||cargoLanding||["transport-load","transport-unload"].includes(u.mode)||u.kind==="transport"&&u.supplyDepotId!=null);
   const final=landing&&(helicopter||u.airLandingPhase==="final"||cargoLanding&&distance<80);
   const runwayReference=w.byId.get(u.airMissionHomeId??-1),landingGround=final&&!helicopter&&u.def.metricScale&&runwayReference?heightAt(runwayReference.x,runwayReference.z):ground;
-  const desiredAltitude=landingGround+(final?Math.min(profile.altitude,Math.max(0,(distance-8)*(helicopter?.85:u.def.metricScale?BATTLE_SCALE.aircraft.glideSlope:.24))):u.airState==="returning"?(u.def.metricScale?BATTLE_SCALE.aircraft.approachAltitude:20):profile.altitude+(u.airMission==="cap"&&!helicopter?15:0));
+  const helicopterSettled=helicopter&&final&&distance<=logisticsConfig.handling.landingCapture&&(u.motionSpeed??0)<=logisticsConfig.handling.landingSpeed;
+  const heliAltitude=helicopterSettled?0:Math.min(profile.altitude,Math.max(logisticsConfig.handling.landingHoverHeight,(distance-logisticsConfig.handling.landingApproachRadius)*.85+logisticsConfig.handling.landingHoverHeight));
+  const desiredAltitude=helicopter&&final?ground+heliAltitude:landingGround+(final?Math.min(profile.altitude,Math.max(0,(distance-8)*(helicopter?.85:u.def.metricScale?BATTLE_SCALE.aircraft.glideSlope:.24))):u.airState==="returning"?(u.def.metricScale?BATTLE_SCALE.aircraft.approachAltitude:20):profile.altitude+(u.airMission==="cap"&&!helicopter?15:0));
   const oldY=u.y;
   u.y+=Math.max(-profile.descentRate*dt,Math.min(profile.climbRate*dt,desiredAltitude-u.y));
   const runway=w.byId.get(u.airMissionHomeId??-1);
   const aligned=!u.def.metricScale||helicopter||!runway||Math.abs(wrapAngle(u.heading-runway.heading))<BATTLE_SCALE.aircraft.headingTolerance&&Math.abs((u.x-runway.x)*Math.cos(runway.heading)-(u.z-runway.z)*Math.sin(runway.heading))<=BATTLE_SCALE.aircraft.runwayWidth/2;
-  if(distance<(helicopter?2.5:u.def.metricScale?BATTLE_SCALE.aircraft.landingCapture:8)&&aligned&&landing&&u.y-ground<3&&(!helicopter||(u.motionSpeed??0)<helicopterMobility(u).hoverArrivalSpeed)){if(!u.def.metricScale||helicopter)u.motionSpeed=0;u.flightVx=u.flightVz=0;if(landing)u.y=ground;u.flightBank=(u.flightBank??0)*Math.max(0,1-dt*4);return true;}
+  if(distance<(helicopter?logisticsConfig.handling.landingCapture:u.def.metricScale?BATTLE_SCALE.aircraft.landingCapture:8)&&aligned&&landing&&u.y-ground<(helicopter?.15:3)&&(!helicopter||(u.motionSpeed??0)<=logisticsConfig.handling.landingSpeed)){if(!u.def.metricScale||helicopter)u.motionSpeed=0;u.flightVx=u.flightVz=0;if(landing)u.y=ground;u.flightBank=(u.flightBank??0)*Math.max(0,1-dt*4);return true;}
   if(!helicopter&&!landing&&distance<18&&u.mode!=="patrol"){finishMoveWaypoint(u);u.flightOrbitCenter=u.dest?undefined:{...target};}
   if(helicopter){u.flightVx??=Math.sin(u.heading)*(u.motionSpeed??0);u.flightVz??=Math.cos(u.heading)*(u.motionSpeed??0);}
   const travelHeading=Math.atan2(target.x-u.x,target.z-u.z);
   const lineHeading=final&&!helicopter&&u.def.metricScale&&runway?runway.heading-Math.atan2((u.x-runway.x)*Math.cos(runway.heading)-(u.z-runway.z)*Math.sin(runway.heading),BATTLE_SCALE.aircraft.lineLookAhead):travelHeading;
-  const desiredHeading=helicopter&&u.target&&u.mode!=="move"&&u.mode!=="patrol"?Math.atan2(u.target.x-u.x,u.target.z-u.z):lineHeading,oldHeading=u.heading;
+  const desiredHeading=helicopter&&final&&distance<logisticsConfig.handling.landingApproachRadius?u.heading:helicopter&&u.target&&u.mode!=="move"&&u.mode!=="patrol"?Math.atan2(u.target.x-u.x,u.target.z-u.z):lineHeading,oldHeading=u.heading;
   const speed=u.motionSpeed??0;
   const turnRate=helicopter?helicopterYawRate(u):final&&!u.def.metricScale?Math.max(1.2,u.def.turnRate):Math.min(u.def.turnRate,Math.min(aircraftMobility(u).lateralAcceleration,physics.gravity*Math.tan(profile.maxBank))/Math.max(12,speed));
   u.heading=helicopter?turnHelicopter(u,desiredHeading,dt):turnToward(u.heading,desiredHeading,turnRate*dt);
@@ -367,9 +396,9 @@ function moveAirTo(u: Entity, target: Point, dt: number, w: World, cruise=false)
   const bank=u.def.metricScale&&!helicopter?coordinatedBank(speed,delta,profile.maxBank):Math.max(-profile.maxBank,Math.min(profile.maxBank,-delta*(helicopter?.18:.48)));
   if(!helicopter)u.flightBank=(u.flightBank??0)+(bank-(u.flightBank??0))*Math.min(1,dt*3);
   if(!helicopter)u.flightPitch=(u.flightPitch??0)+(Math.max(-.22,Math.min(.22,-(u.y-oldY)/Math.max(1,speed*dt)))-(u.flightPitch??0))*Math.min(1,dt*3);
-  const normalDesiredSpeed=outOfFuel(u)?0:helicopter?Math.min(u.def.speed,Math.sqrt(2*Math.max(0,distance-helicopterMobility(u).hoverRadius)*profile.braking)):u.def.metricScale&&u.airState==="returning"&&!final?u.def.speed*BATTLE_SCALE.aircraft.minimumSpeed:final?(u.def.metricScale?BATTLE_SCALE.aircraft.landingSpeed:Math.min(u.def.speed*.48,Math.max(4,distance*.8))):u.def.speed*Math.max(aircraftMobility(u).minimumSpeed,1-Math.abs(u.flightBank??0)*.35);
+  const normalDesiredSpeed=outOfFuel(u)?0:helicopter?Math.min(u.def.speed,Math.sqrt(2*Math.max(0,distance-(final?0:helicopterMobility(u).hoverRadius))*profile.braking)):u.def.metricScale&&u.airState==="returning"&&!final?u.def.speed*BATTLE_SCALE.aircraft.minimumSpeed:final?(u.def.metricScale?BATTLE_SCALE.aircraft.landingSpeed:Math.min(u.def.speed*.48,Math.max(4,distance*.8))):u.def.speed*Math.max(aircraftMobility(u).minimumSpeed,1-Math.abs(u.flightBank??0)*.35);
   // Slow cargo runs before the turn: pure pursuit at cruise speed can circle a nearby drop zone forever.
-  const desiredSpeed=u.kind==='airTransport'&&u.mode==='transport-unload'&&!landing?Math.min(normalDesiredSpeed,Math.max(u.def.speed*expansion.airlift.minimumSpeedFraction,Math.sqrt(distance*Math.min(aircraftMobility(u).lateralAcceleration,physics.gravity*Math.tan(profile.maxBank))*expansion.airlift.turnApproachFactor))):normalDesiredSpeed;
+  const desiredSpeed=helicopter&&final?Math.min(normalDesiredSpeed,distance*logisticsConfig.handling.landingPositionGain):u.kind==='airTransport'&&u.mode==='transport-unload'&&!landing?Math.min(normalDesiredSpeed,Math.max(u.def.speed*expansion.airlift.minimumSpeedFraction,Math.sqrt(distance*Math.min(aircraftMobility(u).lateralAcceleration,physics.gravity*Math.tan(profile.maxBank))*expansion.airlift.turnApproachFactor))):normalDesiredSpeed;
   const acceleration=desiredSpeed>speed?profile.acceleration:profile.braking;
   if(!helicopter)u.motionSpeed=speed+Math.max(-acceleration*dt,Math.min(acceleration*dt,desiredSpeed-speed));
   const step=Math.min(final||helicopter?distance:Infinity,(u.motionSpeed??0)*dt);
@@ -575,7 +604,7 @@ export function updateUnits(w: World, dt: number): void {
 
 function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): void {
   const d = u.def;u.navWaiting=false;
-  if(u.kind==='groundHandler'){updateGroundHandler(w,u,dt,p=>moveRoadTruckTo(w,u,p,dt,u.groundService?.onFoot?logisticsConfig.handling.porterArrival:logisticsConfig.handling.arrival));return;}
+  if(u.kind==='groundHandler'){updateGroundHandler(w,u,dt,p=>u.groundService?.onFoot?movePorterTo(w,u,p,dt):moveRoadTruckTo(w,u,p,dt,logisticsConfig.handling.arrival));return;}
   if(updateAirdrop(w,u,dt))return;
   if(u.kind==='airTransport'&&u.mode==='transport-load'){updateAirliftLoading(w,u);return;}
   if(u.kind==='airTransport'&&['grounded','rearming'].includes(u.airState??'')&&u.mode==='transport-unload'&&u.unloadPoint&&dist2d(u,u.unloadPoint)<expansion.airlift.groundExitRadius){if(releaseAirliftCargo(w,u,true))u.mode='idle';return;}
@@ -852,7 +881,12 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     if (moving && !isAir && u.def.domain!=="sea") {
       let navDx = dx, navDz = dz;
       if (u.navPath.length) {
-        while (u.navPathIndex < u.navPath.length && Math.hypot(u.x - u.navPath[u.navPathIndex].x, u.z - u.navPath[u.navPathIndex].z) < Math.max(mobility.navigation.arrival,w.nav.cellSize*.75)) u.navPathIndex++;
+        while (u.navPathIndex < u.navPath.length && dist2d(u,u.navPath[u.navPathIndex]) < Math.max(mobility.navigation.arrival,w.nav.cellSize*.75)) {
+          const next=u.navPath[u.navPathIndex+1]??goal;
+          // A large navigation cell is not permission to cut across a building corner.
+          if(next&&!clearGroundSegment(w,u,next)&&dist2d(u,u.navPath[u.navPathIndex])>logisticsConfig.handling.porterWaypointArrival)break;
+          u.navPathIndex++;
+        }
         smoothWaypoint(w,u);
         if (u.navPathIndex < u.navPath.length) { const p = u.navPath[u.navPathIndex], m = Math.hypot(p.x-u.x,p.z-u.z)||1; navDx=(p.x-u.x)/m; navDz=(p.z-u.z)/m; }
       } else if (u.flowField && isAir) {

@@ -1,3 +1,4 @@
+import {availableDepotPads,depotPad} from "./depotPads";
 import {findPath} from "./nav/Pathfinder";
 import type {World} from './World';
 import type {Entity,Point} from './types';
@@ -7,9 +8,12 @@ const cfg=rules.handling;
 /** Stable per-depot leases shared by inbound and collecting helicopters. */
 export function logisticsLandingPoint(w:World,depot:Entity,u:Entity):Point|null {
  const used=new Set(w.entities.filter(e=>e!==u&&!e.dead&&e.kind==='transport'&&e.supplyDepotId===depot.id).map(e=>e.logisticsPadSlot));
- const candidate=(slot:number):Point=>{const side=Math.floor(slot/5),row=slot%5-2,r=depot.def.radius+cfg.padClearance;return side<2?{x:depot.x+(side===0?-r:r),z:depot.z+row*cfg.padSpacing}:{x:depot.x+row*cfg.padSpacing,z:depot.z+(side===2?r:-r)};};
- if(u.logisticsPadSlot!=null&&!used.has(u.logisticsPadSlot)){const p=candidate(u.logisticsPadSlot);if(w.nav.isWalkableWorld(p.x,p.z,cfg.padRadius))return p;}
- for(let slot=0;slot<cfg.maxPads;slot++){if(used.has(slot))continue;const p=candidate(slot);if([...used].some(i=>i!=null&&Math.hypot(candidate(i).x-p.x,candidate(i).z-p.z)<cfg.padSpacing))continue;if(!w.nav.isWalkableWorld(p.x,p.z,cfg.padRadius))continue;
+ if(u.logisticsPadSlot!=null&&!used.has(u.logisticsPadSlot)){
+  const p=depotPad(depot,u.logisticsPadSlot);if(w.nav.isWalkableWorld(p.x,p.z,cfg.padRadius))return p;
+ }
+ const pads=availableDepotPads(w,depot);
+ const candidates=[...pads.filter(p=>p.slot===u.logisticsPadSlot),...pads.filter(p=>p.slot!==u.logisticsPadSlot)];
+ for(const p of candidates){const slot=p.slot;if(used.has(slot)||[...used].some(i=>i!=null&&Math.hypot(depotPad(depot,i).x-p.x,depotPad(depot,i).z-p.z)<cfg.padSpacing))continue;
   if(w.entities.some(e=>e!==u&&!e.dead&&e.loadedIntoId==null&&e.def.armor!=='air'&&Math.hypot(e.x-p.x,e.z-p.z)<e.def.radius+cfg.padRadius))continue;
   if(!Array.from({length:8},(_,i)=>depotDock(w,depot,i)).some(dock=>dock&&findPath(w.nav,dock,p,1.1).length))continue;
   u.logisticsPadSlot=slot;return p;
@@ -64,7 +68,13 @@ export function updateGroundHandler(w:World,u:Entity,dt:number,move:(target:Poin
   }
  }
  if(job.phase==='deliver'||job.phase==='unload'){
-  if(!move(dock))return;job.phase='unload';u.motionSpeed=0;job.progress+=dt;if(job.progress<cfg.unloadSeconds)return;
+  if(!move(dock)){
+   job.blockedTime=(u.motionSpeed??0)<.1?(job.blockedTime??0)+dt:0;
+   if(job.blockedTime>cfg.porterJamSeconds){const used=new Set(w.entities.filter(e=>e!==u&&!e.dead&&e.groundService?.depotId===depot.id).map(e=>e.groundService?.dockSlot));
+    for(let offset=1;offset<=16;offset++){const slot=((job.dockSlot??0)+offset)%16,next=depotDock(w,depot,slot);if(!used.has(slot)&&next&&findPath(w.nav,u,next,u.def.radius).length){job.dockSlot=slot;break;}}
+    job.blockedTime=0;job.progress=0;u.navPath=[];u.roadPathGoal=undefined;u.roadPathRetryAt=0;}
+   return;
+  }job.blockedTime=0;job.phase='unload';u.motionSpeed=0;job.progress+=dt;if(job.progress<cfg.unloadSeconds)return;
   if(depot.underConstruction||depot.logisticsPaused||(depot.disabledUntil??0)>w.time||!w.hasCommandLink(depot)||w.powerStatus(u.team).ratio<.25)return;
   const accepted=w.receiveSupply(depot,u.cargo);u.cargo=Math.max(0,u.cargo-accepted);
   if(job.air)w.airCargoDelivered[u.team]+=accepted;else w.roadCargoDelivered[u.team]+=accepted;

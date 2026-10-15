@@ -1,5 +1,14 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Kopterite päris lähenemine ja jalgsiliikumise taastamine · 15.10.2026
+
+- [x] Mõõtkavaga kopteri 8 m hõljumiskaugus ei blokeeri enam 0,8 m maandumiskoridori: piiratud kiirusega täpne lähenemine, paigal püsimine, fikseeritud suund viimases faasis ning alles seejärel vertikaalne laskumine.
+- [x] Laoga ühised, hoonetest ja nõlvadest vabad kopteriplatsid: nähtav kate, ring ja H; esmalt kaks keskset platsi, lisaks reserveeritud ülevoolukohad. Uusi hooneid ei saa tähistatud/aktiivsele platsile ehitada.
+- [x] Kastikandjatele eraldi jalgsiliikumine ilma veoauto pöörderaadiuse ja pidurduseta. Koormaga ummistunud teenindaja proovib teist lao sissepääsu; kaupa ei kao ega lisandu enne päris üleandmist.
+- [x] Jalaväe vahepunkti ei jäeta vahele, kui uus suund lõikaks hoonenurka. Mitme rühma liikumist kontrollib päris käskudega regressioon.
+- [x] Uued testid lendavad nii compact- kui metric-kopteriga päriselt lao kohale, maanduvad ja tarnivad terve koorma; kontrollitakse ka platsi märgistust, tegelikku pinnakõrgust ja kandjate hoone ümbert kulgevat teed.
+- [ ] Uue WebGL pildi ülevaatus: avalik menüü avanes, kuid testbrauseri WebGL2 puudumine takistas 3D lahingu käivitamist.
+
 ## Lao kopterite parandus ja selgem mängupilt · 15.10.2026
 
 - [x] Kopterite kaubamasina asemel kaks nähtavat kastikandjat: päris kaubakogus, kõndimisanimatsioon ning laotarne enne tasumist. Lennukitele jääb laadur.

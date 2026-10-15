@@ -1,3 +1,4 @@
+import {DepotPads} from "./render/DepotPads";
 import {ConstructionPreview} from "./render/ConstructionPreview";
 import {installLanguage} from "./ui/Language";
 import {readPreparedMission} from "./ui/PreparedMission";
@@ -163,6 +164,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   cam.jumpTo(world.bases[world.playerTeam].x,world.bases[world.playerTeam].z);
   const units = new UnitRenderer(ctx.scene,ctx.camera);
   const constructionPreview=new ConstructionPreview(ctx.scene);
+  const depotPads=new DepotPads(ctx.scene);
   const ranges=new RangeOverlay(ctx.scene);
   const fx = new Fx(ctx.scene,ctx.camera);
   const resourceSites=new ResourceSites(ctx.scene,world);
@@ -403,6 +405,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       fog.sync(world,visualAlpha);
       performancePanel.mark("udu");
       gpuTimer.begin(performancePanel.enabled);
+      depotPads.sync(world);
       constructionPreview.update(world,commands.buildMode,commands.buildPoint,commands.buildRotation,commands.buildValid);
       ctx.post.render();
       gpuTimer.end();

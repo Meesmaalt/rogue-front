@@ -106,6 +106,15 @@
     "porterCapacity": 120,
     "porterSpeed": 3,
     "porterRadius": 0.45,
-    "porterArrival": 0.8
+    "porterArrival": 0.8,
+    "permanentPads": 2,
+    "padHeightTolerance": 1.2,
+    "landingApproachRadius": 12,
+    "landingHoverHeight": 6,
+    "landingCapture": 0.8,
+    "landingSpeed": 0.6,
+    "landingPositionGain": 0.9,
+    "porterWaypointArrival": 0.15,
+    "porterJamSeconds": 3
   }
 }

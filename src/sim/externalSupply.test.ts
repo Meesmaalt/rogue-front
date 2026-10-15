@@ -8,7 +8,7 @@ import {saveWorld,loadWorld} from './SaveState';
 import {worldHash} from './Replay';
 const bases=[{x:-180,z:180,r:200},{x:200,z:-200,r:30}];
 afterEach(resetHeightmap);
-function fixture(){setBases(bases);const w=new World(914,false,[],[],bases,false);w.networkMode=true;w.spawn('hq',0,-100,0);w.spawn('generator',0,-100,20);const depot=w.spawn('supply',0,-65,0);return {w,depot};}
+function fixture(){setBases(bases);const w=new World(914,false,[],[],bases,false);w.networkMode=true;w.spawn('hq',0,-100,0);w.spawn('generator',0,-100,20);const depot=w.spawn('supply',0,-65,0);w.nav.syncBuildings(w.entities);return {w,depot};}
 function run(w:World,steps:number){for(let i=0;i<steps;i++){w.time+=1/30;w.spatial.rebuild(w.entities);updateUnits(w,1/30);}}
 it('off-map helicopters deliver money and stocks only after reaching a receiving depot, then leave',()=>{
  const {w,depot}=fixture();depot.ammoStock=depot.fuelStock=depot.repairStock=0;const money=w.teamCredits[0];dispatchExternalHelicopters(w);

@@ -46,3 +46,11 @@ it('a helicopter uses a walking crew while a cargo plane keeps its loader',()=>{
  const plane=w.spawn('cargoPlane',0,h.x+50,h.z);plane.supplyDepotId=depot.id;plane.cargo=480;handleGroundCargo(w,plane,depot,10);
  const loader=w.byId.get(plane.groundServiceId!)!;expect(loader.groundService!.onFoot).toBe(false);expect(loader.def.speed).toBe(10);
 });
+
+it('a loaded crew switches a blocked warehouse approach without losing or crediting its cargo',()=>{
+ const {w,depot,h}=fixture();handleGroundCargo(w,h,depot,10);const worker=w.byId.get(h.groundServiceId!)!;
+ worker.cargo=100;h.cargo-=100;worker.groundService!.phase='deliver';worker.motionSpeed=0;
+ const old=worker.groundService!.dockSlot,money=w.credits;
+ for(let i=0;i<100;i++)updateGroundHandler(w,worker,1/30,()=>false);
+ expect(worker.groundService!.dockSlot).not.toBe(old);expect(worker.cargo).toBe(100);expect(w.credits).toBe(money);expect(worker.dead).toBe(false);
+});

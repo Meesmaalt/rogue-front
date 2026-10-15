@@ -83,3 +83,15 @@ it('close queued waypoints invalidate the old retry timer and immediately plan t
  w.spatial.rebuild(w.entities);updateUnits(w,SIM_STEP);expect(u.dest).toEqual({x:0,z:3});expect(u.roadPathRetryAt).toBeUndefined();
  w.time+=SIM_STEP;updateUnits(w,SIM_STEP);expect(u.navPath.length).toBeGreaterThan(0);expect(u.navWaiting).toBe(false);expect(u.roadPathGoal).toEqual({x:0,z:3});
 });
+it('infantry squads finish routes around adjacent building corners on the coarse 4 km grid',()=>{
+ setMapSize(4096);const bases=[{x:0,z:0,r:200},{x:1800,z:1800,r:30}];setBases(bases);
+ const w=new World(209,false,[],[],bases,false,true);w.networkMode=true;w.spawn('factory',0,0,0);w.spawn('supply',0,0,24);w.nav.syncBuildings(w.entities);
+ const units=Array.from({length:8},(_,i)=>w.spawn('inf',0,-50-(i%2)*8,-15+Math.floor(i/2)*8));
+ w.issue({type:'move',ids:units.map(u=>u.id),x:50,z:0});applyCommands(w);
+ const goals=units.map(u=>({...u.dest!}));expect(goals.every(p=>Number.isFinite(p.x))).toBe(true);
+ for(let i=0;i<2700;i++){
+  for(const u of w.entities){u.px=u.x;u.py=u.y;u.pz=u.z;u.pHeading=u.heading;}
+  w.time+=SIM_STEP;w.spatial.rebuild(w.entities);updateUnits(w,SIM_STEP);
+ }
+ units.forEach((u,i)=>expect(Math.hypot(u.x-goals[i].x,u.z-goals[i].z)).toBeLessThan(5));
+});
