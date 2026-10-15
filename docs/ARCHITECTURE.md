@@ -18,6 +18,10 @@ Mängukaardid on ainult protseduurkaardid. Ajaloolised Roheoru/Murdlaine kirjeld
 
 `projectiles.ts.segmentBodyEntry` arvutab üksuse ellipsoidi esimese kontaktaja; põhiklasside reeglistik võrdleb seda takistuste proovitud kontaktajaga. APS kasutab sama segmendikontrolli ja annab eraldi `intercept` sündmuse. `Fx.syncUnitEffects` loeb tervist, komponendikahjustust ja liikumist, lisades olemasolevatesse piiratud partiidesse nähtavate üksuste suitsu/tolmu. See ei muuda simi ega loo eraldi üksusemeshe. Detailid: [COMBAT-FEEDBACK-RELEASE.md](COMBAT-FEEDBACK-RELEASE.md).
 
+## Liikumisfüüsika ja vedrustus
+
+`groundDynamics.ts` annab meetrites maasõidukite pinnase/nõlva jõud, teepikkuse integraatori ja kurvi eel pidurdamise piirkiiruse. Sama moodul seob lennuki kalde tsentripetaalkiirendusega. Lisanduvat salvestatavat sim-olekut pole. `MotionPresentation.springSuspension` on ainult renderduses kasutatav analüütiline summutatud vedru; `Fx` võtab liikumistolmu jaoks tegeliku fikseeritud sammu nihke. Parameetrid on `mobility.json`-is. Detailid: [MOVEMENT-PHYSICS-RELEASE.md](MOVEMENT-PHYSICS-RELEASE.md).
+
 ## Põhimõte
 Kolm kihti, sõltuvused ainult allapoole: **ui/input → sim ← render** (render ja ui *loevad* sim olekut, annavad käske, kuid sim ei tea neist midagi).
 

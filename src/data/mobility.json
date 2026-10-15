@@ -197,7 +197,11 @@
     "teleportDistance": 24,
     "vehicleBounce": 0.025,
     "vehiclePitchResponse": 0.008,
-    "vehicleTurnLean": 0.018
+    "vehicleTurnLean": 0.018,
+    "suspensionFrequency": 4,
+    "suspensionDamping": 0.7,
+    "vehiclePitchLimit": 0.08,
+    "vehicleRollLimit": 0.09
   },
   "production": {
     "exitRings": [
@@ -207,5 +211,23 @@
     ],
     "exitSamples": 16,
     "exitClearance": 0.8
+  },
+  "groundPhysics": {
+    "gradeSample": 3,
+    "roadGrip": 0.85,
+    "soilGrip": 0.65,
+    "forestGrip": 0.45,
+    "minimumBraking": 0.8,
+    "minimumEngineForce": 0.18,
+    "rollingResistance": {
+      "infantry": 0,
+      "tracked": 0.035,
+      "wheeled": 0.02
+    },
+    "loadedTruckMass": 0.5,
+    "cornerRadius": 3,
+    "cornerThreshold": 0.12,
+    "lowGearTorque": 2.5,
+    "lowGearSpeed": 2
   }
 }

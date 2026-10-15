@@ -17,8 +17,8 @@ function fixture(){
 it('healthy stationary vehicles emit nothing, moving vehicles make dust and engine damage makes smoke',()=>{
  const {w,fx,meshes}=fixture(),u=w.spawn('tank',0,0,-170);
  fx.syncUnitEffects(w,.13);fx.update(0);expect(meshes.map(m=>m.count)).toEqual([0,0,0,0,0]);
- u.motionSpeed=5;fx.syncUnitEffects(w,.13);fx.update(0);expect(meshes[2].count).toBe(2);expect(meshes[0].count).toBe(0);
- u.motionSpeed=0;u.components!.engine=80;fx.syncUnitEffects(w,.13);fx.update(0);expect(meshes[0].count).toBe(1);
+ u.motionSpeed=5;u.px=u.x-5/30;fx.syncUnitEffects(w,.13);fx.update(0);expect(meshes[2].count).toBe(2);expect(meshes[0].count).toBe(0);
+ u.motionSpeed=0;u.px=u.x;u.components!.engine=80;fx.syncUnitEffects(w,.13);fx.update(0);expect(meshes[0].count).toBe(1);
 });
 it('hidden enemies and carried units never leak damage or movement effects',()=>{
  const {w,fx,meshes}=fixture(),enemy=w.spawn('tank',1,0,-170),carried=w.spawn('tank',0,5,-170);enemy.hp=1;enemy.motionSpeed=10;carried.hp=1;carried.loadedIntoId=999;
@@ -29,8 +29,13 @@ it('rotor downwash occurs near the ground, and stops at altitude',()=>{
  fx.syncUnitEffects(w,.13);fx.update(0);expect(meshes[2].count).toBe(3);u.y+=30;fx.syncUnitEffects(w,.13);fx.update(0);expect(meshes[2].count).toBe(3);
 });
 it('a crowded scene stays within particle capacities and reset clears all transient effects',()=>{
- const {w,fx,meshes}=fixture();for(let i=0;i<100;i++){const u=w.spawn('tank',0,i%10,-170+Math.floor(i/10));u.hp=1;u.motionSpeed=10;}
+ const {w,fx,meshes}=fixture();for(let i=0;i<100;i++){const u=w.spawn('tank',0,i%10,-170+Math.floor(i/10));u.hp=1;u.motionSpeed=10;u.px=u.x-10/30;}
  for(let i=0;i<100;i++)fx.syncUnitEffects(w,.13);fx.update(0);
  expect(meshes[0].count).toBe(effects.pools.smoke);expect(meshes[2].count).toBe(effects.pools.dust);
  expect(meshes.every((m,i)=>m.count<=Object.values(effects.pools)[i])).toBe(true);fx.reset();expect(meshes.every(m=>m.count===0)).toBe(true);
+});
+
+it('blocked vehicles with stale speed intent emit no movement dust',()=>{
+ const {w,fx,meshes}=fixture(),u=w.spawn('tank',0,0,-170);u.motionSpeed=12;
+ fx.syncUnitEffects(w,.13);fx.update(0);expect(meshes[2].count).toBe(0);
 });

@@ -53,3 +53,13 @@ it('attack and evacuation keys do not pan or rotate the camera',()=>{
  events.dispatchEvent(Object.assign(new Event('keydown'),{key:'e',altKey:true}));view.update(.1);expect(view.yaw).toBeGreaterThan(yaw);
  view.enabled=false;const stopped=view.yaw;view.update(.1);expect(view.yaw).toBe(stopped);
 });
+
+import {springSuspension} from './MotionPresentation';
+it('suspension compresses, settles and gives the same response at 30 and 120 FPS',()=>{
+ const a={value:0,velocity:0},b={value:0,velocity:0};
+ for(let i=0;i<15;i++)springSuspension(a,.08,1/30);
+ for(let i=0;i<60;i++)springSuspension(b,.08,1/120);
+ expect(a.value).toBeCloseTo(b.value,10);expect(a.velocity).toBeCloseTo(b.velocity,10);expect(a.value).toBeCloseTo(.08,4);
+ const held={...a};springSuspension(a,-.08,0);expect(a).toEqual(held);
+ springSuspension(a,-.2,1/30,true);expect(a).toEqual({value:-.2,velocity:0});
+});

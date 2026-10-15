@@ -19,3 +19,15 @@ export function sampleMotion(e:MotionEntity,alpha:number,out:MotionPose):void {
 export function smoothMotion(current:number,target:number,response:number,dt:number):number {
  return current+(target-current)*(1-Math.exp(-response*Math.max(0,dt)));
 }
+
+export interface SuspensionState {value:number;velocity:number}
+/** Analytic damped spring: no substeps or frame-rate dependent Euler wobble. */
+export function springSuspension(state:SuspensionState,target:number,dt:number,reset=false):void {
+ if(reset){state.value=target;state.velocity=0;return;}
+ if(dt<=0)return;
+ const omega=Math.PI*2*mobility.presentation.suspensionFrequency,damping=mobility.presentation.suspensionDamping;
+ const decay=damping*omega,frequency=omega*Math.sqrt(1-damping*damping),offset=state.value-target;
+ const sine=Math.sin(frequency*dt),cosine=Math.cos(frequency*dt),envelope=Math.exp(-decay*dt),b=(state.velocity+decay*offset)/frequency;
+ state.value=target+envelope*(offset*cosine+b*sine);
+ state.velocity=envelope*((-decay*offset+frequency*b)*cosine+(-decay*b-frequency*offset)*sine);
+}

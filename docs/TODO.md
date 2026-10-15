@@ -1,5 +1,13 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Liikumisfüüsika ja vedrustus · 15.10.2026
+
+- [x] Meetrites maasõidukite nõlvajõud, haarduvus, koormatud veoki kiirendus ning kurvi eel pidurdamine; peatumise teepikkuse integraator.
+- [x] Tagurdamise eel pidurdamine kere suunda säilitades; veojõu puudumisel tõusul seismajäämine.
+- [x] Lennuki kiiruse/pöördega seotud kalle, summutatud vedrustus ning tegelikust nihkest/pinnasest sõltuv tolm. Vt MOVEMENT-PHYSICS-RELEASE.md.
+- [ ] Liikumise ja uute visuaalide brauserivaatlus, mängutunnetuse ning F8 FPS-võrdlus.
+
+
 ## Lahingu visuaalne tagasiside ja kontaktid · 14.10.2026
 
 - [x] Liikumistolm, madala kopteri rootoritolm ja seisundist sõltuv kahjustussuits; nähtavus-, kaugus- ja osakeste piirid.

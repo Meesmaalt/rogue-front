@@ -2,7 +2,7 @@ import {createMetricRunway} from "./MetricRunway";
 import {syncEquipmentVisual} from "./EquipmentVisual";
 import * as THREE from "three";
 import mobility from "../data/mobility.json";
-import {sampleMotion,smoothMotion,type MotionPose} from "./MotionPresentation";
+import {sampleMotion,smoothMotion,springSuspension,type SuspensionState,type MotionPose} from "./MotionPresentation";
 import {isTacticallySupplied,tacticalSupplyNodes} from "../sim/systems/tacticalSupply";
 import type {Entity} from "../sim/types";
 import type { World } from "../sim/World";
@@ -21,7 +21,7 @@ contactContext.fillStyle = contactGradient; contactContext.fillRect(0,0,64,64);
 const contactGeometry = new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2); contactGeometry.userData.sharedArt = true;
 const contactMaterial = new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(contactCanvas),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1}); contactMaterial.userData.sharedArt = true;
 
-interface View { resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;tiltPitch:number;tiltRoll:number; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group; lastBuildingLevel?: number; lastAirState?: string }
+interface View { resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;suspensionPitch:SuspensionState;suspensionRoll:SuspensionState; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group; lastBuildingLevel?: number; lastAirState?: string }
 const lerpAngle = (a: number, b: number, t: number) => a + wrapAngle(b - a) * t;
 
 
@@ -185,7 +185,7 @@ export class UnitRenderer {
         const guns:THREE.Object3D[]=[],gears:THREE.Object3D[]=[],turrets:THREE.Group[]=[],legs:THREE.Object3D[]=[],members:THREE.Object3D[]=[];
         lod.traverse(o=>{if(o.name==="Gun"){o.userData.restZ=o.position.z;o.userData.restX=o.rotation.x;guns.push(o);}if(o.name==="LandingGear")gears.push(o);if(o.name==="Turret")turrets.push(o as THREE.Group);if(o.name==="LeftLeg"||o.name==="RightLeg"){o.userData.restLegX=o.rotation.x;o.userData.walkPhase=Math.floor(legs.length/2)*.8;legs.push(o);}if(o.name.startsWith("SquadMember")){o.userData.squadPosition=o.position.clone();members.push(o);}});
         if(staticBuilding)this.shadowDirty=true;
-        v = { resetPose:true,pose:{x:e.x,y:e.y,z:e.z,heading:e.heading,bank:e.flightBank??0,pitch:e.flightPitch??0,speed:0},visualSpeed:0,walkPhase:(e.id*.731)%6.28,spread:1,tiltPitch:0,tiltRoll:0,near:visual.group,far,shadow:lod.getObjectByName("ContactShadow"),guns,gears,turrets,legs,members,status:new Map(),staticBuilding,group: m.group, turret: m.turret, ring, tactical, kind: e.kind, phase: (e.id * 0.731) % 6.28, recoil: 0 };
+        v = { resetPose:true,pose:{x:e.x,y:e.y,z:e.z,heading:e.heading,bank:e.flightBank??0,pitch:e.flightPitch??0,speed:0},visualSpeed:0,walkPhase:(e.id*.731)%6.28,spread:1,suspensionPitch:{value:0,velocity:0},suspensionRoll:{value:0,velocity:0},near:visual.group,far,shadow:lod.getObjectByName("ContactShadow"),guns,gears,turrets,legs,members,status:new Map(),staticBuilding,group: m.group, turret: m.turret, ring, tactical, kind: e.kind, phase: (e.id * 0.731) % 6.28, recoil: 0 };
         this.views.set(e.id, v);
       }
       v.group.visible=onScreen||v.staticBuilding;
@@ -195,8 +195,8 @@ export class UnitRenderer {
       const previousSpeed=v.visualSpeed;
       v.visualSpeed=v.resetPose?v.pose.speed:smoothMotion(v.visualSpeed,v.pose.speed,mobility.presentation.speedResponse,frameDt);
       const acceleration=frameDt>0&&!v.resetPose?(v.visualSpeed-previousSpeed)/frameDt:0;
-      const chassisPitch=Math.max(-.06,Math.min(.06,-acceleration*mobility.presentation.vehiclePitchResponse));
-      const chassisRoll=Math.max(-.05,Math.min(.05,-wrapAngle(e.heading-e.pHeading)*30*Math.min(1,v.visualSpeed/6)*mobility.presentation.vehicleTurnLean));
+      const chassisPitch=Math.max(-mobility.presentation.vehiclePitchLimit,Math.min(mobility.presentation.vehiclePitchLimit,-acceleration*(e.motionReverse?-1:1)*mobility.presentation.vehiclePitchResponse));
+      const chassisRoll=Math.max(-mobility.presentation.vehicleRollLimit,Math.min(mobility.presentation.vehicleRollLimit,-wrapAngle(e.heading-e.pHeading)*30*v.visualSpeed*mobility.presentation.vehicleTurnLean));
       v.walkPhase=(v.walkPhase+v.visualSpeed*frameDt*Math.PI*2/mobility.presentation.infantryStride)%(Math.PI*2);
       const distance=this.camera.position.distanceTo(this.bounds.center);
       if(v.far){const unitLimit=e.squadMaxMembers?(quality==="high"?90:quality==="medium"?70:50):lodDistance;const limit=unitLimit*(v.far.visible?.85:1.1);const detailed=(quality!=="low"&&selected.size<=12&&selected.has(e.id))||distance<limit;v.near.visible=detailed;v.far.visible=!detailed;}
@@ -260,7 +260,7 @@ export class UnitRenderer {
       }
       if(e.def.domain==="land"&&e.def.speed>0&&e.def.category!=="infantry"){
         const pace=Math.min(1,v.visualSpeed/Math.max(.1,e.def.speed));
-        v.group.position.y+=Math.sin(animT*14)*mobility.presentation.vehicleBounce*pace;
+        v.group.position.y+=Math.sin(v.walkPhase*2)*mobility.presentation.vehicleBounce*pace;
       }
       for(const gun of v.guns){gun.position.z=Number(gun.userData.restZ)-Math.sin(v.recoil*Math.PI)*.24;gun.rotation.x=Number(gun.userData.restX)-(e.gunElevation??0);}
       for(const gear of v.gears)gear.visible=v.pose.y-ground<12;
@@ -322,18 +322,18 @@ export class UnitRenderer {
         // Heading first, then bounded local suspension tilt. Raw terrain seams
         // must not flip a vehicle onto its side.
         const tilt = (angle: number) => Math.max(-0.35,Math.min(0.35,angle));
-        v.tiltPitch=v.resetPose?tilt(-Math.atan2(hf-hb,2*f)+chassisPitch*.5):smoothMotion(v.tiltPitch,tilt(-Math.atan2(hf-hb,2*f)+chassisPitch*.5),mobility.presentation.tiltResponse,frameDt);
-        v.tiltRoll=v.resetPose?tilt(Math.atan2(hr-hl,3)+chassisRoll*.5):smoothMotion(v.tiltRoll,tilt(Math.atan2(hr-hl,3)+chassisRoll*.5),mobility.presentation.tiltResponse,frameDt);
-        v.group.rotation.set(v.tiltPitch,h,v.tiltRoll,"YXZ");
+        springSuspension(v.suspensionPitch,tilt(-Math.atan2(hf-hb,2*f)+chassisPitch*.5),frameDt,v.resetPose);
+        springSuspension(v.suspensionRoll,tilt(Math.atan2(hr-hl,3)+chassisRoll*.5),frameDt,v.resetPose);
+        v.group.rotation.set(v.suspensionPitch.value,h,v.suspensionRoll.value,"YXZ");
       } else if(e.def.domain==="sea")v.group.rotation.set(Math.sin(animT*.8)*.015,h,Math.sin(animT*.6)*.025,"YXZ");
       else if(e.def.armor === "air")v.group.rotation.set(v.pose.pitch,h,v.pose.bank,"YXZ");
       else if(e.def.speed>0&&e.def.category!=="infantry"){
         const sa=Math.sin(h),ca=Math.cos(h),length=2;
         const pitch=-Math.atan2(heightAt(x+sa*length,z+ca*length)-heightAt(x-sa*length,z-ca*length),length*2)+chassisPitch;
         const roll=Math.atan2(heightAt(x+ca,z-sa)-heightAt(x-ca,z+sa),2)+chassisRoll;
-        v.tiltPitch=v.resetPose?Math.max(-.3,Math.min(.3,pitch)):smoothMotion(v.tiltPitch,Math.max(-.3,Math.min(.3,pitch)),mobility.presentation.tiltResponse,frameDt);
-        v.tiltRoll=v.resetPose?Math.max(-.3,Math.min(.3,roll)):smoothMotion(v.tiltRoll,Math.max(-.3,Math.min(.3,roll)),mobility.presentation.tiltResponse,frameDt);
-        v.group.rotation.set(v.tiltPitch,h,v.tiltRoll,"YXZ");
+        springSuspension(v.suspensionPitch,Math.max(-.3,Math.min(.3,pitch)),frameDt,v.resetPose);
+        springSuspension(v.suspensionRoll,Math.max(-.3,Math.min(.3,roll)),frameDt,v.resetPose);
+        v.group.rotation.set(v.suspensionPitch.value,h,v.suspensionRoll.value,"YXZ");
       } else v.group.rotation.y = h;
       if(shadow&&e.def.armor==="air"){
         const inverse=this.inverse.copy(v.group.quaternion).invert();shadow.position.set(0,ground-v.group.position.y+.045,0).applyQuaternion(inverse);shadow.quaternion.copy(inverse);

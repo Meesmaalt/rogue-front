@@ -4,6 +4,7 @@ import * as THREE from "three";
 import {mergeGeometries} from "three/addons/utils/BufferGeometryUtils.js";
 import type {World} from "../sim/World";
 import type {SimEvent,Projectile} from "../sim/types";
+import {SIM_STEP} from "../sim/constants";
 import {maxHitPoints} from "../sim/unitStats";
 import {heightAt} from "../sim/heightmap";
 
@@ -87,19 +88,21 @@ export class Fx {
       if(u.dead||u.loadedIntoId!=null||u.underConstruction||u.def.category==="infantry"||u.team!==world.playerTeam&&!world.isSpottedByTeam(u,world.playerTeam))continue;
       this.point.set(u.x,u.y+u.def.height*.5,u.z);
       if(this.camera.position.distanceToSquared(this.point)>cfg.distance**2||!this.frustum.containsPoint(this.point))continue;
-      const ground=heightAt(u.x,u.z),altitude=u.y-ground,speed=Math.abs(u.motionSpeed??0),radius=u.def.radius;
+      const ground=heightAt(u.x,u.z),water=world.waterNav.isWalkableWorld(u.x,u.z),surface=water?world.waterNav.surfaceAt(u.x,u.z):ground,altitude=u.y-surface;
+      const travelX=u.x-u.px,travelZ=u.z-u.pz,speed=Math.hypot(travelX,travelZ)/SIM_STEP,radius=u.def.radius;
       const damaged=u.hp/maxHitPoints(u)<cfg.damageThreshold||(u.components?.engine??0)>cfg.engineThreshold;
       const rotor=u.def.category==="heli"&&altitude>1&&altitude<cfg.rotorHeight&&speed<cfg.rotorMaxSpeed;
-      const moving=u.def.speed>0&&u.def.armor!=="air"&&u.def.domain!=="sea"&&speed>cfg.groundSpeed&&altitude<cfg.maxGroundAltitude&&!world.waterNav.isWalkableWorld(u.x,u.z);
+      const moving=u.def.speed>0&&u.def.armor!=="air"&&u.def.domain!=="sea"&&speed>cfg.groundSpeed&&altitude<cfg.maxGroundAltitude&&!water;
       if(!damaged&&!rotor&&!moving)continue;
       if(damaged)this.emit("smoke",u.x-Math.sin(u.heading)*radius*.4,u.y+u.def.height*.8,u.z-Math.cos(u.heading)*radius*.4,Math.max(.5,radius*.28),cfg.smokeLife,0x51544f,.45,1.6,.2);
       if(moving){
-        const dir=(u.motionReverse?-1:1),dx=Math.sin(u.heading)*dir,dz=Math.cos(u.heading)*dir;
-        for(const side of [-1,1])this.emit("dust",u.x-dx*radius+dz*radius*.5*side,ground+.3,u.z-dz*radius-dx*radius*.5*side,Math.max(.4,radius*.25),cfg.dustLife,0xa99d82,-dx*1.8,.4,-dz*1.8);
+        const length=Math.hypot(travelX,travelZ),dx=travelX/length,dz=travelZ/length;
+        const road=!!world.terrain.roadAt(u.x,u.z),size=Math.max(.4,radius*.25)*(road?.55:1);
+        for(const side of [-1,1])this.emit("dust",u.x-dx*radius+dz*radius*.5*side,ground+.3,u.z-dz*radius-dx*radius*.5*side,size,cfg.dustLife,road?0x92958b:0xa99d82,-dx*1.8,.4,-dz*1.8);
       }
       if(rotor){
         const strength=1-altitude/cfg.rotorHeight;
-        for(let i=0;i<3;i++){const angle=Math.random()*Math.PI*2,dx=Math.sin(angle),dz=Math.cos(angle);this.emit("dust",u.x+dx*radius*1.5,ground+.2,u.z+dz*radius*1.5,radius*.4*strength,cfg.dustLife,0xb0a489,dx*5,.4,dz*5);}
+        for(let i=0;i<3;i++){const angle=Math.random()*Math.PI*2,dx=Math.sin(angle),dz=Math.cos(angle);this.emit("dust",u.x+dx*radius*1.5,surface+.2,u.z+dz*radius*1.5,radius*.4*strength,cfg.dustLife,water?0xc5dfe1:0xb0a489,dx*5,.4,dz*5);}
       }
       if(++emitted>=cfg.maxUnits){this.ambientCursor=(this.ambientCursor+n+1)%count;return;}
     }
