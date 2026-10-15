@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { Vision } from "./Vision";
 import type { Entity } from "./types";
-import { heightAt } from "./heightmap";
+import { heightAt,resetHeightmap,setMapSize,setBases } from "./heightmap";
 import {featureBlocksMovement,type MapFeatureDef} from "./mapFeatures";
 import { UNITS } from "./units";
+
+afterEach(resetHeightmap);
 
 function unit(id: number, team: 0 | 1, x: number, z: number, kind: "tank" | "hq" = "tank"): Entity {
   return {
@@ -60,4 +62,13 @@ describe("Vision", () => {
     expect(v.isVisible(0, 0, 0)).toBe(true);
     expect(v.isVisible(0, 55, 0)).toBe(false);
   });
+});
+
+it('stationary compact metric observers never lose fog between staggered reveal batches',()=>{
+ setMapSize(2048);setBases([{x:0,z:0,r:2000}]);
+ const observers=Array.from({length:33},(_,i)=>unit(i+1,0,-700+(i%11)*125,-500+Math.floor(i/11)*400));
+ const vision=new Vision(true);for(let i=0;i<30;i++)vision.update(observers);
+ for(let tick=0;tick<90;tick++){vision.update(observers);for(const u of observers)expect(vision.isVisible(0,u.x,u.z),`tick ${tick}, observer ${u.id}`).toBe(true);}
+ const snapshot=vision.snapshot(),restored=new Vision(true);restored.restore(snapshot,observers);
+ for(let tick=0;tick<15;tick++){vision.update(observers);restored.update(observers);expect(restored.snapshot()).toEqual(vision.snapshot());}
 });

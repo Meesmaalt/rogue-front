@@ -1,3 +1,4 @@
+import {groundLayout,withAirfieldAprons} from "./GroundSurface";
 import {applyTerrainDetail,createTerrainDetailTexture,terrainNoise} from "./TerrainDetail";
 import terrainConfig from "../data/terrain.json";
 import {isGarrisonBuilding,GARRISON_RULES} from "../sim/garrison";
@@ -12,6 +13,7 @@ import type { Point } from "../sim/types";
 const SEG = 192;
 
 export function createTerrain(theme: "desert" | "mountains" | "city" | "temperate" = "desert", features: readonly MapFeatureDef[] = [], bases: readonly (Point & { r: number })[] = []): THREE.Group {
+  features=withAirfieldAprons(features);
   const rnd = mulberry32(7);
   const group = new THREE.Group();
   const forestLayout=theme==="temperate"?sampleForest(features):undefined;
@@ -38,7 +40,7 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
 
 /** World UVs and shared edge heights let the renderer cull distant ground tiles. */
 export function createGroundTiles(theme:"desert"|"mountains"|"city"|"temperate"="temperate",bases:readonly (Point&{r:number})[]=[]):THREE.BufferGeometry[]{
-  const tiles:THREE.BufferGeometry[]=[],columns=Math.ceil(MAP_SIZE/terrainConfig.render.groundTileSize),span=MAP_SIZE/columns,segments=Math.ceil(terrainConfig.render.groundSegments/columns);
+  const tiles:THREE.BufferGeometry[]=[],{columns,span,segments}=groundLayout();
   for(let iz=0;iz<columns;iz++)for(let ix=0;ix<columns;ix++){
   const geo = new THREE.PlaneGeometry(span,span,segments,segments);
   geo.rotateX(-Math.PI / 2);
@@ -504,7 +506,8 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
         const variant=Number(f.id.split("-").at(-1))||0,house=new THREE.LOD();
         house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,false,f.color,f.buildingStyle,f.facadeColor),0);
         house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,true,f.color,f.buildingStyle,f.facadeColor),235, .15);
-        house.userData.structureId=f.id;house.userData.structureHeight=h;
+        house.scale.set(terrainConfig.render.buildings.civilianFootprintScale,terrainConfig.render.buildings.civilianHeightScale,terrainConfig.render.buildings.civilianFootprintScale);
+        house.userData.structureId=f.id;house.userData.structureHeight=h*terrainConfig.render.buildings.civilianHeightScale;
         house.position.set(f.x,y,f.z);house.rotation.y=f.rotation??0;group.add(house);
         mesh.geometry.dispose();(mesh.material as THREE.Material).dispose();
       } else group.add(mesh);

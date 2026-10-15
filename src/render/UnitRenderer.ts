@@ -1,3 +1,4 @@
+import {createMetricAirfieldStructures} from "./Architecture";
 import {createMetricRunway} from "./MetricRunway";
 import {syncEquipmentVisual} from "./EquipmentVisual";
 import * as THREE from "three";
@@ -21,7 +22,7 @@ contactContext.fillStyle = contactGradient; contactContext.fillRect(0,0,64,64);
 const contactGeometry = new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2); contactGeometry.userData.sharedArt = true;
 const contactMaterial = new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(contactCanvas),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1}); contactMaterial.userData.sharedArt = true;
 
-interface View { resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;suspensionPitch:SuspensionState;suspensionRoll:SuspensionState; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group; lastBuildingLevel?: number; lastAirState?: string }
+interface View { surface?:THREE.Mesh; resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;suspensionPitch:SuspensionState;suspensionRoll:SuspensionState; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group; lastBuildingLevel?: number; lastAirState?: string }
 const lerpAngle = (a: number, b: number, t: number) => a + wrapAngle(b - a) * t;
 
 
@@ -148,12 +149,13 @@ export class UnitRenderer {
       if(!v&&!onScreen&&e.def.speed>0)continue;
       if (!v) {
         const faction = e.team === world.playerTeam ? world.playerFaction : world.enemyFaction;
-        const visual = createArtModel(e.kind, e.team, faction) ?? createVisualModel(e.kind, e.team, faction);
+        const metricAirfield=e.kind==="airbase"&&!!e.def.metricScale;
+        const visual = metricAirfield?{group:createMetricAirfieldStructures(e),turret:null}:createArtModel(e.kind, e.team, faction) ?? createVisualModel(e.kind, e.team, faction);
         visual.group.scale.multiplyScalar(e.def.modelScale??1);
         // Authored GLBs retain the silhouette at tactical camera distance.
         const lod = new THREE.LOD();
         lod.autoUpdate=false;lod.addLevel(visual.group,0);
-        const far=createArtModel(e.kind,e.team,faction,true)?.group??(e.squadMaxMembers?createVisualModel(e.kind,e.team,faction,true).group:undefined);
+        const far=metricAirfield?undefined:createArtModel(e.kind,e.team,faction,true)?.group??(e.squadMaxMembers?createVisualModel(e.kind,e.team,faction,true).group:undefined);
         if(far){far.scale.multiplyScalar(e.def.modelScale??1);lod.addLevel(far,lodDistance,.15);}
         const m = { group: lod, turret: visual.turret };
         const rotors: THREE.Object3D[] = [];
@@ -180,12 +182,12 @@ export class UnitRenderer {
           mesh.castShadow = staticBuilding;
           mesh.receiveShadow = true;
         });
-        if(e.kind==="airbase"&&e.def.metricScale)m.group.add(createMetricRunway(e));
+        const surface=metricAirfield?createMetricRunway(e):undefined;if(surface)m.group.add(surface);
         this.scene.add(m.group);
         const guns:THREE.Object3D[]=[],gears:THREE.Object3D[]=[],turrets:THREE.Group[]=[],legs:THREE.Object3D[]=[],members:THREE.Object3D[]=[];
         lod.traverse(o=>{if(o.name==="Gun"){o.userData.restZ=o.position.z;o.userData.restX=o.rotation.x;guns.push(o);}if(o.name==="LandingGear")gears.push(o);if(o.name==="Turret")turrets.push(o as THREE.Group);if(o.name==="LeftLeg"||o.name==="RightLeg"){o.userData.restLegX=o.rotation.x;o.userData.walkPhase=Math.floor(legs.length/2)*.8;legs.push(o);}if(o.name.startsWith("SquadMember")){o.userData.squadPosition=o.position.clone();members.push(o);}});
         if(staticBuilding)this.shadowDirty=true;
-        v = { resetPose:true,pose:{x:e.x,y:e.y,z:e.z,heading:e.heading,bank:e.flightBank??0,pitch:e.flightPitch??0,speed:0},visualSpeed:0,walkPhase:(e.id*.731)%6.28,spread:1,suspensionPitch:{value:0,velocity:0},suspensionRoll:{value:0,velocity:0},near:visual.group,far,shadow:lod.getObjectByName("ContactShadow"),guns,gears,turrets,legs,members,status:new Map(),staticBuilding,group: m.group, turret: m.turret, ring, tactical, kind: e.kind, phase: (e.id * 0.731) % 6.28, recoil: 0 };
+        v = { surface,resetPose:true,pose:{x:e.x,y:e.y,z:e.z,heading:e.heading,bank:e.flightBank??0,pitch:e.flightPitch??0,speed:0},visualSpeed:0,walkPhase:(e.id*.731)%6.28,spread:1,suspensionPitch:{value:0,velocity:0},suspensionRoll:{value:0,velocity:0},near:visual.group,far,shadow:lod.getObjectByName("ContactShadow"),guns,gears,turrets,legs,members,status:new Map(),staticBuilding,group: m.group, turret: m.turret, ring, tactical, kind: e.kind, phase: (e.id * 0.731) % 6.28, recoil: 0 };
         this.views.set(e.id, v);
       }
       v.group.visible=onScreen||v.staticBuilding;
@@ -236,6 +238,8 @@ export class UnitRenderer {
       } else {
         v.group.scale.set(1, 1, 1);
       }
+      // Construction scales the buildings, not the ground-clipped runway and its markings.
+      if(v.surface)v.surface.scale.set(1/v.group.scale.x,1/v.group.scale.y,1/v.group.scale.z);
       const animT = world.time-(1-alpha)/30 + v.phase;
       if(v.staticBuilding&&(e.underConstruction||e.upgrading)&&now-this.lastConstructionShadow>.2){this.shadowDirty=true;this.lastConstructionShadow=now;}
       const recoil = this.recoilById.get(e.id) ?? 0;

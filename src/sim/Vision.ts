@@ -177,7 +177,7 @@ export class Vision {
     this.revision++;
     for (const team of [0, 1] as const) {
       const c = this.states[team];
-      for (let i = 0; i < c.length; i++) if (c[i] === 2 && (MAP_SIZE<4096||this.visibleUntil[team][i]<=this.tickCounter)) c[i] = 1;
+      for (let i = 0; i < c.length; i++) if (c[i] === 2 && (!this.metric||this.visibleUntil[team][i]<=this.tickCounter)) c[i] = 1;
     }
 
     this.buildings = [];
@@ -252,7 +252,7 @@ export class Vision {
         const p = this.cellToWorld(ix, iz);
         const dist2 = (p.x - x) * (p.x - x) + (p.z - z) * (p.z - z);
         if (dist2 > r2) continue;
-        if(cells[this.index(ix,iz)]===2&&(MAP_SIZE<4096||this.visibleUntil[team][this.index(ix,iz)]>=this.revealExpiry))continue;
+        if(cells[this.index(ix,iz)]===2&&(!this.metric||this.visibleUntil[team][this.index(ix,iz)]>=this.revealExpiry))continue;
 
         // Close: free
         if (dist2 < nearR2) {

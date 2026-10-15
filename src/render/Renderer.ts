@@ -1,3 +1,4 @@
+import {StableShadows} from "./StableShadows";
 import {MAP_SIZE} from "../sim/heightmap";
 import * as THREE from "three";
 import { PostFX } from "./post/PostFX";
@@ -43,9 +44,8 @@ export function createRenderContext(canvas: HTMLCanvasElement, temperate = false
   sun.position.set(70,95,45);
   sun.castShadow = profile.shadows;
   sun.shadow.mapSize.set(profile.shadowSize||512,profile.shadowSize||512);
-  const sc = sun.shadow.camera;
-  sc.left = -125; sc.right = 125; sc.top = 125; sc.bottom = -125; sc.near = 1; sc.far = 430;
-  sun.shadow.bias = -0.0004;
+  const stableShadows=new StableShadows(sun);
+  sun.shadow.bias = -0.00008;
   sun.shadow.normalBias = 0.10;
   scene.add(sun, sun.target);
   // Soft fill from the opposite side so silhouettes stay readable
@@ -78,18 +78,10 @@ export function createRenderContext(canvas: HTMLCanvasElement, temperate = false
   window.addEventListener("resize", resize);
   resize();
 
-  const lastShadow=new THREE.Vector3(Infinity,Infinity,Infinity);
   const updateShadows=(force:boolean)=>{
     if(!profile.shadows)return;
     const focus=(sun.userData.shadowFocus as THREE.Vector3|undefined)??sun.target.position;
-    const extent=Math.max(90,Math.min(230,Math.ceil(camera.position.distanceTo(focus)*.58/16)*16));
-    if(sc.right!==extent){sc.left=-extent;sc.right=extent;sc.top=extent;sc.bottom=-extent;sc.updateProjectionMatrix();force=true;}
-    // Keep the light and its texture together. Refresh only when coverage is exhausted.
-    if(force||focus.distanceToSquared(lastShadow)>(extent*.3)**2){
-      lastShadow.set(Math.round(focus.x/8)*8,focus.y,Math.round(focus.z/8)*8);
-      sun.position.set(lastShadow.x+70,lastShadow.y+95,lastShadow.z+45);sun.target.position.copy(lastShadow);sun.target.updateMatrixWorld();
-      renderer.shadowMap.needsUpdate=true;
-    }
+    if(stableShadows.update(focus,force))renderer.shadowMap.needsUpdate=true;
   };
   return { renderer, scene, camera, sun, post, water, resize, setQuality, updateShadows };
 }

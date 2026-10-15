@@ -1,5 +1,12 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Lennuväli, mõõt ja stabiilne nähtavus · 15.10.2026
+
+- [x] Katkise lennuraja asemel maapinna tegelike kolmnurkadega lõigatud kate ja märgistus; perroon, ruleerimistee, parkimiskohad, kaks angaari, torn ja hooldushoone.
+- [x] Baasihoonete 22% visuaalne suurendus, elamute tagasihoidlik kõrguse/laiuse suurendus ning lennuvälja perroonilt taimestiku ja selle küpsetatud varju eemaldamine.
+- [x] Väikese meetrikaardi nähtavuse säilimine vaatlejate ajastatud uuenduste vahel; minimapi/maastiku udu korduvate lainete regressioonitest ja salvestuse jätkamine.
+- [x] Püsiv päikesevarju projektsioon, valgusruumi pikslivõrgu joondus ja katteala säilitamine sundvärskenduste ajal; geomeetria- ja stabiilsustestid. Vt AIRFIELD-VISIBILITY-RELEASE.md.
+
 ## Pinna parandus ja värske serverikaart · 15.10.2026
 
 - [x] Maapinna kadumist põhjustanud shaderi preprotsessori reavahetuste parandus; regressioonitest ja tegeliku shaderi kompileerimine/linkimine Mesa EGL-is koos sõjauduga.

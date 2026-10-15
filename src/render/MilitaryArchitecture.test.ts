@@ -1,6 +1,7 @@
+import type {Entity} from '../sim/types';
 import {afterEach,expect,it,vi} from 'vitest';
 import * as THREE from 'three';
-import {createBuildingModel} from './Architecture';
+import {createBuildingModel,createMetricAirfieldStructures} from './Architecture';
 afterEach(()=>vi.unstubAllGlobals());
 it('field-base models share textured materials and preserve distinct bounded silhouettes',()=>{
  vi.stubGlobal('document',{createElement:()=>({width:0,height:0,getContext:()=>({createImageData:(w:number,h:number)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData:()=>{},fillRect:()=>{},drawImage:()=>{},beginPath:()=>{},moveTo:()=>{},lineTo:()=>{},closePath:()=>{},fill:()=>{},fillStyle:''})})});
@@ -12,4 +13,8 @@ it('field-base models share textured materials and preserve distinct bounded sil
   result.group.traverse(o=>{if(o instanceof THREE.Mesh){expect([...o.geometry.attributes.position.array].every(Number.isFinite)).toBe(true);expect((o.material as THREE.Material).userData.sharedArt).toBe(true);o.geometry.dispose();}});
  }
  expect(sizes.size).toBeGreaterThan(7);
+ const field=createMetricAirfieldStructures({x:0,z:0,y:0,heading:0,team:0} as Entity),bounds=new THREE.Box3().setFromObject(field);
+ expect(bounds.min.x).toBeGreaterThan(45); // Keep simulated aircraft parking and taxi access empty.
+ expect(bounds.min.z).toBeLessThan(-60);expect(bounds.max.z).toBeGreaterThan(55);
+ expect(field.children.length).toBeLessThanOrEqual(10);expect(field.userData.militarySilhouette).toBe('airbase');
 });

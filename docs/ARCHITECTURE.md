@@ -6,6 +6,12 @@ Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOP
 
 Mängukaardid on ainult protseduurkaardid. Ajaloolised Roheoru/Murdlaine kirjeldused allpool on regressioonitaust. `platforms.json` piirab tootmise 15 põhiklassile; `equipment.json` kirjeldab 16 vahetatavat komponenti. `configure-unit`/`cancel-refit` käsud käivad fikseeritud sim-sammu kaudu; `equipment.ts` hooldus ei täida moona ega paranda tasuta. `physics.json` juhib uue reeglistiku trajektoore. Komponendid ja pooleliolev töö sisalduvad snapshot/replay räsis. Detailid: [MODULAR-PROCEDURAL-RELEASE.md](MODULAR-PROCEDURAL-RELEASE.md).
 
+## Lennuvälja pind ja nähtavuse stabiilsus
+
+`GroundSurface.ts` jagab maapinna ruudustiku paigutust `Terrain`-iga ning interpoleerib renderdatud kolmnurkade kõrgust. `MetricRunway` lõikab katte- ja märgistuseristkülikud iga maapinnakolmnurga järgi: sama tasapind + väike kõrgusvahe, mitte jämeda raja ja peenema kõrgusvälja ristumine. Kogu kate jääb üheks vertex-värvidega joonistuskutseks. `Architecture.createMetricAirfieldStructures` jätab tegelikud lennukite parkimiskohad vabaks ja paigutab suuremad angaarid/torni perroonist tahapoole. Visuaalsed perroonimaskid eemaldavad seal puud, alusmetsa ja küpsetatud puuvarjud. Simulatsiooni raja/parkimise koordinaadid ei muutu.
+
+`Vision` kasutab nähtavuse säilitusaja kontrollis sama `metric` lippu nagu vaatlejate jaotatud uuendamisel; väikese kaardi iga partii ei kustuta enam eelmise partii vaadet. `StableShadows` hoiab fikseeritud mõõdu ja suunaga valgusprojektsiooni, joondab keskme valgusruumi varjupikslitega ning nihutab katet ainult kaamera vaate keskme piisaval eemaldumisel. Hoone ehituse või hävimise sundvärskendus ei nihuta valgust. Kõik visuaalsed mõõdud on `terrain.json.render` all.
+
 ## Serveri värske kaart · v11
 
 `freshMap.ts` kasutab versiooniga generaatorit ja kontrollib päris `NavGrid` ühendust: mõlemad baasid ja üheksa ressursipunkti peavad olema samas läbitavas piirkonnas. Lennuraja täielik ulatus peab jääma kuivale, hooneteta mängualale. Ebaõnnestumisel proovitakse deterministlikult järgmist seemet; salvestusse läheb õnnestunud seemnega kaardi ID. `server/map-generation.js` valib krüptograafilise seemne ja käivitab kuni kaks eraldi workerit, nii et kaardi eeltöö ei blokeeri 30 Hz võrguvoogu. Server loob kaardi ka ranked/lobby jaoks. Kliendid taastavad sama versiooni ja seemne; vanad v2–v10 ID-d jäävad taastatavaks.

@@ -1,3 +1,4 @@
+import {withAirfieldAprons} from './GroundSurface';
 import * as THREE from "three";
 import {afterEach,expect,it} from "vitest";
 import {createGroundTiles,createRiverSurface,createCanopyGeometry,createLandscapeBackdrop,sampleForest} from "./Terrain";
@@ -75,4 +76,12 @@ it("large ground tiles keep continuous world UVs/normals and submit a bounded vi
    if(Math.abs(p.getX(i)%256)<.001||Math.abs(p.getZ(i)%256)<.001){const key=`${p.getX(i).toFixed(3)}/${p.getZ(i).toFixed(3)}`,value=[p.getY(i),n.getX(i),n.getY(i),n.getZ(i)],before=shared.get(key);if(before)value.forEach((v,j)=>expect(v).toBeCloseTo(before[j],4));else shared.set(key,value);}
   }g.dispose();
  }
+});
+
+it('airport apron and hangar yards clear trees as well as their baked ground shade',()=>{
+ const features:MapFeatureDef[]=[{id:'woods',kind:'cover',appearance:'forest',x:55,z:0,width:100,depth:180,density:1,height:8},{id:'base-airfield-yard-0',kind:'cover',appearance:'yard',x:0,z:70,width:56,depth:360,rotation:0}];
+ const cleared=withAirfieldAprons(features),mask=cleared.find(f=>f.id.endsWith('-apron'))!;
+ expect(mask).toBeDefined();expect(cleared).toHaveLength(3);expect(features).toHaveLength(2);
+ for(const tree of [...sampleForest(cleared).values()].flat())expect(pointInFeature(tree.x,tree.z,mask,2)).toBe(false);
+ expect([...sampleForest(features).values()].flat().some(p=>pointInFeature(p.x,p.z,mask))).toBe(true);
 });

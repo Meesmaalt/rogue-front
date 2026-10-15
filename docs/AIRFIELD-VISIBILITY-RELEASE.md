@@ -1,0 +1,11 @@
+# Lennuväli ja stabiilne pilt · 15.10.2026
+
+Pildil nähtud kolmnurksed lennuraja augud tekkisid kahe eri ruudustiku ristumisest: maapind kasutab umbes 192 segmenti kogu kaardi kohta, rada proovis peenema kõrgusvälja kõrgusi eraldi. Üksnes suurem kõrgusnihe ei anna kõigil nõlvadel õiget tulemust. Uus pind lõigatakse tegeliku maapinna iga kolmnurga järgi ning kate/märgistus tõstetakse sellest 12–15 cm kõrgemale. Raja 340 m pikkus, suund ja simulatsiooni ruleerimis-/parkimiskohad säilivad. Kõik katteosad on ühes värvitud geomeetrias, ühe joonistuskutsega. Ehituse/uuenduse suurusanimatsioon ei muuda maapinnale kinnitatud katet.
+
+Lennuväljal on ääristatud rada, lävemärgid, ruleerimissuund, perroon, parkimiskohad, hooldusraja tagune kahe angaari rida, juhtimistorn ja laoruum. Hoonete materjalid liidetakse partiideks, lisatekstuure ei looda. Perrooni mask puhastab visuaalse taimestiku ja küpsetatud puuvarju. Baasihooned on visuaalselt 22% suuremad; elamud 6% laiemad ja 18% kõrgemad. Tiheda asula kruntide/teede ega üksuste füüsikalisi ulatusi ei muudeta.
+
+Väikeste meetrikaartide uduvea põhjus oli kaks allesjäänud `MAP_SIZE < 4096` tingimust. Vaatlejad uuendusid osade kaupa, kuid udu kustus igal uuendusel kogu kaardil. Tingimused kasutavad nüüd sama mõõtkavalippu nagu vaatlejate ajastus; olemasolev aegumispuhver hoiab alad nähtavana järgmise partii saabumiseni. See kõrvaldab perioodilise laine nii minimapil kui 3D maastikul. Uued kontrollid kasutavad 33 paigal seisvat vaatlejat 2 km kaardil ja kontrollivad ka snapshot'i jätkamist.
+
+Kõrge kvaliteedi päikesevarjudel on püsiv projektsioon ja valgusruumi pikslitele joondatud kate. Sundvärskendus hoone muutumisel ei liiguta kaardi keskpunkti. Valgus asub piisavalt kaugel, et lähitasand ei lõikaks maastiku varjusid. Madala/keskmise kvaliteedi varjukaardi seade ei muutu. Uued testid kontrollivad muutumatut projektsiooni ja valguse suunda, väikeste kaameranihete stabiilsust ning kolmnurkade siseosades raja kõrgust.
+
+Kontroll läbis: 331 testi 76 failis, neli väljalaskepaketi tervikluse kontrolli, `npm run typecheck` ja `npm run build`. Brauseri Chromium puudub selles keskkonnas; tegelikku GPU/FPS-i ja uut mängu ekraanipilti ei ole siin kinnitatud. Pärast uuendust ehita mängu image uuesti.

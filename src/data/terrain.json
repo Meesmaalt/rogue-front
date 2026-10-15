@@ -102,6 +102,24 @@
           "anisotropy": 8
         }
       }
+    },
+    "buildings": {
+      "militaryScale": 1.22,
+      "civilianFootprintScale": 1.06,
+      "civilianHeightScale": 1.18
+    },
+    "shadows": {
+      "extent": 384,
+      "lightDistance": 900,
+      "depth": 2000,
+      "recenterFraction": 0.18
+    },
+    "airfield": {
+      "apronLeft": 18,
+      "apronRight": 80,
+      "apronStart": -92,
+      "apronEnd": 70,
+      "surfaceOffset": 0.12
     }
   },
   "natural": {
