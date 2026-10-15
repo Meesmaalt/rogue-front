@@ -1,5 +1,11 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Hoonete eristamine · 15.10.2026
+
+- [x] Eraldi arhitektuuritöö: suured geomeetrilised funktsioonitähised, kopteriplatsil valge H/ring ja tuulesukk, tehase tõstetala/korstnad, lao laadimisvarikatus/riiulid, kasarmu harjutusala ning erinevad strateegiakeskuste siluetid. Detailid koondatakse olemasolevatesse jagatud materjalipartiidesse; geomeetriatest kontrollib tähiseid ja piiratavat joonistuskutsete arvu.
+- [ ] WebGL pildi ülevaatus: eraldi pilvebrauser ei pääse selle tööruumi aadressile 127.0.0.1:5173 (ERR_CONNECTION_REFUSED). Kohalik Vite töötab; geomeetriakontroll ei asenda GPU pilti.
+
+
 ## Baasiehitus, dessant ja strateegilised relvad · 15.10.2026
 
 - [x] Tavaline menüü- ja URL-vaikimisi algus: mõlemal poolel peamaja + kaks inseneri. Valmis baas ja lahingugrupp on eraldi „Näidis / test” valik.

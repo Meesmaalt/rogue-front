@@ -2,6 +2,10 @@
 
 Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 16, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
 
+## Hoonete funktsioonitähised ja siluetid · 15.10.2026
+
+`FacilityDetails.ts` lisab hoonele funktsiooni järgi geomeetrilised tähised ja detailid enne `Architecture.ts` staatilist materjalide koondamist. Tähed on vektorgeomeetria, seega ei vaja eraldi fonti ega tekstuuri allalaadimist. Kopteriplatsil on suur valge H/ring ja tuulesukk, tehasel tõstetala ja väljatõmbekorstnad, laol laadimisvarikatus ning riiulid, kasarmul harjutusala; strateegiakeskustel oma katuseehitised/antennid. `militarySilhouette`, `facilityLabel` ja `facilityDetails` metaandmed säilivad koondamisel ning testid piiravad ühe hoone materjalipartiide arvu 12-ni. Hoonete navigatsiooni ja ehitusraadiuseid esituse detailid ei muuda.
+
 ## Dessant ja strateegilised relvad · 15.10.2026
 
 Tavaline uus üksikmäng kasutab `createSkirmish` peamaja + kahe inseneri algust; ainult `deployment=ready` aktiveerib näidisbaasi. Vanade lahingute jätkamine kasutab salvestatud üksusi.

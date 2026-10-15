@@ -1,3 +1,4 @@
+import {addFacilityDetails} from "./FacilityDetails";
 import {renderedGroundHeightAt} from "./GroundSurface";
 import type {Entity} from "../sim/types";
 import terrainConfig from "../data/terrain.json";
@@ -199,6 +200,7 @@ export function createBuildingModel(kind:UnitKind,team:Team,faction:FactionId):{
  if(kind==="seaCommand")for(const z of [-2,0,2])cylinder(g,.7,2.4,-3.8,1.3,z,steel);
  if(kind.includes("Strategy")){box(g,4.5,2.4,2.3,0,1.4,-4,wall);for(const x of [-2,0,2])cylinder(g,.04,5,x,3,-4.2,steel);}
  if(kind==="combatEngineer"){box(g,4,.15,1.5,-1,1,3.5,steel);for(const x of [-2,-.5,1])box(g,.45,.6,.8,x,1.35,3.5,material(0xb0a568,"metal"));}
+ addFacilityDetails(g,kind,steel,kind==='helipad'?material(0xd0cbb7):trim,dark);
  g.scale.setScalar(terrainConfig.render.buildings.militaryScale);
  g.userData.militarySilhouette=kind;return {group:batch(g),turret:null};
 }
