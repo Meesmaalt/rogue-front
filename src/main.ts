@@ -35,6 +35,7 @@ import { MissionController } from "./sim/Mission";
 import { loadWorld, saveWorld } from "./sim/SaveState";
 import { ReplayRecorder } from "./sim/Replay";
 import { AudioManager } from "./render/Audio";
+import { AlertOverlay, shakeAmount, toneFor } from "./render/AudioVisual";
 import { loadSettings, SettingsPanel } from "./ui/Settings";
 import type { MissionDef } from "./sim/types";
 import { LockstepClient } from "./net/LockstepClient";
@@ -101,6 +102,9 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   let applyingNetwork = false;
   const replayRecorder = new ReplayRecorder(mission.seed);
   const audio = new AudioManager();
+  let lastSelectionKey="0:-1";
+  document.addEventListener("click",e=>{if((e.target as Element|null)?.closest?.("button"))audio.ui("click");});
+  let lastHover:Element|null=null;document.addEventListener("mouseover",e=>{const b=(e.target as Element|null)?.closest?.("button")??null;if(b&&b!==lastHover)audio.ui("hover");lastHover=b;});
   let intelAcc=0, terrainAcc=.2, hoverAcc=0;
   let terrainForQuality:THREE.Group|undefined;
   const settingsPanel = new SettingsPanel((settings) => { audio.setSettings(settings);visualQuality=settings.quality; ctx.setQuality(settings.quality);if(terrainForQuality)setTerrainDetailQuality(terrainForQuality,settings.quality); performancePanel.setEnabled(settings.performanceOverlay??false); },()=>{cam.enabled=true;setEnabled(running&&!paused);});
@@ -163,8 +167,16 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   picker.setPresentation(id=>units.positionFor(id));
   const selection = new SelectionController(topCanvas, world, picker);
   const commands = new CommandController(topCanvas, world, picker, selection);
+  topCanvas.addEventListener("mousedown",e=>{if(e.button!==2||!running||paused)return;const first=selection.selectedIds()[0];if(first!==undefined)audio.ack(world.byId.get(first)?.kind,world.playerFaction,"order");});
   const overlay = new Overlay(topCanvas,document.getElementById("ui"));
   const minimap = new Minimap(hud.minimapCanvas, world, picker);
+  const alerts = new AlertOverlay();
+  audio.onCue = cue => {
+    if (cue.kind === "impact") { const amount = shakeAmount(cue.intensity ?? 0); if (amount > 0) cam.shake(amount); return; }
+    const tone = toneFor(cue.kind); if (!tone) return;
+    alerts.flash(tone);
+    if (cue.x !== undefined && cue.z !== undefined) { alerts.indicate(cue.x, cue.z, cam, tone); minimap.ping(cue.x, cue.z, tone); }
+  };
 
   if (net) {
     net.setCallbacks({
@@ -201,7 +213,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   hud.onGarrisonFace=()=>{if(running&&!paused){commands.armOrder("face");hud.setWarning("Garnisoni vaatesuund: klõps kaardil või minikaardil");}};
   hud.onGarrisonExit=ids=>{if(running&&!paused)world.issue({type:"leave-building",ids});};
   hud.onSelect=ids=>{audio.ui("select");selection.selected.clear();ids.forEach(id=>selection.selected.add(id));};
-  hud.onOrder=order=>{if(!running||paused)return;audio.ui("order");if(order==="stop"){commands.cancelOrders();world.issue({type:"stop",ids:selection.selectedIds()});}else if(order==="focus"){const list=selection.selectedIds().map(id=>world.byId.get(id)).filter(e=>e&&!e.dead);if(list.length)cam.jumpTo(list.reduce((n,e)=>n+e!.x,0)/list.length,list.reduce((n,e)=>n+e!.z,0)/list.length);}else {commands.armOrder(order);hud.setWarning(order==="fast"?"Kiirliigu: klõps kaardil või minikaardil":order==="unload"?"Välju transpordist: klõps sihtpunktile":order==="attack"?"Ründeliikumine: klõps kaardil või minikaardil":"Liigu: klõps sihtpunktile");}};
+  hud.onOrder=order=>{if(!running||paused)return;audio.ui("order");audio.ack(world.byId.get(selection.selectedIds()[0])?.kind,world.playerFaction,"order");if(order==="stop"){commands.cancelOrders();world.issue({type:"stop",ids:selection.selectedIds()});}else if(order==="focus"){const list=selection.selectedIds().map(id=>world.byId.get(id)).filter(e=>e&&!e.dead);if(list.length)cam.jumpTo(list.reduce((n,e)=>n+e!.x,0)/list.length,list.reduce((n,e)=>n+e!.z,0)/list.length);}else {commands.armOrder(order);hud.setWarning(order==="fast"?"Kiirliigu: klõps kaardil või minikaardil":order==="unload"?"Välju transpordist: klõps sihtpunktile":order==="attack"?"Ründeliikumine: klõps kaardil või minikaardil":"Liigu: klõps sihtpunktile");}};
   hud.onProduce = (kind, producerId) => { if (running && !paused) audio.ui("queue"), world.issue({ type: "produce", kind, producerId }); };
   hud.onBuild = (kind) => { if (running && !paused) commands.startBuild(kind); };
   hud.onEquipment=(ids,slot,module)=>{if(running&&!paused)world.issue({type:"configure-unit",ids,slot,module});};
@@ -373,7 +385,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       animateRiverTerrain(terrainView,world.time);
       performancePanel.mark("maastik");
       fx.handleEvents(events,world);
-      audio.setListener(cam.x,cam.z,cam.yaw);audio.events(events, world.playerTeam);
+      audio.setListener(cam.x,cam.z,cam.yaw,cam.dist);audio.events(events, world.playerTeam);audio.engines(world.entities,frameDt,world.playerTeam);audio.capture(()=>world.resourcePoints,frameDt,world.playerTeam);audio.fires(()=>world.terrain.fires(),frameDt,(x,z)=>world.vision.isVisible(world.playerTeam,x,z));{const sel=selection.selectedIds(),key=sel.length+":"+(sel[0]??-1);if(key!==lastSelectionKey){lastSelectionKey=key;if(sel.length)audio.ack(world.byId.get(sel[0])?.kind,world.playerFaction);}}
       fx.syncProjectiles(world, visualAlpha);
       fx.syncForestFires(world,frameDt);fx.syncNavalWakes(world,frameDt);fx.syncUnitEffects(world,animationDt);
       fx.update(frameDt);

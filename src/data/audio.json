@@ -142,5 +142,213 @@
     "duration": 1.2,
     "cutoff": 480,
     "volume": 0.1
+  },
+  "engineVoices": 8,
+  "dopplerSpeed": 160,
+  "engineKinds": {
+    "tracked": [
+      "tank",
+      "lightTank",
+      "tankDestroyer",
+      "artillery",
+      "mlrs",
+      "spaa",
+      "aa"
+    ],
+    "wheeled": [
+      "apc",
+      "ifv",
+      "reconVehicle",
+      "logiTruck",
+      "supply"
+    ],
+    "heli": [
+      "heli",
+      "transport",
+      "gunship",
+      "casHeli"
+    ],
+    "jet": [
+      "fighter",
+      "interceptor",
+      "bomber",
+      "ecm",
+      "multirole",
+      "attackAircraft"
+    ],
+    "prop": [
+      "cargoPlane"
+    ],
+    "ship": [
+      "destroyer",
+      "submarine",
+      "landingcraft",
+      "frigate",
+      "missileBoat"
+    ],
+    "hum": [
+      "generator",
+      "refinery",
+      "factory"
+    ]
+  },
+  "engines": {
+    "tracked": [
+      40,
+      330,
+      0.07,
+      260,
+      0
+    ],
+    "wheeled": [
+      64,
+      480,
+      0.055,
+      420,
+      0
+    ],
+    "heli": [
+      58,
+      520,
+      0.085,
+      300,
+      17
+    ],
+    "jet": [
+      96,
+      950,
+      0.08,
+      1500,
+      0
+    ],
+    "prop": [
+      82,
+      620,
+      0.07,
+      500,
+      24
+    ],
+    "ship": [
+      31,
+      240,
+      0.06,
+      170,
+      0
+    ],
+    "hum": [
+      50,
+      180,
+      0.03,
+      140,
+      0
+    ]
+  },
+  "infantryKinds": [
+    "inf",
+    "atInf",
+    "mgInf",
+    "reconInf",
+    "sniper",
+    "mortar",
+    "manpad",
+    "atgm",
+    "engineer",
+    "combatEngineer",
+    "special"
+  ],
+  "footsteps": {
+    "chance": 0.35,
+    "max": 4,
+    "minGain": 0.08,
+    "volume": 0.04
+  },
+  "construction": {
+    "chance": 0.45,
+    "max": 3,
+    "minGain": 0.1,
+    "volume": 0.05
+  },
+  "fire": {
+    "maxPops": 3,
+    "popChance": 0.5,
+    "roar": 0.05
+  },
+  "lowSupply": {
+    "ratio": 0.12,
+    "cooldown": 25
+  },
+  "birds": {
+    "minDelay": 5,
+    "maxDelay": 13,
+    "volume": 0.02
+  },
+  "tenseChordRatios": [
+    1,
+    1.189207,
+    1.414214
+  ],
+  "bellRatios": [
+    1,
+    1.2,
+    1.3333,
+    1.5,
+    1.7778
+  ],
+  "voices": {
+    "usa": {
+      "f0": 130,
+      "syl": [
+        [
+          700,
+          1200
+        ],
+        [
+          400,
+          2000
+        ]
+      ]
+    },
+    "russia": {
+      "f0": 100,
+      "syl": [
+        [
+          500,
+          1000
+        ],
+        [
+          300,
+          800
+        ]
+      ]
+    },
+    "china": {
+      "f0": 165,
+      "syl": [
+        [
+          350,
+          2300
+        ],
+        [
+          600,
+          1100
+        ]
+      ]
+    }
+  },
+  "whistle": {
+    "minGain": 0.12,
+    "delay": 0.3,
+    "volume": 0.05
+  },
+  "muffle": {
+    "nearDist": 150,
+    "farDist": 600,
+    "nearHz": 16000,
+    "farHz": 4500
+  },
+  "flyby": {
+    "maxDist": 500,
+    "minSpeed": 6,
+    "volume": 0.14
   }
 }

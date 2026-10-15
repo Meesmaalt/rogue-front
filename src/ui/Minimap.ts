@@ -52,6 +52,9 @@ export class Minimap {
   private bridgeSignature="";
   private dragging = false;
   private elapsed=.1;
+  private readonly pings:Array<{x:number;z:number;age:number;color:string}>=[];
+  /** Expanding ring for audio/visual alerts (base hit, lost site, capture). */
+  ping(x:number,z:number,tone:"danger"|"warn"|"good"):void{if(this.pings.length>=6)this.pings.shift();this.pings.push({x,z,age:0,color:tone==="danger"?"#ff4040":tone==="warn"?"#ffa23c":"#6be28a"});}
   private readonly fog: MinimapFog;
 
   constructor(private readonly canvas: HTMLCanvasElement, private readonly world: World, private readonly picker: Picker) {
@@ -73,7 +76,7 @@ export class Minimap {
   }
 
   draw(frameDt:number): void {
-    this.elapsed+=frameDt;if(this.elapsed<.1)return;this.elapsed=0;
+    this.elapsed+=frameDt;if(this.elapsed<.1)return;const stepDt=this.elapsed;this.elapsed=0;
     const c = this.ctx;
     const bridgeState=this.bridgeState();
     if(bridgeState!==this.bridgeSignature){this.base=this.makeBase();this.bridgeSignature=bridgeState;}
@@ -87,6 +90,7 @@ export class Minimap {
 
     // Retain the full visibility grid; upload once when its revision/team changes.
     this.fog.draw(c, this.world.playerTeam, S, S);
+    for(let i=this.pings.length-1;i>=0;i--){const p=this.pings[i];p.age+=stepDt;if(p.age>2.2){this.pings.splice(i,1);continue;}const [px,py]=this.w2m(p.x,p.z);c.strokeStyle=p.color;c.globalAlpha=1-p.age/2.2;c.lineWidth=2;c.beginPath();c.arc(px,py,3+(p.age%.8)*18,0,Math.PI*2);c.stroke();c.globalAlpha=1;}
 
     // Industrial/resource sites: territory is economically meaningful, not just a score point.
     for (const r of this.world.resourcePoints) {

@@ -81,6 +81,7 @@
 - [x] V10 väiksemad parcelid, ebakorrapärased metsaservad, täiendavad kõrgendikud ja kõrgusdetail; lennuraja hooldusala.
 - [x] Tihedam piiratud eelarvega canopy/põõsad, madalamad hekid ja odavam kaugvõra.
 - [x] Kauguse/stereoga kihilised heliefektid ning eraldi muusikasiinil originaalne taustakompositsioon. Vt NATURAL-LANDSCAPE-AUDIO-RELEASE.md.
+- [x] Laiendatud helindus: kaja, mootorid, UI/raadiohääled, ambient, dünaamiline muusika, tulekahju/sammud/ehitus, alarmid ja heli-visuaalsed vihjed (värin, serva vilgatus, minikaardi rõngas). Vt AUDIO-RELEASE.md.
 - [ ] V10 maastiku ja heli brauseris vaatlus/kuulamine ning F8 FPS-võrdlus.
 
 

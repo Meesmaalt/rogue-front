@@ -18,12 +18,10 @@ Puude paigutuse ülempiir on 130 000, põõsastel 9000. Suuremad ja varieeruvama
 
 ## Heli ja muusika
 
-Web Audio kiht ühendab relvale omase müraimpulsi ja madalama löögi: automaatrelv, kuulipilduja, automaatkahur, tankikahur, miinipilduja, haubits ning raketid kõlavad erinevalt. Plahvatusel on eraldi madal löök ja pikem saba; rikošetil heledam metalline aktsent. Kaamera asukoht ja suund määravad kauguse järgi nõrgenemise ning stereosuuna. Kompressor ja kuni 28 efekti häält piiravad suure lahingu helimassi. Oma üksuse kaotus annab tagasihoidliku hoiatuse; vastase hoone valmimine ei mängi mängija UI-märguannet.
-
-Taustamuusika on algupärane protseduurkompositsioon: aeglaselt vahetuvad mollakordid, bass, arpedžo, vaikne rütm ja lühike kajakiht. Muusika alaneb kuuldu lahingumüra ajal. Muusika, efektid ja üldhelitugevus kasutavad eraldi helisiine; efektide vaigistamine ei vaigista muusikat. Paus peatab ajastuse ja helikonteksti. Muusika algab pärast mängu käivitavat kasutaja klõpsu. Väliseid audiofaile ega võrgust laadimist ei ole.
+Helikiht on hiljem oluliselt laiendatud: kaja, mootorid, UI-helid, raadiohääled, ambient, dünaamiline muusika ja heli-visuaalsed vihjed. Kehtiv kirjeldus, seaded ja piirangud: [AUDIO-RELEASE.md](AUDIO-RELEASE.md). Põhimõtted jäid samaks: välised helifailid puuduvad, muusika, efektid ja üldhelitugevus kasutavad eraldi siine, efektide vaigistamine ei vaigista muusikat, paus peatab ajastuse ning heli ei muuda kunagi simulatsiooni.
 
 ## Kontroll
 
-Kontrollid hõlmavad 4/6 km kaarte, kõiki kuut piirkonda ning seemnete piire, teede ja ressursikohtade ühendusi, näidisalguse lennuvälju/lennukite koormaid ja varusid, metsa paigutuse piiri ning puhast lennuraja ala. Heli kontrollid katavad stereosuuna, kauguse, eraldi helitugevused, häälepiiri ja pausi. Kõik varem lisatud lennuringi, komponentide, salvestuse ja 200 üksuse CPU kontrollid jäävad kasutusse.
+Kontrollid hõlmavad 4/6 km kaarte, kõiki kuut piirkonda ning seemnete piire, teede ja ressursikohtade ühendusi, näidisalguse lennuvälju/lennukite koormaid ja varusid, metsa paigutuse piiri ning puhast lennuraja ala. Heli kontrollid (vt AUDIO-RELEASE.md) katavad stereosuuna, kauguse, eraldi helitugevused, häälepiiri, pausi ja uued kihid. Kõik varem lisatud lennuringi, komponentide, salvestuse ja 200 üksuse CPU kontrollid jäävad kasutusse.
 
 Kogu testipakk läbib: 293 testi, 70 testifaili, 244,52 s. TypeScript/build ning serveri map-policy test läbivad. Helimärguannete ja madalamate hekkide lõppkontroll läbib ka eraldi 9 testiga. Päris WebGL-vaade, kuulamismulje ja brauseri FPS vajavad mängija masinal proovimist; neid ei märgita automaatkontrollidega mõõdetuks.

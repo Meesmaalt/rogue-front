@@ -10,6 +10,9 @@ export class RtsCamera {
   x = -105; z = 105; yaw = -Math.PI / 4;
   dist = 280; targetDist = 280; pitch = 0.83;
   groundY = 0;
+  private shakeAmp=0;
+  /** Brief screen shake from nearby heavy impacts (skipped when the OS asks for reduced motion). */
+  shake(amount:number):void{if(typeof matchMedia==="function"&&matchMedia("(prefers-reduced-motion: reduce)").matches)return;this.shakeAmp=Math.min(1.4,Math.max(this.shakeAmp,amount));}
   private vx=0;private vz=0;private rotationSpeed=0;
   private readonly shadowFocus=new THREE.Vector3();
   private keys = new Set<string>();
@@ -63,6 +66,7 @@ export class RtsCamera {
     this.groundY+=(this.heightAt(this.x,this.z)-this.groundY)*(1-Math.exp(-mobility.presentation.cameraHeightResponse*dt));
     const cp = Math.cos(this.pitch), sp2 = Math.sin(this.pitch);
     this.camera.position.set(this.x + s * cp * this.dist, this.groundY + sp2 * this.dist, this.z + c * cp * this.dist);
+    if(this.shakeAmp>.002){const k=this.shakeAmp*(1+this.dist*.004);this.camera.position.x+=(Math.random()-.5)*k;this.camera.position.y+=(Math.random()-.5)*k*.6;this.camera.position.z+=(Math.random()-.5)*k;this.shakeAmp*=Math.exp(-7*dt);}else this.shakeAmp=0;
     this.camera.lookAt(this.x, this.groundY, this.z);
 
     // Renderer moves the light only when it also refreshes the cached shadow texture.

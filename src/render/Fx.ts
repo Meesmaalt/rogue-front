@@ -121,6 +121,7 @@ export class Fx {
           if(!small&&e.y-heightAt(e.x,e.z)<3)for(let i=0;i<5;i++)this.emit("dust",e.x,heightAt(e.x,e.z)+.2,e.z,.6,.55,0xab9c7c,this.r(4),Math.random(),this.r(4));
         }
       }else if(e.type==="impact"){
+        if(e.result!=="intercept"&&e.result!=="ricochet"&&["bomb","howitzer","mlrs"].includes(e.visual??"")){const gy=heightAt(e.x,e.z)+.3;for(let i=0;i<14;i++){const a=i/14*Math.PI*2;this.emit("dust",e.x,gy,e.z,.9,.9,0xb6a98a,Math.cos(a)*13,.6,Math.sin(a)*13,1);}}
         if(e.result==="intercept"){
           this.emit("glow",e.x,e.y,e.z,1.1,.12,0xfff2cf);
           this.emit("smoke",e.x,e.y,e.z,.9,.7,0xb7b7ad);
