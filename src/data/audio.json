@@ -16,111 +16,21 @@
     2.378414
   ],
   "shots": {
-    "rifle": [
-      0.09,
-      3200,
-      0.16,
-      125,
-      0.055
-    ],
-    "mg": [
-      0.11,
-      2300,
-      0.18,
-      105,
-      0.06
-    ],
-    "autocannon": [
-      0.18,
-      1700,
-      0.23,
-      75,
-      0.09
-    ],
-    "flak": [
-      0.2,
-      1500,
-      0.23,
-      68,
-      0.1
-    ],
-    "sniper": [
-      0.2,
-      2400,
-      0.24,
-      100,
-      0.14
-    ],
-    "sabot": [
-      0.48,
-      1000,
-      0.32,
-      46,
-      0.18
-    ],
-    "howitzer": [
-      0.7,
-      750,
-      0.35,
-      35,
-      0.25
-    ],
-    "mortar": [
-      0.35,
-      1100,
-      0.23,
-      90,
-      0.14
-    ],
-    "atgm": [
-      0.6,
-      1200,
-      0.2,
-      65,
-      0.15
-    ],
-    "sam": [
-      0.8,
-      1500,
-      0.22,
-      60,
-      0.18
-    ],
-    "aam": [
-      0.5,
-      1900,
-      0.18,
-      75,
-      0.14
-    ],
-    "manpad": [
-      0.45,
-      1600,
-      0.19,
-      82,
-      0.12
-    ],
-    "rocket": [
-      0.35,
-      1700,
-      0.2,
-      90,
-      0.08
-    ],
-    "rpg": [
-      0.3,
-      1700,
-      0.22,
-      85,
-      0.12
-    ],
-    "mlrs": [
-      0.7,
-      1300,
-      0.28,
-      58,
-      0.18
-    ]
+    "rifle": [0.07, 5200, 0.22, 170, 0.04],
+    "mg": [0.042, 4100, 0.16, 98, 0.018],
+    "autocannon": [0.15, 2100, 0.34, 58, 0.05],
+    "flak": [0.2, 1700, 0.32, 92, 0.065],
+    "sniper": [0.16, 6200, 0.38, 64, 0.11],
+    "sabot": [0.4, 820, 0.5, 32, 0.11],
+    "howitzer": [0.95, 380, 0.55, 26, 0.16],
+    "mortar": [0.34, 640, 0.32, 48, 0.09],
+    "atgm": [0.6, 1200, 0.2, 65, 0.15],
+    "sam": [0.8, 1500, 0.22, 60, 0.18],
+    "aam": [0.5, 1900, 0.18, 75, 0.14],
+    "manpad": [0.45, 1600, 0.19, 82, 0.12],
+    "rocket": [0.35, 1700, 0.2, 90, 0.08],
+    "rpg": [0.3, 1700, 0.22, 85, 0.12],
+    "mlrs": [0.7, 1300, 0.28, 58, 0.18]
   },
   "missiles": [
     "atgm",
@@ -132,223 +42,51 @@
     "mlrs"
   ],
   "missileMotor": {
-    "duration": 1.65,
-    "attack": 0.045,
-    "hold": 0.3,
-    "cutoff": 2400,
-    "volume": 0.2
+    "duration": 2.05,
+    "attack": 0.028,
+    "hold": 0.62,
+    "cutoff": 3400,
+    "volume": 0.28
   },
   "artilleryTail": {
-    "duration": 1.2,
-    "cutoff": 480,
-    "volume": 0.1
+    "duration": 1.55,
+    "cutoff": 340,
+    "volume": 0.16
   },
   "engineVoices": 8,
   "dopplerSpeed": 160,
   "engineKinds": {
-    "tracked": [
-      "tank",
-      "lightTank",
-      "tankDestroyer",
-      "artillery",
-      "mlrs",
-      "spaa",
-      "aa"
-    ],
-    "wheeled": [
-      "apc",
-      "ifv",
-      "reconVehicle",
-      "logiTruck",
-      "supply"
-    ],
-    "heli": [
-      "heli",
-      "transport",
-      "gunship",
-      "casHeli"
-    ],
-    "jet": [
-      "fighter",
-      "interceptor",
-      "bomber",
-      "ecm",
-      "multirole",
-      "attackAircraft"
-    ],
-    "prop": [
-      "cargoPlane"
-    ],
-    "ship": [
-      "destroyer",
-      "submarine",
-      "landingcraft",
-      "frigate",
-      "missileBoat"
-    ],
-    "hum": [
-      "generator",
-      "refinery",
-      "factory"
-    ]
+    "tracked": ["tank", "lightTank", "tankDestroyer", "artillery", "mlrs", "spaa", "aa"],
+    "wheeled": ["apc", "ifv", "reconVehicle", "logiTruck", "supply"],
+    "heli": ["heli", "transport", "gunship", "casHeli"],
+    "jet": ["fighter", "interceptor", "bomber", "ecm", "multirole", "attackAircraft"],
+    "prop": ["cargoPlane"],
+    "ship": ["destroyer", "submarine", "landingcraft", "frigate", "missileBoat"],
+    "hum": ["generator", "refinery", "factory"]
   },
   "engines": {
-    "tracked": [
-      40,
-      330,
-      0.07,
-      260,
-      0
-    ],
-    "wheeled": [
-      64,
-      480,
-      0.055,
-      420,
-      0
-    ],
-    "heli": [
-      58,
-      520,
-      0.085,
-      300,
-      17
-    ],
-    "jet": [
-      96,
-      950,
-      0.08,
-      1500,
-      0
-    ],
-    "prop": [
-      82,
-      620,
-      0.07,
-      500,
-      24
-    ],
-    "ship": [
-      31,
-      240,
-      0.06,
-      170,
-      0
-    ],
-    "hum": [
-      50,
-      180,
-      0.03,
-      140,
-      0
-    ]
+    "tracked": [38, 360, 0.09, 280, 0],
+    "wheeled": [62, 520, 0.07, 460, 0],
+    "heli": [54, 560, 0.11, 340, 18],
+    "jet": [90, 1100, 0.11, 1800, 0],
+    "prop": [78, 680, 0.085, 560, 26],
+    "ship": [29, 260, 0.075, 190, 0],
+    "hum": [48, 200, 0.04, 160, 0]
   },
-  "infantryKinds": [
-    "inf",
-    "atInf",
-    "mgInf",
-    "reconInf",
-    "sniper",
-    "mortar",
-    "manpad",
-    "atgm",
-    "engineer",
-    "combatEngineer",
-    "special"
-  ],
-  "footsteps": {
-    "chance": 0.35,
-    "max": 4,
-    "minGain": 0.08,
-    "volume": 0.04
-  },
-  "construction": {
-    "chance": 0.45,
-    "max": 3,
-    "minGain": 0.1,
-    "volume": 0.05
-  },
-  "fire": {
-    "maxPops": 3,
-    "popChance": 0.5,
-    "roar": 0.05
-  },
-  "lowSupply": {
-    "ratio": 0.12,
-    "cooldown": 25
-  },
-  "birds": {
-    "minDelay": 5,
-    "maxDelay": 13,
-    "volume": 0.02
-  },
-  "tenseChordRatios": [
-    1,
-    1.189207,
-    1.414214
-  ],
-  "bellRatios": [
-    1,
-    1.2,
-    1.3333,
-    1.5,
-    1.7778
-  ],
+  "infantryKinds": ["inf", "atInf", "mgInf", "reconInf", "sniper", "mortar", "manpad", "atgm", "engineer", "combatEngineer", "special"],
+  "footsteps": { "chance": 0.35, "max": 4, "minGain": 0.08, "volume": 0.045 },
+  "construction": { "chance": 0.45, "max": 3, "minGain": 0.1, "volume": 0.055 },
+  "fire": { "maxPops": 4, "popChance": 0.62, "roar": 0.08 },
+  "lowSupply": { "ratio": 0.12, "cooldown": 25 },
+  "birds": { "minDelay": 5, "maxDelay": 13, "volume": 0.02 },
+  "tenseChordRatios": [1, 1.189207, 1.414214],
+  "bellRatios": [1, 1.2, 1.3333, 1.5, 1.7778],
   "voices": {
-    "usa": {
-      "f0": 130,
-      "syl": [
-        [
-          700,
-          1200
-        ],
-        [
-          400,
-          2000
-        ]
-      ]
-    },
-    "russia": {
-      "f0": 100,
-      "syl": [
-        [
-          500,
-          1000
-        ],
-        [
-          300,
-          800
-        ]
-      ]
-    },
-    "china": {
-      "f0": 165,
-      "syl": [
-        [
-          350,
-          2300
-        ],
-        [
-          600,
-          1100
-        ]
-      ]
-    }
+    "usa": { "f0": 130, "syl": [[700, 1200], [400, 2000]] },
+    "russia": { "f0": 100, "syl": [[500, 1000], [300, 800]] },
+    "china": { "f0": 165, "syl": [[350, 2300], [600, 1100]] }
   },
-  "whistle": {
-    "minGain": 0.12,
-    "delay": 0.3,
-    "volume": 0.05
-  },
-  "muffle": {
-    "nearDist": 150,
-    "farDist": 600,
-    "nearHz": 16000,
-    "farHz": 4500
-  },
-  "flyby": {
-    "maxDist": 500,
-    "minSpeed": 6,
-    "volume": 0.14
-  }
+  "whistle": { "minGain": 0.12, "delay": 0.3, "volume": 0.08 },
+  "muffle": { "nearDist": 150, "farDist": 600, "nearHz": 16000, "farHz": 4500 },
+  "flyby": { "maxDist": 500, "minSpeed": 6, "volume": 0.22 }
 }

@@ -428,7 +428,9 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
 const queryMode = queryParams.get("mode");
 const requestedDifficulty=queryParams.get("difficulty");
 const queryDifficulty=requestedDifficulty==="easy"||requestedDifficulty==="hard"?requestedDifficulty:"normal";
-if (queryMission) {
+if (queryParams.get("fx")==="1") {
+  void import("./fx-showcase").then(m=>m.startFxShowcase());
+} else if (queryMission) {
   if ((queryMode === "multiplayer" || queryMode === "spectator") && !getAuthToken()) { location.href = location.pathname; throw new Error("Multiplayer requires account authentication"); }
   const queryFaction = (queryParams.get("faction") as FactionId | null) ?? (localStorage.getItem("rogue-front.faction") as FactionId | null) ?? "usa";
   const bootFaction = (FACTION_LIST.includes(queryFaction as FactionId) ? queryFaction : "usa") as FactionId;
