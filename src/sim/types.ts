@@ -4,7 +4,7 @@ export type Team = 0 | 1;
 export type UnitKind =
   | "tank" | "apc" | "ifv" | "inf" | "atInf" | "mgInf" | "reconInf" | "sniper" | "mortar" | "manpad" | "atgm" | "reconVehicle" | "lightTank" | "tankDestroyer" | "spaa" | "bunker" | "hq" | "engineer"
   | "heli" | "transport" | "cargoPlane" | "gunship" | "casHeli" | "fighter" | "interceptor" | "bomber" | "ecm" | "multirole" | "attackAircraft"
-  | "artillery" | "mlrs" | "logiTruck" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase"
+  | "sam" | "howitzer" | "artillery" | "mlrs" | "logiTruck" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase"
   | "supply" | "radar" | "generator" | "destroyer" | "submarine" | "landingcraft" | "frigate" | "missileBoat" | "special"
   | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer"
   | "landStrategy" | "airStrategy" | "seaStrategy";

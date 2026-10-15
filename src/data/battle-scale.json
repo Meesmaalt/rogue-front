@@ -233,6 +233,12 @@
       "mg": {
         "range": 650
       }
+    },
+    "howitzer": {
+      "howitzer": {
+        "range": 5500,
+        "minimumRange": 250
+      }
     }
   },
   "readyAirfield": {

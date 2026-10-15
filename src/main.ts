@@ -1,3 +1,4 @@
+import {installLanguage} from "./ui/Language";
 import {readPreparedMission} from "./ui/PreparedMission";
 import {setTerrainDetailQuality} from "./render/TerrainDetail";
 import {validateDeck,defaultDeck} from "./sim/deck";
@@ -47,6 +48,7 @@ import { createSkirmish } from "./sim/scenario";
 import { getPlayableMap } from "./sim/proceduralMap";
 import { MatchModeController, MODE_RULES, type MatchMode } from "./sim/gameModes";
 
+installLanguage();
 const queryParams = new URLSearchParams(location.search);
 const queryMission = queryParams.get("mission");
 const queryRoom = queryParams.get("room");

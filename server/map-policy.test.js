@@ -10,3 +10,8 @@ test('all current sizes are accepted without broadening historical version forma
  for(const size of [2048,2560,3072,4096,5120,6144])assert.equal(isProceduralMapId(`procedural-v11-balanced-${size}-4294967295`),true);
  for(const id of ['procedural-v11-balanced-1280-1','procedural-v11-balanced-4096-4294967296','procedural-v11-unknown-2048-1','procedural-v10-balanced-2560-1'])assert.equal(isProceduralMapId(id),false);
 });
+
+test('custom terrain masks are bounded and retain size/version/seed restrictions',()=>{
+ for(let mask=0;mask<16;mask++)assert.equal(isProceduralMapId(`procedural-v13-balanced-2048-42-o${mask}`),true);
+ for(const id of ['procedural-v13-balanced-2048-42-o16','procedural-v13-balanced-2048-42-o01','procedural-v13-balanced-2048-4294967296-o0','procedural-v12-balanced-2048-42-o0'])assert.equal(isProceduralMapId(id),false);
+});

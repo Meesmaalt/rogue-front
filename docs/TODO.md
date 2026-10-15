@@ -1,5 +1,14 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Seemnevalik, lennuväli, keel ja tuletoetus · 15.10.2026
+
+- [x] Kohalik tühistatav worker, kiire eelvaade enne navikontrolli lõppu ning sisestatud seemne päris kasutamine; kompaktsete reljeefikernelite täpne väljalõige kiirendab kõrguspuhvrit.
+- [x] Mere, mägede, metsade ja jõe lülitid; valikuid sisaldav kaarditunnus, taastamine ning serveri tunnusekontroll.
+- [x] Peamenüü Eesti / English valik, püsiv eelistus ja eraldi esituskihi tõlkesõnastik menüüle, HUD-ile, varustusele, seadetele ning Arsenalile.
+- [x] Kantav õhutõrje, mobiilne SAM, miinipilduja ja kerge haubits; tegelikud tootmishooned/tasemed, relvad, varud ja mudelid.
+- [x] Lennuvälja kolme sügavuskihi eraldi polygon offset väldib pinnase/katte/märgistuse kauguse sügavuskonflikti. Geomeetria- ja materjalitestid.
+- [ ] Tegeliku WebGL suumipildi ja FPS-i kontroll: kohalik Chromium puudub ning Playwrighti allalaadimine tagastas katkise ZIP-i. Menüü ja HUD-i käitumine kontrollitud DOM-keskkonnas; see ei kinnita GPU pilti.
+
 ## Teravad pinnad ja F-kiirliikumine · 15.10.2026
 
 - [x] Maanteed eraldi maailmamõõdus asfalttekstuuriga ja geomeetriliste märgistustega; maapinna kolmnurkadega lõigatud, ruumiliselt kahte materjalipartiisse koondatud pind. Kaardi 2048 px atlas ei määra enam tee teravust.

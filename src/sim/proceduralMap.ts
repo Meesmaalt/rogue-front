@@ -8,6 +8,9 @@ import {buildOrganicTown,buildMountainRanges,ridgeReliefAt,subtractParcel,parcel
 import {buildVariedSettlement,buildIndustrialClusters} from "./settlements";
 import greenValley from "../data/maps/green-valley.json";
 
+export interface MapOptions {sea:boolean;mountains:boolean;forest:boolean;river:boolean}
+export function mapOptionsMask(o:MapOptions):number {return Number(o.sea)|Number(o.mountains)<<1|Number(o.forest)<<2|Number(o.river)<<3;}
+export function decodeMapOptions(n:number):MapOptions {return {sea:!!(n&1),mountains:!!(n&2),forest:!!(n&4),river:!!(n&8)};}
 export type MapArchetype="balanced"|"river"|"highlands"|"urban"|"coastal"|"forest";
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
 function polygonFeature(id:string,points:Point[],appearance:"field"|"forest",color?:number):MapFeatureDef {
@@ -27,7 +30,7 @@ function clip(points:Point[],nx:number,nz:number,limit:number):Point[] {
 
 export const GENERATED_MAP_SIZES:readonly number[]=config.largeSizes;
 export const METRIC_MAP_SIZES:readonly number[]=battleScale.mapSizes;
-export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5|6|7|8|9|10|11|12|13=[2560,3072,5120].includes(requestedSize)?11:requestedSize>=4096?10:8):MissionDef {
+export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5|6|7|8|9|10|11|12|13=[2560,3072,5120].includes(requestedSize)?11:requestedSize>=4096?10:8,options?:MapOptions):MissionDef {
   // 1280 retains v2 geometry for existing saved matches; v3 sizes are deliberately bounded.
   const legacy=requestedSize===config.size;
   if((requestedSize>=4096&&generationVersion<9)||(!legacy&&![...GENERATED_MAP_SIZES,...METRIC_MAP_SIZES].includes(requestedSize)))throw new Error("Kaardi suurus pole toetatud");
@@ -35,7 +38,7 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
   const regional=!legacy&&generationVersion>=4,profile=config.profiles[archetype];
   const seed=inputSeed>>>0,rng=new Rng(seed),size=requestedSize,half=size/2,features:MapFeatureDef[]=[];
   const random=(lo:number,hi:number)=>lo+rng.next()*(hi-lo);
-  const italian=generationVersion>=13,cfg=config.mediterranean,volcanic=italian&&seed%cfg.volcanoSeedDivisor===0;
+  const italian=generationVersion>=13,cfg=config.mediterranean,volcanic=italian&&(options?.mountains??true)&&seed%cfg.volcanoSeedDivisor===0;
   const baseX=size*random(.36,.40),baseZ=size*random(.33,.37);
   const bases:MissionDef["map"]["bases"]=[{x:-baseX,z:baseZ,r:config.baseRadius},{x:baseX,z:-baseZ,r:config.baseRadius}];
   const towns=[{x:-size*random(.185,.24),z:-size*random(.12,.18),angle:random(-.25,.25),blocks:3},{x:size*random(.185,.24),z:size*random(.12,.18),angle:random(-.25,.25),blocks:3},
@@ -73,17 +76,17 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
     rounded.push(points.at(-1)!);for(let i=1;i<rounded.length;i++)road(`${id}-${i}`,rounded[i-1],rounded[i],width,cls);
   };
   // Hydrology precedes roads/settlements. Crossings alone permit ground passage.
-  for(let i=0;i<config.riverSteps;i++){
+  for(let i=0;i<((options?.river??true)?config.riverSteps:0);i++){
     const za=-half-16+i*(size+32)/config.riverSteps,zb=-half-16+(i+1)*(size+32)/config.riverSteps,a={x:riverX(za),z:za},b={x:riverX(zb),z:zb};
     features.push({id:`river-${i}`,kind:"water",waterBody:"river",x:(a.x+b.x)/2,z:(za+zb)/2,width:config.riverWidth,depth:distance(a,b)+2,rotation:Math.atan2(b.x-a.x,b.z-a.z),surfaceHeight:-.8,label:"Jõgi"});
   }
   const lakeCenter={x:175+random(-18,18),z:-size*.36},lakeWidth=archetype==="river"?130:220;
   const shore=Array.from({length:64},(_,i)=>{const a=i*Math.PI/32,r=1+.07*Math.sin(a*3+phase)+.025*Math.cos(a*5);return {x:lakeCenter.x+Math.cos(a)*lakeWidth*.5*r,z:lakeCenter.z+Math.sin(a)*72.5*r};});
   features.push({...polygonFeature("lake",shore,"field"),kind:"water",appearance:undefined,waterBody:"lake",surfaceHeight:-.8,blocksMovement:true,label:"Järv"});
-  if(archetype==="coastal")features.push({id:"sea",kind:"water",waterBody:"sea",x:0,z:-half+38,width:size,depth:76,surfaceHeight:-.8,label:"Meri"});
+  if(options?.sea??archetype==="coastal")features.push({id:"sea",kind:"water",waterBody:"sea",x:0,z:-half+38,width:size,depth:76,surfaceHeight:-.8,label:"Meri"});
   const crossingZ=[-size*random(.22,.26),random(-20,20),size*random(.22,.26)],bridges:MapFeatureDef[]=[];
   for(let i=0;i<crossingZ.length;i++){
-    const z=crossingZ[i],b:MapFeatureDef={id:`bridge-${i}`,kind:"bridge",x:riverX(z),z,width:generationVersion>=9?16:10,depth:56,rotation:Math.PI/2,surfaceHeight:1.4,label:"Jõesild"};features.push(b);bridges.push(b);
+    const z=crossingZ[i],b:MapFeatureDef={id:`bridge-${i}`,kind:(options?.river??true)?"bridge":"road",x:riverX(z),z,width:generationVersion>=9?16:10,depth:56,rotation:Math.PI/2,surfaceHeight:1.4,label:"Jõesild"};features.push(b);bridges.push(b);
   }
   const through=(town:typeof towns[number],sign:number):Point[]=>{
     const cols=archetype==="urban"&&town.blocks===3?4:town.blocks;
@@ -278,6 +281,8 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
     }
   }
   if(landscape){landforms.length=0;landforms.push(...landscapeForms);}
+  if(options&&!options.mountains)landforms.length=0;
+  if(options&&!options.forest)for(let i=features.length-1;i>=0;i--)if(features[i].appearance==="forest")features.splice(i,1);
   if(italian)for(const f of features)if(f.kind==="building"&&f.appearance==="farmhouse"){f.color=cfg.roofColors[(f.id.length+Math.round(Math.abs(f.x)))%cfg.roofColors.length];if(f.buildingStyle!=="industrial"&&f.buildingStyle!=="warehouse")f.facadeColor=0xc9bea2;}
   if(volcanic){
     const ground=polygonFeature("caldera-ground",Array.from({length:64},(_,i)=>{const a=i*Math.PI/32,r=size*.069*(1+.04*Math.sin(a*5+phase));return {x:Math.cos(a)*r,z:Math.sin(a)*r};}),"field",0x82796c);
@@ -290,13 +295,15 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
   for(const r of resources){r.x=quantize(r.x);r.z=quantize(r.z);}
   for(const f of landforms){f.x=quantize(f.x);f.z=quantize(f.z);f.height=quantize(f.height);}
   const names:Record<MapArchetype,string>={balanced:"Järvemaa",river:"Jõeäär",highlands:"Kõrgustik",urban:"Linnapiirkond",coastal:"Rannikupiirkond",forest:"Metsapiirkond"};
-  const id=legacy?`procedural-v${config.version}-${archetype}-${seed}`:`procedural-v${generationVersion}-${archetype}-${size}-${seed}`,name=`${italian?(volcanic?"Vulkaani org":"Vahemere "+names[archetype].toLowerCase()):names[archetype]} · ${seed}`;
+  const id=legacy?`procedural-v${config.version}-${archetype}-${seed}`:`procedural-v${generationVersion}-${archetype}-${size}-${seed}${options?`-o${mapOptionsMask(options)}`:""}`,name=`${italian?(volcanic?"Vulkaani org":"Vahemere "+names[archetype].toLowerCase()):names[archetype]} · ${seed}`;
   return {id,name,seed,objectives:[],briefing:italian?"Vahemere lahingumaastik: terrakotakatustega asulad, avatud põllud, metsasalud ja kivised kõrgendikud. Mõnel seemnel kerkib keskel kustunud vulkaani kraater. Tellimiseks vali tootmishoone; kaitse varustuslende.":landscape?"Genereeritud lahingumaastik: looklevate tänavatega asulad, seotud mäeharjad, põllud ja metsaalad. Kolm jõesilda ühendavad lahingupiirkondi. Kindlusta asulad, kasuta orgusid ja varjatud lähenemisi ning kaitse ressursivedusid.":"Genereeritud lahingumaastik: tihedad majakvartalid, talud, kolm sillaületust, järv ja põllu-/metsavööndid. Kindlusta asulad, kasuta varjatud lähenemisi ning kaitse füüsilisi ressursivedusid.",map:{id,name,size,theme:"temperate",terrainProfile:generationVersion>=10?"farmland-natural":"farmland",landforms,baseDefenses:false,heightmap:"",maxHeight:italian?120:40,bases,resources,features}};
 }
 
 export const FOCUS_MAP=greenValley as unknown as MissionDef;
 export const CURATED_MAPS:readonly MissionDef[]=[];
 export function getPlayableMap(id:string):MissionDef|undefined {
+  const custom=/^(procedural-v13-(?:balanced|river|highlands|urban|coastal|forest)-(?:2048|2560|3072|4096|5120|6144)-(\d+))-o(\d+)$/.exec(id);
+  if(custom){const mask=Number(custom[3]);if(mask>15||String(mask)!==custom[3]||Number(custom[2])>4294967295)return undefined;const parts=custom[1].split('-');return generateProceduralMap(Number(custom[2]),parts[2] as MapArchetype,Number(parts[3]),13,decodeMapOptions(mask));}
   const current=/^procedural-v(11|12|13)-(balanced|river|highlands|urban|coastal|forest)-(2048|2560|3072|4096|5120|6144)-(\d+)$/.exec(id);
   if(current)return Number(current[4])<=4294967295?generateProceduralMap(Number(current[4]),current[2] as MapArchetype,Number(current[3]),Number(current[1]) as 11|12|13):undefined;
   const metric=/^procedural-v(9|10)-(balanced|river|highlands|urban|coastal|forest)-(4096|6144)-(\d+)$/.exec(id);

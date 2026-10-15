@@ -706,6 +706,19 @@
       {
         "profile": "rifle"
       }
+    ],
+    "sam": [
+      {
+        "profile": "sam"
+      }
+    ],
+    "howitzer": [
+      {
+        "profile": "howitzer",
+        "damage": 45,
+        "cooldown": 5,
+        "ammoCapacity": 32
+      }
     ]
   }
 }

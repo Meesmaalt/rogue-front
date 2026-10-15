@@ -122,14 +122,14 @@ function addPlatformSignature(g: THREE.Group, faction: FactionId, kind: UnitKind
       detailBox(1.8,0.28,0.42,0x555b4d,0,1.75,-1.42,g);
       detailBox(0.5,0.28,0.72,METAL,-0.75,1.92,0.35,g);
     }
-  } else if (kind === "artillery") {
+  } else if ((kind === "artillery" || kind === "howitzer")) {
     const rear = faction === "usa" ? -1.8 : faction === "russia" ? -1.55 : -1.7;
     detailBox(0.5,0.5,0.7,0x4b5149,-0.8,1.55,rear,g);
     detailBox(0.5,0.5,0.7,0x4b5149,0.8,1.55,rear,g);
   } else if (kind === "mlrs") {
     const pod = faction === "usa" ? 1.55 : 1.35;
     for (const x of [-0.72,-0.24,0.24,0.72]) detailBox(0.18,0.18,1.7,METAL,x,1.85,pod,g);
-  } else if (kind === "spaa") {
+  } else if ((kind === "spaa" || kind === "sam")) {
     if (faction === "russia") { detailBox(1.7,0.22,0.34,0x4b5048,0,2.65,-0.25,g); antenna(g,0,2.6,-0.25,0.9); }
     if (faction === "usa") { for (const x of [-0.7,0.7]) detailBox(0.3,0.3,0.85,acc,x,2.05,-0.1,g); }
     if (faction === "china") { detailBox(0.9,0.5,0.9,METAL,0,2.3,-0.1,g); }
@@ -190,7 +190,7 @@ function addVehicleFamilyDetails(g: THREE.Group, faction: FactionId, kind: UnitK
     antenna(g, faction === "china" ? 0.65 : -0.7, 2.2, -0.8, mast);
     detailBox(0.5,0.28,0.8,0x273b45,0,2.25,-0.2,g,0.35,0.5);
   }
-  if (kind === "artillery" || kind === "mlrs") {
+  if ((kind === "artillery" || kind === "howitzer") || kind === "mlrs") {
     const rear = faction === "usa" ? 1.35 : faction === "russia" ? 1.6 : 1.5;
     cargoCrate(g,-0.75,1.25,-rear,0x5d604d); cargoCrate(g,0.75,1.25,-rear,0x5d604d);
     antenna(g,0.95,1.8,-1.0,1.2);
@@ -369,7 +369,7 @@ export function createModel(kind: UnitKind, team: Team, faction: FactionId = tea
     mergeStaticParts(g);return {group:g,turret};
   }
   if(infantryKinds.has(kind))return infantryModel(kind,team,faction,tactical);
-  if (["reconVehicle","lightTank","tankDestroyer","spaa"].includes(kind)) {
+  if (["reconVehicle","lightTank","tankDestroyer","spaa","sam"].includes(kind)) {
     const hullColor = kind === "reconVehicle" ? 0x66705a : kind === "lightTank" ? 0x6f7650 : body;
     if (kind === "reconVehicle") {
       for (const side of [-1, 1]) for (const z of [-1.55, -0.5, 0.6, 1.65]) wheel(side * 1.28, z, g, 0.42);
@@ -401,7 +401,8 @@ export function createModel(kind: UnitKind, team: Team, faction: FactionId = tea
       g.add(box(2.8, 0.95, 4.3, hullColor, 0, 1.0, 0));
       turret = new THREE.Group(); turret.position.y = 1.75;
       turret.add(box(1.8, 0.5, 1.7, hullColor, 0, 0.3, 0));
-      for (const sx of [-0.38, 0.38]) { barrel(2.4, 0.08, 0.62, 0.75, turret); detailBox(0.16,0.18,0.55,METAL,sx,0.8,0.15,turret); }
+      if(kind==="sam"){for(const sx of [-.7,.7])for(const y of [.6,1.05])detailBox(.4,.36,2.8,DARK,sx,y,.2,turret,-.55);}
+      else for (const sx of [-0.38, 0.38]) { barrel(2.4, 0.08, 0.62, 0.75, turret); detailBox(0.16,0.18,0.55,METAL,sx,0.8,0.15,turret); }
       detailBox(0.65,0.5,0.7,METAL,0,0.9,-0.15,turret); antenna(g, -1.0, 1.8, -1.3, 1.5);
       g.add(turret);
     }
@@ -469,6 +470,7 @@ export function createModel(kind: UnitKind, team: Team, faction: FactionId = tea
       addPlatformSignature(g, faction, kind, body, acc);
       break;
     }
+    case "howitzer":
     case "artillery": {
       // M109 Paladin – boxy SPG hull, large elevated howitzer
       g.add(box(0.7, 0.75, 4.8, DARK, -1.8, 0.5, 0));

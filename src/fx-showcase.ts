@@ -1,3 +1,4 @@
+import {installLanguage} from "./ui/Language";
 import * as THREE from "three";
 import {Fx} from "./render/Fx";
 import {AudioManager} from "./render/Audio";
@@ -5,6 +6,7 @@ import {setBases} from "./sim/heightmap";
 import {loadSettings} from "./ui/Settings";
 import type {SimEvent} from "./sim/types";
 
+installLanguage();
 const LOOP = 22;
 
 /** Standalone range so muzzle flashes, bursts and their sounds can be checked without a full battle. */

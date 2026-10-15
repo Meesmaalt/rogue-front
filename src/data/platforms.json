@@ -8,7 +8,11 @@
     "ifv",
     "spaa",
     "artillery",
-    "mlrs"
+    "mlrs",
+    "manpad",
+    "mortar",
+    "sam",
+    "howitzer"
   ],
   "air": [
     "heli",
@@ -25,8 +29,6 @@
     "sniper": "reconInf",
     "atInf": "inf",
     "mgInf": "inf",
-    "mortar": "inf",
-    "manpad": "inf",
     "atgm": "inf",
     "lightTank": "tank",
     "tankDestroyer": "tank",

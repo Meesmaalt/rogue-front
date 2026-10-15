@@ -19,7 +19,7 @@ let activeHeightmap: HeightmapSource | null = null;
 let proceduralSeed = 1;
 export interface TerrainLandform {x:number;z:number;width:number;depth:number;height:number;shape?:"ridge";rotation?:number}
 let activeLandforms:readonly TerrainLandform[]=terrain.farmland.landforms;
-const compileRelief=(forms:readonly TerrainLandform[])=>forms.map(f=>({f,c:Math.cos(f.rotation??0),s:Math.sin(f.rotation??0)}));
+const compileRelief=(forms:readonly TerrainLandform[])=>forms.map(f=>({f,c:Math.cos(f.rotation??0),s:Math.sin(f.rotation??0),extent:Math.hypot(f.width,f.depth)}));
 let reliefTransforms=compileRelief(activeLandforms);
 let terrainProfile: "farmland" | "farmland-natural" | undefined;
 export function setTerrainProfile(profile?: "farmland" | "farmland-natural",landforms?:readonly TerrainLandform[]): void { terrainProfile=profile; activeLandforms=landforms??terrain.farmland.landforms;reliefTransforms=compileRelief(activeLandforms);activeHeightmap=null; cacheValid=false; heightCache=null; }
@@ -40,7 +40,7 @@ const hydrologyAt=(x:number,z:number)=>hydrologyBins.get(`${Math.floor(x/128)}/$
 export function setTerrainFeatures(features:readonly MapFeatureDef[]):void {
   const water=features.filter(f=>(f.kind==="water"||f.kind==="bridge")&&f.surfaceHeight!=null);
   const key=JSON.stringify(water);if(key===hydrologyKey)return;
-  hydrologyKey=key;hydrology=water.map(f=>({f,c:Math.cos(f.rotation??0),s:Math.sin(f.rotation??0)}));
+  hydrologyKey=key;hydrology=water.map(f=>({f,c:Math.cos(f.rotation??0),s:Math.sin(f.rotation??0),extent:Math.hypot(f.width,f.depth)}));
   hydrologyBins.clear();
   for(const item of hydrology){
     const {f,c,s}=item,padding=14;
@@ -108,8 +108,9 @@ function rawH(x: number, z: number): number {
   if (terrainProfile === "farmland" || terrainProfile === "farmland-natural") {
     let h=1.8+valueNoise(x,z,100)*2.6+valueNoise(x+13,z-17,45)*.7;
     if(terrainProfile==="farmland-natural")h+=valueNoise(x-31,z+29,terrain.natural.detailScale)*terrain.natural.detailHeight+valueNoise(x+91,z-53,terrain.natural.microScale)*terrain.natural.microHeight;
-    for(const {f,c,s} of reliefTransforms){
+    for(const {f,c,s,extent} of reliefTransforms){
       if(f.shape==="ridge"){
+        if(Math.abs(x-f.x)>extent||Math.abs(z-f.z)>extent)continue;
         const dx=x-f.x,dz=z-f.z,u=dx*c-dz*s,v=dx*s+dz*c,d=(u/f.width)**2+(v/f.depth)**2;
         if(d<1)h+=f.height*(1-d)**2;
       }else {const d=((x-f.x)/f.width)**2+((z-f.z)/f.depth)**2;h+=f.height*Math.exp(-d*2);}

@@ -499,3 +499,18 @@ PerformancePanel eristab `sildid`, `minikaart`, `HUD`. Raport on schemaVersion 3
 CPU Canvas-kontroll (@napi-rs/canvas, 512×512 grid, 176×176 minikaart, suurem osa alast uurimata, mõlemal meetodil tegelik raster readback, 20 mõõtmist pärast soojendust) andis vana meetodi mediaaniks 504.53 ms/p95 668.50 ms ning uue meetodi mediaaniks 1.05 ms/p95 1.47 ms. See kinnitab kõrvaldatud Canvas-töö ulatust, mitte kasutaja GPU/brauseri uut FPS-i. Uue versiooni samal marsruudil kogutud F8 JSON on vajalik tegeliku brauseritulemuse võrdlemiseks.
 
 Kontroll: kõik 56 UI/render/input/core testi ning build/typecheck läbivad. Täissuite läbib 254 testi 259-st, sh pikk AI taastumine. Viis juba eelmise main-i tõrget korduvad: CoreLoopi ehitusajastus, Integrationi fraktsiooni accuracy eeldus, SystemsIntegrationi taxi-ajastus, NavGridi CPU eelarve ja tacticalSupply kütusereserv. Selle muudatuse testid ei lisa uut sim-tõrget. Päris brauseri järelmõõtmine on veel tegemata.
+
+
+## Menüü ettevalmistus ja maastikulülitid · 15.10.2026
+
+Üksikmäng loob kaardi otse tühistatavas `MapPreparation.worker.ts` workeris. Worker avaldab esimese geomeetria eelvaatena ja annab käivitatava missiooni alles pärast täielikku navigatsioonikontrolli. Sisestatud seeme lülitab sisse täpse kordamise; UUS KAART lubab deterministlikke korduskatseid. Serveri autoriteetne mitmikmängu genereerimine säilib.
+
+`MapOptions` kasutab mere/mägede/metsa/jõe nelja bitti. Valikutega v13 tunnuse lõpp `-o0`…`-o15` taastab samad geomeetriaandmed ka sessionStorage puudumisel; ajalooliste tunnuste genereerimine ei muutu. Väljalülitatud jõgi muudab sillaületused tavalisteks teedeks. Järv säilib eraldi veekoguna. Reljeefi AABB-väljalõige jätab vahele ainult täpselt nulliga lõppevad ridge-kernelid; Gaussi sabasid ega liitmise järjekorda ei muudeta.
+
+`platforms.json` sisaldab 19 toodetavat klassi. SAM/haubits kasutavad olemasolevat juhitava raketi ja ballistilise suurtüki sim-teed; manpad/mortar pole enam jalaväe alias. Uutel sõidukitel on protseduurmudelid, mitte lisanduvad GLB-allalaadimised. Kerge haubits on odavam ja lühema ulatusega kui liikursuurtükk; SAM kasutab piiratud raketivaru ja ainult õhusihtmärke.
+
+`Language.ts` ja `english.json` rakendavad kasutaja keele esituskihis. `localStorage` eelistus kandub mängu, Arsenali ja efektivaatesse. Tõlgitakse teksti ning title/aria-label/placeholder atribuute; vormiväärtused, käsud ja simulatsiooniandmed ei muutu. Sõnastik kasutab pikimat fraasi ja Unicode-sõnapiire, kordustöö on piiratud vahemäluga. Tõlketa tekst säilitab eestikeelse lähtekuju.
+
+`MetricRunway` ühendab aluspinna, katte ning märgistuse kolme materjaligruppi. Iga grupp saab tugevama negatiivse polygon offset'i, sest ainult maailmakõrguse sentimeetrine vahe ei püsi kaugvaate sügavuspuhvris. Maapinnakolmnurkade järgi lõikamine säilib.
+
+Kontroll: 85 olemasolevat testifaili / 372 testi, uute valikute/üksuste/keele sihitud testid, neli serveritesti, väljalaskepaketi kontroll ja TypeScript/tootmisbuild. DOM-kontroll katab ingliskeelse menüü, seaded ja SAM-i HUD-i, seemne täpsuse, worker'i katkestamise, esialgse eelvaate ning valmis missiooni sessionStorage üleandmise. GPU suumipildi kontroll jäi brauseri allalaadimisvea taha; FPS-i võrdlust ei kinnitata.

@@ -214,8 +214,8 @@ export class World {
     return effects[kind]?.[Math.min(2, Math.max(0, level - 1))] ?? "Täiustatud rajatis";
   }
   unitRequiredBuildingLevel(kind: UnitKind): number {
-    const elite = ["special","atgm","manpad","tankDestroyer","spaa","mlrs","gunship","casHeli","interceptor","bomber","ecm","attackAircraft","destroyer","submarine"];
-    const advanced = ["engineer","reconInf","sniper","mortar","apc","ifv","artillery","reconVehicle","lightTank","fighter","multirole","frigate"];
+    const elite = ["sam","special","atgm","manpad","tankDestroyer","spaa","mlrs","gunship","casHeli","interceptor","bomber","ecm","attackAircraft","destroyer","submarine"];
+    const advanced = ["howitzer","engineer","reconInf","sniper","mortar","apc","ifv","artillery","reconVehicle","lightTank","fighter","multirole","frigate"];
     return elite.includes(kind) ? 3 : advanced.includes(kind) ? 2 : 1;
   }
   canProduceAtLevel(producer: Entity, kind: UnitKind): boolean {

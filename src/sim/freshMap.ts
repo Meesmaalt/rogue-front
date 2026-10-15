@@ -1,4 +1,4 @@
-import {generateProceduralMap,type MapArchetype} from './proceduralMap';
+import {generateProceduralMap,type MapArchetype,type MapOptions} from './proceduralMap';
 import type {MissionDef,Point} from './types';
 import {resetHeightmap,setMapSize,setBases,setProceduralSeed,setTerrainProfile,setTerrainFeatures} from './heightmap';
 import {NavGrid} from './nav/NavGrid';
@@ -40,12 +40,12 @@ export function validateFreshMap(mission:MissionDef):boolean {
  }finally{resetHeightmap();}
 }
 /** Versioned deterministic retries preserve the exact successful seed for saves/replays. */
-export function generateFreshMap(seed:number,archetype:MapArchetype='balanced',size=battleScale.defaultSize):MissionDef {
+export function generateFreshMap(seed:number,archetype:MapArchetype='balanced',size=battleScale.defaultSize,options?:MapOptions,onCandidate?:(mission:MissionDef)=>void):MissionDef {
  if(!battleScale.mapSizes.includes(size))throw new Error('Kaardi suurus pole toetatud');
  const rng=new Rng(seed>>>0);
  for(let attempt=0;attempt<config.freshGeneration.attempts;attempt++){
   const candidate=attempt===0?seed>>>0:Math.floor(rng.next()*4294967296)>>>0;
-  try{const mission=generateProceduralMap(candidate,archetype,size,13);if(validateFreshMap(mission))return mission;}catch{/* Try another deterministic seed. */}
+  try{const mission=generateProceduralMap(candidate,archetype,size,13,options);onCandidate?.(mission);if(validateFreshMap(mission))return mission;}catch{/* Try another deterministic seed. */}
  }
  throw new Error('Mängitavat kaarti ei õnnestunud luua. Proovi uuesti.');
 }

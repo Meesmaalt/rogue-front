@@ -54,3 +54,5 @@ button { font-family:inherit; }
 
 .offline-app [data-generator][hidden] { display:none; }
 .offline-app [data-new-seed] { grid-column:1 / -1; padding:10px 14px; color:#e9e6d8; background:#263438; border:1px solid #53666b; cursor:pointer; }
+.language-choice { display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--muted,#b9c8c0); }
+.language-choice select { width:auto;min-width:6rem;padding:.45rem; }

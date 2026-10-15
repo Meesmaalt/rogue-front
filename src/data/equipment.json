@@ -121,7 +121,8 @@
       "slot": "weapon",
       "kinds": [
         "artillery",
-        "mlrs"
+        "mlrs",
+        "howitzer"
       ],
       "cost": 100,
       "repairCost": 12,
@@ -179,7 +180,9 @@
         "ifv",
         "spaa",
         "artillery",
-        "mlrs"
+        "mlrs",
+        "howitzer",
+        "sam"
       ],
       "cost": 110,
       "repairCost": 13,
@@ -217,7 +220,9 @@
         "spaa",
         "artillery",
         "mlrs",
-        "heli"
+        "heli",
+        "howitzer",
+        "sam"
       ],
       "cost": 85,
       "repairCost": 10,
@@ -236,7 +241,9 @@
         "spaa",
         "artillery",
         "mlrs",
-        "heli"
+        "heli",
+        "howitzer",
+        "sam"
       ],
       "cost": 100,
       "repairCost": 12,

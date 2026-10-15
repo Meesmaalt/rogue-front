@@ -7,7 +7,7 @@ import type { UnitDef, UnitKind, OpticsRating, UnitSize, Stabilizer, Discipline,
 const NUM: (keyof UnitDef)[] = ["hp", "speed", "turnRate", "range", "damage", "cooldown", "radius", "height", "cost", "buildTime", "projectileSpeed"];
 const BOOL: (keyof UnitDef)[] = ["producible", "turret"];
 const STR: (keyof UnitDef)[] = ["armor", "weapon"];
-const KINDS: UnitKind[] = ["tank","apc","ifv","inf","atInf","mgInf","reconInf","sniper","mortar","manpad","atgm","reconVehicle","lightTank","tankDestroyer","spaa","bunker","hq","engineer","heli","transport","cargoPlane","gunship","casHeli","fighter","interceptor","bomber","ecm","multirole","attackAircraft","artillery","mlrs","logiTruck","aa","refinery","barracks","factory","helipad","airbase","supply","radar","generator","destroyer","submarine","landingcraft","frigate","missileBoat","special","shipyard","landCommand","airCommand","seaCommand","combatEngineer","landStrategy","airStrategy","seaStrategy"]
+const KINDS: UnitKind[] = ["sam","howitzer","tank","apc","ifv","inf","atInf","mgInf","reconInf","sniper","mortar","manpad","atgm","reconVehicle","lightTank","tankDestroyer","spaa","bunker","hq","engineer","heli","transport","cargoPlane","gunship","casHeli","fighter","interceptor","bomber","ecm","multirole","attackAircraft","artillery","mlrs","logiTruck","aa","refinery","barracks","factory","helipad","airbase","supply","radar","generator","destroyer","submarine","landingcraft","frigate","missileBoat","special","shipyard","landCommand","airCommand","seaCommand","combatEngineer","landStrategy","airStrategy","seaStrategy"]
 
 /** Kind → schema v2 defaults (Wargame-oriented). */
 function defaultsFor(kind: UnitKind, d: Record<string, unknown>): Partial<UnitDef> {
@@ -18,7 +18,7 @@ function defaultsFor(kind: UnitKind, d: Record<string, unknown>): Partial<UnitDe
     kind === "special" || kind === "engineer" || kind === "reconInf" || kind === "reconVehicle" || kind === "sniper" ? "recon" :
     kind === "inf" || kind === "atInf" || kind === "mgInf" || kind === "mortar" || kind === "manpad" || kind === "atgm" ? "infantry" :
     ["tank","apc","ifv","lightTank","tankDestroyer","spaa"].includes(kind) ? "armor" :
-    ["artillery","mlrs","logiTruck","aa","mortar","manpad"].includes(kind) ? "support" :
+    ["sam","howitzer","artillery","mlrs","logiTruck","aa","mortar","manpad"].includes(kind) ? "support" :
     ["heli","gunship","transport","casHeli"].includes(kind) ? "heli" :
     ["fighter","interceptor","bomber","ecm","multirole","attackAircraft"].includes(kind) ? "air" :
     ["destroyer","submarine","landingcraft","frigate","missileBoat"].includes(kind) ? "naval" :
