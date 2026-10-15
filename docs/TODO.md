@@ -1,5 +1,15 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Lennujaama kasutatavus ja lennulogistika tempo · 15.10.2026
+
+- [x] 280 m rada varasema 340 m asemel, väiksemad angaarid/torn, selge AIR-terminal ning sama lennujaama valik kõigi lennujaamahoonete kaudu.
+- [x] Ühine andmepõhine avaramate hävitajakohtade ja märgistuste paigutus; eraldi suurkauba parkimine. Lennukite lennukiirus +15%, ruleerimine +20% meetrikaardil.
+- [x] Õhk-õhk raketi 7 s baasvahe, 1,2 s stabiilne lukustus ja varasema lasu jälgimine; stardihälve väheneb otsingu täpsustumisega, piiratud füüsiline pööre/lukukaotus säilib.
+- [x] Ladu alustab ühe laohoone ja ühe H-platsiga ühisel pinnal, nähtav ka ehituse eelvaates. Teine/kolmas hoone ja püsiplats lisanduvad uuendustega; hõivatud ajutisi kohti ei kaotata.
+- [x] Tarnekopteri kiirus −30%, väliste kopterite baasintervall 35 → 50 s ja kogumislendude vahe 18 → 26 s.
+- [x] Kasutaja soovil ainult 18 sihitud testi ning TypeScript/tootmisbuild; kogu testipakki ei käivitata. Mängupildi ja tunnetuse proovib kasutaja oma brauseris.
+
+
 ## Kopterite päris lähenemine ja jalgsiliikumise taastamine · 15.10.2026
 
 - [x] Mõõtkavaga kopteri 8 m hõljumiskaugus ei blokeeri enam 0,8 m maandumiskoridori: piiratud kiirusega täpne lähenemine, paigal püsimine, fikseeritud suund viimases faasis ning alles seejärel vertikaalne laskumine.

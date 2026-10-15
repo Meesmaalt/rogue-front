@@ -115,9 +115,9 @@
       "recenterFraction": 0.18
     },
     "airfield": {
-      "apronLeft": 18,
-      "apronRight": 80,
-      "apronStart": -92,
+      "apronLeft": 15,
+      "apronRight": 81,
+      "apronStart": -77,
       "apronEnd": 105,
       "surfaceOffset": 0.12
     },

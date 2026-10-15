@@ -570,3 +570,12 @@ Metric/compact kopter päris `hoverRadius=8`, samal ajal kui `moveAirTo` nõudis
 `movePorterTo` järgib tegelikku nav-teed jalgsi liikumisega: suunast sõltumatu samm, täpne vahepunkt, kokkupõrgete vältimine ja uus teekond ummistumisel. Koormaga teenindaja otsib blokeerunud üleandmispunkti asemel teist ligipääsetavat lao dokki; `groundService.blockedTime` säilib olemasolevas täisoleku salvestuses/räsis. Üldises maaüksuste liikumises kontrollitakse enne varast vahepunkti vahetust ka järgmist lõiku, et suur nav-rakk ei lõikaks hoonenurka.
 
 Platsivalik sõltub ehitiste navigatsioonist. `World.tick` sünkroonib määrdunud ehitusvõrgu nüüd enne lennu väljasaatmist, et värske maailma ja salvestusest taastatud maailma esimene tarne ei valiks eri platsi. Otse alamsüsteemi kutsuvad tarnefixture'id valmistavad sama ehitusvõrgu ette. Salvestusest jätkamise olemasolevad integratsiooni-, tarne- ja üksusearenduse testid kontrollivad seda järjekorda.
+
+
+## Lennujaama valik ja tarne tempo · 15.10.2026
+
+`battle-scale.json.airfieldLayout` annab lennujaama hoonete mõõdud ja asendid nii arhitektuurile kui `Picker` kohaliku kiire ruumkastidele. Terminalil on AIR katusemärgis, kõik hooned valivad ühe tootva lennujaama. Parkimisread, veerud ja vahed toidavad samu sim-punkte ja perroonimärgistusi. Eraldi cargo-stand säilib. Rada on 280 m; avaldatud protseduurkaartide geomeetria kasutab jätkuvalt `generationAirfield` ajaloolisi mõõte, et sama kaarditunnuse ja olemasolevate salvestuste aluskaart ei muutuks.
+
+Lennuki juhitav relv vajab stabiilset suunda ja `airMissileLock` sihtmärki/aega. See seisund liigub full-save'iga ja replay hash'iga. AAM baasjahtumine on 7 s; aktiivse värske lasu hindamine väldib kohest topeltlasku. Seemnega määratud otsinguhälve läheneb eksponentsiaalselt jääkhälbele, mitte ei juhi kogu lennu jooksul sihtmärgist sama palju mööda. Raketi normaaljõu, mootoritöö, takistuse ja lukukaotuse piirangud säilivad.
+
+Lao ühine betoonpind ja üks esimese taseme maandumisplats on nähtavad kohe, sealhulgas ehitusghost'is. Kõrgematel tasemetel lisanduvad eraldi tagumised laomoodulid ja üks püsiplats taseme kohta. Tarnekopteri −30% kiirus ja pikem väljasaatmisintervall muudavad transpordi rahulikumaks; lennukite +15% kiirus ja kiirem ruleerimine on eraldi häälestatud. Kontroll piirdus kasutaja soovil puudutatud käitumiste ja build'iga; uut GPU pildi kontrolli ei väideta.

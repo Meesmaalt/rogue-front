@@ -705,7 +705,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       }else {
         if(!pad)return;
         if(u.airTaxiPhase==="apron"||u.airTaxiPhase==null){
-          const holding=airFacilityPoint(pad,aircraftMobility(u).runwayStart,aircraftMobility(u).parkingOffset);
+          const holding=airFacilityPoint(pad,aircraftMobility(u).runwayStart,u.def.metricScale?BATTLE_SCALE.airfieldLayout.taxiLane:aircraftMobility(u).parkingOffset);
           if(!taxiTo(u,holding,dt)||runwayOccupied(w,u,pad))return;u.airTaxiPhase="lining-up";
         }
         if(u.airTaxiPhase==="lining-up"){
@@ -990,6 +990,11 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     }
   }
 
+  if(d.category==='air'){
+    const delta=target?Math.abs(wrapAngle(Math.atan2(target.x-u.x,target.z-u.z)-u.heading)):Infinity;
+    if(!target||delta>mobility.combat.airMissileAimTolerance)u.airMissileLock=undefined;
+    else if(u.airMissileLock?.targetId!==target.id)u.airMissileLock={targetId:target.id,readyAt:w.time+mobility.combat.airMissileLockSeconds};
+  }
   const weaponIndex=target?selectWeapon(u,target,true):-1;
   const spec=weaponIndex>=0?weaponSpec(u,weaponIndex):null;
   if(target&&spec&&weaponFireBlocker(w,u,target,weaponIndex)===null){

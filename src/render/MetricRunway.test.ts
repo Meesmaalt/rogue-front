@@ -4,8 +4,8 @@ import {createMetricRunway} from './MetricRunway';
 import {World} from '../sim/World';
 import {resetHeightmap,setBases,setMapSize,setProceduralSeed,setTerrainProfile,heightAt} from '../sim/heightmap';
 afterEach(resetHeightmap);
-it('runway uses three stable depth layers matching simulated 340 metre rollout strip',()=>{
- setBases([{x:0,z:0,r:500}]);const w=new World(1,false,[],[],[{x:0,z:0,r:500},{x:200,z:200,r:30}],false),pad=w.spawn('airbase',0,0,0);pad.heading=0;const mesh=createMetricRunway(pad);mesh.geometry.computeBoundingBox();expect(mesh.geometry.boundingBox!.max.z-mesh.geometry.boundingBox!.min.z).toBe(340);expect(mesh.geometry.groups).toHaveLength(3);expect(Array.isArray(mesh.material)&&mesh.material.every((m,i)=>m.polygonOffset&&m.polygonOffsetFactor===-(i+1))).toBe(true);expect(mesh.geometry.attributes.color.count).toBe(mesh.geometry.attributes.position.count);expect(mesh.children).toHaveLength(0);
+it('runway uses three stable depth layers matching simulated 280 metre rollout strip',()=>{
+ setBases([{x:0,z:0,r:500}]);const w=new World(1,false,[],[],[{x:0,z:0,r:500},{x:200,z:200,r:30}],false),pad=w.spawn('airbase',0,0,0);pad.heading=0;const mesh=createMetricRunway(pad);mesh.geometry.computeBoundingBox();expect(mesh.geometry.boundingBox!.max.z-mesh.geometry.boundingBox!.min.z).toBe(280);expect(mesh.geometry.groups).toHaveLength(3);expect(Array.isArray(mesh.material)&&mesh.material.every((m,i)=>m.polygonOffset&&m.polygonOffsetFactor===-(i+1))).toBe(true);expect(mesh.geometry.attributes.color.count).toBe(mesh.geometry.attributes.position.count);expect(mesh.children).toHaveLength(0);
 });
 
 it('airport paving and markings stay above the actual ground triangles at arbitrary headings',()=>{

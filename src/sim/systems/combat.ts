@@ -109,6 +109,12 @@ export function weaponFireBlocker(w:World,u:Entity,t:Entity,index:number):string
   if(weaponCooldown(u,index)>0)return "Laadib · "+weaponCooldown(u,index).toFixed(1)+" s";
   if(spec.visual!=="cruise"&&!["artillery","mortar","mlrs"].includes(u.kind)&&!w.vision.hasLineOfSight(u,t))return "Tulejoon blokeeritud";
   const angle=Math.atan2(t.x-u.x,t.z-u.z),delta=Math.abs(wrapAngle(angle-u.heading));
+  if(u.def.category==='air'&&spec.flight==='guided'){
+    if(delta>mobility.combat.airMissileAimTolerance)return "Ootab raketi laskesektorit";
+    if(u.airMissileLock?.targetId!==t.id||w.time<u.airMissileLock.readyAt)return "Lukustab raketi sihtmärki";
+    const assessing=w.projectiles.some(p=>p.sourceId===u.id&&p.flight==='guided'&&p.target===t&&!p.guidanceLost&&(p.age??0)<mobility.combat.airMissileReengageSeconds);
+    if(assessing)return "Jälgib lastud raketi tulemust";
+  }
   if(u.firingArc<Math.PI*2-.01&&delta>u.firingArc*.5)return "Sihtmärk väljaspool laskesektorit";
   if(!(u.def.domain==="sea"&&spec.weapon==="missile")){
     const fixedRack=u.def.category==="heli"&&(spec.weapon==="missile"||!u.def.turret);

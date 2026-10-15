@@ -130,7 +130,9 @@
       "acceleration": 140,
       "turnRate": 4.3,
       "muzzle": 1.2,
-      "muzzleHeight": 0.9
+      "muzzleHeight": 0.9,
+      "cooldown": 7,
+      "accuracy": 0.88
     },
     "rocket": {
       "name": "Juhitamatu rakett",
@@ -725,7 +727,7 @@
     "cruiseLauncher": [],
     "missileCommand": [],
     "icbmSilo": [],
-  "gunTurret": [
+    "gunTurret": [
       {
         "profile": "mg",
         "range": 650,

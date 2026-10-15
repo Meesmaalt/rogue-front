@@ -107,7 +107,7 @@
     "takeoffTime": 6.0,
     "runwayStart": -14,
     "runwayEnd": 26,
-    "taxiSpeed": 4,
+    "taxiSpeed": 4.6,
     "parkingOffset": 11,
     "parkingSpacing": 6,
     "launchSeparation": 6,
@@ -202,7 +202,10 @@
     "helicopterLosSearchAngle": 0.3,
     "helicopterMissileAimTolerance": 0.14,
     "helicopterGunTraverse": 0.85,
-    "helicopterTurretRate": 1.3
+    "helicopterTurretRate": 1.3,
+    "airMissileLockSeconds": 1.2,
+    "airMissileReengageSeconds": 3,
+    "airMissileAimTolerance": 0.16
   },
   "naval": {
     "acceleration": 1.5,

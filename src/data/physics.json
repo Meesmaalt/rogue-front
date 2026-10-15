@@ -29,7 +29,7 @@
       },
       "aam": {
         "motorSeconds": 5,
-        "lateralAcceleration": 300,
+        "lateralAcceleration": 420,
         "seekerAngle": 1.2
       },
       "manpad": {
@@ -47,6 +47,8 @@
         "lateralAcceleration": 45,
         "seekerAngle": 1.2
       }
-    }
+    },
+    "biasConvergenceSeconds": 1.2,
+    "residualBiasFraction": 0.08
   }
 }

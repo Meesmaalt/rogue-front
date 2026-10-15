@@ -1,4 +1,5 @@
-import {addFacilityDetails} from "./FacilityDetails";
+import {BATTLE_SCALE} from "../sim/battleScale";
+import {facilityLabel,addFacilityDetails} from "./FacilityDetails";
 import {renderedGroundHeightAt} from "./GroundSurface";
 import type {Entity} from "../sim/types";
 import terrainConfig from "../data/terrain.json";
@@ -167,7 +168,7 @@ export function createBuildingModel(kind:UnitKind,team:Team,faction:FactionId):{
    pavilion(g,6,4,3.4,-4,-5,camo,wall,dark,true);fieldCrates(g,2,-5,3);mast(g,7,-4,4,team,steel);
   }
  }else if(kind==="supply"){
-  pavilion(g,6,7,3.7,-1,-1,camo,wall,dark,true);pavilion(g,3.5,4,2.7,3.7,-1,camo,wall,dark);
+  pavilion(g,7,8,3.7,-1,-1,camo,wall,dark,true);
   fieldCrates(g,-3,3.5,8);for(const x of [2.5,4])cylinder(g,.55,1.6,x,.85,3.3,steel);mast(g,-4,-4,5,team,steel);
   const ring=new THREE.Mesh(new THREE.RingGeometry(2.1,2.3,24).rotateX(-Math.PI/2),trim);ring.position.set(-1,.21,-1);g.add(ring);
  }else if(kind==="generator"){
@@ -214,14 +215,17 @@ export function createMetricAirfieldStructures(pad:Pick<Entity,"x"|"y"|"z"|"head
   }
   g.position.set(x,y+.12,z);box(g,width+.8,.5,depth+.8,0,-.1,0,material(0x858b83,'concrete'));group.add(g);
  }
- for(const z of [-28,12]){
-  const hangar=new THREE.Group();pavilion(hangar,22,28,8,0,0,camo,wall,dark,true);
-  // Wide dark opening faces the apron, with visible vertical door rails.
-  box(hangar,.15,5.5,18,-11.1,2.9,0,dark);for(const dz of [-9,9])box(hangar,.25,6.2,.25,-11.3,3.1,dz,steel);
-  foundation(hangar,62,z,22,28);
+ for(const s of BATTLE_SCALE.airfieldLayout.structures){
+  const building=new THREE.Group();
+  if(s.kind==='tower'){
+   box(building,6,7,6,0,3.5,0,wall);box(building,8,2.5,8,0,8.3,0,dark);hipRoof(building,9,9,9.6,1,camo);mast(building,2,2,13,pad.team,steel);
+  }else{
+   pavilion(building,s.width,s.depth,s.height,0,0,camo,wall,dark,s.kind==='hangar');
+   if(s.kind==='hangar'){box(building,.15,4.8,15,-s.width/2-.1,2.5,0,dark);for(const z of [-7.5,7.5])box(building,.2,5,.2,-s.width/2-.2,2.5,z,steel);}
+   else {const label=facilityLabel('AIR',material(0xeee5bb));label.rotation.x=-Math.PI/2;label.position.y=s.height+.08;label.scale.setScalar(2.8);building.add(label);box(building,10,.2,4,0,2.6,-8,steel);}
+  }
+  foundation(building,s.x,s.z,s.width,s.depth);
  }
- const tower=new THREE.Group();box(tower,7,9,7,0,4.5,0,wall);box(tower,9,3.2,9,0,10.6,0,dark);hipRoof(tower,10,10,12.2,1.2,camo);mast(tower,3,3,17,pad.team,steel);foundation(tower,61,-69,10,10);
- const depot=new THREE.Group();pavilion(depot,12,10,5,0,0,camo,wall,dark);fieldCrates(depot,-3,7,6);foundation(depot,61,50,14,18);
  group.userData.militarySilhouette='airbase';return batch(group);
 }
 /** Merge architecture by material without losing texture UVs. */

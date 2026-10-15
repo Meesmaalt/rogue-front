@@ -1,4 +1,4 @@
-import {aircraftMobility} from "../battleScale";
+import {BATTLE_SCALE,aircraftMobility} from "../battleScale";
 import type { World } from "../World";
 import mobility from "../../data/mobility.json";
 import {heightAt} from "../heightmap";
@@ -19,6 +19,7 @@ export function freeAirSlot(w:World,pad:Entity):number {
 }
 export function airParkingPoint(u:Entity,pad:Entity):Point {
   const slot=u.airHomeSlot??0;
+  if(pad.kind==="airbase"&&u.def.metricScale){const layout=BATTLE_SCALE.airfieldLayout;return airFacilityPoint(pad,layout.parkingStart+Math.floor(slot/layout.parkingColumns)*layout.parkingRowSpacing,aircraftMobility(u).parkingOffset+(slot%layout.parkingColumns)*aircraftMobility(u).parkingSpacing);}
   return pad.kind==="helipad"?airFacilityPoint(pad,mobility.helicopter.padOffset+Math.floor(slot/3)*mobility.helicopter.parkingSpacing,(slot%3===0?0:slot%3===1?-1:1)*mobility.helicopter.parkingSpacing):airFacilityPoint(pad,-4+Math.floor(slot/2)*aircraftMobility(u).parkingSpacing,aircraftMobility(u).parkingOffset+(slot%2)*aircraftMobility(u).parkingSpacing);
 }
 export function stationAircraft(w:World,u:Entity,pad:Entity,slot=freeAirSlot(w,pad)):void {

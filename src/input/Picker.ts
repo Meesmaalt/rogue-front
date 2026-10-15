@@ -1,3 +1,4 @@
+import {BATTLE_SCALE} from "../sim/battleScale";
 import * as THREE from "three";
 import type { World } from "../sim/World";
 import type { Entity, Point, Team } from "../sim/types";
@@ -57,7 +58,21 @@ export class Picker {
       const lim = 12 + e.def.radius * this.pxPerUnit(pose.x, cy, pose.z), d = Math.hypot(p.x - mx, p.y - my);
       if (d < lim && (best === null || d - lim < bs)) { best = e; bs = d - lim; }
     }
-    return best;
+    // Airport structures belong to one facility even though their roofs are far from its origin.
+    this.ray.setFromCamera(new THREE.Vector2(mx/innerWidth*2-1,-my/innerHeight*2+1),this.camera);
+    let nearest=Infinity,facility:Entity|null=null;
+    for(const e of this.world.entities){
+      if(e.dead||e.kind!=='airbase'||e.team!==team||team!==this.world.playerTeam&&!this.world.isSpottedByTeam(e,this.world.playerTeam))continue;
+      const transform=new THREE.Matrix4().compose(new THREE.Vector3(e.x,e.y,e.z),new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),e.heading),new THREE.Vector3(1,1,1));
+      const local=this.ray.ray.clone().applyMatrix4(transform.clone().invert());
+      const structures=e.def.metricScale?BATTLE_SCALE.airfieldLayout.structures:[{x:26,z:-9,width:8,depth:7,height:6},{x:26,z:4,width:6,depth:6,height:5},{x:30,z:-1,width:5,depth:5,height:9}];
+      for(const s of structures){
+        const box=new THREE.Box3(new THREE.Vector3(s.x-s.width/2,-1,s.z-s.depth/2),new THREE.Vector3(s.x+s.width/2,s.height+3,s.z+s.depth/2));
+        const hit=local.intersectBox(box,new THREE.Vector3());if(!hit)continue;const distance=hit.applyMatrix4(transform).distanceTo(this.ray.ray.origin);
+        if(distance<nearest){nearest=distance;facility=e;}
+      }
+    }
+    return facility??best;
   }
 
   pickGarrisonBuilding(mx:number,my:number):MapFeatureDef|null {

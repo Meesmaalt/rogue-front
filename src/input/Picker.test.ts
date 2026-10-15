@@ -18,3 +18,14 @@ it("picks the rendered pose while preserving fog, loaded-unit and stale-marker g
  expect(picker.pickEntity(20,10,0)).toBeNull();
  unit.loadedIntoId=null;picker.setPresentation(()=>null);expect(picker.entityPosition(unit)).toBe(unit);
 });
+it('every rotated airport hangar, tower and terminal selects the same airport',()=>{
+ vi.stubGlobal('innerWidth',1000);vi.stubGlobal('innerHeight',700);
+ const world=new World(72,false,[],[],[],false,true),pad=world.spawn('airbase',0,0,0);pad.heading=.7;
+ const camera=new PerspectiveCamera(50,1000/700,.1,2000);camera.position.set(100,240,280);camera.lookAt(0,0,0);camera.updateMatrixWorld();
+ const picker=new Picker(camera,world);
+ for(const s of BATTLE_SCALE.airfieldLayout.structures){
+  const x=pad.x+Math.cos(pad.heading)*s.x+Math.sin(pad.heading)*s.z,z=pad.z-Math.sin(pad.heading)*s.x+Math.cos(pad.heading)*s.z;
+  const point=picker.toScreen(x,pad.y+s.height*.5,z);expect(picker.pickEntity(point.x,point.y,0)?.id).toBe(pad.id);
+ }
+});
+import {BATTLE_SCALE} from '../sim/battleScale';

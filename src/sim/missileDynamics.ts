@@ -4,7 +4,8 @@ import physics from '../data/physics.json';
 export function missileTrackingPoint(p:Projectile,t:Entity):{x:number;y:number;z:number} {
  const eta=Math.min(physics.missiles.maximumLeadSeconds,Math.hypot(t.x-p.x,t.y-p.y,t.z-p.z)/Math.max(1,p.speed));
  const speed=(t.motionSpeed??0)*(t.motionReverse?-1:1),vx=t.flightVx??Math.sin(t.heading)*speed,vz=t.flightVz??Math.cos(t.heading)*speed;
- return {x:t.x+vx*eta+(p.missX??0),y:t.y+t.def.height*.45,z:t.z+vz*eta+(p.missZ??0)};
+ const bias=physics.missiles.residualBiasFraction+(1-physics.missiles.residualBiasFraction)*Math.exp(-(p.age??0)/physics.missiles.biasConvergenceSeconds);
+ return {x:t.x+vx*eta+(p.missX??0)*bias,y:t.y+t.def.height*.45,z:t.z+vz*eta+(p.missZ??0)*bias};
 }
 /** Finite thrust, aerodynamic drag, gravity and bounded normal acceleration. */
 export function stepMissile(p:Projectile,dx:number,dy:number,dz:number,dt:number):void {

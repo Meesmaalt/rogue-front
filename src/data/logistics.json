@@ -1,6 +1,6 @@
 {
   "air": {
-    "dispatchInterval": 18,
+    "dispatchInterval": 26,
     "capacity": 120,
     "capacityPerLevel": 55,
     "loadTime": 6.5,
@@ -67,7 +67,7 @@
     "helicopterAltitude": 30,
     "helicopterCapacity": 180,
     "capacityPerLevel": 70,
-    "helicopterInterval": 35,
+    "helicopterInterval": 50,
     "frequencyPerLevel": 0.3,
     "maxHelicopters": 3,
     "unloadSeconds": 4,
@@ -107,7 +107,7 @@
     "porterSpeed": 3,
     "porterRadius": 0.45,
     "porterArrival": 0.8,
-    "permanentPads": 2,
+    "permanentPads": 1,
     "padHeightTolerance": 1.2,
     "landingApproachRadius": 12,
     "landingHoverHeight": 6,
@@ -115,6 +115,8 @@
     "landingSpeed": 0.6,
     "landingPositionGain": 0.9,
     "porterWaypointArrival": 0.15,
-    "porterJamSeconds": 3
+    "porterJamSeconds": 3,
+    "baseHalfWidth": 9,
+    "baseHalfDepth": 10
   }
 }

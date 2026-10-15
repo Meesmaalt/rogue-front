@@ -153,6 +153,7 @@ export interface Entity {
   facingLocked: boolean;
   combatWithdrawing?: boolean;
   stationaryFireReadyAt?: number;
+  airMissileLock?:{targetId:number;readyAt:number};
   combatHoldingTarget?: number;
   flightAttackExit?: Point;
   flightAttackExitUntil?: number;

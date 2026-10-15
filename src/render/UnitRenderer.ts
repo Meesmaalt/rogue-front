@@ -57,7 +57,7 @@ function addBuildingLevelArchitecture(kit: THREE.Group, kind: string, level: num
     } else if (kind === "barracks") {
       module(-3.6,0,0,2.4,4.2,1.5,concrete); module(3.6,0,0,2.4,4.2,1.5,concrete);
     } else if (kind === "supply") {
-      module(-3.2,0,2.4,2.3,2.4,1.4,steel); module(3.2,0,2.4,2.3,2.4,1.4,steel); for (const x of [-1.8,0,1.8]) silo(x,-3.0,0.5,1.5);
+      module(-4.2,0,-8,4.8,5.5,3.5,steel);module(-4.2,3.5,-8,5.3,6,.35,accent);
     } else if (kind === "airbase") {
       module(-4.5,0,1.8,2.2,3.0,1.1,steel); module(4.5,0,1.8,2.2,3.0,1.1,steel); mast(-5.8,-3.8,2.4); mast(5.8,-3.8,2.4);
     } else if (kind === "helipad") {
@@ -83,7 +83,7 @@ function addBuildingLevelArchitecture(kit: THREE.Group, kind: string, level: num
     } else if (kind === "barracks") {
       module(0,0,0,4.8,4.2,2.6,concrete); mast(0,-2.8,4.0);
     } else if (kind === "supply") {
-      module(0,0,0,5.0,4.2,2.3,steel); for (const x of [-2.0,0,2.0]) silo(x,-3.0,0.65,2.7);
+      module(4.2,0,-8,4.8,5.5,3.5,steel);module(4.2,3.5,-8,5.3,6,.35,accent);
     } else if (kind === "airbase") {
       module(0,0,0,5.5,4.0,2.0,steel); mast(-4.8,-3.0,5.0); mast(4.8,-3.0,5.0);
     } else if (kind === "helipad") {

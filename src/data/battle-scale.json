@@ -17,17 +17,17 @@
     "armor": 12,
     "support": 10,
     "heli": 55,
-    "air": 180,
+    "air": 207,
     "naval": 12
   },
   "speeds": {
     "engineer": 2.5,
     "logiTruck": 16,
-    "cargoPlane": 120,
-    "transport": 50,
+    "cargoPlane": 138,
+    "transport": 35,
     "apc": 16,
     "ifv": 14,
-    "airTransport": 105,
+    "airTransport": 121,
     "cruiseLauncher": 9,
     "groundHandler": 10
   },
@@ -42,11 +42,11 @@
     "maxBank": 0.85,
     "minimumSpeed": 0.45,
     "lateralAcceleration": 12,
-    "runwayStart": -100,
-    "runwayEnd": 240,
-    "taxiSpeed": 10,
-    "parkingOffset": 25,
-    "parkingSpacing": 12,
+    "runwayStart": -85,
+    "runwayEnd": 195,
+    "taxiSpeed": 12,
+    "parkingOffset": 29,
+    "parkingSpacing": 20,
     "launchSeparation": 12,
     "approachLength": 900,
     "approachAltitude": 150,
@@ -59,7 +59,7 @@
     "lineLookAhead": 120,
     "missedApproachDistance": 80,
     "landingCapture": 26,
-    "runwayWidth": 36
+    "runwayWidth": 30
   },
   "helicopter": {
     "altitude": 65,
@@ -268,5 +268,51 @@
     "parkingForward": 80,
     "parkingLateral": 35,
     "exitMargin": 60
+  },
+  "airfieldLayout": {
+    "parkingStart": -50,
+    "parkingRowSpacing": 24,
+    "parkingRows": 5,
+    "parkingColumns": 2,
+    "taxiLane": 21,
+    "structures": [
+      {
+        "kind": "hangar",
+        "x": 70,
+        "z": -28,
+        "width": 17,
+        "depth": 22,
+        "height": 6.5
+      },
+      {
+        "kind": "hangar",
+        "x": 70,
+        "z": 12,
+        "width": 17,
+        "depth": 22,
+        "height": 6.5
+      },
+      {
+        "kind": "tower",
+        "x": 69,
+        "z": -62,
+        "width": 9,
+        "depth": 9,
+        "height": 13
+      },
+      {
+        "kind": "terminal",
+        "x": 68,
+        "z": 49,
+        "width": 18,
+        "depth": 12,
+        "height": 5
+      }
+    ]
+  },
+  "generationAirfield": {
+    "runwayStart": -100,
+    "runwayEnd": 240,
+    "runwayWidth": 36
   }
 }

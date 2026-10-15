@@ -21,3 +21,12 @@ it('fixed helicopter racks wait for the nose and the chin gun cannot fire behind
  const gun=u.def.weapons!.findIndex(s=>s.weapon!=='missile');expect(gun).toBeGreaterThanOrEqual(0);u.heading=-Math.PI/2;u.turretYaw=Math.PI;
  expect(weaponFireBlocker(w,u,t,gun)).toContain('laskesektorit');
 });
+it('aircraft missiles need a settled lock and wait between deliberate launches',()=>{
+ const bases=[{x:0,z:0,r:220},{x:200,z:200,r:20}];setBases(bases);const w=new World(18,false,[],[],bases,false);w.networkMode=true;
+ const plane=w.spawn('fighter',0,0,0),target=w.spawn('heli',1,0,60);plane.airState=target.airState='airborne';plane.y=target.y=heightAt(0,0)+60;plane.heading=0;target.spottedUntil[0]=100;plane.cooldown=0;
+ expect(plane.def.weapons![0].cooldown).toBeGreaterThanOrEqual(6);
+ expect(weaponFireBlocker(w,plane,target,0)).toContain('Lukustab');
+ plane.airMissileLock={targetId:target.id,readyAt:1.2};w.time=1;expect(weaponFireBlocker(w,plane,target,0)).toContain('Lukustab');
+ w.time=1.3;expect(weaponFireBlocker(w,plane,target,0)).toBeNull();
+ plane.heading=Math.PI;expect(weaponFireBlocker(w,plane,target,0)).toContain('laskesektorit');
+});

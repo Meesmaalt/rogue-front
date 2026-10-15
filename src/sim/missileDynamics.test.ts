@@ -14,9 +14,9 @@ it('a target leaving the seeker cone breaks lock permanently',()=>{
  const p=projectile({age:1,seekerAngle:.7});stepMissile(p,1000,0,-1000,1/30);expect(p.guidanceLost).toBe(true);
  stepMissile(p,0,0,1000,1/30);expect(p.guidanceLost).toBe(true);
 });
-it('seeker retains launch bias and leads actual target velocity rather than predicting arbitrary hull heading',()=>{
+it('seeker converges from launch bias and leads actual target velocity rather than predicting arbitrary hull heading',()=>{
  const p=projectile({speed:100,missX:8,missZ:-4});const t={x:0,y:100,z:100,heading:Math.PI,flightVx:20,flightVz:0,def:{height:2}} as Entity;
- const aim=missileTrackingPoint(p,t);expect(aim.x).toBe(28);expect(aim.z).toBe(96);expect(aim.y).toBeCloseTo(100.9);
+ const aim=missileTrackingPoint(p,t);expect(aim.x).toBe(28);expect(aim.z).toBe(96);expect(aim.y).toBeCloseTo(100.9);p.age=4;const corrected=missileTrackingPoint(p,t);expect(Math.abs(corrected.x-20)).toBeLessThan(1);expect(corrected.z).toBeGreaterThan(99);
 });
 
 import {afterEach} from 'vitest';

@@ -14,7 +14,7 @@ function fixture(compact=false){
 }
 function step(w:World){for(const e of w.entities){e.px=e.x;e.py=e.y;e.pz=e.z;e.pHeading=e.heading;}w.time+=1/30;w.spatial.rebuild(w.entities);updateUnits(w,1/30);}
 it('visible pads and reserved slots agree, stay clear of buildings and rotate with the depot',()=>{
- const {w,depot}=fixture(),pads=visibleDepotPads(w,depot);expect(pads).toHaveLength(2);
+ const {w,depot}=fixture(),pads=visibleDepotPads(w,depot);expect(pads).toHaveLength(1);depot.supplyLevel=1;expect(visibleDepotPads(w,depot)).toHaveLength(2);depot.supplyLevel=2;expect(visibleDepotPads(w,depot)).toHaveLength(3);depot.supplyLevel=0;
  const h=w.spawn('transport',0,-100,-60);h.supplyDepotId=depot.id;const assigned=logisticsLandingPoint(w,depot,h)!;
  expect(pads.some(p=>p.x===assigned.x&&p.z===assigned.z)).toBe(true);
  expect(w.canPlaceBuilding(0,'generator',pads[0].x,pads[0].z)).toBe(false);

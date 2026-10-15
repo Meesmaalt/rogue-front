@@ -1,3 +1,5 @@
+import {depotPad} from '../sim/depotPads';
+import {createDepotBase,createDepotPad} from './DepotPads';
 import {createMetricRunway} from "./MetricRunway";
 import * as THREE from 'three';
 import {createModel} from './models';
@@ -18,13 +20,22 @@ export class ConstructionPreview {
   this.group.visible=!!kind&&!!point;if(!kind||!point){if(this.key)this.clear();return;}
   const def=world.unitDefinition(kind,world.playerTeam),key=`${kind}/${world.playerFaction}/${!!def.metricScale}`;
   // Metric airport foundations depend on local terrain, so regenerate only when the pointer moves.
-  const poseKey=kind==='airbase'&&def.metricScale?`${key}/${point.x.toFixed(1)}/${point.z.toFixed(1)}/${heading}`:key;
+  const poseKey=(kind==='airbase'&&def.metricScale)||kind==='supply'?`${key}/${point.x.toFixed(1)}/${point.z.toFixed(1)}/${heading}`:key;
   if(this.key!==poseKey){
    this.clear();this.key=poseKey;
    const metric=kind==='airbase'&&def.metricScale;
    const model=metric?createMetricAirfieldStructures({...point,y:heightAt(point.x,point.z),heading,team:world.playerTeam}):(createArtModel(kind,world.playerTeam,world.playerFaction)??createModel(kind,world.playerTeam,world.playerFaction)).group;
    if(metric)model.add(createMetricRunway({...point,y:heightAt(point.x,point.z),heading}));
    model.scale.multiplyScalar(def.modelScale??1);
+   if(kind==='supply'){
+    const depot={...point,y:heightAt(point.x,point.z),heading,def},pad=depotPad(depot,0),base=createDepotBase(depot,[pad]);
+    // Convert world-space pad markings into the same local frame as the warehouse.
+    const markings=createDepotPad(pad),transform=new THREE.Matrix4().compose(new THREE.Vector3(depot.x,depot.y,depot.z),new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),heading),new THREE.Vector3(1,1,1));
+    markings.applyMatrix4(transform.invert());
+    const compound=new THREE.Group();compound.add(base,markings);
+    // Architecture carries its own model scale; the foundation uses metres.
+    compound.scale.set(1/model.scale.x,1/model.scale.y,1/model.scale.z);model.add(compound);
+   }
    model.traverse(o=>{if(o instanceof THREE.Mesh){o.material=this.material;o.castShadow=o.receiveShadow=false;const edges=new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry,32),this.outline);o.add(edges);}});
    this.group.add(model);
    const r=BUILDINGS[kind].footprint;
