@@ -9,7 +9,7 @@ import {freeAirSlot,airFacilityCapacity} from "./systems/airDoctrine";
 import logisticsConfig from "../data/logistics.json";
 import type { Command, Entity, GameStatus, Projectile, SimEvent, Team, UnitKind, MapResourceDef, IntelContact } from "./types";
 import { UNITS,factionUnitDefinition } from "./units";
-import { getBases, heightAt, setTerrainFeatures, setMapSize, ensureHeightCache, type BaseDef } from "./heightmap";
+import { MAP_SIZE, getBases, heightAt, setTerrainFeatures, setMapSize, ensureHeightCache, type BaseDef } from "./heightmap";
 import {WaterNavGrid} from "./nav/WaterNavGrid";
 import {TerrainState} from "./TerrainState";
 import { Rng } from "./rng";
@@ -281,7 +281,8 @@ export class World {
   /** Staatilised kaardiobjektid; neid kasutavad simulatsioon, navigeerimine ja UI. */
   readonly mapFeatures: readonly MapFeatureDef[];
 
-  constructor(seed = 1, private objectiveDriven = false, resources: readonly MapResourceDef[] = [], features: readonly MapFeatureDef[] = [], bases: readonly BaseDef[] = [], baseDefenses = true) {
+  constructor(seed = 1, private objectiveDriven = false, resources: readonly MapResourceDef[] = [], features: readonly MapFeatureDef[] = [], bases: readonly BaseDef[] = [], baseDefenses = true, metricBattle = false) {
+    this.metricBattle=metricBattle;
     this.rngState = new Rng(seed);
     this.bases = bases.length ? bases.map((b) => ({ ...b })) : getBases();
     // Build height cache once bases are known (huge win for LOS / movement)
@@ -295,7 +296,7 @@ export class World {
     this.nav = new NavGrid([], this.mapFeatures);
     this.waterNav=new WaterNavGrid(this.mapFeatures);
     this.terrain=new TerrainState(this.mapFeatures);
-    this.vision = new Vision();this.vision.structureDamage=this.infrastructureDamage;this.vision.setFeatures(this.mapFeatures);this.vision.forestObscuration=(a,b)=>this.terrain.obscuration(a,b);
+    this.vision = new Vision(metricBattle||MAP_SIZE>=4096);this.vision.structureDamage=this.infrastructureDamage;this.vision.setFeatures(this.mapFeatures);this.vision.forestObscuration=(a,b)=>this.terrain.obscuration(a,b);
     this.operationalMap = new OperationalMap(this);
     this.operationalCommander = new OperationalCommander(this.operationalMap, this);
     this.fobManager = new FOBManager(this);
@@ -793,7 +794,7 @@ export class World {
   }
   restoreRuntime(s: ReturnType<World["captureRuntime"]>): void {
     setTerrainFeatures(this.mapFeatures.filter(f=>f.kind!=="bridge"||(this.infrastructureDamage.get(f.id)??0)<1));ensureHeightCache();
-    if((s.mapSize??this.mapSize)!==this.mapSize){setMapSize(s.mapSize??this.mapSize);ensureHeightCache();this.nav=new NavGrid(this.entities,this.mapFeatures);this.waterNav=new WaterNavGrid(this.mapFeatures);this.spatial=new SpatialHash(16);this.spatial.rebuild(this.entities);this.vision=new Vision();this.vision.setFeatures(this.mapFeatures);this.vision.forestObscuration=(a,b)=>this.terrain.obscuration(a,b);}
+    if((s.mapSize??this.mapSize)!==this.mapSize||(s.metricBattle??false)!==this.metricBattle){setMapSize(s.mapSize??this.mapSize);ensureHeightCache();this.nav=new NavGrid(this.entities,this.mapFeatures);this.waterNav=new WaterNavGrid(this.mapFeatures);this.spatial=new SpatialHash(16);this.spatial.rebuild(this.entities);this.vision=new Vision((s.metricBattle??false)||MAP_SIZE>=4096);this.vision.structureDamage=this.infrastructureDamage;this.vision.setFeatures(this.mapFeatures);this.vision.forestObscuration=(a,b)=>this.terrain.obscuration(a,b);}
     this.terrain.restore(s.terrain);
     this.playerTeam=s.playerTeam; this.playerFaction=s.playerFaction; this.enemyFaction=s.enemyFaction;
     this.metricBattle=s.metricBattle??false;this.platformRosterOnly=s.platformRosterOnly??false;this.networkMode=s.networkMode; this.incomeMultiplier=s.incomeMultiplier; this.victoryMode=s.victoryMode;

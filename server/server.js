@@ -1,3 +1,4 @@
+import {generateServerMap,mapOptions} from "./map-generation.js";
 import {isProceduralMapId} from "./map-policy.js";
 import http from "node:http";
 import { randomUUID, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
@@ -112,11 +113,13 @@ function addProgress(user, result, opponentRating = 1000) {
   user.stats.xp = (user.stats.xp ?? 0) + gain;
   user.stats.level = Math.floor(user.stats.xp / 500) + 1;
 }
-function createRoom(hostUser, input) {
+async function createRoom(hostUser, input) {
   const id = roomKey(input.id || randomUUID().slice(0, 8));
   if (!id || rooms.has(id)) return null;
-  const missionId = String(input.missionId || "").slice(0, 80);
-  if(!isProceduralMapId(missionId))return null;
+  const requestedId=String(input.missionId||"").slice(0,80);
+  if(requestedId&&!isProceduralMapId(requestedId))return null;
+  const missionId=await generateServerMap(input.mapOptions??mapOptions(requestedId));
+  if(rooms.has(id)||findRoomForUser(hostUser.id))return null;
   const name = displayName(input.name) || `${hostUser.displayName} lobby`;
   const room = {
     id,
@@ -171,7 +174,7 @@ function roomView(room) {
 }
 function isMember(room, userId) { return room.members.get(userId) || null; }
 function findRoomForUser(userId) { return [...rooms.values()].find((r) => r.members.has(userId) && r.status !== "finished"); }
-function ensureRoomCanEdit(room, userId) { return room.hostId === userId && room.status === "waiting"; }
+function ensureRoomCanEdit(room, userId) { return room.hostId === userId && room.status === "waiting" && !room.generating; }
 function broadcastRoom(room, message) {
   for (const member of room.members.values()) {
     const set = sockets.get(member.userId);
@@ -194,20 +197,25 @@ function leaveRoom(room, userId) {
   else broadcastRoom(room, { type: "room", room: roomView(room) });
 }
 
-function tryMatchmake() {
+async function tryMatchmake() {
   const candidates = [...matchmaking.values()].sort((a,b) => a.joinedAt - b.joinedAt);
   for (let i=0; i<candidates.length; i++) {
     const a = candidates[i];
-    if (!matchmaking.has(a.userId)) continue;
+    if (!matchmaking.has(a.userId)||a.generating) continue;
     let best = null;
     for (let j=i+1; j<candidates.length; j++) {
-      const b = candidates[j]; if (!matchmaking.has(b.userId)) continue;
+      const b = candidates[j]; if (!matchmaking.has(b.userId)||b.generating) continue;
       if (Math.abs((a.rating ?? 1000) - (b.rating ?? 1000)) <= 250) { best=b; break; }
     }
     if (!best) continue;
     const ua=userById(a.userId), ub=userById(best.userId);
-    const room=createRoom(ua,{ name:`Ranked: ${ua.displayName} vs ${ub.displayName}`, missionId:"procedural-v10-balanced-4096-62510", mapId:"procedural-v10-balanced-4096-62510", rules:{income:"standard",fog:"wargame",victory:"hq"}, faction:a.faction, deck:a.deck });
+    a.generating=true;best.generating=true;
+    let room;
+    try{room=await createRoom(ua,{ name:`Ranked: ${ua.displayName} vs ${ub.displayName}`, mapOptions:{archetype:"balanced",size:4096}, rules:{income:"standard",fog:"wargame",victory:"hq"}, faction:a.faction, deck:a.deck });}
+    catch{continue;}
+    finally{a.generating=false;best.generating=false;}
     if (!room) continue;
+    if(matchmaking.get(ua.id)!==a||matchmaking.get(ub.id)!==best||findRoomForUser(ub.id)){rooms.delete(room.id);continue;}
     room.members.set(ub.id, makeMember(ub,best.faction,best.deck,false)); room.ranked=true; room.ratings={ [ua.id]:a.rating ?? 1000, [ub.id]:best.rating ?? 1000 };
     matchmaking.delete(ua.id); matchmaking.delete(ub.id);
     broadcastRoom(room,{type:"match-found",room:roomView(room)});
@@ -220,6 +228,11 @@ const httpServer = http.createServer(async (req, res) => {
     if (!req.url?.startsWith("/api/")) { res.writeHead(404); res.end(); return; }
     const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
     const path = url.pathname;
+
+    if(path==="/api/maps/generate"&&req.method==="POST"){
+      try{return response(res,200,{missionId:await generateServerMap(await body(req))});}
+      catch(error){return response(res,503,{error:error.message});}
+    }
 
     if (path === "/api/auth/register" && req.method === "POST") {
       const b = await body(req);
@@ -274,9 +287,10 @@ const httpServer = http.createServer(async (req, res) => {
     if (path === "/api/matchmaking/leave" && req.method === "POST") { matchmaking.delete(user.id); return response(res, 200, { ok: true }); }
     if (path === "/api/matchmaking/join" && req.method === "POST") {
       if (findRoomForUser(user.id)) return response(res, 409, { error: "Lahku enne olemasolevast mänguruumist." });
+      if(matchmaking.get(user.id)?.generating)return response(res,409,{error:"Sinu lahingu kaarti alles luuakse."});
       const b = await body(req); const faction = ["usa","russia","china"].includes(b.faction) ? b.faction : "usa"; const deck = b.deck && typeof b.deck === "object" ? b.deck : user.decks?.[faction] || null;
       matchmaking.set(user.id, { userId: user.id, faction, deck, joinedAt: now(), rating: user.stats.rating ?? 1000 });
-      tryMatchmake();
+      await tryMatchmake();
       const q = matchmaking.get(user.id); return response(res, 200, { queued: !!q, room: q?.roomId ? roomView(rooms.get(q.roomId)) : null });
     }
     if (path === "/api/invites" && req.method === "GET") {
@@ -319,7 +333,7 @@ const httpServer = http.createServer(async (req, res) => {
     }
     if (path === "/api/rooms" && req.method === "POST") {
       const existing = findRoomForUser(user.id); if (existing) return response(res, 409, { error: "Sa oled juba mänguruumis." });
-      const room = createRoom(user, await body(req));
+      const room = await createRoom(user, await body(req));
       if (!room) return response(res, 409, { error: "Selle ruumi ID on juba kasutusel." });
       return response(res, 201, { room: roomView(room) });
     }
@@ -352,7 +366,15 @@ const httpServer = http.createServer(async (req, res) => {
       }
       if (req.method === "POST" && action === "settings") {
         if (!ensureRoomCanEdit(room, user.id)) return response(res, 403, { error: "Ainult host saab lobby seadeid muuta." });
-        const b = await body(req); if(!isProceduralMapId(String(b.missionId??room.missionId)))return response(res,400,{error:"Vali protseduurkaart."}); if (b.name != null) room.name = displayName(b.name) || room.name; if (b.missionId) room.missionId = String(b.missionId).slice(0, 80); room.mapId=room.missionId; room.rules = sanitizeRules(b.rules); for (const m of room.members.values()) m.ready = false;
+        const b = await body(req);
+        if(!isProceduralMapId(String(b.missionId??room.missionId)))return response(res,400,{error:"Vali protseduurkaart."});
+        room.generating=true;
+        try{
+          const nextId=(b.missionId&&b.missionId!==room.missionId||b.mapOptions)?await generateServerMap(b.mapOptions??mapOptions(b.missionId)):room.missionId;
+          if(b.name!=null)room.name=displayName(b.name)||room.name;
+          room.missionId=nextId;room.mapId=nextId;room.rules=sanitizeRules(b.rules);
+          for(const m of room.members.values())m.ready=false;
+        }finally{room.generating=false;}
         broadcastRoom(room, { type: "room", room: roomView(room) }); return response(res, 200, { room: roomView(room) });
       }
       if (req.method === "GET" && action === "chat") {

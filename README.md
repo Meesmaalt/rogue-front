@@ -139,7 +139,7 @@ The multiplayer front-end now has a server-backed account system and a proper Wa
 
 The lobby supports registration/login, player search, mutual friends, public 1v1 rooms, host-only room settings, faction/deck selection, READY/UNREADY, lobby chat, and a host-controlled START BATTLE gate. The game WebSocket accepts only authenticated members of a started room and assigns teams from the authoritative room membership.
 
-Development: run the server from `server/` with `npm install && npm start`, then run the Vite app with `npm install && npm run dev`. Vite proxies `/api` and `/ws` to port 8787.
+Development from the repository root: `npm ci`, `npm ci --prefix server`, then `npm run server:start`. In another terminal run `npm run dev`. The server command builds the shared procedural generator before starting; Vite proxies `/api` and `/ws` to port 8787.
 
 
 ## Phase 55 — Online Warfare
@@ -186,7 +186,7 @@ Ground logistics now operates as a physical convoy network. Captured resource si
 
 Peamenüü **3D ARSENAL** avab pööratava mudelivaate. Sama GLB-tehnika on kasutusel lahingus: tankid, IFV/APC, luure, suurtükid, MLRS, SPAA, lennukid, kopterid ning varustusveokid. 21 rolli × USA/Venemaa/Hiina = 63 originaalset stiliseeritud varianti. Jalavägi on hilisema koosseisu- ja mudeliuuendusega asendatud; hooned ja merevägi kasutavad oma olemasolevaid mudeleid.
 
-Ilma Dockerita käivita multiplayer’i jaoks teises terminalis `npm ci --prefix server && npm start --prefix server`. Ava mõlemad kliendid Vite kaudu aadressil `http://localhost:5173`. Nginx/Compose ja Vite kasutavad sama päritolu `/api` ning `/ws` proxy’t. Eraldi avaliku websocket-serveri puhul määra enne build’i `VITE_WS_URL=wss://sinu-server/ws`.
+Ilma Dockerita käivita multiplayer’i jaoks teises terminalis `npm ci --prefix server && npm run server:start`. Ava mõlemad kliendid Vite kaudu aadressil `http://localhost:5173`. Nginx/Compose ja Vite kasutavad sama päritolu `/api` ning `/ws` proxy’t. Eraldi avaliku websocket-serveri puhul määra enne build’i `VITE_WS_URL=wss://sinu-server/ws`.
 
 GLB-d ja tekstuurid on projektis olemas. Ainult art’i uuesti genereerimine vajab Pythonit/Pillow’d (`python3 -m pip install Pillow`) ja käsku `npm run art:build`. Allikas: `scripts/art/`; mõõdikud: `public/models/art/manifest.json`.
 
@@ -198,4 +198,8 @@ Suure kaardi maapind on kuni 256 m tükkides: nähtamatu piirkonna geomeetriat e
 
 `npm run build` teeb kontrollitud kompaktse `dist` paketi: mängu põhiklasside, logistika ja arsenali mudelid säilivad; vanade mittevalitavate masinatüüpide GLB-d ning kasutamata esialgsed asendusmudelid jäävad ainult lähtepuusse. Kõigi mudelite allikad ja kvaliteet säilivad. `npm run test:release` kontrollib paketi ressursse ja baitide vastavust originaalidele.
 
-Production-Nginx kasutab GLB jaoks õiget MIME-tüüpi ja gzip-pakkimist. Dockerisse ei kopeerita ajaloolisi raporteid, kontrollpilte ega multiplayeri eraldi konteksti. Dokumentatsiooni PNG-de kadudeta WebP teisendus: `python3 scripts/art/compact-doc-images.py` (Pillow; kontrollib dekodeeritud RGBA piksleid). Muudatused rakenduvad pärast tavalist pull/build/redeploy käiku. Täpsemad mahud ja kontrollid: [CLEANUP-RELEASE.md](docs/CLEANUP-RELEASE.md).
+Production-Nginx kasutab GLB jaoks õiget MIME-tüüpi ja gzip-pakkimist. Dockeri ehituskontekstist on väljas ajaloolised raportid, kontrollpildid ning serveri andmed, sõltuvused ja genereeritud vahefailid. Multiplayeri mitmeastmeline build kasutab jagatud kaardigeneraatori lähtekoodi juurkontekstist. Dokumentatsiooni PNG-de kadudeta WebP teisendus: `python3 scripts/art/compact-doc-images.py` (Pillow; kontrollib dekodeeritud RGBA piksleid). Muudatused rakenduvad pärast tavalist pull/build/redeploy käiku. Täpsemad mahud ja kontrollid: [CLEANUP-RELEASE.md](docs/CLEANUP-RELEASE.md).
+
+## Värsked protseduurkaardid · v11
+
+Uus lahing küsib vaikimisi serverilt uue kontrollitud kaardi. Valikud on 2048, 2560, 3072, 4096, 5120 ja 6144 m nii üksik- kui mitmikmängus. Server kontrollib liikumisvõrgu ühendust ja lennuraja vaba ruumi eraldi workeris. Võrguühenduseta säilib kohalik varutee; sama kaardi kordamiseks märgi „Korda sisestatud seemet”. Serveri kontrollid: `npm run test:server`. Muudatuse kasutamiseks ehita uuesti **nii mängu kui multiplayeri image**. Detailid: [PROCEDURAL-V11-RELEASE.md](docs/PROCEDURAL-V11-RELEASE.md).

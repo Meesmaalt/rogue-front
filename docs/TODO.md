@@ -1,5 +1,13 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Pinna parandus ja värske serverikaart · 15.10.2026
+
+- [x] Maapinna kadumist põhjustanud shaderi preprotsessori reavahetuste parandus; regressioonitest ja tegeliku shaderi kompileerimine/linkimine Mesa EGL-is koos sõjauduga.
+- [x] v11 kaardid 2048, 2560, 3072, 4096, 5120 ja 6144 m; suurused nii üksik- kui mitmikmängus, varasemate versioonide taastamine säilib.
+- [x] Mõõtkavaga looklev jõgi, ruumiliselt seotud metsamassiivid ning väikese meetrikaardi piiratud nähtavusarvutus.
+- [x] Serveri eraldi worker kasutab sama generaatorit ja tegelikku navivõrku; juhuseeme, kontrollitud ühendused/ressursid/lennurada, piiratud korduskatsed ning kõigile sama kaardi ID.
+- [x] Uus lahing küsib vaikimisi uut kaarti; võrguühenduseta kohalik kontrollitud varutee ja sisestatud seemne kordamine säilivad. Vt PROCEDURAL-V11-RELEASE.md.
+
 ## Maapinna detail ja koormuse piirid · 15.10.2026
 
 - [x] Maailmamõõdus pakitud mikropinna tekstuur, lähedalt albeedo/reljeef ning kauguses hajumine; tekstuuri baaspuhver 4× väiksem.

@@ -39,6 +39,16 @@ it('quality changes update shared uniforms with no new meshes, geometry, materia
 it('the terrain shader composes with world-space visibility fog and retains both cache identities',()=>{
  const world=new World(71,false,[],[],[],false),texture=createTerrainDetailTexture(640),material=new THREE.MeshStandardMaterial({bumpMap:texture}),group=new THREE.Group();applyTerrainDetail(material,texture);const geometry=new THREE.PlaneGeometry();group.add(new THREE.Mesh(geometry,material));
  new FogOfWar(group,world);const shader=compile(material);
- expect(shader.fragmentShader).toContain('rfTerrainFade');expect(shader.fragmentShader).toContain('texture2D(rfFogCurrent, rfFogUV)');expect(material.customProgramCacheKey()).toContain('terrain-micro-surface-v1|world-visibility-fog-v1');expect(shader.vertexShader).toContain('rfFogUV');
+ expect(shader.fragmentShader).toContain('rfTerrainFade');expect(shader.fragmentShader).toContain('texture2D(rfFogCurrent, rfFogUV)');expect(material.customProgramCacheKey()).toContain('terrain-micro-surface-v2|world-visibility-fog-v1');expect(shader.vertexShader).toContain('rfFogUV');
  texture.dispose();material.dispose();geometry.dispose();(shader.uniforms.rfFogPrevious.value as THREE.Texture).dispose();(shader.uniforms.rfFogCurrent.value as THREE.Texture).dispose();
+});
+
+it('injected normal chunks keep GLSL directives on their own lines',()=>{
+ const texture=createTerrainDetailTexture(4096),material=new THREE.MeshStandardMaterial({bumpMap:texture});applyTerrainDetail(material,texture);
+ const shader=compile(material);
+ for(const line of shader.fragmentShader.split('\n')){
+  if(line.includes('#'))expect(line.trim()).toMatch(/^#(?:include|if|ifdef|ifndef|else|elif|endif|define|undef)\b/);
+  if(/^\s*#(?:else|endif)\b/.test(line))expect(line.trim()).toMatch(/^#(?:else|endif)\s*$/);
+ }
+ texture.dispose();material.dispose();
 });

@@ -7,5 +7,7 @@ dist
 docs
 checks
 prototype
-# The multiplayer service has its own Docker build context.
-server
+# Multiplayer uses shared deterministic generation source.
+server/node_modules
+server/generated
+server/data

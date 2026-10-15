@@ -6,6 +6,12 @@ Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOP
 
 Mängukaardid on ainult protseduurkaardid. Ajaloolised Roheoru/Murdlaine kirjeldused allpool on regressioonitaust. `platforms.json` piirab tootmise 15 põhiklassile; `equipment.json` kirjeldab 16 vahetatavat komponenti. `configure-unit`/`cancel-refit` käsud käivad fikseeritud sim-sammu kaudu; `equipment.ts` hooldus ei täida moona ega paranda tasuta. `physics.json` juhib uue reeglistiku trajektoore. Komponendid ja pooleliolev töö sisalduvad snapshot/replay räsis. Detailid: [MODULAR-PROCEDURAL-RELEASE.md](MODULAR-PROCEDURAL-RELEASE.md).
 
+## Serveri värske kaart · v11
+
+`freshMap.ts` kasutab versiooniga generaatorit ja kontrollib päris `NavGrid` ühendust: mõlemad baasid ja üheksa ressursipunkti peavad olema samas läbitavas piirkonnas. Lennuraja täielik ulatus peab jääma kuivale, hooneteta mängualale. Ebaõnnestumisel proovitakse deterministlikult järgmist seemet; salvestusse läheb õnnestunud seemnega kaardi ID. `server/map-generation.js` valib krüptograafilise seemne ja käivitab kuni kaks eraldi workerit, nii et kaardi eeltöö ei blokeeri 30 Hz võrguvoogu. Server loob kaardi ka ranked/lobby jaoks. Kliendid taastavad sama versiooni ja seemne; vanad v2–v10 ID-d jäävad taastatavaks.
+
+`battle-scale.json.mapSizes` lubab 2–6 km kaarte kuue valikuga. Uue väikese meetrikaardi `World` saab mõõtkava juba konstruktoris, et `Vision` kasutaks 256×256 piiratud ja ajastatud nähtavusvõrku. Vanade väikeste kaartide nähtavus säilib. Serveri Docker ehitab jagatud TS generaatori esbuildiga eraldi etapis; arenduses `npm run server:build` / `npm run server:start`. Üksikmängu uue lahingu vaikimisi tee on `/api/maps/generate`; võrguühenduseta toimub sama kontroll kohalikult. Detailid: [PROCEDURAL-V11-RELEASE.md](PROCEDURAL-V11-RELEASE.md).
+
 ## Meetrites lahing · v9
 
 `battle-scale.json` määrab uue 4/6 km reeglistiku. `World.metricBattle` valib `metricUnitDefinition` kaudu tegelikud ulatused ja kiirused enne üksuste loomist; salvestus säilitab lipu/definitsioonid. `metricScale` valib üksuse lennuprofiili ja ühise lennuvälja geomeetria. Nav/veenav/kõrguspuhver on piiratud 1024 rakuni ühe telje kohta, udu 256 rakuni. Udu jooksva ajastuse olek on snapshot/räsi osa. `SpatialHash` valib piiratud päringualal tiheda või järjestatud hõreda läbimise. Piirid ja testid: [METRIC-BATTLE-RELEASE.md](METRIC-BATTLE-RELEASE.md).

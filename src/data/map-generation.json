@@ -531,5 +531,15 @@
       0.88,
       1.0
     ]
+  },
+  "freshGeneration": {
+    "version": 11,
+    "attempts": 12,
+    "riverAmplitudeRatio": [
+      0.018,
+      0.035
+    ],
+    "forestNoiseSpan": 420,
+    "forestNoiseThreshold": 0.53
   }
 }

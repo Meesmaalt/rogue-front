@@ -14,13 +14,17 @@ export class Vision {
   forestObscuration?: (a:Entity,b:Entity)=>number;
   /** Derived invalidation token for render consumers; not simulation state. */
   revision = 0;
-  readonly cellSize = MAP_SIZE>=4096?MAP_SIZE/battleScale.visionCells:VISION_CELL_SIZE;
-  readonly width = Math.ceil(MAP_SIZE/this.cellSize);
-  readonly height = this.width;
-  private readonly states: [Uint8Array, Uint8Array] = [
-    new Uint8Array(this.width*this.height),
-    new Uint8Array(this.width*this.height),
-  ];
+  private readonly metric:boolean;
+  readonly cellSize:number;
+  readonly width:number;
+  readonly height:number;
+  private readonly states:[Uint8Array,Uint8Array];
+  constructor(metric=MAP_SIZE>=4096) {
+    this.metric=metric;this.cellSize=metric?MAP_SIZE/battleScale.visionCells:VISION_CELL_SIZE;
+    this.width=Math.ceil(MAP_SIZE/this.cellSize);this.height=this.width;
+    this.states=[new Uint8Array(this.width*this.height),new Uint8Array(this.width*this.height)];
+    this.visibleUntil=[new Uint32Array(metric?this.width*this.height:0),new Uint32Array(metric?this.width*this.height:0)];
+  }
   /** Only static blocking features (pre-filtered). */
   private forests:MapFeatureDef[]=[];
   private blockingFeatures: MapFeatureDef[] = [];
@@ -29,7 +33,7 @@ export class Vision {
   private buildings: Entity[] = [];
   private tickCounter = 0;
   private revealCursor=0;
-  private readonly visibleUntil:[Uint32Array,Uint32Array]=[new Uint32Array(MAP_SIZE>=4096?this.width*this.height:0),new Uint32Array(MAP_SIZE>=4096?this.width*this.height:0)];
+  private readonly visibleUntil:[Uint32Array,Uint32Array];
   private revealExpiry=0;
   // Derived broad phase; exact rotated footprint tests still decide occlusion.
   private readonly blockerBins = new Map<string, MapFeatureDef[]>();
@@ -125,7 +129,7 @@ export class Vision {
     const ay = a.y + Math.max(1.2, a.def.height * 0.7);
     const by = b.y + Math.max(1.2, b.def.height * 0.65);
     // Preserve the 2 m sampling used by combat.
-    const steps = Math.max(2, Math.ceil(d / (MAP_SIZE>=4096?this.cellSize/2:2)));
+    const steps = Math.max(2, Math.ceil(d / (this.metric?this.cellSize/2:2)));
     const inv = 1 / steps;
     const checkFeatures = d > 4 && this.blockingFeatures.length > 0;
 
@@ -182,8 +186,8 @@ export class Vision {
     }
 
     // Stagger unit reveals by id across frames when many units
-    const observers=MAP_SIZE>=4096?entities.filter(u=>!u.dead&&u.loadedIntoId==null&&!u.underConstruction):entities;
-    const count=MAP_SIZE>=4096?Math.min(observers.length,battleScale.fogObserversPerUpdate):observers.length;
+    const observers=this.metric?entities.filter(u=>!u.dead&&u.loadedIntoId==null&&!u.underConstruction):entities;
+    const count=this.metric?Math.min(observers.length,battleScale.fogObserversPerUpdate):observers.length;
     this.revealExpiry=this.tickCounter+Math.ceil(observers.length/battleScale.fogObserversPerUpdate)*3+3;
     for (let i=0;i<count;i++) {
       const u=observers[(this.revealCursor+i)%observers.length];
@@ -191,7 +195,7 @@ export class Vision {
       const radius = this.getVisionRadius(u);
       this.reveal(u.team, u.x, u.z, radius, u);
     }
-    if(MAP_SIZE>=4096&&observers.length)this.revealCursor=(this.revealCursor+count)%observers.length;
+    if(this.metric&&observers.length)this.revealCursor=(this.revealCursor+count)%observers.length;
   }
 
   getVisionRadius(u: Entity): number {
@@ -253,7 +257,7 @@ export class Vision {
         // Close: free
         if (dist2 < nearR2) {
           cells[this.index(ix, iz)] = 2;
-          if(MAP_SIZE>=4096)this.visibleUntil[team][this.index(ix,iz)]=this.revealExpiry;
+          if(this.metric)this.visibleUntil[team][this.index(ix,iz)]=this.revealExpiry;
           continue;
         }
 
@@ -275,7 +279,7 @@ export class Vision {
           }
         }
         if (!blocked) {cells[this.index(ix, iz)] = 2;
-          if(MAP_SIZE>=4096)this.visibleUntil[team][this.index(ix,iz)]=this.revealExpiry;}
+          if(this.metric)this.visibleUntil[team][this.index(ix,iz)]=this.revealExpiry;}
       }
     }
   }

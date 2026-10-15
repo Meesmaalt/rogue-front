@@ -1,0 +1,37 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {spawn} from 'node:child_process';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {mapOptions} from './map-generation.js';
+import {isProceduralMapId} from './map-policy.js';
+
+test('server creates fresh validated maps, stays responsive and shares one map with both players',{timeout:180000},async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'rogue-maps-')),port=18787;
+ const child=spawn(process.execPath,['server/server.js'],{env:{...process.env,PORT:String(port),ROGUE_FRONT_DB:join(dir,'accounts.json')},stdio:'ignore'});
+ const url=`http://127.0.0.1:${port}`;
+ const request=async(path,payload,token)=>{
+  const res=await fetch(url+path,{method:payload?'POST':'GET',headers:{'content-type':'application/json',...(token?{authorization:`Bearer ${token}`}:{})},...(payload?{body:JSON.stringify(payload)}:{})});
+  const data=await res.json();assert.equal(res.ok,true,JSON.stringify(data));return data;
+ };
+ try{
+  let up=false;for(let i=0;i<100&&!up;i++){try{up=(await fetch(url+'/healthz')).ok;}catch{}if(!up)await new Promise(r=>setTimeout(r,50));}assert.ok(up);
+  const pending=request('/api/maps/generate',{archetype:'balanced',size:2048});
+  await new Promise(r=>setTimeout(r,100));const start=Date.now();assert.equal((await fetch(url+'/healthz')).status,200);assert.ok(Date.now()-start<1000,'map generation must not block the lockstep server');
+  const first=await pending;assert.ok(isProceduralMapId(first.missionId));assert.match(first.missionId,/^procedural-v11-balanced-2048-/);
+  const host=await request('/api/auth/register',{username:'map_host',password:'test-password',displayName:'Host'});
+  const guest=await request('/api/auth/register',{username:'map_guest',password:'test-password',displayName:'Guest'});
+  // Even a supplied old seed is replaced with a newly validated current-version map.
+  const {room}=await request('/api/rooms',{missionId:first.missionId,faction:'usa'},host.token);
+  assert.notEqual(room.missionId,first.missionId);assert.deepEqual(mapOptions(room.missionId),{archetype:'balanced',size:2048});
+  await request(`/api/rooms/${room.id}/join`,{faction:'russia'},guest.token);
+  await request(`/api/rooms/${room.id}/ready`,{ready:true,faction:'russia'},guest.token);
+  await request(`/api/rooms/${room.id}/ready`,{ready:true,faction:'usa'},host.token);
+  const started=await request(`/api/rooms/${room.id}/start`,{},host.token);
+  const observed=await request(`/api/rooms/${room.id}`,null,guest.token);
+  assert.equal(started.room.status,'started');assert.equal(observed.room.missionId,room.missionId);assert.equal(started.room.missionId,room.missionId);
+ }finally{
+  child.kill();await new Promise(resolve=>child.exitCode!==null?resolve():child.once('exit',resolve));await rm(dir,{recursive:true,force:true});
+ }
+});

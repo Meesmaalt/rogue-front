@@ -13,7 +13,10 @@
     "format:check": "npx --yes prettier --check \"README.md\" \"docs/**/*.md\" \".github/**/*.yml\" \"*.json\"",
     "format": "npx --yes prettier --write \"src/**/*.{ts,css}\" \"*.{json,md,yml,yaml}\"",
     "art:build": "python3 scripts/art/paint-camouflage.py && node scripts/art/build-models.mjs",
-    "test:release": "node --test scripts/release/compact.test.mjs"
+    "test:release": "node --test scripts/release/compact.test.mjs",
+    "server:build": "node scripts/server/build.mjs",
+    "server:start": "npm run server:build && node server/server.js",
+    "test:server": "npm run server:build && node --test server/*.test.js"
   },
   "dependencies": {
     "three": "^0.170.0"

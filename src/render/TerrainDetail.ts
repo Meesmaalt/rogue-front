@@ -57,12 +57,14 @@ export function applyTerrainDetail(material:THREE.MeshStandardMaterial,texture:T
   // Reuse Three's tangent/face handling; fading the gradient avoids distant sparkling.
   const normalMaps=THREE.ShaderChunk.normal_fragment_maps.replace('dHdxy_fwd()', '(dHdxy_fwd() * rfTerrainFade)');
   shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_maps>',`#ifdef USE_BUMPMAP
-    if (bumpScale != 0.0) { ${normalMaps} }
+    if (bumpScale != 0.0) {
+      ${normalMaps}
+    }
     #else
     ${normalMaps}
     #endif`);
  };
- material.customProgramCacheKey=()=>key+'|terrain-micro-surface-v1';
+ material.customProgramCacheKey=()=>key+'|terrain-micro-surface-v2';
  setMaterialQuality(material,quality);
 }
 function setMaterialQuality(material:THREE.MeshStandardMaterial,quality:Quality):void {

@@ -21,3 +21,12 @@ export function naturalForestEdge(points:Point[],rng:Rng):Point[]{
   for(let j=0;j<steps;j++){const x=a.x+(b.x-a.x)*j/steps,z=a.z+(b.z-a.z)*j/steps,dist=Math.hypot(center.x-x,center.z-z)||1,inset=Math.min(dist*.12,cfg.edgeInset[0]+rng.next()*(cfg.edgeInset[1]-cfg.edgeInset[0]));out.push({x:x+(center.x-x)*inset/dist,z:z+(center.z-z)*inset/dist});}
  }return out;
 }
+
+/** Correlated woodland masses follow regional soils rather than independent parcel coin flips. */
+export function naturalWoodlandAt(x:number,z:number,seed:number,archetype:string):boolean {
+ const span=config.freshGeneration.forestNoiseSpan,ix=Math.floor(x/span),iz=Math.floor(z/span);
+ const sx=(x/span-ix)**2*(3-2*(x/span-ix)),sz=(z/span-iz)**2*(3-2*(z/span-iz));
+ const at=(dx:number,dz:number)=>new Rng((seed^Math.imul(ix+dx,374761393)^Math.imul(iz+dz,668265263))>>>0).next();
+ const noise=(at(0,0)*(1-sx)+at(1,0)*sx)*(1-sz)+(at(0,1)*(1-sx)+at(1,1)*sx)*sz;
+ return noise>config.freshGeneration.forestNoiseThreshold+(archetype==='forest'?-.14:archetype==='urban'?.08:0);
+}
