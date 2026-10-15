@@ -26,6 +26,10 @@ Mängukaardid on ainult protseduurkaardid. Ajaloolised Roheoru/Murdlaine kirjeld
 
 `art-models.json` jagab mudeliliikide nimekirja renderdaja, generaatori ja `scripts/release/compact.mjs` vahel. Standardbuild kontrollib ja säilitab 66 vajalikku detail-/kaugmudelit; ajaloolised varad jäävad lähtepuusse. `dist` puhastatakse Vite buildi järel. Nginx määrab GLB MIME-tüübi ja gzip-pakkimise; dokumentatsiooni pildid on pikslitäpselt kadudeta WebP-d ning jäävad Dockeri põhikontekstist välja. Detailid: [CLEANUP-RELEASE.md](CLEANUP-RELEASE.md).
 
+## Maapinna mikropind
+
+`render/TerrainDetail.ts` pakib 256² andmetekstuuri mikroreljeefi ja albeedovariatsiooni ning jagab seda olemasoleva bump-sampleriga. Standardmaterjali shader hajutab detaili kaamerakauguse järgi ja aheldub sõjauduga. `terrain.json.render.detail` määrab maailmamõõdu, hajumise ja kvaliteediprofiilid. Geomeetria/partiid ei kasva; madal kvaliteet lülitab lisavärvidetaili ja bump-arvutuse välja. Detailid: [TERRAIN-DETAIL-RELEASE.md](TERRAIN-DETAIL-RELEASE.md).
+
 ## Põhimõte
 Kolm kihti, sõltuvused ainult allapoole: **ui/input → sim ← render** (render ja ui *loevad* sim olekut, annavad käske, kuid sim ei tea neist midagi).
 

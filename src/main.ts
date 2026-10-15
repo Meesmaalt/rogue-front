@@ -1,3 +1,4 @@
+import {setTerrainDetailQuality} from "./render/TerrainDetail";
 import {validateDeck,defaultDeck} from "./sim/deck";
 import {isIndirectUnit} from "./sim/equipment";
 import {maxHitPoints} from "./sim/unitStats";
@@ -99,7 +100,8 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const replayRecorder = new ReplayRecorder(mission.seed);
   const audio = new AudioManager();
   let intelAcc=0, terrainAcc=.2, hoverAcc=0;
-  const settingsPanel = new SettingsPanel((settings) => { audio.setSettings(settings);visualQuality=settings.quality; ctx.setQuality(settings.quality); performancePanel.setEnabled(settings.performanceOverlay??false); },()=>{cam.enabled=true;setEnabled(running&&!paused);});
+  let terrainForQuality:THREE.Group|undefined;
+  const settingsPanel = new SettingsPanel((settings) => { audio.setSettings(settings);visualQuality=settings.quality; ctx.setQuality(settings.quality);if(terrainForQuality)setTerrainDetailQuality(terrainForQuality,settings.quality); performancePanel.setEnabled(settings.performanceOverlay??false); },()=>{cam.enabled=true;setEnabled(running&&!paused);});
   let paused = false;
   const originalIssue = world.issue.bind(world);
   world.issue = (command) => {
@@ -145,7 +147,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     browser:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,deviceMemoryGB:(navigator as Navigator&{deviceMemory?:number}).deviceMemory??null,
     graphics:debug?{vendor:gl.getParameter(debug.UNMASKED_VENDOR_WEBGL),renderer:gl.getParameter(debug.UNMASKED_RENDERER_WEBGL)}:{renderer:gl.getParameter(gl.RENDERER)},
     webglVersion:gl.getParameter(gl.VERSION),gpuTimerSupported:gpuTimer.supported,devicePixelRatio:window.devicePixelRatio});
-  const terrainView=createTerrain(mission.map.theme, world.mapFeatures, mission.map.bases);ctx.scene.add(terrainView);
+  const terrainView=createTerrain(mission.map.theme, world.mapFeatures, mission.map.bases);terrainForQuality=terrainView;setTerrainDetailQuality(terrainView,visualQuality);ctx.scene.add(terrainView);
 
   const terrainCulling=new TerrainCulling(terrainView);
   const cam = new RtsCamera(ctx.camera, heightAt, ctx.sun, topCanvas);

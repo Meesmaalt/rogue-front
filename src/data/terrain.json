@@ -75,7 +75,34 @@
   "render": {
     "groundTileSize": 256,
     "groundSegments": 192,
-    "visibilityMargin": 32
+    "visibilityMargin": 32,
+    "detail": {
+      "textureSize": 256,
+      "worldSpan": 24,
+      "fadeStart": 180,
+      "fadeEnd": 650,
+      "rockHeight": 18,
+      "rockHeightRange": 45,
+      "rockSlope": 0.28,
+      "rockSlopeRange": 0.5,
+      "quality": {
+        "low": {
+          "albedo": 0,
+          "bump": 0,
+          "anisotropy": 2
+        },
+        "medium": {
+          "albedo": 0.18,
+          "bump": 0.065,
+          "anisotropy": 4
+        },
+        "high": {
+          "albedo": 0.26,
+          "bump": 0.09,
+          "anisotropy": 8
+        }
+      }
+    }
   },
   "natural": {
     "detailScale": 32,

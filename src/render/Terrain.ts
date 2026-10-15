@@ -1,3 +1,4 @@
+import {applyTerrainDetail,createTerrainDetailTexture,terrainNoise} from "./TerrainDetail";
 import terrainConfig from "../data/terrain.json";
 import {isGarrisonBuilding,GARRISON_RULES} from "../sim/garrison";
 import * as THREE from "three";
@@ -15,12 +16,13 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
   const group = new THREE.Group();
   const forestLayout=theme==="temperate"?sampleForest(features):undefined;
 
-  const grain = makeGrainTexture(theme);
+  const grain = theme==="temperate"?createTerrainDetailTexture(MAP_SIZE):makeGrainTexture(theme);
 
   const material=new THREE.MeshStandardMaterial({
     vertexColors:true,map:theme==="temperate"?makeLandscapeTexture(features,bases,forestLayout!):grain,
     bumpMap:grain,bumpScale:theme==="temperate"?.045:.10,roughness:.92,metalness:0,
   });
+  if(theme==="temperate")applyTerrainDetail(material,grain);
   const ground=new THREE.Group();ground.name="terrain";
   for(const geometry of createGroundTiles(theme,bases)){
     const tile=new THREE.Mesh(geometry,material);tile.receiveShadow=true;ground.add(tile);
@@ -213,7 +215,8 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
   const ctx=canvas.getContext("2d")!,scale=canvas.width/MAP_SIZE,half=MAP_SIZE/2,rnd=mulberry32(917);
   const noise=document.createElement("canvas");noise.width=noise.height=512;const nc=noise.getContext("2d")!,data=nc.createImageData(512,512);
   for(let z=0;z<512;z++)for(let x=0;x<512;x++){
-    const macro=Math.sin(x/62)*Math.cos(z/79)*5+Math.sin((x+z)/41)*3,grain=rnd()*9-4,i=(z*512+x)*4;
+    const wx=(x+.5)/512*MAP_SIZE-half,wz=(z+.5)/512*MAP_SIZE-half;
+    const macro=(terrainNoise(wx/170,wz/170)-.5)*17+(terrainNoise(wx/43,wz/43)-.5)*7,grain=rnd()*7-3.5,i=(z*512+x)*4;
     data.data[i]=143+macro+grain;data.data[i+1]=151+macro+grain;data.data[i+2]=121+macro+grain;data.data[i+3]=255;
   }
   nc.putImageData(data,0,0);ctx.drawImage(noise,0,0,2048,2048);
@@ -253,7 +256,10 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
   for(let iz=0;iz<512;iz++)for(let ix=0;ix<512;ix++){
     const x=(ix+.5)/512*MAP_SIZE-half,z=(iz+.5)/512*MAP_SIZE-half,h=heightAt(x,z);
     const slope=Math.hypot(heightAt(x+3,z)-heightAt(x-3,z),heightAt(x,z+3)-heightAt(x,z-3))/6;
-    const exposed=Math.min(.78,Math.max(0,(h-27)/35)*Math.min(1,slope*2+.25));
+    const cfg=terrainConfig.render.detail;
+    const heightExposure=Math.max(0,(h-cfg.rockHeight)/cfg.rockHeightRange);
+    const slopeExposure=Math.max(0,(slope-cfg.rockSlope)/cfg.rockSlopeRange);
+    const exposed=Math.min(.7,heightExposure*Math.min(1,slope*2+.2)+slopeExposure*.55);
     if(exposed<=0)continue;
     const i=(iz*512+ix)*4,grain=rnd()*15;rockData.data.set([137+grain,137+grain,128+grain,Math.round(exposed*255)],i);
   }

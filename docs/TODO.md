@@ -1,5 +1,13 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Maapinna detail ja koormuse piirid · 15.10.2026
+
+- [x] Maailmamõõdus pakitud mikropinna tekstuur, lähedalt albeedo/reljeef ning kauguses hajumine; tekstuuri baaspuhver 4× väiksem.
+- [x] Loomulikum lai värvivariatsioon ja kõrguse/nõlva järgi paljanduv kivine pinnas; geomeetria ja renderduspartiide arv ei suurene.
+- [x] Olemasoleva kvaliteedivalikuga juhitav detail, madala taseme väljalülitus, sõjaudu ühilduvus ja sihitud kontrollid. Vt TERRAIN-DETAIL-RELEASE.md.
+- [ ] Tegelik WebGL shaderi/pildi brauserikontroll ning F8 GPU/FPS võrdlus.
+
+
 ## Failide ja väljalaske korrastus · 15.10.2026
 
 - [x] 18 kontrollpildi kadudeta WebP, pikslivõrdlus ja dokumentatsiooniviited; generaatori uuendus.
