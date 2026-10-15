@@ -372,6 +372,7 @@ export function damage(w: World, t: Entity, amount: number, opts?: {
   w.events.push({ type: "hit", x: t.x, y: t.y + t.def.height * 0.6, z: t.z });
   if (t.hp <= 0) {
     t.dead = true;
+    if(t.kind==='groundHandler'&&t.groundService){if(t.groundService.air)w.airCargoLost[t.team]+=t.cargo;else w.roadCargoLost[t.team]+=t.cargo;t.cargo=0;}
     for (const id of [...t.cargoUnitIds]) { const passenger = w.byId.get(id); if (passenger && !passenger.dead) damage(w, passenger, maxHitPoints(passenger) * 10, opts); }
     t.cargoUnitIds = [];
     w.lossValue[t.team] += t.def.cost;

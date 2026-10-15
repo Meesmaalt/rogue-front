@@ -20,7 +20,7 @@ function mobile(w: World, ids: number[], team?: Entity["team"]): Entity[] {
   const out: Entity[] = [];
   for (const id of ids) {
     const e = w.byId.get(id);
-    if (e && !e.dead && e.def.speed > 0 && !e.airdrop && !e.refit && e.logisticsRoute!=="strategic" && e.loadedIntoId==null && (team === undefined || e.team === team)) out.push(e);
+    if (e && !e.dead && e.def.speed > 0 && e.kind!=="groundHandler" && !e.airdrop && !e.refit && e.logisticsRoute!=="strategic" && e.loadedIntoId==null && (team === undefined || e.team === team)) out.push(e);
   }
   return out;
 }

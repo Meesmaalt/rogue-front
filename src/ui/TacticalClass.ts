@@ -10,7 +10,7 @@ export function tacticalClass(kind:UnitKind):TacticalClass {
   if(["tank","lightTank","ifv"].includes(kind))return "armor";
   if(["inf","mgInf"].includes(kind))return "infantry";
   if(["engineer","combatEngineer"].includes(kind))return "engineer";
-  if(["logiTruck","transport","cargoPlane"].includes(kind))return "logistics";
+  if(["groundHandler","logiTruck","transport","cargoPlane"].includes(kind))return "logistics";
   if(["heli","gunship","casHeli"].includes(kind))return "helicopter";
   if(["airTransport","fighter","interceptor","bomber","ecm","multirole","attackAircraft"].includes(kind))return "aircraft";
   if(["destroyer","submarine","landingcraft","frigate","missileBoat"].includes(kind))return "naval";

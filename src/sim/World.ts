@@ -697,7 +697,7 @@ export class World {
 
   roadLogisticsStatus(team: Team): { trucks: number; cargo: number; delivered: number; lost: number; disconnected: number; ammo: number; fuel: number; repair: number } {
     const trucks = this.entities.filter(e => !e.dead && e.team === team && e.kind === "logiTruck");
-    const cargo = Math.floor(trucks.reduce((n,e)=>n+(e.cargo??0),0) + this.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="transport"&&e.supplyDepotId!=null).reduce((n,e)=>n+(e.cargo??0),0));
+    const cargo = Math.floor(trucks.reduce((n,e)=>n+(e.cargo??0),0) + this.entities.filter(e=>!e.dead&&e.team===team&&(e.kind==="transport"&&e.supplyDepotId!=null||e.kind==="groundHandler")).reduce((n,e)=>n+(e.cargo??0),0));
     const disconnected = this.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="supply"&&e !== this.primarySupplyDepot(team) && (e.logisticsStorage??0)>0 && !this.connectedSupplyNodes(team).some(n=>n.id===e.id)).length;
     const stocks = this.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="supply");
     return { trucks: trucks.length, cargo, delivered: Math.floor(this.roadCargoDelivered[team]), lost: Math.floor(this.roadCargoLost[team]), disconnected, ammo: Math.floor(stocks.reduce((n,e)=>n+(e.ammoStock??0),0)), fuel: Math.floor(stocks.reduce((n,e)=>n+(e.fuelStock??0),0)), repair: Math.floor(stocks.reduce((n,e)=>n+(e.repairStock??0),0)) };

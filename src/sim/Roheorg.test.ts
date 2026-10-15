@@ -44,7 +44,7 @@ it("weapon-logistics smoke: guided missile flight and physical depot delivery",(
  expect(h.logisticsRoute).toBe("strategic");expect(h.cargo).toBeGreaterThan(0);
  depot.ammoStock=depot.fuelStock=depot.repairStock=0;
  const amount=h.cargo,before=w.teamResources[0];h.x=h.logisticsHome!.x;h.z=h.logisticsHome!.z;h.y=heightAt(h.x,h.z);h.motionSpeed=0;
- run(w,5);expect(h.cargo).toBe(0);expect(w.teamResources[0]).toBeGreaterThanOrEqual(before+amount*.6);
+ for(let i=0;i<120&&w.teamResources[0]<before+amount*.6-1e-5;i++)run(w,1);expect(h.cargo).toBe(0);expect(w.teamResources[0]).toBeGreaterThanOrEqual(before+amount*.6);
  const a=w.spawn("heli",0,-95,-220),t=w.spawn("tank",1,-5,-220);a.y=heightAt(a.x,a.z)+30;
  const ammo=a.ammo!;fireProjectile(w,a,t,a.x,a.y,a.z);const missile=w.projectiles[w.projectiles.length-1]!;missile.hitChance=1;
  expect(missile.weapon).toBe("missile");expect(a.ammo).toBe(ammo-1);expect(canEngage(a,t)).toBe(true);expect(canEngage(t,a)).toBe(false);

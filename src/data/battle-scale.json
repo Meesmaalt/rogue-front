@@ -28,7 +28,8 @@
     "apc": 16,
     "ifv": 14,
     "airTransport": 105,
-    "cruiseLauncher": 9
+    "cruiseLauncher": 9,
+    "groundHandler": 10
   },
   "opticsMultiplier": 18,
   "dispersionAngle": 0.003,

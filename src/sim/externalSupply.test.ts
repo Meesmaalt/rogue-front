@@ -35,8 +35,10 @@ it('save and replay hashing retain pending dispatch and inbound external cargo',
 it('full receiving warehouses retain inbound cargo and credit only accepted partial unloads',()=>{
  const {w,depot}=fixture();dispatchExternalHelicopters(w);const h=w.entities.find(e=>e.kind==='transport')!;
  h.x=h.logisticsHome!.x;h.z=h.logisticsHome!.z;h.y=0;h.motionSpeed=0;h.flightVx=h.flightVz=0;h.cargo=100;
- depot.ammoStock=1200;depot.fuelStock=1600;depot.repairStock=600;const money=w.teamCredits[0];run(w,180);expect(h.cargo).toBe(100);expect(w.teamCredits[0]).toBe(money);
- depot.fuelStock-=20;run(w,1);expect(h.cargo).toBeCloseTo(50);expect(w.teamCredits[0]-money).toBeCloseTo(30);
+ depot.ammoStock=1200;depot.fuelStock=1600;depot.repairStock=600;const money=w.teamCredits[0];
+ for(let i=0;i<3000&&!w.entities.some(e=>e.kind==='groundHandler'&&e.groundService?.phase==='unload');i++)run(w,1);
+ const handler=w.entities.find(e=>e.kind==='groundHandler'&&e.groundService?.phase==='unload')!;expect(handler).toBeDefined();run(w,90);expect(h.cargo+handler.cargo).toBe(100);expect(w.teamCredits[0]).toBe(money);
+ depot.fuelStock-=20;run(w,1);expect(h.cargo+handler.cargo).toBeCloseTo(50);expect(w.teamCredits[0]-money).toBeCloseTo(30);
 });
 it('cargo plane completes a physical airport delivery and exits without granting another payout',()=>{
  const {w,depot}=fixture();w.spawn('airCommand',0,-85,-10);w.spawn('airbase',0,-35,0);

@@ -85,7 +85,7 @@ it('Roheorg economy and offensive production recover from a lost trunk depot and
   if(!lateAttrition&&w.time>=780){lateAttrition=true;for(const tank of w.entities.filter(e=>!e.dead&&e.team===1&&e.kind==='tank'))tank.dead=true;}
   const progress=factory.productionProgress;w.tick(SIM_STEP);w.drainEvents();
   if(lostDepot&&factory.productionProgress>progress){resumedProduction=true;if(w.time>780)lateProduction=true;}
-  for(const e of w.entities)if(e.team===1&&e.def.speed>0&&!['engineer','transport','logiTruck','cargoPlane'].includes(e.kind)&&!produced.has(e.id)){produced.add(e.id);if(lostDepot)postLossUnits++;}
+  for(const e of w.entities)if(e.team===1&&e.def.speed>0&&!['engineer','transport','logiTruck','cargoPlane','groundHandler'].includes(e.kind)&&!produced.has(e.id)){produced.add(e.id);if(lostDepot)postLossUnits++;}
  }
 
  console.log('V3 Roheorg',JSON.stringify({seconds:Math.round(w.time),deliveredAfterLoss:Math.round(w.roadCargoDelivered[1]-deliveredAtLoss),newCombatUnitsAfterLoss:postLossUnits,lateProduction,phase:w.ai.phase,controlled:w.resourcePoints.filter(r=>r.controlledBy===1).length,productionAtEnd:w.productionOperational(factory,'tank').reason}));

@@ -1,3 +1,4 @@
+import {handleGroundCargo,logisticsDeparture,logisticsLandingPoint,updateGroundHandler} from "../groundHandling";
 import {updateAirdrop,updateAirliftLoading,releaseAirliftCargo} from "../airlift";
 import expansion from "../../data/expansion.json";
 import {updateHelicopterEmergency} from "../emergencyLanding";
@@ -420,18 +421,18 @@ function updateExternalFlight(w:World,u:Entity,dt:number):void {
     }else if(aircraft&&base){depot=airportDepot(w,base)!;u.supplyDepotId=depot.id;}
     else if(!aircraft&&(!depot||!externalDepotReady(w,depot)))u.logisticsPhase="loading";
     if(u.logisticsPhase!=="loading"&&depot){
+      if(!aircraft){const site=logisticsLandingPoint(w,depot,u);if(!site)return;u.logisticsHome=site;}
       u.mode="patrol";u.dest=u.logisticsHome!;
-      if(!moveAirTo(u,u.dest,dt,w))return;
-      u.logisticsPhase="unloading";u.logisticsLoadProgress=(u.logisticsLoadProgress??0)+dt;
-      const unload=Math.max(1.5,logisticsConfig.external.unloadSeconds-w.supplyDepotLevel(depot)*logisticsConfig.external.unloadReduction);
-      if(u.logisticsLoadProgress<unload)return;
-      const accepted=w.receiveSupply(depot,u.cargo);u.cargo=Math.max(0,u.cargo-accepted);w.airCargoDelivered[u.team]+=accepted;
-      if(accepted>0)w.events.push({type:"supply-delivered",team:u.team,x:u.x,z:u.z,amount:accepted});
-      if(u.cargo>.001)return;
+      if(aircraft&&u.logisticsPhase==='unloading'){
+        const apron={x:u.logisticsHome!.x+(base?.def.radius??13)+u.def.radius+8,z:u.logisticsHome!.z};
+        if(u.airState!=='grounded'&&!taxiTo(u,apron,dt))return;
+      }else {if(!moveAirTo(u,u.dest,dt,w))return;if(aircraft){u.logisticsPhase='unloading';u.airState='landing';return;}}
+      u.logisticsPhase="unloading";
+      if(!handleGroundCargo(w,u,depot,dt))return;
       u.cargo=0;u.logisticsPhase="loading";
     }
   }
-  u.mode="patrol";u.dest=entry;moveAirTo(u,entry,dt,w,aircraft);
+  u.mode="patrol";u.dest=entry;if(!logisticsDeparture(u,dt))return;moveAirTo(u,entry,dt,w,aircraft);
   if(Math.hypot(u.x-entry.x,u.z-entry.z)<8){u.cargo=0;u.dead=true;}
 }
 function updateCargoPlane(w:World,u:Entity,dt:number):void {
@@ -453,11 +454,7 @@ function updateCargoPlane(w:World,u:Entity,dt:number):void {
   u.airState='grounded';u.logisticsPhase='unloading';u.motionSpeed=0;u.heading=base.heading;
  }
  if(u.airState==='grounded'){
-  u.logisticsLoadProgress=(u.logisticsLoadProgress??0)+dt;
-  if(u.logisticsLoadProgress<Math.max(1.5,logisticsConfig.external.unloadSeconds-w.supplyDepotLevel(depot)*logisticsConfig.external.unloadReduction))return;
-  const accepted=w.receiveSupply(depot,u.cargo);u.cargo=Math.max(0,u.cargo-accepted);w.airCargoDelivered[u.team]+=accepted;
-  if(accepted>0)w.events.push({type:'supply-delivered',team:u.team,x:u.x,z:u.z,amount:accepted});
-  if(u.cargo>.001)return;
+  if(!handleGroundCargo(w,u,depot,dt))return;
   u.cargo=0;u.logisticsPhase='loading';u.airState='taxi';u.airTaxiPhase='apron';
  }
  if(u.airState==='taxi'){
@@ -504,7 +501,7 @@ function updateTransport(w: World, u: Entity, dt: number): void {
     if(!replacement){u.mode="idle";u.dest=null;return;}
     u.supplyDepotId=replacement.id;u.logisticsHome={x:replacement.x-replacement.def.radius-5,z:replacement.z};return;
   }
-  const home=u.logisticsHome??{x:depot.x-depot.def.radius-5,z:depot.z};u.logisticsHome=home;
+  const home=logisticsLandingPoint(w,depot,u);if(!home){u.mode="idle";return;}u.logisticsHome=home;
   if(outOfFuel(u)&&u.y-heightAt(u.x,u.z)>3){u.hp=0;u.dead=true;w.lossValue[u.team]+=u.def.cost;w.roadCargoLost[u.team]+=u.cargo;u.cargo=0;w.events.push({type:"death",x:u.x,y:u.y,z:u.z,big:false,kind:u.kind,team:u.team});return;}
   if(outOfFuel(u)){u.motionSpeed=0;u.mode="idle";u.dest=null;return;}
   const valid=(i:number)=>{const rp=w.resourcePoints[i];return (depot.preferredResourceIndex==null||depot.preferredResourceIndex===i)&&!!rp&&rp.controlledBy===u.team&&rp.active&&(rp.disabledUntil??0)<=w.time;};
@@ -518,25 +515,24 @@ function updateTransport(w: World, u: Entity, dt: number): void {
   const groundedAtHome=dist2d(u,home)<3&&u.y-heightAt(u.x,u.z)<3;
   const routeDistance=u.logisticsTarget?[home,...depot.logisticsWaypoints??[],u.logisticsTarget].reduce((sum,p,i,points)=>sum+(i?dist2d(points[i-1],p):0),0):0;
   const tripFuel=u.logisticsTarget?Math.min(u.maxFuel??1200,logisticsConfig.air.reserveFuel+routeDistance*2/Math.max(1,u.def.speed)*(u.def.fuelUsePerSec??3.2)+55):logisticsConfig.air.reserveFuel;
-  const returnHome=u.cargo>0||depot.logisticsPaused||!u.logisticsTarget||(u.fuel??0)<logisticsConfig.air.reserveFuel||groundedAtHome&&(u.fuel??0)<tripFuel||!w.productionOperational(depot).operational;
+  const returnHome=u.cargo>0||u.groundServiceId!=null||(u.cargoDoor??0)>0||depot.logisticsPaused||!u.logisticsTarget||(u.fuel??0)<logisticsConfig.air.reserveFuel||groundedAtHome&&(u.fuel??0)<tripFuel||!w.productionOperational(depot).operational;
   const target=returnHome?home:u.logisticsTarget!;
   u.dest=target;u.mode="patrol";
   const route=depot.logisticsWaypoints??[],leg=`${returnHome?"home":"source"}:${u.logisticsSourceIndex}`;
   if(u.routeLeg!==leg){u.routeLeg=leg;u.routeWaypointIndex=0;}
+  if((dist2d(u,target)>3||route.length>0)&&!logisticsDeparture(u,dt))return;
   while((u.routeWaypointIndex??0)<route.length){
     const index=u.routeWaypointIndex??0,point=route[returnHome?route.length-1-index:index];
     if(dist2d(u,point)<6){u.routeWaypointIndex=index+1;continue;}
     u.dest=point;moveAirTo(u,point,dt,w,true);return;
   }
   if(!moveAirTo(u,target,dt,w))return;
-  u.motionSpeed=0;
+  u.airState="grounded";u.motionSpeed=0;
   const level=w.supplyDepotLevel(depot),config=logisticsConfig.air;
   if(returnHome){
-    if(u.cargo>0){
-      u.logisticsLoadProgress=(u.logisticsLoadProgress??0)+dt;
-      if(u.logisticsLoadProgress<Math.max(1.2,config.unloadTime-level*config.unloadTimeReduction))return;
-      const delivered=w.receiveSupply(depot,u.cargo);w.roadCargoDelivered[u.team]+=delivered;if(delivered>0)w.events.push({type:"supply-delivered",team:u.team,x:u.x,z:u.z,amount:delivered});
-      u.cargo=Math.max(0,u.cargo-delivered);if(u.cargo<=.001){u.cargo=0;u.logisticsPhase="idle";u.logisticsLoadProgress=0;}
+    if(u.cargo>0||u.groundServiceId!=null||(u.cargoDoor??0)>0){
+      if(!handleGroundCargo(w,u,depot,dt))return;
+      u.cargo=0;u.logisticsPhase="idle";u.logisticsLoadProgress=0;
     }
     // Refuel from real warehouse stock on the ground before the next sortie.
     const availableFuel=serviceFuelAvailable(depot);
@@ -572,6 +568,7 @@ export function updateUnits(w: World, dt: number): void {
 
 function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): void {
   const d = u.def;u.navWaiting=false;
+  if(u.kind==='groundHandler'){updateGroundHandler(w,u,dt,p=>moveRoadTruckTo(w,u,p,dt,logisticsConfig.handling.arrival));return;}
   if(updateAirdrop(w,u,dt))return;
   if(u.kind==='airTransport'&&u.mode==='transport-load'){updateAirliftLoading(w,u);return;}
   if(u.kind==='airTransport'&&['grounded','rearming'].includes(u.airState??'')&&u.mode==='transport-unload'&&u.unloadPoint&&dist2d(u,u.unloadPoint)<expansion.airlift.groundExitRadius){if(releaseAirliftCargo(w,u,true))u.mode='idle';return;}

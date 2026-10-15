@@ -262,6 +262,8 @@ export class WaveAI {
     if(localDepotMissing)plans.unshift("supply");
     if(w.powerStatus(1).ratio<.9&&count("generator")<4)plans.unshift("generator");
     for(const kind of plans){
+      // Physical delivery can take longer: save for the first factory before optional branches.
+      if(!this.has(w,1,"factory")&&!["generator","supply","landCommand","barracks","factory"].includes(kind)&&!(kind==="landStrategy"&&engineers.length<AI_RULES.engineerReserve))continue;
       const max=kind==="generator"?(w.powerStatus(1).ratio<.9?4:1):kind==="bunker"?2:kind==="aa"?2:kind==="supply"&&localDepotMissing?depots.length+1:1;
       if(kind!=="generator"&&this.has(w,1,"factory")&&this.count(w,"tank")<2&&!["supply","landCommand","barracks","factory"].includes(kind)&&!(kind==="landStrategy"&&engineers.length<AI_RULES.engineerReserve))continue;
       const reserve=["generator","supply","landCommand","barracks"].includes(kind)||kind==="landStrategy"&&engineers.length<AI_RULES.engineerReserve?0:AI_RULES.economyReserve;
@@ -376,6 +378,8 @@ export class WaveAI {
   private produceArmy(w: World): void {
     if (!this.has(w, 1, "barracks") && !this.has(w, 1, "factory")) return;
     if(this.count(w,"engineer")<AI_RULES.engineerReserve&&this.buy(w,"engineer","barracks",0))return;
+
+    if(!this.has(w,1,"factory"))return;
 
     // Doctrine-shaped composition
     const need: Array<[UnitKind, UnitKind, number]> = [];

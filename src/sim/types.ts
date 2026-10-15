@@ -2,7 +2,7 @@ import type { FlowField } from "./nav/FlowField";
 import type { MapFeatureDef } from "./mapFeatures";
 export type Team = 0 | 1;
 export type UnitKind =
-  | "airTransport" | "gunTurret" | "flakTurret" | "atTurret" | "missileCommand" | "icbmSilo" | "cruiseLauncher"
+  | "groundHandler" | "airTransport" | "gunTurret" | "flakTurret" | "atTurret" | "missileCommand" | "icbmSilo" | "cruiseLauncher"
   | "tank" | "apc" | "ifv" | "inf" | "atInf" | "mgInf" | "reconInf" | "sniper" | "mortar" | "manpad" | "atgm" | "reconVehicle" | "lightTank" | "tankDestroyer" | "spaa" | "bunker" | "hq" | "engineer"
   | "heli" | "transport" | "cargoPlane" | "gunship" | "casHeli" | "fighter" | "interceptor" | "bomber" | "ecm" | "multirole" | "attackAircraft"
   | "sam" | "howitzer" | "artillery" | "mlrs" | "logiTruck" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase"
@@ -171,6 +171,8 @@ export interface Entity {
   motionReverse?: boolean; flightVx?: number; flightVz?: number;
   motionSpeed?: number; flightBank?: number; flightPitch?: number; flightOrbitCenter?: Point; airLandingPhase?: "approach"|"final";
   airHomeSlot?:number;airTaxiPhase?:"apron"|"lining-up"|"runway";combatPosition?:Point;combatPositionTarget?:number;combatPositionAnchor?:Point;combatPositionRetryAt?:number;taskApproachIndex?:number;
+  groundService?:{carrierId:number;depotId:number;phase:"pickup"|"load"|"deliver"|"unload";progress:number;air:boolean;dockSlot?:number};
+  groundServiceId?:number;groundServiceRetryAt?:number;logisticsPadSlot?:number;cargoDoor?:number;
   airdrop?:{x:number;z:number;descent:number};
   strategicAmmo?:Partial<Record<StrategicPayload,number>>;strategicWork?:{payload:StrategicPayload|"research";progress:number};nuclearUnlocked?:boolean;strategicCooldownUntil?:number;
   airFuelWarned?:boolean;emergencyLandingPoint?:Point;emergencyLanded?:boolean;

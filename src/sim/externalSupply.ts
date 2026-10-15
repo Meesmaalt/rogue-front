@@ -1,3 +1,4 @@
+import {logisticsLandingPoint} from "./groundHandling";
 import rules from '../data/logistics.json';
 import type {World} from './World';
 import type {Entity,Point,Team} from './types';
@@ -23,7 +24,7 @@ export function dispatchExternalHelicopters(w:World):void {
   if(w.time<(depot.nextLogisticsDispatch??0))continue;
   const flights=w.entities.filter(e=>!e.dead&&e.kind==='transport'&&e.logisticsRoute==='strategic'&&e.supplyDepotId===depot.id);
   if(flights.length>=Math.min(rules.external.maxHelicopters,2+w.supplyDepotLevel(depot)))continue;
-  const home={x:depot.x-depot.def.radius-rules.external.apronOffset,z:depot.z},entry=externalEntry(w,depot.team,home),h=w.spawn('transport',depot.team,entry.x,entry.z);
+  const placeholder={...depot,logisticsPadSlot:undefined} as Entity,home=logisticsLandingPoint(w,depot,placeholder);if(!home){depot.nextLogisticsDispatch=w.time+5;continue;}const entry=externalEntry(w,depot.team,home),h=w.spawn('transport',depot.team,entry.x,entry.z);h.logisticsPadSlot=placeholder.logisticsPadSlot;
   h.y+=rules.external.helicopterAltitude;h.py=h.y;h.heading=Math.atan2(home.x-h.x,home.z-h.z);h.pHeading=h.heading;
   h.supplyDepotId=depot.id;h.logisticsHome=home;h.logisticsTarget=entry;h.logisticsSourceIndex=null;h.logisticsRoute='strategic';h.logisticsPhase='idle';h.cargo=externalHelicopterCapacity(w,depot);h.logisticsCargoCapacity=h.cargo;h.mode='patrol';h.dest=home;
   depot.nextLogisticsDispatch=w.time+externalHelicopterInterval(w,depot);

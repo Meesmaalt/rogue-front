@@ -1,3 +1,5 @@
+import {createCargoRamp} from "./CargoHandlingVisual";
+import {stepSoldier,soldierOffset,type SoldierPose} from "./SquadMotion";
 import {createParachute} from "./ExpansionModels";
 import {aircraftEngineProfile} from "./AircraftAudio";
 import {createMetricAirfieldStructures} from "./Architecture";
@@ -24,7 +26,7 @@ contactContext.fillStyle = contactGradient; contactContext.fillRect(0,0,64,64);
 const contactGeometry = new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2); contactGeometry.userData.sharedArt = true;
 const contactMaterial = new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(contactCanvas),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1}); contactMaterial.userData.sharedArt = true;
 
-interface View { parachute?:THREE.Group;rotorRpm:number;surface?:THREE.Mesh; resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;suspensionPitch:SuspensionState;suspensionRoll:SuspensionState; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group; lastBuildingLevel?: number; lastAirState?: string }
+interface View { soldiers:Map<number,SoldierPose>;cargoRamp?:THREE.Group;parachute?:THREE.Group;rotorRpm:number;surface?:THREE.Mesh; resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;suspensionPitch:SuspensionState;suspensionRoll:SuspensionState; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group; lastBuildingLevel?: number; lastAirState?: string }
 const lerpAngle = (a: number, b: number, t: number) => a + wrapAngle(b - a) * t;
 
 
@@ -189,7 +191,7 @@ export class UnitRenderer {
         const guns:THREE.Object3D[]=[],gears:THREE.Object3D[]=[],turrets:THREE.Group[]=[],legs:THREE.Object3D[]=[],members:THREE.Object3D[]=[];
         lod.traverse(o=>{if(o.name==="Gun"){o.userData.restZ=o.position.z;o.userData.restX=o.rotation.x;guns.push(o);}if(o.name==="LandingGear")gears.push(o);if(o.name==="Turret")turrets.push(o as THREE.Group);if(o.name==="LeftLeg"||o.name==="RightLeg"){o.userData.restLegX=o.rotation.x;o.userData.walkPhase=Math.floor(legs.length/2)*.8;legs.push(o);}if(o.name.startsWith("SquadMember")){o.userData.squadPosition=o.position.clone();members.push(o);}});
         if(staticBuilding)this.shadowDirty=true;
-        v = { rotorRpm:.18,surface,resetPose:true,pose:{x:e.x,y:e.y,z:e.z,heading:e.heading,bank:e.flightBank??0,pitch:e.flightPitch??0,speed:0},visualSpeed:0,walkPhase:(e.id*.731)%6.28,spread:1,suspensionPitch:{value:0,velocity:0},suspensionRoll:{value:0,velocity:0},near:visual.group,far,shadow:lod.getObjectByName("ContactShadow"),guns,gears,turrets,legs,members,status:new Map(),staticBuilding,group: m.group, turret: m.turret, ring, tactical, kind: e.kind, phase: (e.id * 0.731) % 6.28, recoil: 0 };
+        v = { soldiers:new Map(),rotorRpm:0,surface,resetPose:true,pose:{x:e.x,y:e.y,z:e.z,heading:e.heading,bank:e.flightBank??0,pitch:e.flightPitch??0,speed:0},visualSpeed:0,walkPhase:(e.id*.731)%6.28,spread:1,suspensionPitch:{value:0,velocity:0},suspensionRoll:{value:0,velocity:0},near:visual.group,far,shadow:lod.getObjectByName("ContactShadow"),guns,gears,turrets,legs,members,status:new Map(),staticBuilding,group: m.group, turret: m.turret, ring, tactical, kind: e.kind, phase: (e.id * 0.731) % 6.28, recoil: 0 };
         this.views.set(e.id, v);
       }
       v.group.visible=onScreen||v.staticBuilding;
@@ -210,8 +212,23 @@ export class UnitRenderer {
       v.group.position.set(x,flying||e.def.domain==="sea"?v.pose.y:e.garrisonId?e.y:ground,z);
       const shadow=v.shadow;
       if(shadow)shadow.position.y=ground-v.group.position.y+.045;
-      if(v.members.length){const alive=Math.max(1,e.squadMembers??e.squadMaxMembers!),spread=v.spread=smoothMotion(v.spread,1-Math.min(.45,(e.suppression??0)/220),mobility.presentation.squadSpreadResponse,frameDt);
-        for(const o of v.members){o.visible=Number(o.name.slice("SquadMember".length))<Math.min(alive,e.garrisonId?2:alive);const origin=o.userData.squadPosition as THREE.Vector3;o.position.x=origin.x*spread*(e.garrisonId?.2:1);o.position.z=origin.z*spread*(e.garrisonId?.2:1);}
+      if(e.kind==='groundHandler'){const crates=v.group.getObjectByName('HandlingCargo');if(crates)crates.visible=e.cargo>0;}
+      if(['transport','cargoPlane','airTransport'].includes(e.kind)&&((e.cargoDoor??0)>0||v.cargoRamp)){
+        if(!v.cargoRamp){v.cargoRamp=createCargoRamp(e.def.radius,e.def.height);v.group.add(v.cargoRamp);}
+        v.cargoRamp.rotation.x=smoothMotion(v.cargoRamp.rotation.x,-Math.PI*.58*(e.cargoDoor??0),5,frameDt);
+        v.cargoRamp.visible=(e.cargoDoor??0)>.001||Math.abs(v.cargoRamp.rotation.x)>.02;
+      }
+      if(v.members.length){
+        const alive=Math.max(1,e.squadMembers??e.squadMaxMembers!),spread=v.spread=smoothMotion(v.spread,1-Math.min(.45,(e.suppression??0)/220),mobility.presentation.squadSpreadResponse,frameDt),scale=e.def.modelScale??1,updated=new Set<number>(),pace=Math.min(1,v.visualSpeed/Math.max(.1,e.def.speed));
+        for(const o of v.members){const index=Number(o.name.slice('SquadMember'.length));o.visible=index<Math.min(alive,e.garrisonId?2:alive);const origin=o.userData.squadPosition as THREE.Vector3;
+          const offset=soldierOffset(origin.x*spread,origin.z*spread,index,world.time,pace),localX=offset.x*(e.garrisonId?.2:1)*scale,localZ=offset.z*(e.garrisonId?.2:1)*scale;
+          const target={x:x+Math.cos(h)*localX+Math.sin(h)*localZ,z:z-Math.sin(h)*localX+Math.cos(h)*localZ};
+          let p=v.soldiers.get(index);if(!p){p={...target,heading:h,stride:index*2.4,speed:0};v.soldiers.set(index,p);}
+          if(!updated.has(index)){const before={x:p.x,z:p.z};stepSoldier(p,target,h,v.visualSpeed,index,frameDt,v.resetPose||!!e.garrisonId||!!e.airdrop);
+            if(!e.garrisonId&&!e.airdrop&&!world.nav.isWalkableWorld(p.x,p.z,.2)){p.x=before.x;p.z=before.z;p.speed=0;}updated.add(index);}
+          const dx=p.x-x,dz=p.z-z;o.position.x=(Math.cos(h)*dx-Math.sin(h)*dz)/scale;o.position.z=(Math.sin(h)*dx+Math.cos(h)*dz)/scale;
+          o.position.y=e.garrisonId||e.airdrop?0:(heightAt(p.x,p.z)-v.group.position.y)/scale+Math.abs(Math.sin(p.stride))*.04*Math.min(1,p.speed/Math.max(.1,e.def.speed));o.rotation.y=wrapAngle(p.heading-h);o.userData.soldierStride=p.stride;o.userData.soldierSpeed=p.speed;
+        }
       }
       if(syncEquipmentVisual(v.group,e))this.shadowDirty=true;
       const buildingLevel = e.buildingLevel ?? (e.upgrades.has("producer-3") ? 3 : e.upgrades.has("producer-2") ? 2 : 1);
@@ -253,17 +270,15 @@ export class UnitRenderer {
       if (["heli", "gunship", "casHeli", "transport"].includes(e.kind)) {
         const airborne = e.airState !== "grounded" && e.airState !== "rearming";
         v.group.position.y += airborne ? Math.sin(animT * 7) * 0.08 : Math.sin(animT * 2) * 0.015;
+        v.rotorRpm=smoothMotion(v.rotorRpm,aircraftEngineProfile(e).rpm,2,frameDt);if(v.rotorRpm<.003)v.rotorRpm=0;
         for (const rotor of this.rotorParts.get(e.id) ?? []) {
-          const speed=v.rotorRpm=smoothMotion(v.rotorRpm,aircraftEngineProfile(e).rpm,2,frameDt);
+          const speed=v.rotorRpm;
           if (rotor.name === "TailRotor") rotor.rotation.x += speed * frameDt * 90;
           else rotor.rotation.y += (rotor.name === "RotorCounter" ? -speed : speed)*frameDt*60;
         }
       }
       if (e.def.category === "infantry" || e.kind === "reconInf" || e.kind === "sniper") {
-        const pace=Math.min(1,v.visualSpeed/Math.max(.1,e.def.speed));
-        for(const o of v.legs)o.rotation.x=Number(o.userData.restLegX)+Math.sin(v.walkPhase+Number(o.userData.walkPhase)+(o.name==="RightLeg"?Math.PI:0))*mobility.presentation.legSwing*pace;
-        v.group.position.y+=Math.abs(Math.sin(v.walkPhase))*.045*pace;
-        v.group.rotation.z=Math.sin(v.walkPhase)*.025*pace;
+        for(const o of v.legs){let member=o.parent;while(member&&!member.name.startsWith('SquadMember'))member=member.parent;const stride=Number(member?.userData.soldierStride??v.walkPhase),pace=Math.min(1,Number(member?.userData.soldierSpeed??v.visualSpeed)/Math.max(.1,e.def.speed));o.rotation.x=Number(o.userData.restLegX)+Math.sin(stride+(o.name==='RightLeg'?Math.PI:0))*mobility.presentation.legSwing*pace;}
       }
       if(!e.airdrop&&e.def.domain==="land"&&e.def.speed>0&&e.def.category!=="infantry"){
         const pace=Math.min(1,v.visualSpeed/Math.max(.1,e.def.speed));

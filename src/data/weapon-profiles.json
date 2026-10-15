@@ -720,6 +720,7 @@
         "ammoCapacity": 32
       }
     ],
+    "groundHandler": [],
     "airTransport": [],
     "cruiseLauncher": [],
     "missileCommand": [],

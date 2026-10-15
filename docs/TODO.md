@@ -1,5 +1,14 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Mahalaadimine ja jalaväe liikumine · 15.10.2026
+
+- [x] Päris maapealne kaubamasin: sõidab luugi juurde, võtab piiratud veose peale, viib ühendatud lattu ning alles seal lisanduvad raha/laovarud. Täis ladu jätab kauba masinale; hävinud veoki koorem läheb kaotsi; kadunud lao korral otsitakse teine ladu. Tootmise ja logistika AI kogub esmase tehase jaoks raha enne valikulisi harusid.
+- [x] Lao kopterid jagavad püsivaid, eraldatud maandumiskohti. Valik kontrollib rootoriruumi ja laadimismasina maapealset ligipääsu; mitu masinat kasutavad eri laadimiskohti. Maandunud kopteri tiivikud/heli seiskuvad, luuk avaneb ning enne lahkumist luuk sulgub ja rootorid käivituvad.
+- [x] Jalaväerühma liikmete esituses eraldi maailmaruumis järgnemine, pööramine, sammu faas, väike loomulik hajuvus ja maapinnakõrgus; lähimudel ning kaugmudel kasutavad samu sõduriasendeid. Käsud, rühma liikmete arv ja lahingureeglid jäävad simulatsiooni omaks.
+- [x] Simulatsiooni testid katavad koguse säilimise, mahalaadimise järjekorra, samaaegsed saabumised, varulao, hävingu ja salvestuse determinismi; renderduse testid katavad luugi geomeetria, seiskunud rootorid ja sõdurite sõltumatud sammud.
+- [ ] Tegelik WebGL/heli ülevaatus jääb käsitsi: pilvebrauser ei saanud kohaliku Vite aadressiga ühendust (ERR_CONNECTION_REFUSED).
+
+
 ## Hoonete eristamine · 15.10.2026
 
 - [x] Eraldi arhitektuuritöö: suured geomeetrilised funktsioonitähised, kopteriplatsil valge H/ring ja tuulesukk, tehase tõstetala/korstnad, lao laadimisvarikatus/riiulid, kasarmu harjutusala ning erinevad strateegiakeskuste siluetid. Detailid koondatakse olemasolevatesse jagatud materjalipartiidesse; geomeetriatest kontrollib tähiseid ja piiratavat joonistuskutsete arvu.

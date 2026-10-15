@@ -512,5 +512,12 @@
   "Valmistamine on pooleli": "Manufacturing in progress",
   "Tuumatehnoloogia uuritud": "Nuclear technology researched",
   "Raha või materjale ei jätku": "Insufficient credits or materials",
-  "materjali": "materials"
+  "materjali": "materials",
+  "Lennuvälja kaubamasin": "Airport cargo handler",
+  "Maapealne mahalaadimine": "Ground cargo handling",
+  "Kaubamasin": "Cargo handler",
+  "sõidab luugi juurde": "approaching cargo ramp",
+  "võtab veost peale": "loading cargo",
+  "viib veose lattu": "taking cargo to warehouse",
+  "laadib lattu": "unloading at warehouse"
 }

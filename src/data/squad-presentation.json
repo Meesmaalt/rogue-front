@@ -1,0 +1,11 @@
+{
+  "followResponse": 3.5,
+  "catchupMultiplier": 1.5,
+  "idleAdjustSpeed": 1.2,
+  "teleportDistance": 14,
+  "headingSpeed": 0.15,
+  "turnResponse": 5,
+  "strideLength": 1.7,
+  "lateralWander": 0.42,
+  "longitudinalWander": 0.6
+}
