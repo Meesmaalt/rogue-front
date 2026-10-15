@@ -1,0 +1,10 @@
+{
+  "cargoCamouflage": {
+    "repeat": 0.23,
+    "anisotropy": 8
+  },
+  "bomberCamouflage": {
+    "repeat": 0.4,
+    "anisotropy": 8
+  }
+}

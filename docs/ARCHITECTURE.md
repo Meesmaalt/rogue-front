@@ -2,6 +2,15 @@
 
 Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 16, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
 
+## Hoonete tootmine ja Vahemere maastik · v13
+
+Uute missioonide serveri/worker'i tee kasutab v13 generaatorit. `mediterranean` konfiguratsioon vähendab ühendatud metsamassiive ning jätab kõrged nõlvad avatuks; põllud ja elamud kasutavad kuiva Vahemere paletti. Iga kolmas seeme lisab keskse kustunud kaldeera: olemasolevate kompaktsete reljeefikernelite ring, kivine `cropPattern: bare` atlasekiht ning kesktee möödumine. Keskne ressurss nihkub kraatrist väljapoole. Kaardid läbivad sama navigatsiooni/lennuraja kontrolli. v2–v12 taastamine ja v12 kompaktne lahingumõõtkava säilivad.
+
+`BuildingProduction.ts` valib ainult kasutaja valitud oma tootmishoone ning tagastab tellimuse tegeliku piirangu. HUD annab `produce` käsule alati selle hoone ID; teine vaba tehas ei võta tellimust üle. Keritav tootmispaneel paikneb valitud hoone kõrval alaservas; ülemine Ehita avab ehituse. Relvastuse ümberehitus säilib eraldi suletavas varustuslao hoolduse plokis.
+
+Heli on endiselt originaalne Web Audio süntees: raketil eraldi stardi-, mootori- ja rõhukihid, kahuril terav transient ja madal järelkaja. Aeglane madal ambient asendab arpedžo. Kaks sekundit jagatud mürapuhvrit kordub pikemate kihtide korral; helide arv, paus ja sõltumatud helitugevused säilivad. See ei lisa heli- ega muusika-allalaadimist. Kauba- ja pommilennuki GLB kaugmudel säilitab `armor` materjali/UV-d, `AircraftCamouflage.ts` taaskasutab riigi jagatud tekstuurist suuremate laikudega varianti mõlema LOD-i jaoks.
+
+
 ## Aktiivne mängureeglistik · 14.10.2026
 
 Mängukaardid on ainult protseduurkaardid. Ajaloolised Roheoru/Murdlaine kirjeldused allpool on regressioonitaust. `platforms.json` piirab tootmise 15 põhiklassile; `equipment.json` kirjeldab 16 vahetatavat komponenti. `configure-unit`/`cancel-refit` käsud käivad fikseeritud sim-sammu kaudu; `equipment.ts` hooldus ei täida moona ega paranda tasuta. `physics.json` juhib uue reeglistiku trajektoore. Komponendid ja pooleliolev töö sisalduvad snapshot/replay räsis. Detailid: [MODULAR-PROCEDURAL-RELEASE.md](MODULAR-PROCEDURAL-RELEASE.md).

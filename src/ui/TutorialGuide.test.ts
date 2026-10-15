@@ -6,10 +6,10 @@ import type {MissionObjectiveDef} from "../sim/types";
 afterEach(resetHeightmap);
 const step=(kind:MissionObjectiveDef["kind"],unitKind?:MissionObjectiveDef["unitKind"]):MissionObjectiveDef=>({id:"training",title:"Test",description:"Test",kind,unitKind,target:{kind:"factory",count:1}});
 it("selects the actual build branch with an engineer and recovers missing engineers",()=>{
- const w=new World(71,false,[],[],[],false),hq=w.spawn("hq",0,0,0),command=w.spawn("landCommand",0,10,0),engineer=w.spawn("engineer",0,0,10);
+ const w=new World(71,false,[],[],[],false);w.spawn("hq",0,0,0);const command=w.spawn("landCommand",0,10,0),engineer=w.spawn("engineer",0,0,10);
  const pending=w.pending.length,guide=tutorialGuide(w,step("build"));
  expect(guide.ids).toEqual([command.id,engineer.id]);expect(guide.panel).toBe("builds");expect(guide.highlight).toBe('[data-build="factory"]');expect(w.pending).toHaveLength(pending);
- engineer.dead=true;const recovery=tutorialGuide(w,step("build"));expect(recovery.ids).toEqual([hq.id]);expect(recovery.panel).toBe("land");expect(recovery.highlight).toBe('[data-kind="engineer"]');
+ const barracks=w.spawn("barracks",0,20,20);engineer.dead=true;const recovery=tutorialGuide(w,step("build"));expect(recovery.ids).toEqual([barracks.id]);expect(recovery.panel).toBe("land");expect(recovery.highlight).toBe('[data-kind="engineer"]');
 });
 it("recovers a lost producer through construction rather than an empty selection",()=>{
  const w=new World(71,false,[],[],[],false),command=w.spawn("landCommand",0,10,0),engineer=w.spawn("engineer",0,0,10);
@@ -30,7 +30,7 @@ it("resumes a paused foundation and explains the actual placement mouse button",
  const foundation=w.spawn("factory",0,30,30);foundation.underConstruction=true;
  const paused=tutorialGuide(w,step("produce","tank"));expect(paused.ids).toEqual([engineer.id]);expect(paused.point).toEqual({x:30,z:30});expect(paused.hint).toContain("Ehitus seisab");
  engineer.target=foundation;engineer.mode="build";expect(tutorialGuide(w,step("build")).hint).toContain("Oota");
- engineer.dead=true;expect(tutorialGuide(w,step("build")).highlight).toBe('[data-kind="engineer"]');
+ w.spawn("barracks",0,50,50);engineer.dead=true;expect(tutorialGuide(w,step("build")).highlight).toBe('[data-kind="engineer"]');
 });
 
 it("combat guidance selects armor with recon and reveals only a spotted target location",()=>{

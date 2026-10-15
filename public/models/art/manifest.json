@@ -228,22 +228,6 @@
     },
     {
       "faction": "usa",
-      "kind": "bomber",
-      "lod": "detail",
-      "path": "usa/bomber.glb",
-      "triangles": 1724,
-      "drawCalls": 5
-    },
-    {
-      "faction": "usa",
-      "kind": "bomber",
-      "lod": "tactical",
-      "path": "usa/bomber-lod.glb",
-      "triangles": 1264,
-      "drawCalls": 3
-    },
-    {
-      "faction": "usa",
       "kind": "heli",
       "lod": "detail",
       "path": "usa/heli.glb",
@@ -543,22 +527,6 @@
       "kind": "ecm",
       "lod": "tactical",
       "path": "russia/ecm-lod.glb",
-      "triangles": 1624,
-      "drawCalls": 3
-    },
-    {
-      "faction": "russia",
-      "kind": "bomber",
-      "lod": "detail",
-      "path": "russia/bomber.glb",
-      "triangles": 2308,
-      "drawCalls": 5
-    },
-    {
-      "faction": "russia",
-      "kind": "bomber",
-      "lod": "tactical",
-      "path": "russia/bomber-lod.glb",
       "triangles": 1624,
       "drawCalls": 3
     },
@@ -868,22 +836,6 @@
     },
     {
       "faction": "china",
-      "kind": "bomber",
-      "lod": "detail",
-      "path": "china/bomber.glb",
-      "triangles": 1740,
-      "drawCalls": 5
-    },
-    {
-      "faction": "china",
-      "kind": "bomber",
-      "lod": "tactical",
-      "path": "china/bomber-lod.glb",
-      "triangles": 1280,
-      "drawCalls": 3
-    },
-    {
-      "faction": "china",
       "kind": "heli",
       "lod": "detail",
       "path": "china/heli.glb",
@@ -976,7 +928,7 @@
       "lod": "tactical",
       "path": "usa/cargoPlane-lod.glb",
       "triangles": 1232,
-      "drawCalls": 7
+      "drawCalls": 8
     },
     {
       "faction": "russia",
@@ -992,7 +944,7 @@
       "lod": "tactical",
       "path": "russia/cargoPlane-lod.glb",
       "triangles": 1296,
-      "drawCalls": 7
+      "drawCalls": 8
     },
     {
       "faction": "china",
@@ -1008,7 +960,55 @@
       "lod": "tactical",
       "path": "china/cargoPlane-lod.glb",
       "triangles": 1232,
-      "drawCalls": 7
+      "drawCalls": 8
+    },
+    {
+      "faction": "usa",
+      "kind": "bomber",
+      "lod": "detail",
+      "path": "usa/bomber.glb",
+      "triangles": 1724,
+      "drawCalls": 5
+    },
+    {
+      "faction": "usa",
+      "kind": "bomber",
+      "lod": "tactical",
+      "path": "usa/bomber-lod.glb",
+      "triangles": 1264,
+      "drawCalls": 4
+    },
+    {
+      "faction": "russia",
+      "kind": "bomber",
+      "lod": "detail",
+      "path": "russia/bomber.glb",
+      "triangles": 2308,
+      "drawCalls": 5
+    },
+    {
+      "faction": "russia",
+      "kind": "bomber",
+      "lod": "tactical",
+      "path": "russia/bomber-lod.glb",
+      "triangles": 1624,
+      "drawCalls": 4
+    },
+    {
+      "faction": "china",
+      "kind": "bomber",
+      "lod": "detail",
+      "path": "china/bomber.glb",
+      "triangles": 1740,
+      "drawCalls": 5
+    },
+    {
+      "faction": "china",
+      "kind": "bomber",
+      "lod": "tactical",
+      "path": "china/bomber-lod.glb",
+      "triangles": 1280,
+      "drawCalls": 4
     }
   ]
 }

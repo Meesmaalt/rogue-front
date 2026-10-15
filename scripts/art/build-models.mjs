@@ -16,6 +16,7 @@ const out = new URL('../../public/models/art/', import.meta.url);
 const palettes = {usa:[0xb3a17a,0x665f4b],russia:[0x78845a,0x384436],china:[0x778574,0x45554e]};
 let mats;
 let detail = true;
+let preserveCamouflage = false;
 function mesh(parent,geo,material,x=0,y=0,z=0,rx=0,ry=0,rz=0) {
   if(!detail && (geo.parameters?.radius < .08 || (geo.parameters?.width < .11 && geo.parameters?.height < .11))) { geo.dispose(); return new T.Object3D(); }
   const m=new T.Mesh(geo,mats[material]);m.position.set(x,y,z);m.rotation.set(rx,ry,rz);parent.add(m);return m;
@@ -164,7 +165,7 @@ function batch(node){
     const pos=g.getAttribute('position'),normal=g.getAttribute('normal'),uv=[],colors=[];
     // Far models retain silhouette/pivots but use one vertex-colored material per node.
     const armor=child.material===mats.armor,marking=child.material===mats.marking;
-    const material=marking?mats.marking:!detail?mats.equipment:armor?mats.armor:child.material===mats.glass?mats.glass:mats.equipment;
+    const material=marking?mats.marking:armor&&(detail||preserveCamouflage)?mats.armor:!detail?mats.equipment:child.material===mats.glass?mats.glass:mats.equipment;
     for(let i=0;i<pos.count;i++){
       const x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i),nx=Math.abs(normal.getX(i)),ny=Math.abs(normal.getY(i)),nz=Math.abs(normal.getZ(i));
       uv.push((ny>nx&&ny>nz?x:nz>nx?x:z)*.19,(ny>nx&&ny>nz?z:y)*.19);
@@ -184,7 +185,7 @@ const selectedKind=process.argv.find(a=>a.startsWith('--kind='))?.split('=')[1];
 const kinds=JSON.parse(await readFile(new URL('../../src/data/art-models.json',import.meta.url),'utf8'));
 const manifest=selectedKind?JSON.parse(await readFile(new URL('manifest.json',out),'utf8')):{version:2,author:'Rogue Front original art',models:[]};
 if(selectedKind)manifest.models=manifest.models.filter(m=>m.kind!==selectedKind);
-for(const f of Object.keys(palettes)){await mkdir(new URL(f+'/',out),{recursive:true});for(const kind of kinds.filter(k=>!selectedKind||k===selectedKind))for(const lod of ['detail','tactical']){detail=lod==='detail';materialSet(f);let p;
+for(const f of Object.keys(palettes)){await mkdir(new URL(f+'/',out),{recursive:true});for(const kind of kinds.filter(k=>!selectedKind||k===selectedKind))for(const lod of ['detail','tactical']){detail=lod==='detail';preserveCamouflage=['cargoPlane','bomber'].includes(kind);materialSet(f);let p;
   if(kind==='tank'||kind==='lightTank')p=tank(f,kind);else if(['ifv','apc','reconVehicle','tankDestroyer'].includes(kind))p=armored(f,kind);else if(kind==='artillery'||kind==='mlrs')p=artillery(f,kind);else if(kind==='spaa')p=spaa(f);else if(kind==='logiTruck')p=truck(f,kind);else if(['heli','gunship','casHeli','transport'].includes(kind))p=helicopter(f,kind);else p=kind==='cargoPlane'?heavyTransport(f):jet(f,kind);
   p.name=`${f}_${kind}`;p.userData={faction:f,kind,author:manifest.author};box(p,.07,.22,.5,'marking',kind==='tank'?1.82:1.28,1.25,.4);batch(p);p.updateMatrixWorld(true);let triangles=0,drawCalls=0;p.traverse(o=>{if(o.isMesh){triangles+=(o.geometry.index?.count??o.geometry.getAttribute('position').count)/3;drawCalls++;}});
   const binary=await new GLTFExporter().parseAsync(p,{binary:true,onlyVisible:false});const path=`${f}/${kind}${detail?'':'-lod'}.glb`;await writeFile(new URL(path,out),Buffer.from(binary));manifest.models.push({faction:f,kind,lod,path,triangles,drawCalls});

@@ -238,6 +238,7 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
     trace(f);ctx.clip();
     ctx.fillStyle=`#${(f.color??0x969572).toString(16).padStart(6,"0")}`;ctx.fillRect(-f.width/2,-f.depth/2,f.width,f.depth);
     ctx.globalCompositeOperation="multiply";ctx.fillStyle=cropPattern;ctx.fillRect(-f.width/2,-f.depth/2,f.width,f.depth);ctx.globalCompositeOperation="source-over";
+    if(f.cropPattern==="bare")return;
     ctx.strokeStyle=f.color===0x927b70?"rgba(49,35,29,.23)":"rgba(63,67,42,.15)";ctx.lineWidth=.35;
     ctx.save();ctx.rotate(-(f.cropRotation??0));
     const cropSpan=f.cropRotation!=null?Math.hypot(f.width,f.depth):Math.max(f.width,f.depth);
@@ -403,7 +404,7 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
     if (f.appearance === "field") {
       if(landscapeAtlas)continue;
       const field=drapedStrip(f,f.width,f.color??0x879357,.025);
-      (field.material as THREE.MeshStandardMaterial).map=fieldTexture();group.add(field);continue;
+      if(f.cropPattern!=="bare")(field.material as THREE.MeshStandardMaterial).map=fieldTexture();group.add(field);continue;
     }
     if (f.kind === "water") {
       if(!isSeaFeature(f))continue; // River footprints are united into one continuous surface below.

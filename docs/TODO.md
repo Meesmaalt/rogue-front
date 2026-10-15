@@ -1,5 +1,14 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Vahemere maastik, hoonete tootmine ja heli · v13
+
+- [x] v13 avatum Vahemere maastik: väiksem metsapind, terrakotakatused, soe kivifassaad, osal seemnetel keskne kustunud kraater ja möödaviiv tee; v2–v12 taastamine säilib.
+- [x] Tellimine ainult valitud tootmishoone juures; ekraani alaserva keritav ruudustik, tegelik hoone ID, järjekord ja katkestamine. Ehitus jääb eraldi valikuks; komponendid on suletavas lao hoolduse vaates.
+- [x] Raketi stardipauk/mootorikohin, kihiline kahuripauk ja madal aeglane ambient-muusika; samad heliseadistused ja piiratud häälte eelarve.
+- [x] Kauba- ja pommilennuki kamuflaaž säilib ka kaugmudelis; suuremad laigud ja jagatud tekstuurivariandid riigi ja lennukiklassi kohta. GLB materjali/UV kontroll väljalasketestides.
+- [ ] Brauseris heli kuulamine, tootmispaneeli paigutuse ja kaugmudeli tegelik WebGL pildikontroll (kohalik Chromium puudub).
+
+
 ## Kiirem algus ja kompaktne lahing · v12
 
 - [x] Serveri/worker'i kaardi ettevalmistus peamenüüs, tegelik eelvaade ja ettevalmistatud geomeetria üleandmine käivitusele; nupuvajutus ei loo teist kaarti.

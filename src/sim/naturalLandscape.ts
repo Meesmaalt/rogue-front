@@ -28,7 +28,7 @@ export function naturalWoodlandAt(x:number,z:number,seed:number,archetype:string
  const sx=(x/span-ix)**2*(3-2*(x/span-ix)),sz=(z/span-iz)**2*(3-2*(z/span-iz));
  const at=(dx:number,dz:number)=>new Rng((seed^Math.imul(ix+dx,374761393)^Math.imul(iz+dz,668265263))>>>0).next();
  const noise=(at(0,0)*(1-sx)+at(1,0)*sx)*(1-sz)+(at(0,1)*(1-sx)+at(1,1)*sx)*sz;
- return noise>(version>=12?config.interiorLandscape.forestThreshold:config.freshGeneration.forestNoiseThreshold)+(archetype==='forest'?-.14:archetype==='urban'?.08:0);
+ return noise>(version>=13?config.mediterranean.forestThreshold:version>=12?config.interiorLandscape.forestThreshold:config.freshGeneration.forestNoiseThreshold)+(archetype==='forest'?-.14:archetype==='urban'?.08:0);
 }
 
 /** Compact interior ridges fill genuine lowland pockets without walling off roads or bases. */

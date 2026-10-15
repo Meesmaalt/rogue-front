@@ -24,7 +24,8 @@ import { coverValueAt } from "../sim/systems/sensors";
 import type { MissionDef } from "../sim/types";
 import type { UnitKind,Entity } from "../sim/types";
 import { UNITS } from "../sim/units";
-import { MAX_QUEUE } from "../sim/constants";
+import {selectedProductionBuilding,buildingOrderState} from "./BuildingProduction";
+import {producerKind as producerFor} from "../sim/systems/production";
 import type { FactionId } from "../sim/factions";
 import { FACTIONS, FACTION_LIST, factionLandUnits, factionAirUnits, factionSeaUnits } from "../sim/factions";
 import { BUILDINGS } from "../sim/buildings";
@@ -79,7 +80,8 @@ function unitDevelopmentCards(world:World,u:Entity,running:boolean):string {
     const status=researchStatus(world,u.team,"advanced-armor");
     return `<div class="unit-development"><b>Täiustatud soomuse uuring</b><small>Avab reaktiivsoomuse ja aktiivkaitse. Komponendid paigaldatakse lao juures.</small><button data-research-armor ${!running||!status.allowed?"disabled":""}>Uuri · ${status.cost} krediiti + ${status.cost} ressurssi</button><small>${status.reason||"Strateegiakeskus töötab"}</small></div>`;
   }
-  return equipmentCards(world,u,running);
+  const cards=equipmentCards(world,u,running);
+  return cards?`<details class="depot-refit" data-detail-key="refit"><summary>Ümberehitus varustuslaos</summary>${cards}</details>`:"";
 }
 
 function terrainReadout(w:World,u:Entity):string {
@@ -94,13 +96,6 @@ function terrainReadout(w:World,u:Entity):string {
 const fmt = (s: number) => Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
 const unitIcon = (kind:UnitKind):string => unitPicture(kind,"usa");
 const rootButton = (hud: Hud, selector: string) => hud.findButton(selector);
-const producerFor = (k: UnitKind): string => {
-  if (["inf","engineer","special","atInf","mgInf","reconInf","sniper","mortar","manpad","atgm"].includes(k)) return "barracks";
-  if (["tank","apc","ifv","artillery","mlrs","reconVehicle","lightTank","tankDestroyer","spaa"].includes(k)) return "factory";
-  if (["heli","transport","gunship","casHeli"].includes(k)) return "helipad";
-  if (["fighter","interceptor","bomber","ecm","multirole","attackAircraft"].includes(k)) return "airbase";
-  return "shipyard";
-};
 
 /** HTML/CSS HUD: ressursid, valiku info, tootmispaneel, minikaardi konteiner, alustus-/lõpuekraan. */
 const BUILD_LABELS: Record<string, string> = {
@@ -180,7 +175,7 @@ export class Hud {
   private pauseButton: HTMLButtonElement | null = null;
   private selectedIds: number[] = [];
   private selectedProducerId: number | null = null;
-  private activeTab: "land" | "air" | "sea" | "builds" = "land";
+  private activeTab: "land" | "air" | "sea" | "builds" = "builds";
 
   private nodeCache=new Map<string,HTMLElement[]>();
   private nodes<T extends HTMLElement=HTMLElement>(selector:string):T[] {
@@ -193,7 +188,7 @@ export class Hud {
       <header class="top">
         <div class="panel brand">Rogue Front<small>Taktikaline RTS · <span data-r="fps">-- fps</span> · <span data-r="net">üksikmäng</span></small></div>
         <div class="panel obj"><b data-r="missionName">Missioon</b><div data-r="objectiveList">Vali missioon.</div><div class="mission-msg" data-r="missionMsg"></div><div class="warning" data-r="warning"></div></div>
-        <div class="panel controls"><button data-deployment-toggle aria-expanded="false">Tootmine</button><button data-fullscreen></button><button data-action="pause">Paus</button><details class="game-menu"><summary>Mäng ▾</summary><div><button data-map-menu>Kaardid / menüü</button><button data-action="save">Salvesta</button><button data-action="load">Lae</button><button data-action="settings">Seaded</button></div></details></div>
+        <div class="panel controls"><button data-deployment-toggle aria-expanded="false">Ehita</button><button data-fullscreen></button><button data-action="pause">Paus</button><details class="game-menu"><summary>Mäng ▾</summary><div><button data-map-menu>Kaardid / menüü</button><button data-action="save">Salvesta</button><button data-action="load">Lae</button><button data-action="settings">Seaded</button></div></details></div>
         <div class="panel stat resources">
           <div class="res-row"><span class="res-label">VARUSTUS</span><b data-r="res">0</b></div>
           <div class="res-row"><span class="res-label">ENERGIA</span><b data-r="power">0/0</b>
@@ -291,8 +286,8 @@ export class Hud {
     root.querySelectorAll<HTMLElement>("[data-r]").forEach((n) => (this.el[n.dataset.r!] = n));
     this.minimapCanvas = root.querySelector(".mini") as HTMLCanvasElement;
     this.buttons = [...root.querySelectorAll<HTMLButtonElement>("button[data-kind]")];
-    const production=root.querySelector<HTMLElement>(".build.tactical");if(production)root.appendChild(production);
-    root.querySelector<HTMLButtonElement>("[data-deployment-toggle]")!.onclick=()=>{const open=root.classList.toggle("deployment-open");root.querySelector("[data-deployment-toggle]")!.setAttribute("aria-expanded",String(open));};
+    const production=root.querySelector<HTMLElement>(".build.tactical");if(production)root.querySelector(".bottom")!.appendChild(production);
+    root.querySelector<HTMLButtonElement>("[data-deployment-toggle]")!.onclick=()=>{const open=root.classList.toggle("deployment-open");if(open)this.activateTab("builds");root.querySelector("[data-deployment-toggle]")!.setAttribute("aria-expanded",String(open));};
     root.querySelector<HTMLButtonElement>("[data-map-menu]")!.onclick=()=>{location.href=location.pathname;};
     bindFullscreen(root.querySelector<HTMLButtonElement>("[data-fullscreen]")!,message=>this.setWarning(message));
     const gameMenu=root.querySelector<HTMLDetailsElement>(".game-menu")!;
@@ -311,7 +306,7 @@ export class Hud {
 if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKind=null;this.inspectedBuildingId=null;}if((e.target as HTMLElement).closest("[data-garrison-face]"))this.onGarrisonFace(this.selectedIds);if((e.target as HTMLElement).closest("[data-garrison-exit]"))this.onGarrisonExit(this.selectedIds);const b=(e.target as HTMLElement).closest<HTMLElement>("[data-select-unit]");if(b)this.onSelect([Number(b.dataset.selectUnit)]);});
     this.buttons.forEach((b) => b.addEventListener("click", () => {
       const pid = b.dataset.producerId ? Number(b.dataset.producerId) : undefined;
-      this.onProduce(b.dataset.kind as UnitKind, pid);
+      if(pid!=null&&!b.disabled)this.onProduce(b.dataset.kind as UnitKind, pid);
     }));
     // build buttons are rebound each frame from availableBuilds()
     root.querySelector<HTMLButtonElement>("button[data-upgrade-producer]")?.addEventListener("click",()=>this.onUpgradeProducer([...this.selectedIds]));
@@ -366,6 +361,7 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
         if (this.selectedIds.length) this.onAirMission(this.selectedIds, mission);
       });
     });
+    this.activateTab("builds");
     root.querySelectorAll<HTMLButtonElement>("button.tab[data-tab]").forEach((b) => {
       b.addEventListener("click", () => {
         const tab = b.dataset.tab as "land" | "air" | "sea" | "builds";
@@ -374,6 +370,13 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
         root.querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("active", (p as HTMLElement).dataset.panel === tab));
       });
     });
+  }
+
+  private productionContext="";
+  private activateTab(tab:"land"|"air"|"sea"|"builds"):void {
+    this.activeTab=tab;
+    this.root.querySelectorAll<HTMLElement>("button.tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===tab));
+    this.root.querySelectorAll<HTMLElement>(".tab-panel").forEach(p=>p.classList.toggle("active",p.dataset.panel===tab));
   }
 
   private setSelectedMarkup(markup:string):void {
@@ -415,11 +418,9 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
   setPaused(paused: boolean): void { if (this.pauseButton) this.pauseButton.textContent = paused ? "Jätka" : "Paus"; }
 
   update(world: World, selection: ReadonlySet<number>, running: boolean, objectives: readonly { title: string; description: string; complete: boolean; progress: number }[] = [], missionMessage = ""): void {
-    const changed=this.selectedIds.join(",") !== [...selection].join(",");
     this.selectedIds = [...selection];
     this.root.classList.toggle("has-selection",this.selectedIds.length>0);
     const signature=this.selectedIds.join(",");if(signature!==this.selectionSignature){this.inspectedKind=null;this.inspectedBuildingId=null;this.rangeSlot=null;}this.selectionSignature=signature;
-    if(changed && this.selectedIds.length){const first=world.byId.get(this.selectedIds[0]);if(first){const tab=["factory","barracks"].includes(first.kind)?"land":["helipad","airbase"].includes(first.kind)?"air":first.kind==="shipyard"?"sea":first.kind==="engineer"||first.def.building?"builds":first.def.armor==="air"?"air":first.def.domain==="sea"?"sea":"land";this.findButton(`button[data-tab="${tab}"]`)?.click();}}
     const hasMobile=this.selectedIds.some(id=>{const u=world.byId.get(id);return !!u&&!u.dead&&u.team===world.playerTeam&&u.def.speed>0&&u.logisticsRoute!=="strategic";});
     this.root.querySelector<HTMLElement>(".advanced-orders")!.hidden=!hasMobile;
     this.el.navalBar.hidden=!this.selectedIds.some(id=>world.byId.get(id)?.def.domain==="sea");
@@ -494,18 +495,17 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
       const open=this.findButton("[data-guide-panel]")!;open.hidden=!guide.panel;open.textContent=guide.panel==="builds"?"Ava ehitus":"Ava tootmine";
       this.findButton("[data-guide-target]")!.hidden=!this.guidePoint;
     }
-    const hq = world.hq[world.playerTeam];
-    const selectedProducer = [...selection].map(id=>world.byId.get(id)).find(e=>e && !e.dead && e.team===world.playerTeam && ["barracks","factory","helipad","airbase","shipyard"].includes(e.kind));
+    const selectedProducer=selectedProductionBuilding(world,selection);
     this.selectedProducerId = selectedProducer?.id ?? null;
     const q = selectedProducer?.productionQueue ?? [];
-    // One pass per HUD refresh instead of filter+sort for every roster card.
-    const producers=new Map<string,Entity>();
-    for(const u of world.entities){
-      if(u.dead||u.underConstruction||u.team!==world.playerTeam||!["barracks","factory","helipad","airbase","shipyard"].includes(u.kind))continue;
-      const best=producers.get(u.kind);if(!best||u.productionQueue.length<best.productionQueue.length)producers.set(u.kind,u);
+    const ownBuilding=[...selection].map(id=>world.byId.get(id)).find(e=>e&&!e.dead&&e.team===world.playerTeam&&e.def.building);
+    this.root.classList.toggle("building-panel-open",!!ownBuilding);
+    if(this.productionContext!==String(ownBuilding?.id??"")){
+      this.productionContext=String(ownBuilding?.id??"");
+      this.activateTab(selectedProducer ? selectedProducer.kind==="airbase"||selectedProducer.kind==="helipad"?"air":selectedProducer.kind==="shipyard"?"sea":"land" : "builds");
     }
-    if(selectedProducer&&!selectedProducer.underConstruction)producers.set(selectedProducer.kind,selectedProducer);
-    const findProducer=(kind:string)=>producers.get(kind)??null;
+    this.el.catalogTitle.textContent=selectedProducer?world.unitDisplayName(selectedProducer.kind)+" · TELLI ÜKSUS":"BAASIEHITUS";
+    for(const tab of this.nodes<HTMLButtonElement>("button.tab[data-tab]"))tab.hidden=tab.dataset.tab!=="builds"&&(!selectedProducer||tab.dataset.tab!==(selectedProducer.kind==="airbase"||selectedProducer.kind==="helipad"?"air":selectedProducer.kind==="shipyard"?"sea":"land"));
     const cancelBtn = rootButton(this, "button[data-cancel-produce]");
     if (cancelBtn) {
       cancelBtn.hidden = !selectedProducer || q.length === 0;
@@ -514,17 +514,15 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     const engineerSelected = [...selection].some(id=>{const e=world.byId.get(id);return !!e&&!e.dead&&e.team===world.playerTeam&&e.kind==="engineer";}) || world.entities.some(e=>!e.dead&&e.team===world.playerTeam&&e.kind==="engineer");
     for (const b of this.buttons) {
       const kind=b.dataset.kind as UnitKind;if(!kind||!UNITS[kind])continue;
-      const def=world.unitDefinition(kind),cost=def.cost,prod=findProducer(b.dataset.producer!);
+      const def=world.unitDefinition(kind),cost=def.cost,state=buildingOrderState(world,selectedProducer,kind,running),prod=state.visible?selectedProducer:null;
+      b.hidden=!state.visible;
       if(prod)b.dataset.producerId=String(prod.id);else delete b.dataset.producerId;
       const picture=b.querySelector<HTMLElement>(".unit-icon");
       if(picture&&picture.dataset.faction!==world.playerFaction){picture.innerHTML=unitPicture(kind,world.playerFaction)+`<span class="class-badge" title="${def.roleLabel??kind}">${icon(kind)}</span>`;picture.dataset.faction=world.playerFaction;}
       const label=b.querySelector<HTMLElement>("[data-unit-label]");if(label&&label.textContent!==world.unitDisplayName(kind))label.textContent=world.unitDisplayName(kind);
       const price=b.querySelector<HTMLElement>(".unit-cost");if(price&&price.textContent!==String(cost))price.textContent=String(cost);
-      const queueFull=(prod?.productionQueue.length??0)>=MAX_QUEUE;
-      const levelOK=!!prod&&world.canProduceAtLevel(prod,kind);
-      const operation=prod?world.productionOperational(prod,kind):null;
-      const reason=!prod?"Vajab tootjat":queueFull?"Järjekord täis":world.resources<cost||world.credits<cost?`Puudu ${Math.ceil(cost-Math.min(world.resources,world.credits))} krediiti`:!levelOK?"Vajab taset "+world.unitRequiredBuildingLevel(kind):!operation?.operational?operation?.reason||"Tarne / energia":"";
-      b.disabled=!running||!hq||hq.dead||!!reason;
+      const reason=state.reason;
+      b.disabled=!!reason;
       const lock=b.querySelector<HTMLElement>("[data-lock]");if(lock&&lock.textContent!==reason)lock.textContent=reason;
       b.title=reason||`Tooda ${world.unitDisplayName(kind)} (${cost}) · ${def.roleLabel??""} · ${(def.weapons??[]).map(w=>w.name+" / "+(w.displayRange??w.range)+" m").join(" · ")} · Parem klõps: koosseisukaart`;
     }
@@ -532,7 +530,7 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     this.root.querySelectorAll(".tutorial-target").forEach(n=>n.classList.remove("tutorial-target"));
     if(tutorial&&step&&this.guideHighlight)this.root.querySelector(this.guideHighlight)?.classList.add("tutorial-target");
     if(tutorial&&step){
-      const drawer=this.nodes<HTMLElement>(".build.tactical")[0],top=this.root.classList.contains("deployment-open")&&drawer?drawer.getBoundingClientRect().bottom+8:innerWidth<700?72:52;
+      const top=innerWidth<700?72:52;
       const value=`${top}px`;if(this.el.tutorialGuide.style.getPropertyValue("--tutorial-top")!==value)this.el.tutorialGuide.style.setProperty("--tutorial-top",value);
     }
     (this.el.qbar as HTMLElement).style.width = q.length ? Math.min(100, ((selectedProducer?.productionProgress??0) / world.unitDefinition(q[0],selectedProducer?.team??world.playerTeam).buildTime) * 100) + "%" : "0";
@@ -547,7 +545,7 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     } else {
       this.el.qtxt.textContent = this.activeTab === "builds"
         ? "Ehita: vali hoone, seejärel koht kaardil"
-        : "Tooda üksusi — vajad vastavat tootmishoonet";
+        : "Üksuse tellimiseks vali kasarm, tehas, kopteriplats, lennuväli või sadam.";
     }
     if (this.el.predeployBar) {
       this.el.predeployBar.hidden = !selectedProducer;

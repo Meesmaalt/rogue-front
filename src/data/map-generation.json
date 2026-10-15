@@ -533,7 +533,7 @@
     ]
   },
   "freshGeneration": {
-    "version": 12,
+    "version": 13,
     "attempts": 12,
     "riverAmplitudeRatio": [
       0.018,
@@ -559,5 +559,33 @@
     ],
     "clearance": 16,
     "forestThreshold": 0.62
+  },
+  "mediterranean": {
+    "forestThreshold": 0.77,
+    "forestCenterRatio": 0.038,
+    "forestElevationLimit": 22,
+    "cropColors": [
+      11640947,
+      10853737,
+      9606245,
+      12627323,
+      10329460,
+      11905667
+    ],
+    "roofColors": [
+      10903107,
+      9983296,
+      11758411,
+      9263429
+    ],
+    "volcanoSeedDivisor": 3,
+    "volcanoRadiusRatio": 0.036,
+    "volcanoWidthRatio": 0.029,
+    "volcanoDepthRatio": 0.022,
+    "volcanoHeight": 48,
+    "volcanoPeaks": 12,
+    "volcanoClearRadiusRatio": 0.078,
+    "riverOffsetRatio": -0.18,
+    "bypassRatio": 0.115
   }
 }

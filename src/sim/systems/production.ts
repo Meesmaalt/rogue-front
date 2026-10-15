@@ -4,7 +4,7 @@ import {freeAirSlot,stationAircraft} from "./airDoctrine";
 import type { Entity, UnitKind } from "../types";
 import { BUILDINGS } from "../buildings";
 
-function producerKind(kind: UnitKind): "barracks" | "factory" | "helipad" | "airbase" | "shipyard" | null {
+export function producerKind(kind: UnitKind): "barracks" | "factory" | "helipad" | "airbase" | "shipyard" | null {
   if (["inf","engineer","special","atInf","mgInf","reconInf","sniper","mortar","manpad","atgm"].includes(kind)) return "barracks";
   if (["tank","apc","ifv","artillery","mlrs","reconVehicle","lightTank","tankDestroyer","spaa"].includes(kind)) return "factory";
   if (["heli","transport","gunship","casHeli"].includes(kind)) return "helipad";

@@ -15,7 +15,7 @@ it('every current size and region has a reconstructible current-version map',()=
  }
 },120000);
 it('a fresh compact map passes navigation and runway checks, reconstructs and rejects a blocked base',()=>{
- const map=generateFreshMap(62510,'balanced',2048);expect(map.id).toContain('procedural-v12-');expect(getPlayableMap(map.id)).toEqual(map);
+ const map=generateFreshMap(62510,'balanced',2048);expect(map.id).toContain('procedural-v13-');expect(getPlayableMap(map.id)).toEqual(map);
  const broken=structuredClone(map);broken.map.features!.push({id:'blocked-base',kind:'building',x:map.map.bases[0].x,z:map.map.bases[0].z,width:50,depth:50});
  expect(validateFreshMap(broken)).toBe(false);
  expect(()=>generateFreshMap(1,'balanced',1000)).toThrow();

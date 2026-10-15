@@ -40,12 +40,15 @@ export class AudioManager {
  private route(node:AudioNode,channel:Channel,pan:number):StereoPannerNode{
   const panner=this.ctx!.createStereoPanner();panner.pan.value=pan;node.connect(panner).connect(channel==='sfx'?this.sfx!:this.music!);return panner;
  }
- private noise(duration:number,cutoff:number,volume:number,pan=0,channel:Channel='sfx'):void{
+ private noise(duration:number,cutoff:number,volume:number,pan=0,channel:Channel='sfx',attack=0,hold=0):void{
   const ctx=this.ctx;if(!ctx||ctx.state!=='running'||!this.reserve(channel))return;
   if(!this.noiseBuffer){this.noiseBuffer=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate);const samples=this.noiseBuffer.getChannelData(0);for(let i=0;i<samples.length;i++)samples[i]=Math.random()*2-1;}
   const source=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain(),now=ctx.currentTime;
-  source.buffer=this.noiseBuffer;filter.type='lowpass';filter.frequency.setValueAtTime(cutoff,now);filter.frequency.exponentialRampToValueAtTime(Math.max(80,cutoff*.18),now+duration);
-  gain.gain.setValueAtTime(Math.max(.0001,volume),now);gain.gain.exponentialRampToValueAtTime(.0001,now+duration);source.connect(filter).connect(gain);const panner=this.route(gain,channel,pan);
+  source.buffer=this.noiseBuffer;source.loop=duration>1.4;filter.type='lowpass';filter.frequency.setValueAtTime(cutoff,now);filter.frequency.exponentialRampToValueAtTime(Math.max(80,cutoff*.18),now+duration);
+  gain.gain.setValueAtTime(attack>0?.0001:Math.max(.0001,volume),now);
+  if(attack>0)gain.gain.exponentialRampToValueAtTime(Math.max(.0001,volume),now+attack);
+  if(hold>0)gain.gain.setValueAtTime(Math.max(.0001,volume),now+attack+hold);
+  gain.gain.exponentialRampToValueAtTime(.0001,now+duration);source.connect(filter).connect(gain);const panner=this.route(gain,channel,pan);
   source.onended=()=>{this.voices[channel]--;source.disconnect();filter.disconnect();gain.disconnect();panner.disconnect();};source.start(now,Math.random()*.5);source.stop(now+duration);
  }
  private tone(freq:number,duration:number,type:OscillatorType,volume:number,pan=0,channel:Channel='sfx',attack=.008):void{
@@ -61,7 +64,21 @@ export class AudioManager {
    if(e.type==='fire'){
     const kind=e.visual??e.weapon??'rifle',profile=(config.shots as Record<string,number[]>)[kind]??config.shots.rifle,now=ctx.currentTime;
     if(now-(this.lastShot.get(kind)??-10)<profile[4])continue;this.lastShot.set(kind,now);this.activity=Math.min(1,this.activity+mix.gain*.12);
-    this.noise(profile[0],profile[1]/(1+(1-mix.gain)*1.2),profile[2]*mix.gain,mix.pan);this.tone(profile[3],profile[0]*.65,'triangle',profile[2]*.5*mix.gain,mix.pan);
+    const distanceFilter=1+(1-mix.gain)*2;
+    if(config.missiles.includes(kind)){
+      // Ejection crack, rising broadband motor and low exhaust pressure: no pitched laser sweep.
+      const motor=config.missileMotor;
+      this.noise(.085,4300/distanceFilter,.19*mix.gain,mix.pan);
+      this.noise(motor.duration,motor.cutoff/distanceFilter,motor.volume*mix.gain,mix.pan,'sfx',motor.attack,motor.hold);
+      this.noise(.55,240,.13*mix.gain,mix.pan,'sfx',.018,.04);
+    }else{
+      this.noise(Math.min(.075,profile[0]),6500/distanceFilter,profile[2]*mix.gain,mix.pan);
+      this.noise(profile[0],profile[1]/distanceFilter,profile[2]*.8*mix.gain,mix.pan);
+      this.tone(profile[3],profile[0]*.75,'sine',profile[2]*.65*mix.gain,mix.pan);
+      if(['sabot','howitzer','mortar'].includes(kind)){
+        const tail=config.artilleryTail;this.noise(tail.duration,tail.cutoff,tail.volume*mix.gain,mix.pan,'sfx',.035,.03);
+      }
+    }
    }else if(e.type==='impact'){
     if(e.result==='intercept'){this.noise(.12,3000,.13*mix.gain,mix.pan);this.tone(210,.1,'triangle',.08*mix.gain,mix.pan);}
     else if(e.result==='ricochet'){this.tone(1800,.16,'sine',.06*mix.gain,mix.pan);this.noise(.12,3800,.06*mix.gain,mix.pan);}
@@ -76,10 +93,14 @@ export class AudioManager {
  }
  private musicTick():void{
   if(!this.ctx||this.ctx.state!=='running'||this.settings.masterVolume<=0||this.settings.musicVolume<=0)return;
-  this.activity*=.86;this.applyVolumes();const step=this.musicStep++,root=config.roots[Math.floor(step/16)%config.roots.length];
-  if(step%16===0)config.chordRatios.forEach((r,i)=>this.tone(root*2*r,5.9,'triangle',.027,(i-1.5)*.18,'music',.65));
-  if(step%4===0){this.tone(root,.8,'sine',.05,0,'music',.025);this.tone(55,.16,'sine',.03,0,'music');}
-  if(step%2===0){const ratio=config.chordRatios[config.arp[Math.floor(step/2)%config.arp.length]];this.tone(root*4*ratio,.7,'sine',.022,Math.sin(step*.2)*.45,'music',.03);}
-  if(step%4===2)this.noise(.055,3200,.012,.25,'music');
+  this.activity*=.9;this.applyVolumes();const step=this.musicStep++,root=config.roots[Math.floor(step/16)%config.roots.length];
+  // Slow minor drones and restrained low percussion; no bright repeating arpeggio.
+  if(step%16===0){
+    config.chordRatios.forEach((r,i)=>this.tone(root*2*r,12.3,'triangle',.019,(i-1)*.36,'music',1.8));
+    this.tone(root,11.8,'sine',.037,0,'music',1.2);
+    this.noise(8,380,.018,-.25,'music',1.5,1);
+  }
+  if(step%8===0){this.tone(44,.65,'sine',.045,0,'music',.015);this.noise(.55,180,.025,.18,'music',.006,.01);}
+  if(this.activity>.35&&step%8===4)this.noise(.32,460,.018,-.2,'music',.008,.02);
  }
 }

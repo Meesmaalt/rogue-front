@@ -1,3 +1,4 @@
+import {aircraftCamouflage} from "./AircraftCamouflage";
 import artKinds from "../data/art-models.json";
 import {CORE_PLATFORMS} from "../sim/platforms";
 import * as THREE from "three";
@@ -51,7 +52,7 @@ async function loadModel(faction: FactionId, kind: UnitKind, tactical=false): Pr
         for (const material of materials) {
           material.userData.sharedArt = true;
           if (material instanceof THREE.MeshStandardMaterial && material.name === "armor") {
-            material.color.set(0xffffff); material.map = surface.camo;material.roughnessMap=surface.roughness;material.roughness=1;material.normalMap=surface.normal;material.normalScale.set(.28,.28); material.needsUpdate = true;
+            material.color.set(0xffffff); material.map = (kind==="cargoPlane"||kind==="bomber")?aircraftCamouflage(surface.camo,kind):surface.camo;material.roughnessMap=surface.roughness;material.roughness=1;material.normalMap=surface.normal;material.normalScale.set(.28,.28); material.needsUpdate = true;
           }
         }
       });
