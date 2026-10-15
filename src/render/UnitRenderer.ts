@@ -1,3 +1,4 @@
+import {createWarehouseCrew} from "./CargoHandlingVisual";
 import {createCargoRamp} from "./CargoHandlingVisual";
 import {stepSoldier,soldierOffset,type SoldierPose} from "./SquadMotion";
 import {createParachute} from "./ExpansionModels";
@@ -154,7 +155,7 @@ export class UnitRenderer {
       if (!v) {
         const faction = e.team === world.playerTeam ? world.playerFaction : world.enemyFaction;
         const metricAirfield=e.kind==="airbase"&&!!e.def.metricScale;
-        const visual = metricAirfield?{group:createMetricAirfieldStructures(e),turret:null}:createArtModel(e.kind, e.team, faction) ?? createVisualModel(e.kind, e.team, faction);
+        const visual = e.groundService?.onFoot?{group:createWarehouseCrew(),turret:null}:metricAirfield?{group:createMetricAirfieldStructures(e),turret:null}:createArtModel(e.kind, e.team, faction) ?? createVisualModel(e.kind, e.team, faction);
         visual.group.scale.multiplyScalar(e.def.modelScale??1);
         // Authored GLBs retain the silhouette at tactical camera distance.
         const lod = new THREE.LOD();
@@ -212,7 +213,7 @@ export class UnitRenderer {
       v.group.position.set(x,flying||e.def.domain==="sea"?v.pose.y:e.garrisonId?e.y:ground,z);
       const shadow=v.shadow;
       if(shadow)shadow.position.y=ground-v.group.position.y+.045;
-      if(e.kind==='groundHandler'){const crates=v.group.getObjectByName('HandlingCargo');if(crates)crates.visible=e.cargo>0;}
+      if(e.kind==='groundHandler'){const crates=v.group.getObjectByName('HandlingCargo');if(crates)crates.visible=e.cargo>0;if(e.groundService?.onFoot)v.group.traverse(o=>{if(o.name==='PorterLeftLeg'||o.name==='PorterRightLeg')o.rotation.x=Math.sin(world.time*7+(o.name==='PorterLeftLeg'?0:Math.PI))*Math.min(.5,(e.motionSpeed??0)*.17);});}
       if(['transport','cargoPlane','airTransport'].includes(e.kind)&&((e.cargoDoor??0)>0||v.cargoRamp)){
         if(!v.cargoRamp){v.cargoRamp=createCargoRamp(e.def.radius,e.def.height);v.group.add(v.cargoRamp);}
         v.cargoRamp.rotation.x=smoothMotion(v.cargoRamp.rotation.x,-Math.PI*.58*(e.cargoDoor??0),5,frameDt);

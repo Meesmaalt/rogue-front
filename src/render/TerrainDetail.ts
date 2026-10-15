@@ -1,3 +1,4 @@
+import crops from "../data/crops.json";
 import * as THREE from 'three';
 import config from '../data/terrain.json';
 import type {GameSettings} from '../ui/Settings';
@@ -75,6 +76,7 @@ function setMaterialQuality(material:THREE.MeshStandardMaterial,quality:Quality)
 /** Uniform-only material changes: switching detail strength never creates another shader variant. */
 export function setTerrainDetailQuality(root:THREE.Object3D,quality:Quality):void {
  const seen=new Set<THREE.Material>();root.traverse(object=>{
+  if(object instanceof THREE.LOD&&object.userData.cropLOD&&object.levels[1])object.levels[1].distance=crops.drawDistance*(quality==="low"?.45:quality==="medium"?.7:1);
   if(!(object instanceof THREE.Mesh))return;
   for(const material of Array.isArray(object.material)?object.material:[object.material]){
    if(seen.has(material)||!(material instanceof THREE.MeshStandardMaterial))continue;seen.add(material);setMaterialQuality(material,quality);

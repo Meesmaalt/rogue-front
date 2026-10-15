@@ -102,6 +102,10 @@
     "maxPads": 20,
     "arrival": 2.5,
     "pickupGap": 3,
-    "dockGap": 3
+    "dockGap": 3,
+    "porterCapacity": 120,
+    "porterSpeed": 3,
+    "porterRadius": 0.45,
+    "porterArrival": 0.8
   }
 }

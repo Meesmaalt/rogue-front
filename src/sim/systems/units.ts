@@ -479,6 +479,12 @@ function updateCargoPlane(w:World,u:Entity,dt:number):void {
 }
 
 function updateTransport(w: World, u: Entity, dt: number): void {
+  if(u.logisticsManual){
+    if(u.mode==='hold'||!u.dest){u.motionSpeed=0;return;}
+    if(!logisticsDeparture(u,dt))return;
+    if(moveAirTo(u,u.dest,dt,w)){u.airState='grounded';u.mode='hold';u.dest=null;u.logisticsPadSlot=undefined;}
+    return;
+  }
   if(u.logisticsRoute==="strategic"&&u.supplyDepotId!=null){updateExternalFlight(w,u,dt);return;}
   if (u.mode === "transport-load" || u.mode === "transport-unload") {
     prepareTransport(w,u);
@@ -568,7 +574,7 @@ export function updateUnits(w: World, dt: number): void {
 
 function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): void {
   const d = u.def;u.navWaiting=false;
-  if(u.kind==='groundHandler'){updateGroundHandler(w,u,dt,p=>moveRoadTruckTo(w,u,p,dt,logisticsConfig.handling.arrival));return;}
+  if(u.kind==='groundHandler'){updateGroundHandler(w,u,dt,p=>moveRoadTruckTo(w,u,p,dt,u.groundService?.onFoot?logisticsConfig.handling.porterArrival:logisticsConfig.handling.arrival));return;}
   if(updateAirdrop(w,u,dt))return;
   if(u.kind==='airTransport'&&u.mode==='transport-load'){updateAirliftLoading(w,u);return;}
   if(u.kind==='airTransport'&&['grounded','rearming'].includes(u.airState??'')&&u.mode==='transport-unload'&&u.unloadPoint&&dist2d(u,u.unloadPoint)<expansion.airlift.groundExitRadius){if(releaseAirliftCargo(w,u,true))u.mode='idle';return;}
@@ -628,7 +634,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
   if (isAir) {
     const helicopter=d.category==="heli",home=w.byId.get(u.airMissionHomeId??-1);
     let pad=home&&!home.dead&&!home.underConstruction&&(!["returning","airborne"].includes(u.airState??"")||(home.disabledUntil??0)<=w.time)&&home.kind===(helicopter?"helipad":"airbase")?home:null;
-    if(!pad&&!["grounded","rearming","landing"].includes(u.airState??"")){
+    if(!pad&&!["grounded","rearming","landing"].includes(u.airState??"")&&!(helicopter&&u.airState==="taxi")){
       const alternatives=w.entities.filter(e=>!e.dead&&!e.underConstruction&&e.team===u.team&&e.kind===(helicopter?"helipad":"airbase")&&(e.disabledUntil??0)<=w.time&&freeAirSlot(w,e)>=0).sort((a,b)=>dist2d(u,a)-dist2d(u,b)||a.id-b.id);
       pad=alternatives[0]??null;if(pad){u.airHomeSlot=freeAirSlot(w,pad);u.airMissionHomeId=pad.id;u.airState="returning";u.airReturnReason="base";u.airLandingPhase="approach";}
     }
@@ -645,18 +651,21 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       }
       const loaded=(u.ammo??0)>=(u.maxAmmo??0)*.95&&(d.weapons??[]).every((s,i)=>i===0||weaponAmmo(u,i)>=s.ammoCapacity*.95);
       if(u.airState==="rearming"&&loaded&&(u.fuel??0)>=(u.maxFuel??0)*.95)u.airState="grounded";
-      if(u.airState==="grounded"&&pad&&w.productionOperational(pad).operational&&(u.fuel??0)>(u.maxFuel??0)*.3&&hasAirMissionAmmo(u)&&["attack","amove","move","patrol","transport-load","transport-unload"].includes(u.mode)){
+      if(u.airState==="grounded"&&(helicopter||pad&&w.productionOperational(pad).operational)&&(u.fuel??0)>(u.maxFuel??0)*.3&&hasAirMissionAmmo(u)&&["attack","amove","move","patrol","transport-load","transport-unload"].includes(u.mode)){
         u.airState="taxi";u.airTaxiPhase="apron";u.airSortieTime=0;u.airReturnReason=null;
       }else return;
     }
     if(u.airState==="taxi"){
       if(pad&&!w.productionOperational(pad).operational){u.airState=helicopter&&u.y-heightAt(u.x,u.z)>3?"returning":"landing";u.airReturnReason="base";u.airLandingPhase="approach";u.motionSpeed=0;return;}
-      if(!pad){u.airState=helicopter&&u.y-heightAt(u.x,u.z)>3?"airborne":"grounded";u.mode="idle";u.dest=null;u.motionSpeed=0;return;}
+      if(!pad&&!helicopter){u.airState=helicopter&&u.y-heightAt(u.x,u.z)>3?"airborne":"grounded";u.mode="idle";u.dest=null;u.motionSpeed=0;return;}
       u.airSortieTime=(u.airSortieTime??0)+dt;
       if(helicopter){
+        if((u.cargoDoor??0)>0){u.cargoDoor=Math.max(0,(u.cargoDoor??0)-dt/logisticsConfig.handling.doorSeconds);u.airSortieTime=0;return;}
+        if(u.airSortieTime<logisticsConfig.handling.spoolSeconds)return;
         u.y=Math.min(heightAt(u.x,u.z)+helicopterMobility(u).altitude,u.y+helicopterMobility(u).climbRate*dt);u.motionSpeed=0;u.flightVx=u.flightVz=0;
         if(u.airSortieTime<helicopterMobility(u).takeoffTime||u.y-heightAt(u.x,u.z)<mobility.helicopter.takeoffClearance)return;
       }else {
+        if(!pad)return;
         if(u.airTaxiPhase==="apron"||u.airTaxiPhase==null){
           const holding=airFacilityPoint(pad,aircraftMobility(u).runwayStart,aircraftMobility(u).parkingOffset);
           if(!taxiTo(u,holding,dt)||runwayOccupied(w,u,pad))return;u.airTaxiPhase="lining-up";

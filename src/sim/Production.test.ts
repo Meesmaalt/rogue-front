@@ -43,11 +43,14 @@ it("physical air operations: production, runway queue, mission, landing and fini
   expect(plane.ammo).toBe(plane.maxAmmo);expect(consumed).toBeGreaterThan(0);
   const copy=airWorld();loadWorld(copy,JSON.parse(JSON.stringify(saveWorld(w))));expect(worldHash(copy)).toBe(worldHash(w));
 });
-it("physical air operations: helicopter rises vertically and cannot fly without a facility",()=>{
+it("physical air operations: helicopter spools before vertical lift and can depart an off-base landing",()=>{
   const w=airWorld(),pad=w.spawn("helipad",0,10,-180),u=w.spawn("heli",0,10,-180);stationAircraft(w,u,pad);const x=u.x,z=u.z;
   w.issue({type:"air-mission",ids:[pad.id],mission:"ground",x:30,z:-100});for(let i=0;i<30;i++)w.tick(SIM_STEP);
-  expect(u.airState).toBe("taxi");expect(u.x).toBe(x);expect(u.z).toBe(z);expect(u.y).toBeGreaterThan(heightAt(x,z)+4);
-  const orphan=w.spawn("heli",0,-100,-180);orphan.airState="grounded";pad.dead=true;w.issue({type:"move",ids:[orphan.id],x:0,z:-100});for(let i=0;i<10;i++)w.tick(SIM_STEP);expect(orphan.airState).toBe("grounded");expect(orphan.x).toBe(-100);
+  expect(u.airState).toBe("taxi");expect(u.x).toBe(x);expect(u.z).toBe(z);expect(u.y).toBeCloseTo(heightAt(x,z));
+  for(let i=0;i<120&&u.y<heightAt(x,z)+4.1;i++)w.tick(SIM_STEP);
+  expect(u.y).toBeGreaterThan(heightAt(x,z)+4);expect(u.x).toBe(x);expect(u.z).toBe(z);
+  const orphan=w.spawn("heli",0,-100,-180);orphan.airState="grounded";pad.dead=true;w.issue({type:"move",ids:[orphan.id],x:0,z:-100});for(let i=0;i<10;i++)w.tick(SIM_STEP);expect(orphan.airState).toBe("taxi");expect(orphan.x).toBe(-100);
+  for(let i=0;i<150;i++)w.tick(SIM_STEP);expect(orphan.y).toBeGreaterThan(heightAt(orphan.x,orphan.z)+4);expect(orphan.dead).toBe(false);
 });
 
 it("faction loadouts: production and cancellation use the displayed faction price",()=>{

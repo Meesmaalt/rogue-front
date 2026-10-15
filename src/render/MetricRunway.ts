@@ -6,7 +6,7 @@ import config from '../data/terrain.json';
 import type {Entity} from '../sim/types';
 const materials=Array.from({length:3},(_,layer)=>{const m=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,polygonOffset:true,polygonOffsetFactor:-(layer+1),polygonOffsetUnits:-(layer+1)*2});m.userData.sharedArt=true;return m;});
 /** Three depth-biased batches, clipped to the rendered ground triangles, including markings. */
-export function createMetricRunway(pad:Entity):THREE.Mesh {
+export function createMetricRunway(pad:Pick<Entity,"x"|"y"|"z"|"heading">):THREE.Mesh {
  const layers:THREE.BufferGeometry[][]=[[],[],[]],cfg=config.render.airfield;
  const start=BATTLE_SCALE.aircraft.runwayStart,end=BATTLE_SCALE.aircraft.runwayEnd,half=BATTLE_SCALE.aircraft.runwayWidth/2;
  const rect=(left:number,right:number,a:number,b:number,color:number,layer=0)=>layers[layer].push(groundRectangle(pad,left,right,a,b,color,cfg.surfaceOffset+layer*.015));

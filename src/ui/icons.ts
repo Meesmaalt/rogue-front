@@ -1,6 +1,9 @@
 import type { UnitKind } from "../sim/types";
 /** Original SVG silhouettes remain legible at command-card size. */
 const paths:Record<string,string>={
+    upgrade:'<path d="M16 2L4 15h7v10h10V15h7zM5 28h22v3H5z"/>',
+    research:'<path d="M11 2h10v3h-2v7l9 15a3 3 0 0 1-3 4H7a3 3 0 0 1-3-4l9-15V5h-2zM11 21l-4 7h18l-4-7z"/>',
+
     infantry:'<circle cx="16" cy="6" r="3"/><path d="M12 11h8l2 9h-4v9h-3v-9h-3zM9 13l-3 8 3 1 4-8m7-1 6 7-2 2-6-7"/>',
     atInf:'<circle cx="11" cy="7" r="3"/><path d="M7 12h8v10h-3v8H8V21H5zM12 11l16-5 2 4-16 5z"/>',
     manpad:'<circle cx="10" cy="9" r="3"/><path d="M7 14h8v9h-3v7H8v-9H5zM12 12L27 3l3 4-16 9z"/><path d="M20 21l5-5m-1 9 6-6" fill="none" stroke="currentColor" stroke-width="2"/>',

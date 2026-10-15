@@ -24,3 +24,23 @@ it('simultaneous arrivals get separate service vehicles and keep the cargo total
 it('cargo already on a vehicle can reach another warehouse after the first one is destroyed',()=>{
  const {w,depot,h}=fixture();handleGroundCargo(w,h,depot,10);const truck=w.byId.get(h.groundServiceId!)!;truck.cargo=100;h.cargo=0;truck.groundService!.phase='deliver';const replacement=w.spawn('supply',0,60,0);depot.dead=true;updateGroundHandler(w,truck,10,()=>true);expect(truck.groundService!.depotId).toBe(replacement.id);expect(truck.cargo).toBe(0);expect(w.roadCargoDelivered[0]).toBeCloseTo(100);
 });
+it('moving a landed collector closes the hatch, spools up and leaves without a helipad',async()=>{
+ const {applyCommands}=await import('./systems/commands'),{w,depot,h}=fixture();
+ handleGroundCargo(w,h,depot,10);const worker=w.byId.get(h.groundServiceId!)!;
+ worker.cargo=60;h.cargo-=60;worker.groundService!.phase='deliver';
+ const start={x:h.x,z:h.z},money=w.credits;
+ w.pending.push({type:'move',ids:[h.id],x:h.x+75,z:h.z,team:0});applyCommands(w);
+ expect(h.logisticsManual).toBe(true);
+ for(let i=0;i<30;i++){w.time+=1/30;w.spatial.rebuild(w.entities);updateUnits(w,1/30);}
+ expect(h.cargoDoor).toBeLessThan(1);expect(Math.hypot(h.x-start.x,h.z-start.z)).toBeLessThan(.1);
+ for(let i=0;i<1800;i++){w.time+=1/30;w.spatial.rebuild(w.entities);updateUnits(w,1/30);}
+ expect(h.dead).toBe(false);expect(h.cargoDoor).toBe(0);expect(Math.hypot(h.x-start.x,h.z-start.z)).toBeGreaterThan(60);
+ expect(w.credits).toBeGreaterThan(money);expect(worker.cargo).toBe(0);
+ w.pending.push({type:'logistics-source',ids:[depot.id],sourceIndex:null,paused:false,team:0});applyCommands(w);expect(h.logisticsManual).toBe(false);
+});
+it('a helicopter uses a walking crew while a cargo plane keeps its loader',()=>{
+ const {w,depot,h}=fixture();handleGroundCargo(w,h,depot,10);const crew=w.byId.get(h.groundServiceId!)!;
+ expect(crew.groundService!.onFoot).toBe(true);expect(crew.def.speed).toBe(3);expect(crew.def.radius).toBeLessThan(1);
+ const plane=w.spawn('cargoPlane',0,h.x+50,h.z);plane.supplyDepotId=depot.id;plane.cargo=480;handleGroundCargo(w,plane,depot,10);
+ const loader=w.byId.get(plane.groundServiceId!)!;expect(loader.groundService!.onFoot).toBe(false);expect(loader.def.speed).toBe(10);
+});

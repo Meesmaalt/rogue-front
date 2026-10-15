@@ -1,3 +1,4 @@
+import {ConstructionPreview} from "./render/ConstructionPreview";
 import {installLanguage} from "./ui/Language";
 import {readPreparedMission} from "./ui/PreparedMission";
 import {setTerrainDetailQuality} from "./render/TerrainDetail";
@@ -161,6 +162,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const cam = new RtsCamera(ctx.camera, heightAt, ctx.sun, topCanvas,world.compactBattle);
   cam.jumpTo(world.bases[world.playerTeam].x,world.bases[world.playerTeam].z);
   const units = new UnitRenderer(ctx.scene,ctx.camera);
+  const constructionPreview=new ConstructionPreview(ctx.scene);
   const ranges=new RangeOverlay(ctx.scene);
   const fx = new Fx(ctx.scene,ctx.camera);
   const resourceSites=new ResourceSites(ctx.scene,world);
@@ -401,6 +403,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       fog.sync(world,visualAlpha);
       performancePanel.mark("udu");
       gpuTimer.begin(performancePanel.enabled);
+      constructionPreview.update(world,commands.buildMode,commands.buildPoint,commands.buildRotation,commands.buildValid);
       ctx.post.render();
       gpuTimer.end();
       performancePanel.mark("3D");

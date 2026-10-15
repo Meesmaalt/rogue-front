@@ -205,7 +205,7 @@ export function createBuildingModel(kind:UnitKind,team:Team,faction:FactionId):{
  g.userData.militarySilhouette=kind;return {group:batch(g),turret:null};
 }
 /** Structured metric airport: free apron at the real parking positions, hangars behind it. */
-export function createMetricAirfieldStructures(pad:Entity):THREE.Group {
+export function createMetricAirfieldStructures(pad:Pick<Entity,"x"|"y"|"z"|"heading"|"team">):THREE.Group {
  const group=new THREE.Group(),wall=material(0xa9b5ad,'plaster'),camo=material(0x89aaa3,'camouflage'),steel=material(0x646f68,'metal',.3),dark=material(0x424a48,'metal',.3);
  function foundation(g:THREE.Group,x:number,z:number,width:number,depth:number){
   let y=-Infinity;for(const dx of [-width/2,width/2])for(const dz of [-depth/2,depth/2]){

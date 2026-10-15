@@ -1,0 +1,22 @@
+import {expect,it,vi,afterEach} from 'vitest';
+import * as THREE from 'three';
+import {ConstructionPreview} from './ConstructionPreview';
+import {createBuildingModel} from './Architecture';
+import {World} from '../sim/World';
+import {resetHeightmap} from '../sim/heightmap';
+afterEach(()=>{vi.unstubAllGlobals();resetHeightmap();});
+it('preview matches the final silhouette, rotates and colours validity without changing shared materials',()=>{
+ vi.stubGlobal('document',{createElement:()=>({width:0,height:0,getContext:()=>({createImageData:(w:number,h:number)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData:()=>{},fillRect:()=>{},drawImage:()=>{},beginPath:()=>{},moveTo:()=>{},lineTo:()=>{},closePath:()=>{},fill:()=>{},fillStyle:''})})});
+ const w=new World(52,false,[],[],[],false),preview=new ConstructionPreview(new THREE.Scene());
+ const final=createBuildingModel('factory',w.playerTeam,w.playerFaction)!.group;
+ const material=(final.children[0] as THREE.Mesh).material as THREE.MeshStandardMaterial,color=material.color.getHex();
+ preview.update(w,'factory',{x:20,z:30},Math.PI/2,true);
+ expect(preview.group.rotation.y).toBe(Math.PI/2);expect(preview.group.position.x).toBe(20);
+ preview.group.updateMatrixWorld(true);
+ const ghost=preview.group.children[0],size=new THREE.Box3().setFromObject(ghost).getSize(new THREE.Vector3()),finalSize=new THREE.Box3().setFromObject(final).getSize(new THREE.Vector3());
+ expect(size.y).toBeCloseTo(finalSize.y);expect(size.x).toBeCloseTo(finalSize.z);
+ const mesh=ghost.children[0] as THREE.Mesh,ghostMaterial=mesh.material as THREE.MeshBasicMaterial;
+ expect(ghostMaterial).not.toBe(material);expect(ghostMaterial.transparent).toBe(true);
+ preview.update(w,'factory',{x:20,z:30},0,false);expect(ghostMaterial.color.getHex()).toBe(0xf17465);expect(material.color.getHex()).toBe(color);
+ preview.update(w,null,null,0,true);expect(preview.group.visible).toBe(false);expect(preview.group.children).toHaveLength(0);
+});

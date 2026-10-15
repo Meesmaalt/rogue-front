@@ -29,17 +29,20 @@ export function handleGroundCargo(w:World,u:Entity,depot:Entity,dt:number):boole
  if(handler?.dead){u.groundServiceId=undefined;handler=undefined;}
  if(!handler&&u.cargo>.001){
   if(w.time<(u.groundServiceRetryAt??0))return false;u.groundServiceRetryAt=w.time+2;
-  const used=new Set(w.entities.filter(e=>!e.dead&&e.groundService?.depotId===depot.id).map(e=>e.groundService?.dockSlot??0)),raw=cargoPickupPoint(u),pickup=w.nav.nearestWalkable(raw,1.1);
-  if(!pickup||Math.hypot(pickup.x-raw.x,pickup.z-raw.z)>cfg.pickupGap*2)return false;
+  const onFoot=u.kind==='transport',radius=onFoot?cfg.porterRadius:1.1;
+  const used=new Set(w.entities.filter(e=>!e.dead&&e.groundService?.depotId===depot.id).map(e=>e.groundService?.dockSlot??0));
+  const rear=cargoPickupPoint(u),points=[rear,...[1,-1,2,-2].map(side=>({x:rear.x+Math.cos(u.heading)*side*cfg.pickupGap,z:rear.z-Math.sin(u.heading)*side*cfg.pickupGap}))].map(raw=>{const point=w.nav.nearestWalkable(raw,radius);return point&&Math.hypot(point.x-raw.x,point.z-raw.z)<=cfg.pickupGap*2?point:null;}).filter((p):p is Point=>p!=null);
   const parked=w.entities.filter(e=>!e.dead&&e.loadedIntoId==null&&e.def.armor!=='air'&&e.def.speed>0).map(e=>({x:e.x,z:e.z,radius:e.def.radius}));
   for(let slot=0;slot<16;slot++){if(used.has(slot))continue;const dock=depotDock(w,depot,slot);
-   if(!dock||parked.some(e=>Math.hypot(e.x-dock.x,e.z-dock.z)<e.radius+1.3)||!findPath(w.nav,dock,pickup,1.1,undefined,parked).length)continue;
-   handler=w.spawn('groundHandler',u.team,dock.x,dock.z);handler.groundService={carrierId:u.id,depotId:depot.id,phase:'pickup',progress:0,dockSlot:slot,air:u.kind==='cargoPlane'||u.logisticsRoute==='strategic'};u.groundServiceId=handler.id;break;
+   if(!dock||parked.some(e=>Math.hypot(e.x-dock.x,e.z-dock.z)<e.radius+radius+.2))continue;
+   const pickup=points.find(p=>findPath(w.nav,dock,p,radius,undefined,parked).length>0);if(!pickup)continue;
+   handler=w.spawn('groundHandler',u.team,dock.x,dock.z);if(onFoot)handler.def={...handler.def,speed:cfg.porterSpeed,radius:cfg.porterRadius};handler.groundService={onFoot,pickupPoint:pickup,carrierId:u.id,depotId:depot.id,phase:'pickup',progress:0,dockSlot:slot,air:u.kind==='cargoPlane'||u.logisticsRoute==='strategic'};u.groundServiceId=handler.id;break;
   }
  }
  return false;
 }
 export function logisticsDeparture(u:Entity,dt:number):boolean {
+ if((u.cargoDoor??0)>0){u.cargoDoor=Math.max(0,(u.cargoDoor??0)-dt/cfg.doorSeconds);u.motionSpeed=0;return false;}
  if(u.airState==='grounded'){u.airState='taxi';u.airSortieTime=0;}
  if(u.airState==='taxi'){u.airSortieTime=(u.airSortieTime??0)+dt;u.motionSpeed=0;if(u.airSortieTime<cfg.spoolSeconds)return false;u.airState='airborne';}
  return true;
@@ -50,14 +53,14 @@ export function updateGroundHandler(w:World,u:Entity,dt:number,move:(target:Poin
  if(!depot||depot.dead){depot=w.entities.filter(e=>e.kind==='supply'&&!e.dead&&!e.underConstruction&&e.team===u.team&&w.hasCommandLink(e)).sort((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z))[0];if(!depot){u.motionSpeed=0;return;}job.depotId=depot.id;}
  const dock=depotDock(w,depot,job.dockSlot);if(!dock){u.motionSpeed=0;return;}
  if(job.phase==='pickup'||job.phase==='load'){
-  if(!carrier||carrier.dead||carrier.supplyDepotId!==depot.id||carrier.airState!=='grounded'){
+  if(!carrier||carrier.dead||carrier.supplyDepotId!==depot.id||carrier.logisticsManual||carrier.airState!=='grounded'){
    if(u.cargo>0)job.phase='deliver';else {u.dead=true;return;}
   }else {
-   const raw=cargoPickupPoint(carrier),point=w.nav.nearestWalkable(raw,u.def.radius);
-   if(!point||Math.hypot(point.x-raw.x,point.z-raw.z)>cfg.pickupGap*2){u.motionSpeed=0;return;}
+   const raw=job.pickupPoint??cargoPickupPoint(carrier),point=w.nav.nearestWalkable(raw,u.def.radius);
+   if(!point||Math.hypot(point.x-raw.x,point.z-raw.z)>cfg.pickupGap*2){u.dead=true;carrier.groundServiceId=undefined;return;}
    if(!move(point)){if(job.phase==='pickup'){job.progress=(u.motionSpeed??0)<.1?job.progress+dt:0;if(job.progress>5){u.dead=true;carrier.groundServiceId=undefined;}}return;}if(job.phase!=='load')job.progress=0;job.phase='load';u.motionSpeed=0;
    if((carrier.cargoDoor??0)<.95)return;job.progress+=dt;if(job.progress<cfg.loadSeconds)return;
-   const amount=Math.min(cfg.capacity,carrier.cargo);carrier.cargo-=amount;u.cargo+=amount;job.progress=0;job.phase='deliver';
+   const amount=Math.min(job.onFoot?cfg.porterCapacity:cfg.capacity,carrier.cargo);carrier.cargo-=amount;u.cargo+=amount;job.progress=0;job.phase='deliver';
   }
  }
  if(job.phase==='deliver'||job.phase==='unload'){

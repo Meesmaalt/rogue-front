@@ -13,3 +13,16 @@ export function createCargoRamp(radius:number,height:number):THREE.Group {
  box(g,width,length,.12,0,length/2,0,0x303b33);box(g,width*.8,length*.7,.14,0,length/2,-.08,0x1d2727);
  for(const x of [-width*.42,width*.42])box(g,.08,length,.18,x,length/2,-.12,0xb9ad77);return g;
 }
+/** A two-person warehouse crew carries the same cargo accounted for by the simulation. */
+export function createWarehouseCrew():THREE.Group {
+ const group=new THREE.Group();group.name='WarehouseCrew';
+ const cargo=new THREE.Group();cargo.name='HandlingCargo';group.add(cargo);
+ for(const x of [-.65,.65]){
+  box(group,.38,.55,.27,x,1.05,0,0xd5a842);box(group,.32,.08,.3,x,1.28,0,0xe9d48a);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.15,8,6),mat(0xb58c6c));head.position.set(x,1.49,0);group.add(head);
+  box(group,.36,.09,.32,x,1.65,0,0xe7c45d);
+  for(const side of [-1,1]){const leg=new THREE.Group();leg.name=side<0?'PorterLeftLeg':'PorterRightLeg';leg.position.set(x+side*.11,.8,0);box(leg,.17,.7,.2,0,-.35,0,0x3a4b53);box(leg,.2,.12,.32,0,-.7,.05,0x242d31);group.add(leg);box(group,.14,.4,.15,x+side*.26,1.05,.15,0xd5a842);}
+  box(cargo,.62,.48,.55,x,1,.42,0x94794c);box(cargo,.05,.49,.56,x,1,.42,0xd1c29b);
+ }
+ return group;
+}

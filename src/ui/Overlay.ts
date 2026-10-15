@@ -165,7 +165,7 @@ export class Overlay {
       c.fillStyle = u.team !== world.playerTeam ? "#e0553f" : "#73bfe3";
       c.fillRect(p.x - bw / 2, p.y, bw * Math.min(1,Math.max(0, u.hp / maxHitPoints(u))), 4);
       if(distant||selectedUnit||u.team!==world.playerTeam){
-        const name=world.unitDisplayName(u.kind,u.team);
+        const name=u.groundService?.onFoot?"Laotöölised":world.unitDisplayName(u.kind,u.team);
         c.font="600 11px Segoe UI, sans-serif";
         let tw=this.nameWidths.get(name);if(tw==null){tw=c.measureText(name).width;if(this.nameWidths.size>256)this.nameWidths.clear();this.nameWidths.set(name,tw);}
         const lowAmmo=u.team===world.playerTeam&&(u.maxAmmo??0)>0&&(u.ammo??0)/(u.maxAmmo??1)<.2;
@@ -218,12 +218,6 @@ export class Overlay {
     if(this.targetLines.size>256)this.targetLines.clear();
     if (preview?.point && preview.kind) {
       const p = picker.toScreen(preview.point.x, heightAt(preview.point.x, preview.point.z) + 0.4, preview.point.z);
-      const size = ({barracks:7,factory:9,helipad:9,airbase:13,refinery:8,supply:6,radar:6,bunker:6,aa:6,generator:6,shipyard:12,landCommand:8,airCommand:8,seaCommand:9,combatEngineer:7,landStrategy:8,airStrategy:8,seaStrategy:9} as Record<BuildableKind,number>)[preview.kind] * picker.pxPerUnit(preview.point.x, heightAt(preview.point.x, preview.point.z) + 0.4, preview.point.z);
-      c.save(); c.translate(p.x,p.y); c.rotate(preview.rotation);
-      c.fillStyle = preview.valid ? "rgba(90,210,145,.20)" : "rgba(220,70,60,.22)";
-      c.strokeStyle = preview.valid ? "#66d9a0" : "#e0553f"; c.lineWidth = 2;
-      c.fillRect(-size/2,-size/2,size,size); c.strokeRect(-size/2,-size/2,size,size);
-      c.restore();
       c.fillStyle = preview.valid ? "#66d9a0" : "#e0553f"; c.font = "12px sans-serif";
       c.fillText(preview.valid ? "EHITADA · R = pööra" : "EHITADA EI SAA", p.x + 10, p.y - 10);
     }

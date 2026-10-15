@@ -1,5 +1,15 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Lao kopterite parandus ja selgem mängupilt · 15.10.2026
+
+- [x] Kopterite kaubamasina asemel kaks nähtavat kastikandjat: päris kaubakogus, kõndimisanimatsioon ning laotarne enne tasumist. Lennukitele jääb laadur.
+- [x] Luugi külgmiste ligipääsude otsing, ummistunud teeninduse taastamine ning kopteri käsitsi ümberpaigutamine: luuk kinni, tiivikud käima, start väljaspool baasi. Kandja käes olev kaup ei kao; lao allikavalik taastab automaatveod.
+- [x] Tegeliku hoonemudeli pööratav eelvaade õige skaala, servakontuuride ja rohelise/punase kehtivusvärviga; lennujaamal ka rada/perroon.
+- [x] Kompaktsem valikupaneel, selgem staatuse/käskude kirjasuurus, lisarelvad ja lao üksikasjad avatavad; rohelised uuendusikoonid.
+- [x] Eraldi vilja-, rapsi-, köögivilja- ja mullaalad: nähtavad taimed ridades, maapinna kõrgus, teede/vete vältimine ning piiratud instantside arv ja kaugus.
+- [x] Käitumistestid katavad maast lahkumise, kauba säilimise, töölist/laadurit, eelvaate mõõtmeid ja jagatud materjale ning taimeridade piiranguid.
+- [ ] Tegeliku WebGL pildi ja helikõla käsitsi ülevaatus; kohaliku serveri aadress ei ole eraldi pilvebrauserist ligipääsetav.
+
 ## Mahalaadimine ja jalaväe liikumine · 15.10.2026
 
 - [x] Päris maapealne kaubamasin: sõidab luugi juurde, võtab piiratud veose peale, viib ühendatud lattu ning alles seal lisanduvad raha/laovarud. Täis ladu jätab kauba masinale; hävinud veoki koorem läheb kaotsi; kadunud lao korral otsitakse teine ladu. Tootmise ja logistika AI kogub esmase tehase jaoks raha enne valikulisi harusid.

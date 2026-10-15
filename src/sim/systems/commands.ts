@@ -20,7 +20,7 @@ function mobile(w: World, ids: number[], team?: Entity["team"]): Entity[] {
   const out: Entity[] = [];
   for (const id of ids) {
     const e = w.byId.get(id);
-    if (e && !e.dead && e.def.speed > 0 && e.kind!=="groundHandler" && !e.airdrop && !e.refit && e.logisticsRoute!=="strategic" && e.loadedIntoId==null && (team === undefined || e.team === team)) out.push(e);
+    if (e && !e.dead && e.def.speed > 0 && e.kind!=="groundHandler" && !e.airdrop && !e.refit && (e.logisticsRoute!=="strategic"||e.kind==="transport") && e.loadedIntoId==null && (team === undefined || e.team === team)) out.push(e);
   }
   return out;
 }
@@ -132,6 +132,7 @@ function apply(w: World, c: Command): void {
           u.moveQueue??=[];u.moveQueue.push({...point,facing});u.moveQueueStyles??=[];u.moveQueueStyles.push(c.type);
         } else {
           replaceTask(w,u);
+          if(u.kind==="transport"&&u.supplyDepotId!=null){u.logisticsManual=true;u.groundServiceId=undefined;u.logisticsLoadProgress=0;}
           u.mode = c.type === "amove" ? "amove" : "move";
           u.moveFacing=facing;u.fastMove=c.type==="fast-move";u.moveAxis={x:Math.sin(travelAngle),z:Math.cos(travelAngle)};u.moveGroup=marchGroup;
           u.dest = point;u.moveQueue=[];u.moveQueueStyles=[];u.queuedMoveType=u.mode;u.transportQueue=[];
@@ -350,7 +351,7 @@ function apply(w: World, c: Command): void {
       for(const id of c.ids){const depot=w.byId.get(id);if(!depot||depot.dead||depot.team!==team||depot.kind!=="supply")continue;
         if(c.sourceIndex!=null&&(c.sourceIndex<0||c.sourceIndex>=w.resourcePoints.length))continue;
         depot.preferredResourceIndex=c.sourceIndex;depot.logisticsPaused=c.paused??false;
-        for(const t of w.entities)if(!t.dead&&t.supplyDepotId===depot.id&&t.logisticsRoute!=="strategic"){t.logisticsLoadProgress=0;t.routeLeg=undefined;if(t.cargo<=0&&(t.logisticsSourceIndex!=null||t.kind==="transport")){if(c.sourceIndex!=null){t.logisticsSourceIndex=c.sourceIndex;t.logisticsTarget={x:w.resourcePoints[c.sourceIndex].x,z:w.resourcePoints[c.sourceIndex].z};}}}
+        for(const t of w.entities)if(!t.dead&&t.supplyDepotId===depot.id){t.logisticsManual=false;t.logisticsLoadProgress=0;t.routeLeg=undefined;if(t.cargo<=0&&(t.logisticsSourceIndex!=null||t.kind==="transport")){if(c.sourceIndex!=null){t.logisticsSourceIndex=c.sourceIndex;t.logisticsTarget={x:w.resourcePoints[c.sourceIndex].x,z:w.resourcePoints[c.sourceIndex].z};}}}
       }break;
     }
     case "logistics-route": {

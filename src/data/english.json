@@ -519,5 +519,13 @@
   "sõidab luugi juurde": "approaching cargo ramp",
   "võtab veost peale": "loading cargo",
   "viib veose lattu": "taking cargo to warehouse",
-  "laadib lattu": "unloading at warehouse"
+  "laadib lattu": "unloading at warehouse",
+  "Muud relvad": "Other weapons",
+  "Laoseis ja tarned": "Warehouse stock and deliveries",
+  "Laotöölised": "Warehouse crew",
+  "liigub luugi juurde": "walking to the ramp",
+  "Käsitsi pargitud · automaatveod taastad lao allikavalikust": "Manually parked · resume deliveries using the warehouse source controls",
+  "Käsitsi ümberpaigutamine": "Manual relocation",
+  "Ootab ligipääsu luugile · vabasta lao ümbrus": "Waiting for ramp access · clear the warehouse surroundings",
+  "katkendjoon: minimaalne ulatus": "dashed line: minimum range"
 }
