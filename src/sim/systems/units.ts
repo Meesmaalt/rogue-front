@@ -149,7 +149,15 @@ function movePorterTo(w:World,u:Entity,goal:Point,dt:number):boolean {
   u.heading=turnToward(u.heading,Math.atan2(dx,dz),u.def.turnRate*dt);
   const before={x:u.x,z:u.z};
   if((w.nav.isWalkableWorld(next.x,next.z,u.def.radius)||!w.nav.isWalkableWorld(u.x,u.z,u.def.radius))&&bodyClear(w,u,next)){u.x=next.x;u.z=next.z;}
-  else groundSidestep(w,u,dx,dz,step);
+  else {
+   // Pedestrians can yield sideways or take a backwards step; two loaded crews must not deadlock nose-to-nose.
+   const side=u.avoidanceSide??1;
+   let moved=false;
+   for(let turn=1;turn<=8&&!moved;turn++)for(const sign of [side,-side]){
+    const a=sign*turn*Math.PI/8,c=Math.cos(a),s=Math.sin(a),q={x:u.x+(dx*c-dz*s)*step,z:u.z+(dx*s+dz*c)*step};
+    if((w.nav.isWalkableWorld(q.x,q.z,u.def.radius)||!w.nav.isWalkableWorld(u.x,u.z,u.def.radius))&&bodyClear(w,u,q)){u.x=q.x;u.z=q.z;u.avoidanceSide=sign;moved=true;break;}
+   }
+  }
   u.motionSpeed=dist2d(before,u)/dt;u.y=heightAt(u.x,u.z);
   const progress=dist2d({x:u.stuckX,z:u.stuckZ},p)-dist2d(u,p);
   if(progress<cfg.porterWaypointArrival)u.stuckTime+=dt;else {u.stuckTime=0;u.stuckX=u.x;u.stuckZ=u.z;}
