@@ -423,6 +423,7 @@ function updateExternalFlight(w:World,u:Entity,dt:number):void {
     if(u.logisticsPhase!=="loading"&&depot){
       if(!aircraft){const site=logisticsLandingPoint(w,depot,u);if(!site)return;u.logisticsHome=site;}
       u.mode="patrol";u.dest=u.logisticsHome!;
+      if(!aircraft&&dist2d(u,u.dest)>3&&!logisticsDeparture(u,dt))return;
       if(aircraft&&u.logisticsPhase==='unloading'){
         const apron={x:u.logisticsHome!.x+(base?.def.radius??13)+u.def.radius+8,z:u.logisticsHome!.z};
         if(u.airState!=='grounded'&&!taxiTo(u,apron,dt))return;

@@ -37,6 +37,8 @@ it('moving a landed collector closes the hatch, spools up and leaves without a h
  expect(h.dead).toBe(false);expect(h.cargoDoor).toBe(0);expect(Math.hypot(h.x-start.x,h.z-start.z)).toBeGreaterThan(60);
  expect(w.credits).toBeGreaterThan(money);expect(worker.cargo).toBe(0);
  w.pending.push({type:'logistics-source',ids:[depot.id],sourceIndex:null,paused:false,team:0});applyCommands(w);expect(h.logisticsManual).toBe(false);
+ for(let i=0;i<120;i++){w.time+=1/30;w.spatial.rebuild(w.entities);updateUnits(w,1/30);}
+ expect(h.airState).not.toBe('grounded');expect(h.y).toBeGreaterThan(heightAt(h.x,h.z));
 });
 it('a helicopter uses a walking crew while a cargo plane keeps its loader',()=>{
  const {w,depot,h}=fixture();handleGroundCargo(w,h,depot,10);const crew=w.byId.get(h.groundServiceId!)!;
