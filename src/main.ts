@@ -200,14 +200,14 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   selection.onFocus=(x,z)=>cam.jumpTo(x,z);
   hud.onGarrisonFace=()=>{if(running&&!paused){commands.armOrder("face");hud.setWarning("Garnisoni vaatesuund: klõps kaardil või minikaardil");}};
   hud.onGarrisonExit=ids=>{if(running&&!paused)world.issue({type:"leave-building",ids});};
-  hud.onSelect=ids=>{selection.selected.clear();ids.forEach(id=>selection.selected.add(id));};
-  hud.onOrder=order=>{if(!running||paused)return;if(order==="stop"){commands.cancelOrders();world.issue({type:"stop",ids:selection.selectedIds()});}else if(order==="focus"){const list=selection.selectedIds().map(id=>world.byId.get(id)).filter(e=>e&&!e.dead);if(list.length)cam.jumpTo(list.reduce((n,e)=>n+e!.x,0)/list.length,list.reduce((n,e)=>n+e!.z,0)/list.length);}else {commands.armOrder(order);hud.setWarning(order==="fast"?"Kiirliigu: klõps kaardil või minikaardil":order==="unload"?"Välju transpordist: klõps sihtpunktile":order==="attack"?"Ründeliikumine: klõps kaardil või minikaardil":"Liigu: klõps sihtpunktile");}};
-  hud.onProduce = (kind, producerId) => { if (running && !paused) world.issue({ type: "produce", kind, producerId }); };
+  hud.onSelect=ids=>{audio.ui("select");selection.selected.clear();ids.forEach(id=>selection.selected.add(id));};
+  hud.onOrder=order=>{if(!running||paused)return;audio.ui("order");if(order==="stop"){commands.cancelOrders();world.issue({type:"stop",ids:selection.selectedIds()});}else if(order==="focus"){const list=selection.selectedIds().map(id=>world.byId.get(id)).filter(e=>e&&!e.dead);if(list.length)cam.jumpTo(list.reduce((n,e)=>n+e!.x,0)/list.length,list.reduce((n,e)=>n+e!.z,0)/list.length);}else {commands.armOrder(order);hud.setWarning(order==="fast"?"Kiirliigu: klõps kaardil või minikaardil":order==="unload"?"Välju transpordist: klõps sihtpunktile":order==="attack"?"Ründeliikumine: klõps kaardil või minikaardil":"Liigu: klõps sihtpunktile");}};
+  hud.onProduce = (kind, producerId) => { if (running && !paused) audio.ui("queue"), world.issue({ type: "produce", kind, producerId }); };
   hud.onBuild = (kind) => { if (running && !paused) commands.startBuild(kind); };
   hud.onEquipment=(ids,slot,module)=>{if(running&&!paused)world.issue({type:"configure-unit",ids,slot,module});};
   hud.onCancelRefit=ids=>{if(running&&!paused)world.issue({type:"cancel-refit",ids});};
   hud.onUnitUpgrade=(ids,upgrade)=>{if(running&&!paused)world.issue({type:"upgrade",ids,upgrade});};
-  hud.onResearch=tech=>{if(running&&!paused)world.issue({type:"research",tech});};
+  hud.onResearch=tech=>{if(running&&!paused){audio.ui("research");world.issue({type:"research",tech});}};
   hud.onUpgradeSupply = (ids) => { if (running && !paused) world.issue({ type: "upgrade", ids, upgrade: "supply-depot" }); };
   hud.onUpgradeFOB = (ids) => { if (running && !paused) world.issue({ type: "upgrade", ids, upgrade: "fob" }); };
   hud.onLogisticsEdit=(ids,action)=>{
@@ -248,6 +248,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   };
   const showBattleResult = (restored=false) => {
     const status=world.status;if(status==="running")return;
+    if(!restored)audio.ui(status==="won"?"victory":"defeat");
     let persistenceFailed=false;
     // Loading an ended snapshot must not overwrite its replay with an empty recorder.
     if(!restored){try{localStorage.setItem("rogue-front.replay.v1."+mission.id,JSON.stringify(replayRecorder.file()));}catch{persistenceFailed=true;}}
