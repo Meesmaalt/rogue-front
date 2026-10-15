@@ -1,6 +1,6 @@
 import config from '../data/map-generation.json';
 import {Rng} from './rng';
-import {pointInFeature,type MapFeatureDef} from './mapFeatures';
+import {pointInFeature,featureCorners,type MapFeatureDef} from './mapFeatures';
 import type {Point} from './types';
 import type {Landform} from './regionalLandscape';
 /** Low rolling relief supplements the large ridges while leaving settlement/road corridors clear. */
@@ -23,10 +23,25 @@ export function naturalForestEdge(points:Point[],rng:Rng):Point[]{
 }
 
 /** Correlated woodland masses follow regional soils rather than independent parcel coin flips. */
-export function naturalWoodlandAt(x:number,z:number,seed:number,archetype:string):boolean {
+export function naturalWoodlandAt(x:number,z:number,seed:number,archetype:string,version=11):boolean {
  const span=config.freshGeneration.forestNoiseSpan,ix=Math.floor(x/span),iz=Math.floor(z/span);
  const sx=(x/span-ix)**2*(3-2*(x/span-ix)),sz=(z/span-iz)**2*(3-2*(z/span-iz));
  const at=(dx:number,dz:number)=>new Rng((seed^Math.imul(ix+dx,374761393)^Math.imul(iz+dz,668265263))>>>0).next();
  const noise=(at(0,0)*(1-sx)+at(1,0)*sx)*(1-sz)+(at(0,1)*(1-sx)+at(1,1)*sx)*sz;
- return noise>config.freshGeneration.forestNoiseThreshold+(archetype==='forest'?-.14:archetype==='urban'?.08:0);
+ return noise>(version>=12?config.interiorLandscape.forestThreshold:config.freshGeneration.forestNoiseThreshold)+(archetype==='forest'?-.14:archetype==='urban'?.08:0);
+}
+
+/** Compact interior ridges fill genuine lowland pockets without walling off roads or bases. */
+export function interiorRidges(size:number,rng:Rng,features:readonly MapFeatureDef[],protectedPoints:readonly (Point&{r:number})[],existing:readonly Landform[]):Landform[]{
+ const cfg=config.interiorLandscape,forms:Landform[]=[],random=(a:number,b:number)=>a+rng.next()*(b-a),scale=Math.pow(size/4096,.4);
+ const obstacles=features.filter(f=>['road','water','building','bridge'].includes(f.kind)).flatMap(f=>{
+  if(f.kind==='road'||f.kind==='bridge'){const n=Math.max(1,Math.ceil(f.depth/12)),a=f.rotation??0;return Array.from({length:n+1},(_,i)=>({x:f.x+Math.sin(a)*(i/n-.5)*f.depth,z:f.z+Math.cos(a)*(i/n-.5)*f.depth,r:f.width/2+cfg.clearance}));}
+  return [{x:f.x,z:f.z,r:Math.min(f.width,f.depth)/2+cfg.clearance},...featureCorners(f).map(p=>({...p,r:cfg.clearance}))];
+ });
+ for(let i=0;i<cfg.count;i++)for(let attempt=0;attempt<cfg.attempts;attempt++){
+  const x=random(-size*.33,size*.33),z=random(-size*.33,size*.33),width=random(...cfg.width as [number,number])*scale,depth=random(...cfg.depth as [number,number])*scale,rotation=random(-Math.PI,Math.PI),c=Math.cos(rotation),s=Math.sin(rotation);
+  const blocked=[...obstacles,...protectedPoints].some(p=>{const dx=p.x-x,dz=p.z-z;return ((dx*c-dz*s)/(width+p.r))**2+((dx*s+dz*c)/(depth+p.r))**2<1;});
+  if(blocked||[...existing,...forms].some(f=>Math.hypot(f.x-x,f.z-z)<Math.max(depth,f.depth)*1.4))continue;
+  forms.push({x,z,width,depth,rotation,height:random(...cfg.height as [number,number]),shape:'ridge'});break;
+ }return forms;
 }

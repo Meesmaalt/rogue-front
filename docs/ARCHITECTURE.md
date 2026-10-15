@@ -6,6 +6,14 @@ Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOP
 
 Mängukaardid on ainult protseduurkaardid. Ajaloolised Roheoru/Murdlaine kirjeldused allpool on regressioonitaust. `platforms.json` piirab tootmise 15 põhiklassile; `equipment.json` kirjeldab 16 vahetatavat komponenti. `configure-unit`/`cancel-refit` käsud käivad fikseeritud sim-sammu kaudu; `equipment.ts` hooldus ei täida moona ega paranda tasuta. `physics.json` juhib uue reeglistiku trajektoore. Komponendid ja pooleliolev töö sisalduvad snapshot/replay räsis. Detailid: [MODULAR-PROCEDURAL-RELEASE.md](MODULAR-PROCEDURAL-RELEASE.md).
 
+## Kompaktne lahing ja ettevalmistus · v12
+
+Peamenüü küsib serverilt taustal täieliku kontrollitud missiooni. `PreparedMission.ts` kannab sama geomeetria `sessionStorage` kaudu lehe navigeerimise üle; käivitus loeb seda enne seemne järgi taastamise varuteed. Kohalik kontroll käib eraldi `MapPreparation.worker.ts` workeris. Vananenud vastused ei asenda uuemat valikut. Kõrgusvälja `hydrologyBins` säilitab maskide järjekorra ja jätab iga punkti juures kauged vee-/sillamaskid vahele.
+
+`World.compactBattle` on uue v12 missiooni ja salvestuse lipp. `metricUnitDefinition` hoiab relva algsed `displayRange`/`displayMinimumRange` ning arvutab füüsilise mänguulatuse eraldi; relvakaardid ja ringide sildid näitavad algmeetrit, ringi geomeetria/AI/tulistamine kasutavad sama lühendatud ulatust. Nähtavus, lennukõrgus ja õhukiirus on eraldi häälestatud. V9–v11 jäävad senise mõõtkavaga.
+
+Kaubaveo `runwayEdgePoint` pikendab lennuraja keskjoone kaardist välja, metric cargo järgib maandumise/pidurduse/perrooni/mahalaadimise/tõusu olekuid. Raha ja laovarud muutuvad ainult vastuvõetud päris lasti mahalaadimisel. Ainult kaubamudelite eksport on `art:cargo`. V12 lisab kitsaid sisemisi reljeefiharju ja jätab naabermetsade ühised krundiservad ühendatuks. Kiire arendusring: [DEV-WORKFLOW.md](DEV-WORKFLOW.md).
+
 ## Lennuvälja pind ja nähtavuse stabiilsus
 
 `GroundSurface.ts` jagab maapinna ruudustiku paigutust `Terrain`-iga ning interpoleerib renderdatud kolmnurkade kõrgust. `MetricRunway` lõikab katte- ja märgistuseristkülikud iga maapinnakolmnurga järgi: sama tasapind + väike kõrgusvahe, mitte jämeda raja ja peenema kõrgusvälja ristumine. Kogu kate jääb üheks vertex-värvidega joonistuskutseks. `Architecture.createMetricAirfieldStructures` jätab tegelikud lennukite parkimiskohad vabaks ja paigutab suuremad angaarid/torni perroonist tahapoole. Visuaalsed perroonimaskid eemaldavad seal puud, alusmetsa ja küpsetatud puuvarjud. Simulatsiooni raja/parkimise koordinaadid ei muutu.

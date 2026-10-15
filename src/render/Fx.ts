@@ -188,8 +188,8 @@ export class Fx {
       const x=(p.px??p.x)+(p.x-(p.px??p.x))*alpha,y=(p.py??p.y)+(p.y-(p.py??p.y))*alpha,z=(p.pz??p.z)+(p.z-(p.pz??p.z))*alpha;
       if(!this.frustum.containsPoint(this.point.set(x,y,z))){m.visible=false;shell.lastX=x;shell.lastY=y;shell.lastZ=z;continue;}
       if(shell.flame){const throttle=(p.age??0)<(p.boostTime??0)?1.6:(p.speed<(p.maxSpeed??p.speed)*.9?1:.55);shell.flame.scale.z=throttle;}
-      const distanceScale=Math.min(1.6,Math.max(1,this.camera.position.distanceTo(this.point.set(x,y,z))/220));
-      m.scale.setScalar(p.weapon==="missile"?distanceScale:1);
+      const distanceScale=Math.min(effects.missileVisual.maximumDistanceScale,Math.max(1,this.camera.position.distanceTo(this.point.set(x,y,z))/effects.missileVisual.distanceReference));
+      m.scale.setScalar(p.weapon==="missile"?effects.missileVisual.bodyScale*distanceScale:1);
       m.position.set(x,y,z);this.direction.set(p.vx,p.vy,p.vz).normalize();m.lookAt(x+this.direction.x,y+this.direction.y,z+this.direction.z);
       if(p.visual==="torpedo"){this.emit("dust",x,y+.12,z,.15,.4,0xc2e2df,0,.1,0);}
       else if(p.weapon==="missile"||p.weapon==="cannon"||["howitzer","mortar","sabot","autocannon"].includes(p.visual??"")){

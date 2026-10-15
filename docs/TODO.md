@@ -1,5 +1,15 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Kiirem algus ja kompaktne lahing · v12
+
+- [x] Serveri/worker'i kaardi ettevalmistus peamenüüs, tegelik eelvaade ja ettevalmistatud geomeetria üleandmine käivitusele; nupuvajutus ei loo teist kaarti.
+- [x] Bititäpset kõrgust säilitav vee/silla ruumiline indeks; kohalik kahe kaardi puhvri katse 3,53 → 1,77 s.
+- [x] Uue lahingu kompaktne relva-/nähtavusmõõtkava, säilitatud meetrinäidud ja õiged tegelikud ulatusringid; varasemate versioonide taastamine.
+- [x] Laiem kaameravaade, suuremad raketid/suitsujäljed sama osakeste eelarvega.
+- [x] Keskjoonel kaubalennuki lähenemine, pidurdus, perroonilt päris varude mahalaadimine ja joondatud õhkutõus; C-17/Il-76/Y-20 originaalsed mudelivariandid.
+- [x] Sisemaastiku mäeharjad ja ühendatud metsad ilma iga krundi ümber lõigatud koridorita.
+- [x] Kiired arendus-/benchmark-/valikulise mudeliehituse käsud; vt DEV-WORKFLOW.md ja COMPACT-BATTLE-V12-RELEASE.md.
+
 ## Lennuväli, mõõt ja stabiilne nähtavus · 15.10.2026
 
 - [x] Katkise lennuraja asemel maapinna tegelike kolmnurkadega lõigatud kate ja märgistus; perroon, ruleerimistee, parkimiskohad, kaks angaari, torn ja hooldushoone.

@@ -33,11 +33,24 @@ let cacheValid = false;
 
 let hydrology: {f:MapFeatureDef;c:number;s:number}[]=[];
 let hydrologyKey="";
+const hydrologyBins=new Map<string,typeof hydrology>(),emptyHydrology:typeof hydrology=[];
+const hydrologyAt=(x:number,z:number)=>hydrologyBins.get(`${Math.floor(x/128)}/${Math.floor(z/128)}`)??emptyHydrology;
+
 /** Static map geometry, baked into the same height cache used by every consumer. */
 export function setTerrainFeatures(features:readonly MapFeatureDef[]):void {
   const water=features.filter(f=>(f.kind==="water"||f.kind==="bridge")&&f.surfaceHeight!=null);
   const key=JSON.stringify(water);if(key===hydrologyKey)return;
   hydrologyKey=key;hydrology=water.map(f=>({f,c:Math.cos(f.rotation??0),s:Math.sin(f.rotation??0)}));
+  hydrologyBins.clear();
+  for(const item of hydrology){
+    const {f,c,s}=item,padding=14;
+    const factor=f.shape==='ellipse'?1+padding/Math.max(.01,Math.min(f.width,f.depth)/2):1;
+    const hx=f.shape==='ellipse'?f.width/2*factor:f.width/2+padding,hz=f.shape==='ellipse'?f.depth/2*factor:f.depth/2+padding;
+    const ex=Math.abs(c)*hx+Math.abs(s)*hz,ez=Math.abs(s)*hx+Math.abs(c)*hz;
+    for(let z=Math.floor((f.z-ez)/128);z<=Math.floor((f.z+ez)/128);z++)for(let x=Math.floor((f.x-ex)/128);x<=Math.floor((f.x+ex)/128);x++){
+      const key=`${x}/${z}`,list=hydrologyBins.get(key);if(list)list.push(item);else hydrologyBins.set(key,[item]);
+    }
+  }
   cacheValid=false;heightCache=null;
 }
 export const BASES = DEFAULT_BASES;
@@ -49,7 +62,7 @@ export function setBases(bases: readonly BaseDef[]): void {
 export function setProceduralSeed(seed: number): void { proceduralSeed = seed | 0; cacheValid = false; heightCache = null; }
 
 export function resetHeightmap(): void {
-  hydrology=[];hydrologyKey="";
+  hydrology=[];hydrologyKey="";hydrologyBins.clear();
   setMapSize(640);
   activeHeightmap = null;
   terrainProfile = undefined;activeLandforms=terrain.farmland.landforms;reliefTransforms=compileRelief(activeLandforms);
@@ -135,14 +148,15 @@ function sampleHeightmap(x: number, z: number): number {
 
 function computeRaw(x: number, z: number, decks=true): number {
   let h=activeHeightmap?sampleHeightmap(x,z):proceduralHeight(x,z);
-  for(const {f,c,s} of hydrology){
+  const candidates=hydrologyAt(x,z);
+  for(const {f,c,s} of candidates){
     if(f.kind!=="water")continue;
     const dx=x-f.x,dz=z-f.z,lx=Math.abs(dx*c-dz*s),lz=Math.abs(dx*s+dz*c);
     if(f.polygon&&(lx>f.width/2+14||lz>f.depth/2+14))continue;
     const outside=f.polygon?(pointInFeature(x,z,f)?0:polygonEdgeDistance(x,z,f.polygon)):f.shape==="ellipse"?Math.max(0,Math.sqrt((lx/(f.width/2))**2+(lz/(f.depth/2))**2)-1)*Math.min(f.width,f.depth)/2:Math.max(lx-f.width/2,lz-f.depth/2,0);
     if(outside<14){const blend=1-smooth(0,14,outside);h=Math.min(h,h+(f.surfaceHeight!-2.4-h)*blend);}
   }
-  for(const {f,c,s} of hydrology){
+  for(const {f,c,s} of candidates){
     if(!decks||f.kind!=="bridge")continue;
     const dx=x-f.x,dz=z-f.z,lx=Math.abs(dx*c-dz*s),lz=Math.abs(dx*s+dz*c);
     const outside=Math.max(lx-f.width/2,lz-f.depth/2,0);

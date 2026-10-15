@@ -20,7 +20,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  generateMap: (archetype:string,size:number) => request<{missionId:string}>("/api/maps/generate",{method:"POST",body:JSON.stringify({archetype,size}),signal:AbortSignal.timeout(95000)}),
+  generateMap: (archetype:string,size:number) => request<{missionId:string;mission:import("../sim/types").MissionDef}>("/api/maps/generate",{method:"POST",body:JSON.stringify({archetype,size}),signal:AbortSignal.timeout(95000)}),
   register: async (username: string, password: string, displayName: string, country: string) => { const r = await request<{ token: string; user: User }>("/api/auth/register", { method: "POST", body: JSON.stringify({ username, password, displayName, country }) }); setAuthToken(r.token); return r; },
   login: async (username: string, password: string) => { const r = await request<{ token: string; user: User }>("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }); setAuthToken(r.token); return r; },
   logout: async () => { try { await request("/api/auth/logout", { method: "POST" }); } finally { setAuthToken(""); } },

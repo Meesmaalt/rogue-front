@@ -1,3 +1,4 @@
+import {BATTLE_SCALE} from "../sim/battleScale";
 import mobility from "../data/mobility.json";
 import * as THREE from "three";
 import {MAP_SIZE} from "../sim/heightmap";
@@ -19,7 +20,9 @@ export class RtsCamera {
     private readonly heightAt: (x: number, z: number) => number,
     private readonly sun: THREE.DirectionalLight,
     el: HTMLElement,
+    compact=false,
   ) {
+    if(compact)this.dist=this.targetDist=BATTLE_SCALE.compact.cameraDistance;
     this.sun.userData.shadowFocus=this.shadowFocus;
     window.addEventListener("keydown", (e) => {if(!(e.target instanceof Element&&e.target.closest("input,textarea,select,[contenteditable=true]")))this.keys.add((e.altKey?"alt+":"")+e.key.toLowerCase());});
     window.addEventListener("keyup", (e) => {this.keys.delete(e.key.toLowerCase());this.keys.delete("alt+"+e.key.toLowerCase());});

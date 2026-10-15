@@ -1,4 +1,4 @@
-import {generateServerMap,mapOptions} from "./map-generation.js";
+import {generateServerMap,generateServerMission,mapOptions} from "./map-generation.js";
 import {isProceduralMapId} from "./map-policy.js";
 import http from "node:http";
 import { randomUUID, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
@@ -230,7 +230,7 @@ const httpServer = http.createServer(async (req, res) => {
     const path = url.pathname;
 
     if(path==="/api/maps/generate"&&req.method==="POST"){
-      try{return response(res,200,{missionId:await generateServerMap(await body(req))});}
+      try{const mission=await generateServerMission(await body(req));return response(res,200,{missionId:mission.id,mission});}
       catch(error){return response(res,503,{error:error.message});}
     }
 

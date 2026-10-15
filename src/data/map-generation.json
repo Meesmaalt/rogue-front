@@ -405,7 +405,7 @@
           4,
           6
         ],
-        "label": "Kõrvalhoone"
+        "label": "K\u00f5rvalhoone"
       },
       "industrial": {
         "width": [
@@ -533,7 +533,7 @@
     ]
   },
   "freshGeneration": {
-    "version": 11,
+    "version": 12,
     "attempts": 12,
     "riverAmplitudeRatio": [
       0.018,
@@ -541,5 +541,23 @@
     ],
     "forestNoiseSpan": 420,
     "forestNoiseThreshold": 0.53
+  },
+  "interiorLandscape": {
+    "count": 14,
+    "attempts": 90,
+    "width": [
+      85,
+      165
+    ],
+    "depth": [
+      38,
+      72
+    ],
+    "height": [
+      18,
+      42
+    ],
+    "clearance": 16,
+    "forestThreshold": 0.62
   }
 }

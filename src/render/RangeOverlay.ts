@@ -1,3 +1,4 @@
+import {displayedWeaponDistance} from "../sim/battleScale";
 import * as THREE from "three";
 import type {Entity} from "../sim/types";
 import {GARRISON_RULES,garrisonWeaponUsable} from "../sim/garrison";
@@ -53,12 +54,13 @@ export class RangeOverlay {
       if(view.drawKey===drawKey)return;view.drawKey=drawKey;
       const count=writeRangeVertices(view.points,u.x,u.z,max,min,facing,arc);
       view.geometry.setDrawRange(0,count);view.geometry.attributes.position.needsUpdate=true;
-      const key=`${spec.name}|${Math.round(min)}|${Math.round(max)}`;
+      const shownMin=Math.round(displayedWeaponDistance(spec,min)),shownMax=Math.round(displayedWeaponDistance(spec,max));
+      const key=`${spec.name}|${shownMin}|${shownMax}`;
       if(view.key!==key){
         view.key=key;const ctx=view.canvas.getContext("2d")!;
         ctx.clearRect(0,0,384,64);ctx.fillStyle="rgba(12,20,26,.88)";ctx.fillRect(0,0,384,64);
         ctx.fillStyle=WEAPON_RANGE_COLORS[i];ctx.font="bold 22px sans-serif";ctx.textAlign="center";
-        ctx.fillText(`${i+1}. ${Math.round(min)}–${Math.round(max)} m`,192,26);
+        ctx.fillText(`${i+1}. ${shownMin}–${shownMax} m`,192,26);
         ctx.font="18px sans-serif";ctx.fillText(spec.name.slice(0,32),192,51);view.texture.needsUpdate=true;
       }
       const a=arc<Math.PI*2-.01?facing+(i-1)*Math.min(.25,arc/6):i*.42,x=u.x+Math.sin(a)*max,z=u.z+Math.cos(a)*max;

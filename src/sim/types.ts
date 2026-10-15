@@ -26,6 +26,7 @@ export type UnitCategory = "infantry" | "armor" | "recon" | "support" | "heli" |
 export type ProjectileFlight="direct"|"guided"|"ballistic";
 export type Guidance="none"|"command"|"infrared"|"radar";
 export interface WeaponSpec {
+  displayRange?:number; displayMinimumRange?:number; rangeScale?:number;
   launch?:"vertical";boostTime?:number;cruiseAltitude?:number;
   stabilizer?:Stabilizer;fireOnMove?:boolean;muzzleSide?:number;
   profile:string;name:string;model?:string;weapon:"bullet"|"cannon"|"missile";visual:string;flight:ProjectileFlight;guidance:Guidance;
@@ -37,7 +38,7 @@ export interface WeaponSpec {
   muzzle:number;muzzleHeight:number;
 }
 export interface UnitDef {
-  metricScale?: boolean;
+  metricScale?: boolean; compactScale?:boolean; displayOpticsRange?:number;
   /** Authored model scale; footprint/height in data already use world dimensions. */
   modelScale?:number;
   transportCapacity?: number;

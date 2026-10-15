@@ -1,14 +1,16 @@
+import type {MissionDef} from "../sim/types";
+import {storePreparedMission} from "./PreparedMission";
 import {SettingsPanel} from "./Settings";
 import { readSavedSessions, savedSessionQuery } from "./SavedSessions";
 import {bindFullscreen} from "./Fullscreen";
 import "./online.css";
 import { api, getAuthToken, type Room, type User, type PublicPlayer } from "../net/Api";
-import { GENERATED_MAP, METRIC_MAP_SIZES, generateProceduralMap, type MapArchetype } from "../sim/proceduralMap";
+import { METRIC_MAP_SIZES, type MapArchetype } from "../sim/proceduralMap";
 import { FACTIONS, FACTION_LIST, type FactionId } from "../sim/factions";
 import { MODE_RULES, type MatchMode } from "../sim/gameModes";
 import { loadAllDecks, validateDeck } from "../sim/deck";
 
-const MISSIONS=[GENERATED_MAP];
+const MISSIONS:readonly MissionDef[]=[];
 export class OnlineShell {
   private root: HTMLElement;
   private readonly settings=new SettingsPanel(()=>{});
@@ -19,28 +21,25 @@ export class OnlineShell {
   private timer: number | null = null;
   private message = "";
   private busy = false;
+  private cancelMapPreparation=()=>{};
 
   constructor(root: HTMLElement) { this.root = root; }
 
   showOffline(message=""): void {
-    this.stopPoll();
+    this.cancelMapPreparation();this.stopPoll();
     const stored = localStorage.getItem("rogue-front.faction") as FactionId;
     this.selectedFaction = FACTION_LIST.includes(stored) ? stored : "usa";
     const archetypes:MapArchetype[]=["balanced","river","urban","forest","highlands","coastal"];
     const remembered=localStorage.getItem("rogue-front.generatorArchetype") as MapArchetype;
     const generatorArchetype=archetypes.includes(remembered)?remembered:"balanced";
-    let generatorSeed=Number(localStorage.getItem("rogue-front.generatorSeed")??crypto.getRandomValues(new Uint32Array(1))[0])>>>0;
+    const generatorSeed=Number(localStorage.getItem("rogue-front.generatorSeed")??crypto.getRandomValues(new Uint32Array(1))[0])>>>0;
     const storedSize=Number(localStorage.getItem("rogue-front.generatorSize"));
     const generatorSize=METRIC_MAP_SIZES.includes(storedSize)?storedSize:4096;
-    let generated:typeof GENERATED_MAP|undefined;
-    for(let attempt=0;attempt<12&&!generated;attempt++){
-      try{generated=generateProceduralMap(generatorSeed,generatorArchetype,generatorSize,11);}
-      catch{generatorSeed=crypto.getRandomValues(new Uint32Array(1))[0];}
-    }
-    if(!generated){this.root.textContent="Kaardi eelvaate loomine ebaõnnestus. Laadi leht uuesti.";return;}
+    const pendingId=`procedural-v12-${generatorArchetype}-${generatorSize}-${generatorSeed}`;
+    const generated:MissionDef={id:pendingId,name:'Kaart valmib taustal…',seed:generatorSeed,briefing:'',objectives:[],map:{id:pendingId,name:'Kaart valmib taustal…',size:generatorSize,theme:'temperate',heightmap:'',maxHeight:40,bases:[{x:0,z:0,r:0},{x:0,z:0,r:0}],resources:[],features:[],landforms:[]}};
     const maps = [generated];
     const savedSessions = readSavedSessions(localStorage).filter(s=>s.mission.startsWith("procedural-")&&s.mode!=="campaign"&&s.key.includes(".platforms1."));
-    this.root.innerHTML = `<div class="online-app offline-app"><header class="online-top"><div class="brand-block"><div class="eyebrow">TACTICAL OPERATIONS</div><h1>ROGUE FRONT</h1></div><div class="menu-actions"><button data-fullscreen></button> <button data-settings>SEADED</button> <button data-arsenal>3D ARSENAL</button> <button data-online>MITMIKMÄNG</button></div></header>${message?`<p class="section-note" role="alert">${esc(message)}</p>`:""}<main class="offline-main"><section class="room-panel"><div class="eyebrow">ALPHA · ÜKSIKMÄNG</div><h2>Uus lahing</h2>${savedSessions.length?`<div class="saved-sessions"><div class="eyebrow">SALVESTATUD LAHINGUD</div>${savedSessions.map((s,i)=>`<button type="button" data-resume="${i}"><strong>${esc(s.name)} · ${FACTIONS[s.faction].short}</strong><small>${s.mode==="campaign"?"OPERATSIOON":s.mode.toUpperCase()} · ${Math.floor(s.time/60)} min · ${esc(new Date(s.savedAt).toLocaleString("et-EE"))}${s.status!=="running"?" · LÕPETATUD":""}</small><span>${s.status==="running"?"JÄTKA":"VAATA"} →</span></button>`).join("")}</div>`:""}<p>Ehita baas. Kindlusta varustus. Juhi rindel kombineeritud vägesid.</p><form data-skirmish><label>Fraktsioon<select name="faction">${FACTION_LIST.map(f=>`<option value="${f}" ${f===this.selectedFaction?"selected":""}>${FACTIONS[f].name}${f==="china"?" · katsetusjärgus":""}</option>`).join("")}</select></label><p data-doctrine></p><div class="offline-map-cards">${maps.map(m=>{const size=m.map.size??640;return `<button type="button" data-map-card="${m.id}">${mapPreview(m)}<strong>${m.id.startsWith("procedural-")?esc(m.map.name.toUpperCase()):m.id==="operation-tidebreaker"?"MURDLAINE · MERI":"ROHEORG · NÄIDIS"}</strong><small>${size} m · ${m.id.startsWith("procedural-")?generatedSummary(m):m.id==="operation-tidebreaker"?"Laevad, sadamad ja ranniku lahing":"Näidiskaart · kompaktne jõemaastik"}</small></button>`;}).join("")}</div><label>Kaart<select name="map">${maps.map(m=>`<option value="${m.id}">${m.map.name}${m.id.startsWith("procedural-")?" · generaator":m.id==="operation-tidebreaker"?" · merevägi · katsetusjärgus":" · näidiskaart"}</option>`).join("")}</select></label><div data-generator class="choice-grid"><label><input name="fixedSeed" type="checkbox"/> Korda sisestatud seemet</label><label>Kaardiseeme<input name="mapSeed" type="number" min="0" max="4294967295" step="1" value="${generatorSeed}"/></label><label>Piirkond<select name="mapArchetype">${archetypes.map(a=>`<option value="${a}" ${a===generatorArchetype?"selected":""}>${({balanced:"Järvemaa",river:"Jõeäär",urban:"Linnapiirkond",forest:"Metsapiirkond",highlands:"Kõrgustik",coastal:"Rannik"} as Record<string,string>)[a]}</option>`).join("")}</select></label><label>Suurus<select name="mapSize">${METRIC_MAP_SIZES.map(size=>`<option value="${size}" ${size===generatorSize?"selected":""}>${size} × ${size} m${size>=4096?" · suurem koormus":""}</option>`).join("")}</select></label><button type="button" data-new-seed>UUS KAART</button></div><div class="choice-grid"><label>Režiim<select name="mode">${(["skirmish","conquest","breakthrough","attrition","assault"] as MatchMode[]).map(m=>`<option value="${m}" ${m==="conquest"?"selected":""}>${m.toUpperCase()}${m==="conquest"?" · soovitatud":" · katsetusjärgus"}</option>`).join("")}</select></label><label>AI raskus<select name="difficulty"><option value="easy">Lihtne</option><option value="normal" selected>Normaalne</option><option value="hard">Raske</option></select></label></div><p data-rules></p><label>Algus<select name="deployment"><option value="ready">Valmis baas, lennuväli + lahingugrupp</option><option value="base">HQ + insenerid — ehita baas</option></select></label><label>Koosseis<select name="deck"><option value="open">Põhiklassid — muudetav varustus</option><option value="deck" ${new URLSearchParams(location.search).get("setup")==="deck"?"selected":""}>Minu salvestatud battlegroup / deck</option></select></label><p data-deck></p><div class="room-actions"><button type="button" data-edit-deck>MUUDA DECKI</button><button class="primary" type="submit">ALUSTA LAHINGUT</button></div></form></section><section class="room-panel"><div class="eyebrow">PROTSEDUURNE LAHINGUVÄLI</div><h2>Baas, varustus ja kombineeritud väed</h2><p>Iga uus lahing saab serverilt värske kontrollitud kaardi. Eelvaade näitab piirkonna iseloomu. Sama kaardi kordamiseks märgi „Korda sisestatud seemet”.</p><p>Ehita juhtimis- ja hooldushooned. Varustuskopterid saabuvad kaardi tagant; lennuvälja juures olev ladu avab kaubalennud.</p><p>Vali põhiklass ja muuda selle relvi, kaitset ning liikuvust töötava lao juures. Luure, varustus ja väeliikide koostöö määravad lahingu.</p><p class="section-note">Parem hiir liigub või ründab; A + parem hiir ründab liikudes; X peatab. F8 salvestab jõudlusraporti.</p></section></main></div>`;
+    this.root.innerHTML = `<div class="online-app offline-app"><header class="online-top"><div class="brand-block"><div class="eyebrow">TACTICAL OPERATIONS</div><h1>ROGUE FRONT</h1></div><div class="menu-actions"><button data-fullscreen></button> <button data-settings>SEADED</button> <button data-arsenal>3D ARSENAL</button> <button data-online>MITMIKMÄNG</button></div></header>${message?`<p class="section-note" role="alert">${esc(message)}</p>`:""}<main class="offline-main"><section class="room-panel"><div class="eyebrow">ALPHA · ÜKSIKMÄNG</div><h2>Uus lahing</h2>${savedSessions.length?`<div class="saved-sessions"><div class="eyebrow">SALVESTATUD LAHINGUD</div>${savedSessions.map((s,i)=>`<button type="button" data-resume="${i}"><strong>${esc(s.name)} · ${FACTIONS[s.faction].short}</strong><small>${s.mode==="campaign"?"OPERATSIOON":s.mode.toUpperCase()} · ${Math.floor(s.time/60)} min · ${esc(new Date(s.savedAt).toLocaleString("et-EE"))}${s.status!=="running"?" · LÕPETATUD":""}</small><span>${s.status==="running"?"JÄTKA":"VAATA"} →</span></button>`).join("")}</div>`:""}<p>Ehita baas. Kindlusta varustus. Juhi rindel kombineeritud vägesid.</p><form data-skirmish><label>Fraktsioon<select name="faction">${FACTION_LIST.map(f=>`<option value="${f}" ${f===this.selectedFaction?"selected":""}>${FACTIONS[f].name}${f==="china"?" · katsetusjärgus":""}</option>`).join("")}</select></label><p data-doctrine></p><div class="offline-map-cards">${maps.map(m=>{const size=m.map.size??640;return `<button type="button" data-map-card="${m.id}">${m.map.features?.length?mapPreview(m):""}<strong>${m.id.startsWith("procedural-")?esc(m.map.name.toUpperCase()):m.id==="operation-tidebreaker"?"MURDLAINE · MERI":"ROHEORG · NÄIDIS"}</strong><small>${size} m · ${m.id.startsWith("procedural-")?(m.map.features?.length?generatedSummary(m):"Kontrollin läbipääse taustal"):m.id==="operation-tidebreaker"?"Laevad, sadamad ja ranniku lahing":"Näidiskaart · kompaktne jõemaastik"}</small></button>`;}).join("")}</div><label>Kaart<select name="map">${maps.map(m=>`<option value="${m.id}">${m.map.name}${m.id.startsWith("procedural-")?" · generaator":m.id==="operation-tidebreaker"?" · merevägi · katsetusjärgus":" · näidiskaart"}</option>`).join("")}</select></label><div data-generator class="choice-grid"><label><input name="fixedSeed" type="checkbox"/> Korda sisestatud seemet</label><label>Kaardiseeme<input name="mapSeed" type="number" min="0" max="4294967295" step="1" value="${generatorSeed}"/></label><label>Piirkond<select name="mapArchetype">${archetypes.map(a=>`<option value="${a}" ${a===generatorArchetype?"selected":""}>${({balanced:"Järvemaa",river:"Jõeäär",urban:"Linnapiirkond",forest:"Metsapiirkond",highlands:"Kõrgustik",coastal:"Rannik"} as Record<string,string>)[a]}</option>`).join("")}</select></label><label>Suurus<select name="mapSize">${METRIC_MAP_SIZES.map(size=>`<option value="${size}" ${size===generatorSize?"selected":""}>${size} × ${size} m${size>=4096?" · suurem koormus":""}</option>`).join("")}</select></label><button type="button" data-new-seed>UUS KAART</button></div><div class="choice-grid"><label>Režiim<select name="mode">${(["skirmish","conquest","breakthrough","attrition","assault"] as MatchMode[]).map(m=>`<option value="${m}" ${m==="conquest"?"selected":""}>${m.toUpperCase()}${m==="conquest"?" · soovitatud":" · katsetusjärgus"}</option>`).join("")}</select></label><label>AI raskus<select name="difficulty"><option value="easy">Lihtne</option><option value="normal" selected>Normaalne</option><option value="hard">Raske</option></select></label></div><p data-rules></p><label>Algus<select name="deployment"><option value="ready">Valmis baas, lennuväli + lahingugrupp</option><option value="base">HQ + insenerid — ehita baas</option></select></label><label>Koosseis<select name="deck"><option value="open">Põhiklassid — muudetav varustus</option><option value="deck" ${new URLSearchParams(location.search).get("setup")==="deck"?"selected":""}>Minu salvestatud battlegroup / deck</option></select></label><p data-deck></p><div class="room-actions"><button type="button" data-edit-deck>MUUDA DECKI</button><button class="primary" type="submit">ALUSTA LAHINGUT</button></div></form></section><section class="room-panel"><div class="eyebrow">PROTSEDUURNE LAHINGUVÄLI</div><h2>Baas, varustus ja kombineeritud väed</h2><p>Server valmistab värske kontrollitud kaardi menüüs taustal ette. Valmis eelvaade näitab sama kaarti, millel lahing algab. Sama kaardi kordamiseks märgi „Korda sisestatud seemet”.</p><p>Ehita juhtimis- ja hooldushooned. Varustuskopterid saabuvad kaardi tagant; lennuvälja juures olev ladu avab kaubalennud.</p><p>Vali põhiklass ja muuda selle relvi, kaitset ning liikuvust töötava lao juures. Luure, varustus ja väeliikide koostöö määravad lahingu.</p><p class="section-note">Parem hiir liigub või ründab; A + parem hiir ründab liikudes; X peatab. F8 salvestab jõudlusraporti.</p></section></main></div>`;
     this.root.querySelectorAll<HTMLButtonElement>("[data-resume]").forEach(button=>button.onclick=()=>{
       const saved=savedSessions[Number(button.dataset.resume)];
       if(!saved)return;
@@ -62,13 +61,34 @@ export class OnlineShell {
     const sizeInput=form.elements.namedItem("mapSize") as HTMLSelectElement;
     const regenerate=()=>{
       const seed=Number(seedInput.value)>>>0;seedInput.value=String(seed);
-      let m:import("../sim/types").MissionDef;
-      try{m=generateProceduralMap(seed,archetypeInput.value as MapArchetype,Number(sizeInput.value),11);}catch{seedInput.setCustomValidity("Selle seemne kaart ei saanud valmis. Vali uus seeme.");seedInput.reportValidity();return;}
-      seedInput.setCustomValidity("");
-      localStorage.setItem("rogue-front.generatorSize",sizeInput.value);localStorage.setItem("rogue-front.generatorSeed",String(seed));localStorage.setItem("rogue-front.generatorArchetype",archetypeInput.value);
-      map.options[0].value=m.id;map.options[0].textContent=m.map.name+" · generaator";map.value=m.id;
-      const card=this.root.querySelector<HTMLButtonElement>("[data-map-card]")!;card.dataset.mapCard=m.id;card.innerHTML=mapPreview(m)+`<strong>${esc(m.map.name)}</strong><small>${m.map.size} m · ${generatedSummary(m)}</small>`;refreshMap();
+      seedInput.setCustomValidity('');prepared=prepare();
+      localStorage.setItem('rogue-front.generatorSize',sizeInput.value);localStorage.setItem('rogue-front.generatorSeed',String(seed));localStorage.setItem('rogue-front.generatorArchetype',archetypeInput.value);
+      const card=this.root.querySelector<HTMLButtonElement>('[data-map-card]')!;card.innerHTML='<strong>KAART VALMIB TAUSTAL…</strong><small>Valin maastikku ja kontrollin läbipääse.</small>';
+
     };
+    const fixedInput=form.elements.namedItem('fixedSeed') as HTMLInputElement;
+    let revision=0,worker:Worker|undefined;
+    const prepare=()=>{
+      const current=++revision,archetype=archetypeInput.value as MapArchetype,size=Number(sizeInput.value),seed=Number(seedInput.value)>>>0,fixed=fixedInput.checked;
+      worker?.terminate();worker=undefined;
+      const local=()=>new Promise<import('../sim/types').MissionDef>((resolve,reject)=>{
+        if(current!==revision){reject(new Error('Kaardivalik muutus.'));return;}
+        const job=new Worker(new URL('./MapPreparation.worker.ts',import.meta.url),{type:'module'});worker=job;
+        job.onmessage=event=>{job.terminate();if(event.data.error)reject(new Error(event.data.error));else resolve(event.data.mission);};
+        job.onerror=()=>{job.terminate();reject(new Error('Kaardi loomine ebaõnnestus.'));};
+        job.postMessage({archetype,size,seed,fixed});
+      });
+      const promise=fixed?local():api.generateMap(archetype,size).then(r=>{if(!r.mission)throw new Error('Server vajab uuendust.');return r.mission;}).catch(local);
+      void promise.then(m=>{
+        if(current!==revision)return;
+        seedInput.value=String(m.seed);map.options[0].value=m.id;map.options[0].textContent=m.map.name;map.value=m.id;
+        const card=this.root.querySelector<HTMLButtonElement>('[data-map-card]')!;card.dataset.mapCard=m.id;card.innerHTML=mapPreview(m)+`<strong>${esc(m.map.name)}</strong><small>KAART VALMIS · ${m.map.size} m · ${generatedSummary(m)}</small>`;
+        storePreparedMission(sessionStorage,m);refreshMap();
+      }).catch(()=>{});
+      return promise;
+    };
+    this.cancelMapPreparation=()=>{revision++;worker?.terminate();};
+    let prepared=prepare();fixedInput.onchange=()=>{prepared=prepare();};
     seedInput.onchange=regenerate;archetypeInput.onchange=regenerate;sizeInput.onchange=regenerate;
     this.root.querySelector<HTMLButtonElement>("[data-new-seed]")!.onclick=()=>{seedInput.value=String(Math.floor(Math.random()*4294967296));regenerate();};
     bindFullscreen(this.root.querySelector<HTMLButtonElement>("[data-fullscreen]")!);
@@ -91,23 +111,12 @@ export class OnlineShell {
         sessionStorage.setItem("rogue-front.activeDeck",JSON.stringify(deck));
       }
       else sessionStorage.removeItem("rogue-front.activeDeck");
-      this.busy=true;const submit=form.querySelector<HTMLButtonElement>('button[type="submit"]')!;submit.disabled=true;submit.textContent="LOON JA KONTROLLIN KAARTI…";
+      const preparationRevision=revision;
+      this.busy=true;form.querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLButtonElement>('input,select,button').forEach(el=>el.disabled=true);const submit=form.querySelector<HTMLButtonElement>('button[type="submit"]')!;submit.disabled=true;submit.textContent="AVAN LAHINGU…";
       let missionId=String(data.get("map"));
       try{
-        if(!data.get("fixedSeed")){
-          try{missionId=(await api.generateMap(archetypeInput.value,Number(sizeInput.value))).missionId;}
-          catch{
-            submit.textContent="SERVER POLE KÄTTESAADAV · LOON KAARDI KOHALIKULT…";
-            const {generateFreshMap}=await import('../sim/freshMap');
-            missionId=generateFreshMap(crypto.getRandomValues(new Uint32Array(1))[0],archetypeInput.value as MapArchetype,Number(sizeInput.value)).id;
-          }
-        }else{
-          const {validateFreshMap}=await import('../sim/freshMap');
-          const selected=generateProceduralMap(Number(seedInput.value),archetypeInput.value as MapArchetype,Number(sizeInput.value),11);
-          if(!validateFreshMap(selected))throw new Error("Selle seemne kaart ei läbinud mängitavuse kontrolli. Vali uus seeme.");
-          missionId=selected.id;
-        }
-      }catch(error){seedInput.setCustomValidity(error instanceof Error?error.message:"Kaardi loomine ebaõnnestus.");seedInput.reportValidity();this.busy=false;submit.disabled=false;submit.textContent="ALUSTA LAHINGUT";return;}
+        const mission=await prepared;if(preparationRevision!==revision){this.busy=false;return;}missionId=mission.id;storePreparedMission(sessionStorage,mission);
+      }catch(error){seedInput.setCustomValidity(error instanceof Error?error.message:"Kaardi loomine ebaõnnestus.");seedInput.reportValidity();this.busy=false;form.querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLButtonElement>('input,select,button').forEach(el=>el.disabled=false);submit.textContent="ALUSTA LAHINGUT";return;}
       const query=new URLSearchParams({mission:missionId,mode:"skirmish",faction:fac,gameMode:String(data.get("mode")),difficulty:String(data.get("difficulty")),deployment:String(data.get("deployment"))});
       location.href=`${location.pathname}?${query}`;
     };
@@ -115,6 +124,7 @@ export class OnlineShell {
   }
   async start(): Promise<void> { this.showOffline(); }
   private async startOnline(): Promise<void> {
+    this.cancelMapPreparation();
     if (!getAuthToken()) return this.authScreen();
     try {
       const r = await api.me(); this.user = r.user; this.room = r.activeRoom;
@@ -184,7 +194,7 @@ export class OnlineShell {
   }
 
   private createRoomModal(): void {
-    const missions:typeof GENERATED_MAP[] = []; const decks = loadAllDecks();
+    const missions:MissionDef[] = []; const decks = loadAllDecks();
     this.modal(`<div class="modal-head"><div class="eyebrow">CREATE MATCH</div><h2>Uus 1v1 lahing</h2></div><form id="create-room-form"><label>Ruumi nimi<input name="name" value="${esc(this.user?.displayName || "")} vs World" maxlength="28" required></label><label>Kaart<select name="mission">${missions.map(m => `<option value="${esc(m.id)}">${esc(m.name)} — ${esc(m.map.name)}</option>`).join("")}${METRIC_MAP_SIZES.flatMap(size=>["balanced","river","urban","forest","highlands","coastal"].map(a=>`<option value="__random__:${a}:${size}">GENERAATOR · ${({balanced:"Järvemaa",river:"Jõeäär",urban:"Linnapiirkond",forest:"Metsapiirkond",highlands:"Kõrgustik",coastal:"Rannik"} as Record<string,string>)[a]} · ${size} m</option>`)).join("")}</select></label><div class="choice-grid"><label>Rahvus<select name="faction">${FACTION_LIST.map(f => `<option value="${f}" ${f === this.selectedFaction ? "selected" : ""}>${FACTIONS[f].name}</option>`).join("")}</select></label><label>Deck<select name="deck">${FACTION_LIST.map(f => `<option value="${f}">${esc(decks[f].name)}</option>`).join("")}</select></label></div><div class="rule-grid"><label>Sissetulek<select name="income"><option value="standard">Standard</option><option value="high">Kõrge</option><option value="low">Madal</option></select></label><label>Fog of War<select name="fog"><option value="wargame">Wargame</option><option value="reduced">Reduced</option><option value="off">Off</option></select></label><label>Võit<select name="victory"><option value="hq">Hävitada HQ</option><option value="annihilation">Täielik hävitamine</option></select></label></div><div class="modal-actions"><button type="button" data-close>CANCEL</button><button class="primary" type="submit">LOO LOBBY</button></div><div class="form-error" data-modal-error></div></form>`);
     const form = document.querySelector<HTMLFormElement>("#create-room-form")!; form.onsubmit = async (e) => { e.preventDefault(); const fd = new FormData(form); const faction = String(fd.get("faction")) as FactionId; this.selectedFaction = faction; const deck = decks[faction]; const selectedMap = String(fd.get("mission"));
       const missionId = selectedMap.startsWith("__random__:") ? `procedural-v11-${selectedMap.split(":")[1]}-${selectedMap.split(":")[2]}-0` : selectedMap;
@@ -231,7 +241,7 @@ export class OnlineShell {
   }
 
   private settingsModal(): void {
-    if (!this.room) return; const room = this.room; const missions = [GENERATED_MAP];
+    if (!this.room) return; const room = this.room; const missions:MissionDef[] = [];
     this.modal(`<div class="modal-head"><div class="eyebrow">HOST CONTROL</div><h2>Lobby reeglid</h2></div><form id="settings-form"><label>Ruumi nimi<input name="name" value="${esc(room.name)}"></label><label>Kaart<select name="mission">${missions.map(m => `<option value="${esc(m.id)}" ${m.id === room.missionId ? "selected" : ""}>${esc(m.name)} — ${esc(m.map.name)}</option>`).join("")}${room.missionId.startsWith("procedural-")?`<option value="${esc(room.missionId)}" selected>Praegune genereeritud kaart</option>`:""}${METRIC_MAP_SIZES.flatMap(size=>["balanced","river","urban","forest","highlands","coastal"].map(a=>`<option value="__random__:${a}:${size}">GENERAATOR · ${({balanced:"Järvemaa",river:"Jõeäär",urban:"Linnapiirkond",forest:"Metsapiirkond",highlands:"Kõrgustik",coastal:"Rannik"} as Record<string,string>)[a]} · ${size} m</option>`)).join("")}</select></label><div class="rule-grid"><label>Sissetulek<select name="income"><option value="standard" ${room.rules.income === "standard" ? "selected" : ""}>Standard</option><option value="high" ${room.rules.income === "high" ? "selected" : ""}>Kõrge</option><option value="low" ${room.rules.income === "low" ? "selected" : ""}>Madal</option></select></label><label>Fog<select name="fog"><option value="wargame" ${room.rules.fog === "wargame" ? "selected" : ""}>Wargame</option><option value="reduced" ${room.rules.fog === "reduced" ? "selected" : ""}>Reduced</option><option value="off" ${room.rules.fog === "off" ? "selected" : ""}>Off</option></select></label><label>Võit<select name="victory"><option value="hq" ${room.rules.victory === "hq" ? "selected" : ""}>HQ</option><option value="annihilation" ${room.rules.victory === "annihilation" ? "selected" : ""}>Annihilation</option></select></label></div><div class="modal-actions"><button type="button" data-close>CANCEL</button><button class="primary" type="submit">SALVESTA</button></div><div class="form-error" data-modal-error></div></form>`);
     document.querySelector<HTMLFormElement>("#settings-form")!.onsubmit = async (e) => { e.preventDefault(); const fd = new FormData(e.currentTarget as HTMLFormElement); try { const selectedMap = String(fd.get("mission")); const missionId = selectedMap.startsWith("__random__:") ? `procedural-v11-${selectedMap.split(":")[1]}-${selectedMap.split(":")[2]}-0` : selectedMap; const r = await api.settings(room.id, { name: fd.get("name"), missionId, mapId: missionId, rules: { income: fd.get("income"), fog: fd.get("fog"), victory: fd.get("victory") } }); this.room = r.room; this.closeModal(); this.renderRoom(); } catch (err) { document.querySelector<HTMLElement>("[data-modal-error]")!.textContent = err instanceof Error ? err.message : "Salvestamine ebaõnnestus."; } };
   }

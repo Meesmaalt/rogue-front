@@ -83,6 +83,27 @@ function artillery(f,kind){if(kind==='mlrs'&&f!=='usa'){const p=truck(f,kind),t=
 function spaa(f){const p=f==='usa'?armored(f,'apc'):f==='russia'?truck(f,'spaa'):armored(f,'ifv');const old=p.getObjectByName('Turret');old?.removeFromParent();const t=group(p,'Turret',0,f==='russia'?1.6:1.9,-.4);box(t,1.45,.75,1.4,'armor',0,.36,0);for(const s of[-1,1]){gun(t,1.55,.047,.42,.48,s*.83);const rack=group(t,'WeaponRack',s*.95,.92,.15);for(let i=0;i<(f==='russia'?4:2);i++){const y=f==='russia'?Math.floor(i/2)*.25:0,x=s*(i%2)*.23;cyl(rack,.11,1.25,'trim',x,y,0,Math.PI/2);cyl(rack,.086,.04,'dark',x,y,.65,Math.PI/2);}}
   cyl(t,.08,.75,'steel',0,1.1,-.25);const radar=mesh(t,new T.SphereGeometry(.53,14,8,0,Math.PI*2,0,Math.PI/2),'dark',0,1.55,-.25,Math.PI/2);radar.scale.z=.24;return p;}
 function wing(p,points,y,m='armor',th=.085){const shape=new T.Shape();points.forEach(([x,z],i)=>i?shape.lineTo(x,-z):shape.moveTo(x,-z));shape.closePath();const g=new T.ExtrudeGeometry(shape,{depth:th,bevelEnabled:false});g.rotateX(-Math.PI/2);return mesh(p,g,m,0,y,0);}
+function heavyTransport(f){
+ const p=new T.Group(),length=f==='russia'?27:f==='china'?29:30,span=f==='russia'?13:15,body=f==='china'?3.5:3.2;
+ loft(p,[[-length*.5,.7,2.6,3.6],[-length*.35,body*1.6,1.2,5.8],[-length*.12,body*2,1,6.3],[length*.28,body*2,1.2,6.1],[length*.43,body*1.4,1.8,5.2],[length*.51,.35,2.8,3.4]],'armor');
+ sphere(p,1,'glass',0,4.8,length*.37,body*.78,.75,1.6);
+ for(const side of [-1,1]){
+  wing(p,[[side*2.5,5],[side*span,-2],[side*span,-5.7],[side*2.5,-3]],5.7,'armor',.28);
+  for(const factor of [.43,.77]){
+   const x=side*span*factor,z=-factor*4.2;
+   box(p,.35,1.6,1.4,'steel',x,4.3,z);
+   const engine=group(p,'',x,3.1,z);loft(engine,[[-2,1.9,0,2],[1.8,2.1,0,2],[2.3,1.7,.2,1.8]],'trim');cyl(engine,.82,.16,'dark',0,1,2.32,Math.PI/2);cyl(engine,.53,.2,'steel',0,1,-2,Math.PI/2);
+  }
+  wing(p,[[0,-length*.36],[side*5.8,-length*.49],[side*5.5,-length*.58],[0,-length*.5]],10,'armor',.18);
+ }
+ const fin=wing(p,[[0,-length*.31],[6.5,-length*.44],[7,-length*.55],[0,-length*.49]],0,'armor',.25);fin.rotation.z=Math.PI/2;fin.position.y=3.2;
+ const gear=group(p,'LandingGear');
+ for(const side of [-1,1])for(const z of [-4,-2,0]){cyl(gear,.85,.65,'rubber',side*2.4,.85,z,0,0,Math.PI/2);if(detail)cyl(gear,.45,.7,'steel',side*2.4,.85,z,0,0,Math.PI/2);}
+ for(const side of [-1,1])cyl(gear,.65,.35,'rubber',side*.45,.65,length*.32,0,0,Math.PI/2);
+ box(p,body*1.35,.13,4,'trim',0,1.35,-length*.34); // Rear cargo ramp.
+ if(f==='russia')sphere(p,.8,'glass',0,2.9,length*.43,1.1,.6,1.3);
+ return p;
+}
 function jet(f,kind){const p=new T.Group();const twin=f==='russia'||kind==='interceptor'||kind==='ecm',attack=kind==='attackAircraft',cargo=kind==='cargoPlane',bomb=kind==='bomber';const length=cargo?10:bomb?10.5:7.5,w=cargo?1.75:bomb?1.3:1.05;const y=1.08;
   loft(p,[[-length*.48,w*.7,y-.3,y+.4],[-length*.3,w*1.2,y-.35,y+.65],[length*.13,w,y-.35,y+.6],[length*.36,w*.6,y-.1,y+.27],[length*.53,.08,y+.03,y+.14]],'armor');
   sphere(p,.52,'glass',0,y+.58,length*.17,.69,.68,1.68);box(p,.04,.075,1.4,'trim',0,y+.86,length*.18);
@@ -159,10 +180,12 @@ function batch(node){
   }
   for(const [material,geometries]of buckets){const joined=mergeGeometries(geometries);const g=mergeVertices(joined,1e-5);joined.dispose();g.computeBoundingSphere();const m=new T.Mesh(g,material);m.name=material.name;node.add(m);for(const geo of geometries)geo.dispose();}
 }
+const selectedKind=process.argv.find(a=>a.startsWith('--kind='))?.split('=')[1];
 const kinds=JSON.parse(await readFile(new URL('../../src/data/art-models.json',import.meta.url),'utf8'));
-const manifest={version:2,author:'Rogue Front original art',models:[]};
-for(const f of Object.keys(palettes)){await mkdir(new URL(f+'/',out),{recursive:true});for(const kind of kinds)for(const lod of ['detail','tactical']){detail=lod==='detail';materialSet(f);let p;
-  if(kind==='tank'||kind==='lightTank')p=tank(f,kind);else if(['ifv','apc','reconVehicle','tankDestroyer'].includes(kind))p=armored(f,kind);else if(kind==='artillery'||kind==='mlrs')p=artillery(f,kind);else if(kind==='spaa')p=spaa(f);else if(kind==='logiTruck')p=truck(f,kind);else if(['heli','gunship','casHeli','transport'].includes(kind))p=helicopter(f,kind);else p=jet(f,kind);
+const manifest=selectedKind?JSON.parse(await readFile(new URL('manifest.json',out),'utf8')):{version:2,author:'Rogue Front original art',models:[]};
+if(selectedKind)manifest.models=manifest.models.filter(m=>m.kind!==selectedKind);
+for(const f of Object.keys(palettes)){await mkdir(new URL(f+'/',out),{recursive:true});for(const kind of kinds.filter(k=>!selectedKind||k===selectedKind))for(const lod of ['detail','tactical']){detail=lod==='detail';materialSet(f);let p;
+  if(kind==='tank'||kind==='lightTank')p=tank(f,kind);else if(['ifv','apc','reconVehicle','tankDestroyer'].includes(kind))p=armored(f,kind);else if(kind==='artillery'||kind==='mlrs')p=artillery(f,kind);else if(kind==='spaa')p=spaa(f);else if(kind==='logiTruck')p=truck(f,kind);else if(['heli','gunship','casHeli','transport'].includes(kind))p=helicopter(f,kind);else p=kind==='cargoPlane'?heavyTransport(f):jet(f,kind);
   p.name=`${f}_${kind}`;p.userData={faction:f,kind,author:manifest.author};box(p,.07,.22,.5,'marking',kind==='tank'?1.82:1.28,1.25,.4);batch(p);p.updateMatrixWorld(true);let triangles=0,drawCalls=0;p.traverse(o=>{if(o.isMesh){triangles+=(o.geometry.index?.count??o.geometry.getAttribute('position').count)/3;drawCalls++;}});
   const binary=await new GLTFExporter().parseAsync(p,{binary:true,onlyVisible:false});const path=`${f}/${kind}${detail?'':'-lod'}.glb`;await writeFile(new URL(path,out),Buffer.from(binary));manifest.models.push({faction:f,kind,lod,path,triangles,drawCalls});
 }}

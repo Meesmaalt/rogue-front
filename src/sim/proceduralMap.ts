@@ -1,4 +1,4 @@
-import {naturalHills,naturalForestEdge,naturalWoodlandAt} from "./naturalLandscape";
+import {naturalHills,naturalForestEdge,naturalWoodlandAt,interiorRidges} from "./naturalLandscape";
 import battleScale from "../data/battle-scale.json";
 import type {MissionDef,MapResourceDef,Point} from "./types";
 import {MapFeatureIndex,pointInFeature,featureCorners,type MapFeatureDef} from "./mapFeatures";
@@ -27,7 +27,7 @@ function clip(points:Point[],nx:number,nz:number,limit:number):Point[] {
 
 export const GENERATED_MAP_SIZES:readonly number[]=config.largeSizes;
 export const METRIC_MAP_SIZES:readonly number[]=battleScale.mapSizes;
-export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5|6|7|8|9|10|11=[2560,3072,5120].includes(requestedSize)?11:requestedSize>=4096?10:8):MissionDef {
+export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5|6|7|8|9|10|11|12=[2560,3072,5120].includes(requestedSize)?11:requestedSize>=4096?10:8):MissionDef {
   // 1280 retains v2 geometry for existing saved matches; v3 sizes are deliberately bounded.
   const legacy=requestedSize===config.size;
   if((requestedSize>=4096&&generationVersion<9)||(!legacy&&![...GENERATED_MAP_SIZES,...METRIC_MAP_SIZES].includes(requestedSize)))throw new Error("Kaardi suurus pole toetatud");
@@ -161,6 +161,7 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
   const landscapeForms=landscape?buildMountainRanges(size,archetype,rng,features,[...bases.map(b=>({...b,r:b.r+55})),...towns.map(t=>({...t,r:110})),
     ...[{x:-size*.31,z:size*.17},{x:size*.31,z:-size*.17},{x:-size*.29,z:-size*.29},{x:size*.29,z:size*.29}].map(p=>({...p,r:75}))]):[];
   if(generationVersion>=10)landscapeForms.push(...naturalHills(size,archetype,rng,features,[...bases.map(b=>({...b,r:320})),...towns.map(t=>({...t,r:140})),...[{x:-size*.31,z:size*.17},{x:size*.31,z:-size*.17},{x:-110,z:40},{x:-size*.29,z:-size*.29},{x:size*.29,z:size*.29},{x:size*.13,z:-size*.08},{x:-size*.13,z:size*.08},{x:-size*.25,z:-size*.39},{x:size*.25,z:size*.39}].map(p=>({...p,r:100}))]));
+  if(generationVersion>=12)landscapeForms.push(...interiorRidges(size,rng,features,[...bases.map(b=>({...b,r:320})),...[{x:-size*.31,z:size*.17},{x:size*.31,z:-size*.17},{x:-110,z:40},{x:-size*.29,z:-size*.29},{x:size*.29,z:size*.29},{x:size*.13,z:-size*.08},{x:-size*.13,z:size*.08},{x:-size*.25,z:-size*.39},{x:size*.25,z:size*.39}].map(p=>({...p,r:100}))],landscapeForms));
   // Jittered Voronoi parcels create connected land use, rather than floating rectangular stamps.
   const sites:Point[]=[],step=legacy?config.parcelSpacing:(landscape?config.landUse.parcelSpacing:config.regionalParcelSpacing)*Math.pow(size/config.defaultSize,generationVersion>=10?config.naturalLandscape.parcelScaleExponent:1);
   for(let z=-half+step*.55;z<half-30;z+=step)for(let x=-half+step*.55;x<half-30;x+=step)sites.push({x:x+random(-step*.22,step*.22),z:z+random(-step*.22,step*.22)});
@@ -175,7 +176,7 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
     // Leave a meadow/riverbank buffer, and never paint cropland across a lake or city.
     const probes=[s,...poly,...poly.map((p,j)=>({x:(p.x+poly[(j+1)%poly.length].x)/2,z:(p.z+poly[(j+1)%poly.length].z)/2}))];
     if(!landscape&&probes.some(p=>blocked(p,8,["water"])||towns.some(t=>distance(p,t)<(t.blocks>2?90:58))))continue;
-    const woods=(landscape&&probes.some(p=>ridgeReliefAt(p,landscapeForms)>config.landUse.mountainForestHeight))||forestCenters.some(c=>distance(s,c)<(legacy?(archetype==="forest"?205:145):size*(archetype==="forest"?.15:.10)))||(generationVersion>=11?naturalWoodlandAt(s.x,s.z,seed,archetype):rng.next()<(archetype==="forest"?.28:.13));
+    const woods=(landscape&&probes.some(p=>ridgeReliefAt(p,landscapeForms)>config.landUse.mountainForestHeight))||forestCenters.some(c=>distance(s,c)<(legacy?(archetype==="forest"?205:145):size*(archetype==="forest"?.15:.10)))||(generationVersion>=11?naturalWoodlandAt(s.x,s.z,seed,archetype,generationVersion):rng.next()<(archetype==="forest"?.28:.13));
     if(landscape){
       let pieces=[poly];
       for(const corners of parcelMasks){
@@ -190,7 +191,7 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
       for(let j=0;j<pieces.length;j++){
         const piece=pieces[j],area=parcelArea(piece),perimeter=piece.reduce((sum,p,k)=>sum+distance(p,piece[(k+1)%piece.length]),0);
         if(area<config.landUse.minimumArea||area/(perimeter*perimeter)<config.landUse.minimumCompactness)continue;
-        const f=polygonFeature(`parcel-${i}-${j}`,generationVersion>=10&&woods?naturalForestEdge(piece,rng):piece,woods?"forest":"field",config.cropColors[i%config.cropColors.length]);
+        const f=polygonFeature(`parcel-${i}-${j}`,generationVersion>=10&&generationVersion<12&&woods?naturalForestEdge(piece,rng):piece,woods?"forest":"field",config.cropColors[i%config.cropColors.length]);
         if(woods){f.height=8;f.density=generationVersion>=10?random(...config.naturalLandscape.forestDensity as [number,number]):random(.7,.9);}
         else {const nearest=features.filter(r=>r.kind==="road"&&r.roadClass!=="street").reduce((a,b)=>distance(a,s)<distance(b,s)?a:b);f.cropRotation=(nearest.rotation??0)+Math.PI/2;}
         features.push(f);
@@ -278,11 +279,10 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
 }
 
 export const FOCUS_MAP=greenValley as unknown as MissionDef;
-export const GENERATED_MAP=generateProceduralMap(62510,"balanced",battleScale.defaultSize,10);
 export const CURATED_MAPS:readonly MissionDef[]=[];
 export function getPlayableMap(id:string):MissionDef|undefined {
-  const current=/^procedural-v11-(balanced|river|highlands|urban|coastal|forest)-(2048|2560|3072|4096|5120|6144)-(\d+)$/.exec(id);
-  if(current)return Number(current[3])<=4294967295?generateProceduralMap(Number(current[3]),current[1] as MapArchetype,Number(current[2]),11):undefined;
+  const current=/^procedural-v(11|12)-(balanced|river|highlands|urban|coastal|forest)-(2048|2560|3072|4096|5120|6144)-(\d+)$/.exec(id);
+  if(current)return Number(current[4])<=4294967295?generateProceduralMap(Number(current[4]),current[2] as MapArchetype,Number(current[3]),Number(current[1]) as 11|12):undefined;
   const metric=/^procedural-v(9|10)-(balanced|river|highlands|urban|coastal|forest)-(4096|6144)-(\d+)$/.exec(id);
   if(metric)return Number(metric[4])<=4294967295?generateProceduralMap(Number(metric[4]),metric[2] as MapArchetype,Number(metric[3]),Number(metric[1]) as 9|10):undefined;
   const regional=/^procedural-v(3|4|5|6|7|8)-(balanced|river|highlands|urban|coastal|forest)-(1536|1792|2048)-(\d+)$/.exec(id);

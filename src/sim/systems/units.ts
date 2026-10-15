@@ -1,3 +1,4 @@
+import {runwayEdgePoint} from "../cargoApproach";
 import {groundDynamics,usesGroundDynamics,groundSpeedStep,cornerApproachSpeed,coordinatedBank} from "../groundDynamics";
 import physics from "../../data/physics.json";
 import {BATTLE_SCALE,aircraftMobility,helicopterMobility} from "../battleScale";
@@ -308,7 +309,7 @@ function taxiTo(u:Entity,p:Point,dt:number):boolean {
   return distance<=.3;
 }
 function runwayOccupied(w:World,u:Entity,pad:Entity):boolean {
-  return w.entities.some(e=>e!==u&&!e.dead&&e.airMissionHomeId===pad.id&&(e.airState==="taxi"&&e.airTaxiPhase!=="apron"||e.airState==="returning"&&e.airLandingPhase==="final"||e.airState==="landing"&&dist2d(e,airFacilityPoint(pad,6))<aircraftMobility(u).parkingOffset||e.airState==="airborne"&&(e.airSortieTime??0)<aircraftMobility(u).launchSeparation));
+  return w.entities.some(e=>e!==u&&!e.dead&&e.airMissionHomeId===pad.id&&(e.airState==="taxi"&&e.airTaxiPhase!=="apron"||e.airState==="returning"&&e.airLandingPhase==="final"||e.airState==="landing"&&(e.kind==="cargoPlane"||dist2d(e,airFacilityPoint(pad,6))<aircraftMobility(u).parkingOffset)||e.airState==="airborne"&&(e.airSortieTime??0)<aircraftMobility(u).launchSeparation));
 }
 
 /** Kinematic flight is simulated: inertia, bank, climb and approach are saved state. */
@@ -342,7 +343,8 @@ function moveAirTo(u: Entity, target: Point, dt: number, w: World, cruise=false)
   const cargoLanding=u.kind==="cargoPlane"&&u.cargo>0;
   const landing=!cruise&&(u.airState==="returning"||cargoLanding||["transport-load","transport-unload"].includes(u.mode)||u.kind==="transport"&&u.supplyDepotId!=null);
   const final=landing&&(helicopter||u.airLandingPhase==="final"||cargoLanding&&distance<80);
-  const desiredAltitude=ground+(final?Math.min(profile.altitude,Math.max(0,(distance-8)*(helicopter?.85:u.def.metricScale?BATTLE_SCALE.aircraft.glideSlope:.24))):u.airState==="returning"?(u.def.metricScale?BATTLE_SCALE.aircraft.approachAltitude:20):profile.altitude+(u.airMission==="cap"&&!helicopter?15:0));
+  const runwayReference=w.byId.get(u.airMissionHomeId??-1),landingGround=final&&!helicopter&&u.def.metricScale&&runwayReference?heightAt(runwayReference.x,runwayReference.z):ground;
+  const desiredAltitude=landingGround+(final?Math.min(profile.altitude,Math.max(0,(distance-8)*(helicopter?.85:u.def.metricScale?BATTLE_SCALE.aircraft.glideSlope:.24))):u.airState==="returning"?(u.def.metricScale?BATTLE_SCALE.aircraft.approachAltitude:20):profile.altitude+(u.airMission==="cap"&&!helicopter?15:0));
   const oldY=u.y;
   u.y+=Math.max(-profile.descentRate*dt,Math.min(profile.climbRate*dt,desiredAltitude-u.y));
   const runway=w.byId.get(u.airMissionHomeId??-1);
@@ -426,7 +428,51 @@ function updateExternalFlight(w:World,u:Entity,dt:number):void {
   u.mode="patrol";u.dest=entry;moveAirTo(u,entry,dt,w,aircraft);
   if(Math.hypot(u.x-entry.x,u.z-entry.z)<8){u.cargo=0;u.dead=true;}
 }
-function updateCargoPlane(w:World,u:Entity,dt:number):void {updateExternalFlight(w,u,dt);}
+function updateCargoPlane(w:World,u:Entity,dt:number):void {
+ if(!u.def.metricScale){updateExternalFlight(w,u,dt);return;}
+ const base=w.byId.get(u.airMissionHomeId??-1)??w.entities.find(e=>e.kind==='airbase'&&e.team===u.team&&u.logisticsHome&&dist2d(e,u.logisticsHome)<15);
+ const depot=base?airportDepot(w,base):null;
+ if(!base||!depot){u.logisticsPhase='loading';u.airState='airborne';const exit=u.logisticsTarget??externalEntry(w,u.team,u);moveAirTo(u,exit,dt,w,true);if(dist2d(u,exit)<20)u.dead=true;return;}
+ u.airMissionHomeId=base.id;u.supplyDepotId=depot.id;
+ const profile=aircraftMobility(u),parking=airFacilityPoint(base,BATTLE_SCALE.cargo.parkingForward,BATTLE_SCALE.cargo.parkingLateral);
+ if(!u.airState||u.airState==='returning'){
+  u.airState='returning';u.airLandingPhase='final';
+  if(moveAirTo(u,airFacilityPoint(base,6),dt,w)){u.airState='landing';u.flightBank=0;u.flightPitch=0;}
+  return;
+ }
+ if(u.airState==='landing'){
+  if((u.motionSpeed??0)>profile.taxiSpeed){u.motionSpeed=Math.max(profile.taxiSpeed,(u.motionSpeed??0)-profile.braking*dt);u.heading=base.heading;u.x+=Math.sin(u.heading)*u.motionSpeed*dt;u.z+=Math.cos(u.heading)*u.motionSpeed*dt;u.y=heightAt(u.x,u.z);return;}
+  if(u.airTaxiPhase!=='apron'){if(!taxiTo(u,airFacilityPoint(base,BATTLE_SCALE.cargo.parkingForward),dt))return;u.airTaxiPhase='apron';}
+  if(!taxiTo(u,parking,dt))return;
+  u.airState='grounded';u.logisticsPhase='unloading';u.motionSpeed=0;u.heading=base.heading;
+ }
+ if(u.airState==='grounded'){
+  u.logisticsLoadProgress=(u.logisticsLoadProgress??0)+dt;
+  if(u.logisticsLoadProgress<Math.max(1.5,logisticsConfig.external.unloadSeconds-w.supplyDepotLevel(depot)*logisticsConfig.external.unloadReduction))return;
+  const accepted=w.receiveSupply(depot,u.cargo);u.cargo=Math.max(0,u.cargo-accepted);w.airCargoDelivered[u.team]+=accepted;
+  if(accepted>0)w.events.push({type:'supply-delivered',team:u.team,x:u.x,z:u.z,amount:accepted});
+  if(u.cargo>.001)return;
+  u.cargo=0;u.logisticsPhase='loading';u.airState='taxi';u.airTaxiPhase='apron';
+ }
+ if(u.airState==='taxi'){
+  if(u.airTaxiPhase==='apron'){
+   if(runwayOccupied(w,u,base))return;
+   if(!taxiTo(u,airFacilityPoint(base,BATTLE_SCALE.cargo.parkingForward),dt))return;u.airTaxiPhase='lining-up';
+  }
+  if(u.airTaxiPhase==='lining-up'){
+   const start=airFacilityPoint(base,profile.runwayStart);
+   if(dist2d(u,start)>.3){taxiTo(u,start,dt);return;}
+   u.heading=turnToward(u.heading,base.heading,u.def.turnRate*dt);
+   if(Math.abs(wrapAngle(u.heading-base.heading))>.03)return;u.airTaxiPhase='runway';u.motionSpeed=0;
+  }
+  u.heading=base.heading;u.motionSpeed=Math.min(u.def.speed,(u.motionSpeed??0)+profile.acceleration*dt);u.x+=Math.sin(u.heading)*u.motionSpeed*dt;u.z+=Math.cos(u.heading)*u.motionSpeed*dt;u.y=heightAt(u.x,u.z);
+  const forward=(u.x-base.x)*Math.sin(base.heading)+(u.z-base.z)*Math.cos(base.heading);
+  if(forward<profile.runwayEnd)return;u.airState='airborne';u.logisticsTarget=runwayEdgePoint(w.mapSize,base,BATTLE_SCALE.cargo.exitMargin,true);
+ }
+ if(u.airState==='airborne'){
+  const exit=u.logisticsTarget!;moveAirTo(u,exit,dt,w,true);if(dist2d(u,exit)<20)u.dead=true;
+ }
+}
 
 function updateTransport(w: World, u: Entity, dt: number): void {
   if(u.logisticsRoute==="strategic"&&u.supplyDepotId!=null){updateExternalFlight(w,u,dt);return;}

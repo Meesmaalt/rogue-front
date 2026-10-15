@@ -1,3 +1,4 @@
+import {runwayEdgePoint} from "./cargoApproach";
 import {BATTLE_SCALE,metricUnitDefinition} from "./battleScale";
 import {updateEquipment} from "./equipment";
 import {CORE_PLATFORMS} from "./platforms";
@@ -73,6 +74,7 @@ export class World {
   externalVictoryMode = false;
   platformRosterOnly = false;
   metricBattle = false;
+  compactBattle = false;
   matchController: import("./gameModes").MatchModeController | null = null;
   missionController: import("./Mission").MissionController | null = null;
   teamFormations: ["box"|"line"|"wedge"|"column", "box"|"line"|"wedge"|"column"] = ["box","box"];
@@ -303,7 +305,7 @@ export class World {
     this.frontline = new FrontlineController(this);
   }
 
-  unitDefinition(kind:UnitKind,team:Team=this.playerTeam){const base=factionUnitDefinition(kind,team===this.playerTeam?this.playerFaction:this.enemyFaction);return this.metricBattle?metricUnitDefinition(base,kind):base;}
+  unitDefinition(kind:UnitKind,team:Team=this.playerTeam){const base=factionUnitDefinition(kind,team===this.playerTeam?this.playerFaction:this.enemyFaction);return this.metricBattle?metricUnitDefinition(base,kind,this.compactBattle):base;}
 
   spawn(kind: UnitKind, team: Team, x: number, z: number): Entity {
     const resolved=this.unitDefinition(kind,team);
@@ -663,9 +665,11 @@ export class World {
       const level=Math.max(this.producerLevel(base)-1,this.supplyDepotLevel(depot));
       this.airCargoPool[team]=Math.min(config.planePoolMax,this.airCargoPool[team]+config.planePoolRate*(1+level*config.planePoolRatePerLevel)*this.incomeMultiplier*dt);
       if(this.airCargoPool[team]<config.planeMinimumLoad||this.time-this.airCargoLastSpawn[team]<config.planeInterval/(1+level*config.planeFrequencyPerLevel)||this.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="cargoPlane").length>=config.planeFleetByLevel[level])continue;
-      const amount=Math.min(config.planeCapacity+level*config.planeCapacityPerLevel,Math.floor(this.airCargoPool[team])),entry=externalEntry(this,team,base);
+      if(this.metricBattle&&this.entities.some(e=>!e.dead&&e.airMissionHomeId===base.id&&(['returning','landing'].includes(e.airState??'')||e.airState==='taxi'&&e.airTaxiPhase!=='apron')))continue;
+      const amount=Math.min(config.planeCapacity+level*config.planeCapacityPerLevel,Math.floor(this.airCargoPool[team])),entry=this.metricBattle?runwayEdgePoint(this.mapSize,base,config.edgeMargin):externalEntry(this,team,base);
       this.airCargoPool[team]-=amount;this.airCargoLastSpawn[team]=this.time;
       const plane=this.spawn("cargoPlane",team,entry.x,entry.z);plane.y+=config.planeAltitude;plane.py=plane.y;plane.heading=Math.atan2(base.x-entry.x,base.z-entry.z);plane.pHeading=plane.heading;
+      if(this.metricBattle){plane.airMissionHomeId=base.id;plane.airState="returning";plane.airLandingPhase="final";plane.motionSpeed=BATTLE_SCALE.aircraft.landingSpeed;plane.heading=plane.pHeading=base.heading;}
       plane.logisticsRoute="strategic";plane.cargo=amount;plane.logisticsCargoCapacity=config.planeCapacity+level*config.planeCapacityPerLevel;plane.supplyDepotId=depot.id;plane.logisticsHome={x:base.x,z:base.z};plane.logisticsTarget=entry;plane.logisticsPhase="idle";plane.mode="patrol";plane.dest={x:base.x,z:base.z};
     }
   }
@@ -772,7 +776,7 @@ export class World {
     return {
       mapSize:this.mapSize,terrain:this.terrain.snapshot(),
       playerTeam: this.playerTeam, playerFaction: this.playerFaction, enemyFaction: this.enemyFaction,
-      metricBattle:this.metricBattle,platformRosterOnly:this.platformRosterOnly, networkMode: this.networkMode, incomeMultiplier: this.incomeMultiplier, victoryMode: this.victoryMode,
+      metricBattle:this.metricBattle,compactBattle:this.compactBattle,platformRosterOnly:this.platformRosterOnly, networkMode: this.networkMode, incomeMultiplier: this.incomeMultiplier, victoryMode: this.victoryMode,
       objectiveDriven: this.objectiveDriven, externalVictoryMode: this.externalVictoryMode,
       airCargoLastSpawn: [...this.airCargoLastSpawn] as [number,number],
       roadTruckLastSpawn: [...this.roadTruckLastSpawn] as [number,number],
@@ -797,7 +801,7 @@ export class World {
     if((s.mapSize??this.mapSize)!==this.mapSize||(s.metricBattle??false)!==this.metricBattle){setMapSize(s.mapSize??this.mapSize);ensureHeightCache();this.nav=new NavGrid(this.entities,this.mapFeatures);this.waterNav=new WaterNavGrid(this.mapFeatures);this.spatial=new SpatialHash(16);this.spatial.rebuild(this.entities);this.vision=new Vision((s.metricBattle??false)||MAP_SIZE>=4096);this.vision.structureDamage=this.infrastructureDamage;this.vision.setFeatures(this.mapFeatures);this.vision.forestObscuration=(a,b)=>this.terrain.obscuration(a,b);}
     this.terrain.restore(s.terrain);
     this.playerTeam=s.playerTeam; this.playerFaction=s.playerFaction; this.enemyFaction=s.enemyFaction;
-    this.metricBattle=s.metricBattle??false;this.platformRosterOnly=s.platformRosterOnly??false;this.networkMode=s.networkMode; this.incomeMultiplier=s.incomeMultiplier; this.victoryMode=s.victoryMode;
+    this.compactBattle=s.compactBattle??false;this.metricBattle=s.metricBattle??false;this.platformRosterOnly=s.platformRosterOnly??false;this.networkMode=s.networkMode; this.incomeMultiplier=s.incomeMultiplier; this.victoryMode=s.victoryMode;
     this.objectiveDriven=s.objectiveDriven; this.externalVictoryMode=s.externalVictoryMode;
     this.airCargoLastSpawn=[...s.airCargoLastSpawn]; this.roadTruckLastSpawn=[...s.roadTruckLastSpawn];
     this.logisticsPriority[0]=s.logisticsPriority[0]; this.logisticsPriority[1]=s.logisticsPriority[1];

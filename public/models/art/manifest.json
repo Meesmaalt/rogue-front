@@ -308,22 +308,6 @@
     },
     {
       "faction": "usa",
-      "kind": "cargoPlane",
-      "lod": "detail",
-      "path": "usa/cargoPlane.glb",
-      "triangles": 1676,
-      "drawCalls": 5
-    },
-    {
-      "faction": "usa",
-      "kind": "cargoPlane",
-      "lod": "tactical",
-      "path": "usa/cargoPlane-lod.glb",
-      "triangles": 1216,
-      "drawCalls": 3
-    },
-    {
-      "faction": "usa",
       "kind": "logiTruck",
       "lod": "detail",
       "path": "usa/logiTruck.glb",
@@ -641,22 +625,6 @@
       "path": "russia/transport-lod.glb",
       "triangles": 836,
       "drawCalls": 5
-    },
-    {
-      "faction": "russia",
-      "kind": "cargoPlane",
-      "lod": "detail",
-      "path": "russia/cargoPlane.glb",
-      "triangles": 2260,
-      "drawCalls": 5
-    },
-    {
-      "faction": "russia",
-      "kind": "cargoPlane",
-      "lod": "tactical",
-      "path": "russia/cargoPlane-lod.glb",
-      "triangles": 1576,
-      "drawCalls": 3
     },
     {
       "faction": "russia",
@@ -980,22 +948,6 @@
     },
     {
       "faction": "china",
-      "kind": "cargoPlane",
-      "lod": "detail",
-      "path": "china/cargoPlane.glb",
-      "triangles": 1692,
-      "drawCalls": 5
-    },
-    {
-      "faction": "china",
-      "kind": "cargoPlane",
-      "lod": "tactical",
-      "path": "china/cargoPlane-lod.glb",
-      "triangles": 1232,
-      "drawCalls": 3
-    },
-    {
-      "faction": "china",
       "kind": "logiTruck",
       "lod": "detail",
       "path": "china/logiTruck.glb",
@@ -1009,6 +961,54 @@
       "path": "china/logiTruck-lod.glb",
       "triangles": 1348,
       "drawCalls": 2
+    },
+    {
+      "faction": "usa",
+      "kind": "cargoPlane",
+      "lod": "detail",
+      "path": "usa/cargoPlane.glb",
+      "triangles": 1744,
+      "drawCalls": 9
+    },
+    {
+      "faction": "usa",
+      "kind": "cargoPlane",
+      "lod": "tactical",
+      "path": "usa/cargoPlane-lod.glb",
+      "triangles": 1232,
+      "drawCalls": 7
+    },
+    {
+      "faction": "russia",
+      "kind": "cargoPlane",
+      "lod": "detail",
+      "path": "russia/cargoPlane.glb",
+      "triangles": 2032,
+      "drawCalls": 9
+    },
+    {
+      "faction": "russia",
+      "kind": "cargoPlane",
+      "lod": "tactical",
+      "path": "russia/cargoPlane-lod.glb",
+      "triangles": 1296,
+      "drawCalls": 7
+    },
+    {
+      "faction": "china",
+      "kind": "cargoPlane",
+      "lod": "detail",
+      "path": "china/cargoPlane.glb",
+      "triangles": 1744,
+      "drawCalls": 9
+    },
+    {
+      "faction": "china",
+      "kind": "cargoPlane",
+      "lod": "tactical",
+      "path": "china/cargoPlane-lod.glb",
+      "triangles": 1232,
+      "drawCalls": 7
     }
   ]
 }

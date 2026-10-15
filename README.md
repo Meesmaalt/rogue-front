@@ -203,3 +203,7 @@ Production-Nginx kasutab GLB jaoks õiget MIME-tüüpi ja gzip-pakkimist. Docker
 ## Värsked protseduurkaardid · v11
 
 Uus lahing küsib vaikimisi serverilt uue kontrollitud kaardi. Valikud on 2048, 2560, 3072, 4096, 5120 ja 6144 m nii üksik- kui mitmikmängus. Server kontrollib liikumisvõrgu ühendust ja lennuraja vaba ruumi eraldi workeris. Võrguühenduseta säilib kohalik varutee; sama kaardi kordamiseks märgi „Korda sisestatud seemet”. Serveri kontrollid: `npm run test:server`. Muudatuse kasutamiseks ehita uuesti **nii mängu kui multiplayeri image**. Detailid: [PROCEDURAL-V11-RELEASE.md](docs/PROCEDURAL-V11-RELEASE.md).
+
+## Kompaktne lahing · v12
+
+Kaart valmistatakse peamenüüs taustal ette ja sama geomeetria antakse lahingule üle. Uus v12 lühendab tegelikke laskekaugusi, säilitades relvakaartide meetrinäidud; lisaks suuremad raketiefektid, joondatud kaubamaandumine, fraktsioonide suured transpordilennukid ja ühendatud sisemaa metsad/mäeharjad. Uuendamisel ehita uuesti nii mäng kui multiplayer. [Muudatused](docs/COMPACT-BATTLE-V12-RELEASE.md) · [kiirem arendusring](docs/DEV-WORKFLOW.md).

@@ -244,5 +244,20 @@
       "standard",
       "multirole"
     ]
+  },
+  "compact": {
+    "rangeScale": 0.2,
+    "airToAirRangeScale": 0.12,
+    "opticsScale": 0.35,
+    "airAltitude": 120,
+    "helicopterAltitude": 35,
+    "airSpeedScale": 0.55,
+    "cameraDistance": 320,
+    "cameraFov": 48
+  },
+  "cargo": {
+    "parkingForward": 80,
+    "parkingLateral": 35,
+    "exitMargin": 60
   }
 }

@@ -1,3 +1,4 @@
+import {BATTLE_SCALE} from "../sim/battleScale";
 import {StableShadows} from "./StableShadows";
 import {MAP_SIZE} from "../sim/heightmap";
 import * as THREE from "three";
@@ -18,7 +19,7 @@ export interface RenderContext {
   setQuality(quality: GameSettings["quality"]): void;
 }
 
-export function createRenderContext(canvas: HTMLCanvasElement, temperate = false, quality:GameSettings["quality"]="medium"): RenderContext {
+export function createRenderContext(canvas: HTMLCanvasElement, temperate = false, quality:GameSettings["quality"]="medium",compact=false): RenderContext {
   let profile = chooseVisualProfile(quality);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
   renderer.setPixelRatio(profile.pixelRatio);
@@ -36,7 +37,7 @@ export function createRenderContext(canvas: HTMLCanvasElement, temperate = false
   scene.fog = new THREE.Fog(haze, temperate?680:260, temperate?1450:780);
   scene.add(createSky(temperate));
 
-  const camera = new THREE.PerspectiveCamera(42, 1, 1, Math.max(1400,MAP_SIZE*2));
+  const camera = new THREE.PerspectiveCamera(compact?BATTLE_SCALE.compact.cameraFov:42, 1, 1, Math.max(1400,MAP_SIZE*2));
   // Brighter ambient so buildings read clearly
   const hemi = new THREE.HemisphereLight(temperate ? 0xc5d7df : 0xfff0d0, temperate ? 0x414a37 : 0x8a7350, temperate?.72:1.1);
   scene.add(hemi);

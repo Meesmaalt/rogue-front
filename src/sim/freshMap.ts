@@ -45,7 +45,7 @@ export function generateFreshMap(seed:number,archetype:MapArchetype='balanced',s
  const rng=new Rng(seed>>>0);
  for(let attempt=0;attempt<config.freshGeneration.attempts;attempt++){
   const candidate=attempt===0?seed>>>0:Math.floor(rng.next()*4294967296)>>>0;
-  try{const mission=generateProceduralMap(candidate,archetype,size,11);if(validateFreshMap(mission))return mission;}catch{/* Try another deterministic seed. */}
+  try{const mission=generateProceduralMap(candidate,archetype,size,12);if(validateFreshMap(mission))return mission;}catch{/* Try another deterministic seed. */}
  }
  throw new Error('Mängitavat kaarti ei õnnestunud luua. Proovi uuesti.');
 }

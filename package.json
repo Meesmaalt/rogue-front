@@ -16,7 +16,10 @@
     "test:release": "node --test scripts/release/compact.test.mjs",
     "server:build": "node scripts/server/build.mjs",
     "server:start": "npm run server:build && node server/server.js",
-    "test:server": "npm run server:build && node --test server/*.test.js"
+    "test:server": "npm run server:build && node --test server/*.test.js",
+    "test:tactical": "vitest run src/sim/compactBattle.test.ts src/sim/cargoApproach.test.ts src/sim/interiorLandscape.test.ts src/ui/PreparedMission.test.ts src/render/ProjectileTrail.test.ts src/render/MetricRunway.test.ts",
+    "art:cargo": "node scripts/art/build-models.mjs --kind=cargoPlane",
+    "bench:map": "node scripts/dev/benchmark-map.mjs"
   },
   "dependencies": {
     "three": "^0.170.0"

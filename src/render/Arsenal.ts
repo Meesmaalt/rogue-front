@@ -1,3 +1,4 @@
+import {metricUnitDefinition} from "../sim/battleScale";
 import {CORE_PLATFORMS} from "../sim/platforms";
 import {createModel} from "./models";
 import {factionUnitDefinition} from "../sim/units";
@@ -34,7 +35,7 @@ async function show():Promise<void>{
   controls.minDistance=INFANTRY.includes(kind)?2.5:5;
   const bounds=new THREE.Box3().setFromObject(model),size=bounds.getSize(new THREE.Vector3());controls.target.copy(bounds.getCenter(new THREE.Vector3()));const extent=Math.max(size.x,size.z,size.y*2);camera.position.copy(controls.target).add(new THREE.Vector3(extent*1.12,extent*.63,extent*1.15));controls.update();
   document.getElementById("role")!.textContent=`${FACTIONS[faction].short} / ${roles[kind]}`;document.getElementById("platform")!.textContent=factionUnitName(faction,kind,roles[kind]??kind);
-  const def=factionUnitDefinition(kind,faction),enemy=factionUnitDefinition("tank",faction==="usa"?"russia":"usa");
+  const def=metricUnitDefinition(factionUnitDefinition(kind,faction),kind),enemy=factionUnitDefinition("tank",faction==="usa"?"russia":"usa");
   document.getElementById("description")!.textContent=`${def.ability??FACTIONS[faction].doctrineBlurb} · ${def.squadSize?def.squadSize+" meest · ":""}HP ${def.hp} · Soomus ${def.armorFront}/${def.armorSide}/${def.armorRear} · Optika ${def.optics} ${Math.round(def.opticsRange??0)} m`;
   document.getElementById("weapons")!.innerHTML=(def.weapons??[]).map(w=>`<div><b>${w.name}</b><small>${w.range} m · AP ${w.penetration} · ${w.ammoCapacity} moon · ${w.cooldown} s · ${Math.round(w.accuracy*100)}% paigal / ${movingFireFactor(def,w)===0?"peatub":Math.round(w.accuracy*movingFireFactor(def,w)*100)+"% liikudes"}</small><small title="Ühe tabamuse baaskahjustus vastasfraktsiooni põhitanki vastu, lähikaugus, ilma uuendusteta; E/K/T = esi/külg/taga">Tank E/K/T: ${["front","side","rear"].map(f=>weaponImpactEstimate(w,enemy,f as "front"|"side"|"rear").toFixed(1)).join(" / ")}</small></div>`).join("");
   let triangles=0,batches=0;model.traverse(o=>{if(o instanceof THREE.Mesh){batches++;triangles+=(o.geometry.index?.count??o.geometry.getAttribute("position").count)/3;}});

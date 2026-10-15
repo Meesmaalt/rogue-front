@@ -1,3 +1,4 @@
+import {readPreparedMission} from "./ui/PreparedMission";
 import {setTerrainDetailQuality} from "./render/TerrainDetail";
 import {validateDeck,defaultDeck} from "./sim/deck";
 import {isIndirectUnit} from "./sim/equipment";
@@ -77,7 +78,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   setMapSize(mission.map.size??640);
   let visualQuality=loadSettings().quality;
   const glCanvas = document.getElementById("game") as HTMLCanvasElement;
-  const ctx = createRenderContext(glCanvas, mission.map.theme === "temperate",visualQuality);
+  const ctx = createRenderContext(glCanvas, mission.map.theme === "temperate",visualQuality,/^procedural-v12-/.test(mission.id));
   hud.setWarning("Laadin 3D-mudeleid…");
   try { await loadArtModels(multiplayerRoom?FACTION_LIST:[faction,FACTION_LIST.find(f=>f!==faction)??"russia"]); hud.setWarning(""); } catch (error) {
     console.warn("3D asset loading failed", error);
@@ -90,8 +91,9 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   // World bakes heights once after adding hydrology to the final bases/landforms.
 
   const skirmish = !!skirmishDifficulty;
-  const world = new World(mission.seed, !skirmish, mission.map.resources, mission.map.features ?? [], mission.map.bases, mission.map.baseDefenses ?? true,/^procedural-v(9|10|11)-/.test(mission.id));
-  world.metricBattle=/^procedural-v(9|10|11)-/.test(mission.id);
+  const world = new World(mission.seed, !skirmish, mission.map.resources, mission.map.features ?? [], mission.map.bases, mission.map.baseDefenses ?? true,/^procedural-v(9|10|11|12)-/.test(mission.id));
+  world.compactBattle=/^procedural-v12-/.test(mission.id);
+  world.metricBattle=/^procedural-v(9|10|11|12)-/.test(mission.id);
   const multiplayer = !!multiplayerRoom && !skirmish;
   const net = multiplayer ? new LockstepClient() : null;
   const networkPackets: Array<{ tick: number; commands: import("./sim/types").Command[] }> = [];
@@ -143,14 +145,14 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const performancePanel=new PerformancePanel(loadSettings().performanceOverlay??false);
   const gpuTimer=new GpuTimer(ctx.renderer.getContext());
   const gl=ctx.renderer.getContext(),debug=gl.getExtension("WEBGL_debug_renderer_info");
-  performancePanel.configure({clientBuild:"natural-battle-v11/performance-v3",mapId:mission.id,seed:mission.seed,mapSize:mission.map.size,buildingCount:world.mapFeatures.filter(f=>f.kind==="building").length,
+  performancePanel.configure({clientBuild:"compact-battle-v12/load-v2",mapId:mission.id,seed:mission.seed,mapSize:mission.map.size,buildingCount:world.mapFeatures.filter(f=>f.kind==="building").length,
     browser:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,deviceMemoryGB:(navigator as Navigator&{deviceMemory?:number}).deviceMemory??null,
     graphics:debug?{vendor:gl.getParameter(debug.UNMASKED_VENDOR_WEBGL),renderer:gl.getParameter(debug.UNMASKED_RENDERER_WEBGL)}:{renderer:gl.getParameter(gl.RENDERER)},
     webglVersion:gl.getParameter(gl.VERSION),gpuTimerSupported:gpuTimer.supported,devicePixelRatio:window.devicePixelRatio});
   const terrainView=createTerrain(mission.map.theme, world.mapFeatures, mission.map.bases);terrainForQuality=terrainView;setTerrainDetailQuality(terrainView,visualQuality);ctx.scene.add(terrainView);
 
   const terrainCulling=new TerrainCulling(terrainView);
-  const cam = new RtsCamera(ctx.camera, heightAt, ctx.sun, topCanvas);
+  const cam = new RtsCamera(ctx.camera, heightAt, ctx.sun, topCanvas,world.compactBattle);
   cam.jumpTo(world.bases[world.playerTeam].x,world.bases[world.playerTeam].z);
   const units = new UnitRenderer(ctx.scene,ctx.camera);
   const ranges=new RangeOverlay(ctx.scene);
@@ -417,7 +419,7 @@ if (queryMission) {
   if ((queryMode === "multiplayer" || queryMode === "spectator") && !getAuthToken()) { location.href = location.pathname; throw new Error("Multiplayer requires account authentication"); }
   const queryFaction = (queryParams.get("faction") as FactionId | null) ?? (localStorage.getItem("rogue-front.faction") as FactionId | null) ?? "usa";
   const bootFaction = (FACTION_LIST.includes(queryFaction as FactionId) ? queryFaction : "usa") as FactionId;
-  const selectedMission = getPlayableMap(queryMission);
+  const selectedMission = readPreparedMission(sessionStorage,queryMission)??getPlayableMap(queryMission);
   if (!selectedMission)showMenu("Seda kaarti või operatsiooni ei leitud. Vali menüüst uus lahing.");
   else void boot(selectedMission, queryRoom || undefined, queryMode !== "multiplayer" && queryMode !== "spectator" ? (queryDifficulty || "normal") : undefined, bootFaction, queryMode === "spectator", querySpectateToken || "").catch((err: unknown) => {
     console.error(err);
