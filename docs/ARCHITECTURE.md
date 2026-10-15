@@ -2,6 +2,16 @@
 
 Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 16, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
 
+## Dessant ja strateegilised relvad · 15.10.2026
+
+Tavaline uus üksikmäng kasutab `createSkirmish` peamaja + kahe inseneri algust; ainult `deployment=ready` aktiveerib näidisbaasi. Vanade lahingute jätkamine kasutab salvestatud üksusi.
+
+`airTransport` on lennubaasi 2. taseme päris toodetav üksus. `airlift.ts` arvestab laaditud ja broneeritud veose sõidukikohti ning tegelikke rühmaliikmeid, kaasa arvatud APC sees olevad inimesed. Maapinnal läheneb reisija lennukile tavalise navigeerimisega. Dessandikäsk kontrollib kõrgust ja kõigile veoseüksustele vaba läbitavat maandumisala enne lasti vabastamist. Üksused laskuvad fikseeritud sammuga; renderdaja lisab ühise materjaliga langevarjukupli ja nöörid. Lennuk kasutab olemasolevat varustuslennuki GLB-d, aga mitte automaatset kaubaringi. Metric-lennu kõrgus on dessandile sobiv 180 m, kompaktsel kaardil 120 m.
+
+`expansion.json` määrab uute hoonete, veose ja strateegiliste relvade hinnad/ajad/piirid. `strategicWeapons.ts` haldab tasulist tootmist, uurimist ja käsitsi antavat koordinaatlööki. Tiibrakett kasutab ühise raketifüüsika piiratud jõudu, takistust ja pööramiskiirendust ning koordinaatjuhtimist; ICBM on gravitatsiooniga ballistiline lend, mitte kohene tabamus. Stardihälve tuleb maailma seemnega RNG-st. Tavalaeng kahjustab vastast; tuumalaeng kasutab sama geomeetrilist plahvatust koos oma üksuste kahjustamisega. Energia, juhtimisühendus ja lähedane ühendatud ladu on tootmise/stardi eeltingimused. Tuumauuring, tootmistöö, raketivaru, laskumise olek ja koordinaatjuhtimine kuuluvad täissalvestusse ning replay räsi sisse. UI annab ainult uusi käske, olekut muudab simulatsioon.
+
+Tootmishoone valik on nii UI-s kui `produce` käsus ühine `producerKind`; eraldi käsuloend ei tohi blokeerida uusi üksusi. Uued kaitsetornid kasutavad tavalisi relvaprofiile, laskemoonavarusid, ehitus- ja navigeerimissüsteemi. Pooleliolev hoone ei tohi tulistada.
+
 ## Pinna teravus ja kiirliikumine
 
 `RoadSurface.ts` eemaldab tee eraldusvõime sõltuvuse kaardi suurusest: asfalt kordub iga 6 maailmameetri järel ja märgistused on geomeetria. `groundRectangle` lõikab pinna tegelike maapinnakolmnurkade järgi; mõlemal teeristmiku harul on sama maailmamõõdus UV. 1024 m ruumiplokis on kuni kaks jagatud materjaliga partiid, mitte joonistuskutse iga tänavalõigu/triibu kohta. Teeandmed, navivõrk ja generaator ei muutu. Vana atlas jääb kaugmaastiku põhjavärviks.

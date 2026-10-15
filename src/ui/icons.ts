@@ -47,8 +47,8 @@ export function icon(kind:string):string {
   if(["inf","special"].includes(kind))role="infantry";
   else if(["tank","lightTank","tankDestroyer"].includes(kind))role="tank";
   else if(["reconVehicle"].includes(kind))role="recon";
-  else if(["artillery","mlrs"].includes(kind))role="artillery";
-  else if(["fighter","interceptor","bomber","multirole","attackAircraft","ecm","cargoPlane"].includes(kind))role="air";
+  else if(["artillery","mlrs","cruiseLauncher","icbmSilo"].includes(kind))role="artillery";
+  else if(["fighter","interceptor","bomber","multirole","attackAircraft","ecm","cargoPlane","airTransport"].includes(kind))role="air";
   else if(["heli","transport","gunship","casHeli"].includes(kind))role="heli";
   else if(["destroyer","frigate","missileBoat","submarine","landingcraft"].includes(kind))role="naval";
   else if(kind==="generator")role="power";

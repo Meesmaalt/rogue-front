@@ -1,6 +1,7 @@
+import expansion from "../data/expansion.json";
 import type { Point, UnitKind } from "./types";
 
-export type BuildableKind = "hq" | "barracks" | "factory" | "helipad" | "airbase" | "refinery" | "supply" | "radar" | "bunker" | "aa" | "generator" | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer" | "landStrategy" | "airStrategy" | "seaStrategy";
+export type BuildableKind = "gunTurret" | "flakTurret" | "atTurret" | "missileCommand" | "icbmSilo" | "hq" | "barracks" | "factory" | "helipad" | "airbase" | "refinery" | "supply" | "radar" | "bunker" | "aa" | "generator" | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer" | "landStrategy" | "airStrategy" | "seaStrategy";
 
 export interface BuildingSpec {
   kind: BuildableKind;
@@ -22,6 +23,7 @@ export interface BuildingSpec {
 }
 
 export const BUILDINGS: Record<BuildableKind, BuildingSpec> = {
+  ...(expansion.buildings as Record<"gunTurret"|"flakTurret"|"atTurret"|"missileCommand"|"icbmSilo",BuildingSpec>),
   hq: {kind:"hq",cost:500,buildTime:20,footprint:10,repairPerSec:20,maxBuilders:3,powerUse:0,limit:1,role:"command"},
   barracks: { kind: "barracks", cost: 160, buildTime: 8, footprint: 7, repairPerSec: 28, maxBuilders: 2, requires: ["landCommand"], powerUse: 10, limit: 2 , role: "production", productionSpeed: 1},
   factory: { kind: "factory", cost: 220, buildTime: 11, footprint: 9, repairPerSec: 24, maxBuilders: 2, requires: ["landCommand"], powerUse: 18, limit: 2 , role: "production", productionSpeed: 1},

@@ -1,3 +1,5 @@
+import {producerKind as producerFor} from "./production";
+import {beginStrategicBuild,strategicStrike} from "../strategicWeapons";
 import {isIndirectUnit} from "../equipment";
 import {beginEquipmentRefit} from "../equipment";
 import {orderGarrison,leaveGarrison,requestGarrisonExit} from "../garrison";
@@ -18,7 +20,7 @@ function mobile(w: World, ids: number[], team?: Entity["team"]): Entity[] {
   const out: Entity[] = [];
   for (const id of ids) {
     const e = w.byId.get(id);
-    if (e && !e.dead && e.def.speed > 0 && !e.refit && e.logisticsRoute!=="strategic" && e.loadedIntoId==null && (team === undefined || e.team === team)) out.push(e);
+    if (e && !e.dead && e.def.speed > 0 && !e.airdrop && !e.refit && e.logisticsRoute!=="strategic" && e.loadedIntoId==null && (team === undefined || e.team === team)) out.push(e);
   }
   return out;
 }
@@ -81,6 +83,8 @@ export function applyCommands(w: World): void {
 
 function apply(w: World, c: Command): void {
   switch (c.type) {
+    case "strategic-build": {beginStrategicBuild(w,c.id,c.payload,c.team??w.playerTeam);break;}
+    case "strategic-strike": {strategicStrike(w,c.ids,c.payload,c.x,c.z,c.team??w.playerTeam);break;}
     case "face-building": {for(const u of mobile(w,c.ids,c.team))if(u.garrisonId){u.garrisonLookPoint={x:c.x,z:c.z};u.garrisonShiftAt=w.time;u.target=null;}break;}
     case "enter-building": {
       const f=w.mapFeatures.find(f=>f.id===c.featureId);if(f)for(const u of mobile(w,c.ids,c.team))if(isPassenger(u)&&!orderGarrison(w,u,f))w.events.push({type:"order-rejected",team:u.team,unitId:u.id,x:f.x,z:f.z,message:"Majja ei saa siseneda: koht puudub, hoone on vaenlase käes või tee on suletud"});break;
@@ -395,12 +399,7 @@ function apply(w: World, c: Command): void {
         if (c.kind !== "engineer" && (left - queued <= 0 || (battlegroup && !battlegroup.canDeploy(c.kind, queued + 1)))) break;
       }
       if (!def.producible || !hq || hq.dead || hq.underConstruction || w.teamResources[team] < def.cost || w.teamCredits[team] < def.cost) break;
-      const producerKind =
-        ["inf","engineer","special","atInf","mgInf","reconInf","sniper","mortar","manpad","atgm"].includes(c.kind) ? "barracks" :
-        ["tank","apc","ifv","artillery","mlrs","reconVehicle","lightTank","tankDestroyer","spaa"].includes(c.kind) ? "factory" :
-        ["heli","transport","gunship","casHeli"].includes(c.kind) ? "helipad" :
-        ["fighter","interceptor","bomber","ecm","multirole","attackAircraft"].includes(c.kind) ? "airbase" :
-        ["destroyer","submarine","landingcraft","frigate","missileBoat"].includes(c.kind) ? "shipyard" : null;
+      const producerKind = producerFor(c.kind);
       if (!producerKind) break;
       const producer = c.producerId !== undefined
         ? w.byId.get(c.producerId)

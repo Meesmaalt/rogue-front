@@ -2,12 +2,14 @@ import type { FlowField } from "./nav/FlowField";
 import type { MapFeatureDef } from "./mapFeatures";
 export type Team = 0 | 1;
 export type UnitKind =
+  | "airTransport" | "gunTurret" | "flakTurret" | "atTurret" | "missileCommand" | "icbmSilo" | "cruiseLauncher"
   | "tank" | "apc" | "ifv" | "inf" | "atInf" | "mgInf" | "reconInf" | "sniper" | "mortar" | "manpad" | "atgm" | "reconVehicle" | "lightTank" | "tankDestroyer" | "spaa" | "bunker" | "hq" | "engineer"
   | "heli" | "transport" | "cargoPlane" | "gunship" | "casHeli" | "fighter" | "interceptor" | "bomber" | "ecm" | "multirole" | "attackAircraft"
   | "sam" | "howitzer" | "artillery" | "mlrs" | "logiTruck" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase"
   | "supply" | "radar" | "generator" | "destroyer" | "submarine" | "landingcraft" | "frigate" | "missileBoat" | "special"
   | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer"
   | "landStrategy" | "airStrategy" | "seaStrategy";
+export type StrategicPayload="cruise"|"icbm"|"nuclear";
 export type Mode = "idle" | "enter-building" | "leave-building" | "move" | "attack" | "amove" | "patrol" | "hold" | "build" | "repair" | "transport-load" | "transport-unload" | "standing" | "sabotage";
 export type AirState = "grounded" | "taxi" | "airborne" | "returning" | "landing" | "rearming";
 /** Wargame-style air tasking. */
@@ -169,6 +171,8 @@ export interface Entity {
   motionReverse?: boolean; flightVx?: number; flightVz?: number;
   motionSpeed?: number; flightBank?: number; flightPitch?: number; flightOrbitCenter?: Point; airLandingPhase?: "approach"|"final";
   airHomeSlot?:number;airTaxiPhase?:"apron"|"lining-up"|"runway";combatPosition?:Point;combatPositionTarget?:number;combatPositionAnchor?:Point;combatPositionRetryAt?:number;taskApproachIndex?:number;
+  airdrop?:{x:number;z:number;descent:number};
+  strategicAmmo?:Partial<Record<StrategicPayload,number>>;strategicWork?:{payload:StrategicPayload|"research";progress:number};nuclearUnlocked?:boolean;strategicCooldownUntil?:number;
   airFuelWarned?:boolean;emergencyLandingPoint?:Point;emergencyLanded?:boolean;
   airState?: AirState; airMissionHomeId?: number | null; airSortieTime?: number; airMission?: AirMission; airMissionPoint?: Point | null; fireMission?: Point | null; lastCombatTime: number; morale?: number; disabledUntil?: number; builderIds: number[]; underConstruction: boolean; cargoUnitIds: number[]; loadedIntoId: number | null; transportTargetId: number | null; unloadPoint: Point | null; standingOrder?: "hold" | "patrol" | "attack" | "holdfire" | null; priorityFocus?: "supply" | "generator" | "aa" | null; preDeployOrder?: { mode: "move" | "attack" | "hold"; x?: number; z?: number } | null;
 }
@@ -185,19 +189,21 @@ export interface Projectile {
   aimY?: number; launchX?: number; launchZ?: number;boostTime?:number;cruiseAltitude?:number;
   px?:number;py?:number;pz?:number;profile?:string;visual?:string;flight?:ProjectileFlight;guidance?:Guidance;guidanceLost?:boolean;
   warhead?:"kinetic"|"heat"|"he";gravity?:number;flightTime?:number;suppressionPower?:number;
+  strategicPayload?:StrategicPayload;pointGuidance?:boolean;
   motorTime?:number;lateralAcceleration?:number;drag?:number;seekerAngle?:number;nextGuidanceAt?:number;
   hitRoll?:number;missX?:number;missZ?:number;
 }
 
-export type Command = ({type:"configure-unit";ids:number[];slot:"weapon"|"protection"|"mobility";module:string} | {type:"cancel-refit";ids:number[]} | {type:"face-building";ids:number[];x:number;z:number} | {type:"enter-building";ids:number[];featureId:string} | {type:"leave-building";ids:number[];x?:number;z?:number} | {
+export type Command = ({type:"strategic-build";id:number;payload:StrategicPayload|"research"} | {type:"strategic-strike";ids:number[];payload:StrategicPayload;x:number;z:number} | {type:"configure-unit";ids:number[];slot:"weapon"|"protection"|"mobility";module:string} | {type:"cancel-refit";ids:number[]} | {type:"face-building";ids:number[];x:number;z:number} | {type:"enter-building";ids:number[];featureId:string} | {type:"leave-building";ids:number[];x?:number;z?:number} | {
   type: "move"; ids: number[]; x: number; z: number; append?: boolean; facing?:number
 } | { type: "fast-move"; ids: number[]; x: number; z: number; append?: boolean; facing?:number } | { type: "amove"; ids: number[]; x: number; z: number; append?: boolean; facing?:number } | { type: "attack"; ids: number[]; targetId: number } |
   { type: "formation"; kind: "box" | "line" | "wedge" | "column" } | { type: "stop"; ids: number[] } | { type: "repair"; ids: number[]; targetId: number } | { type: "rally"; ids: number[]; x: number; z: number } | { type: "patrol"; ids: number[]; x: number; z: number } | { type: "hold"; ids: number[] } |
-  { type: "build"; ids: number[]; kind: "hq" | "bunker" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase" | "supply" | "radar" | "generator" | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer" | "landStrategy" | "airStrategy" | "seaStrategy"; x: number; z: number; rotation?: number } |
+  { type: "build"; ids: number[]; kind: "gunTurret" | "flakTurret" | "atTurret" | "missileCommand" | "icbmSilo" | "hq" | "bunker" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase" | "supply" | "radar" | "generator" | "shipyard" | "landCommand" | "airCommand" | "seaCommand" | "combatEngineer" | "landStrategy" | "airStrategy" | "seaStrategy"; x: number; z: number; rotation?: number } |
   { type: "upgrade"; ids: number[]; upgrade: "armor" | "weapon" | "range" | "supply-depot" | "producer" | "fob" } |
   { type: "research"; tech: "air" | "advanced-armor" } | { type: "produce"; kind: UnitKind; producerId?: number } | { type: "cancel-produce"; producerId: number } | { type: "load"; ids: number[]; targetId: number } | { type: "unload"; ids: number[]; x: number; z: number } | { type: "fire-mission"; ids: number[]; x: number; z: number } | { type: "standing"; ids: number[]; mode: "hold" | "patrol" | "attack" | "holdfire"; x?: number; z?: number } | { type: "predeploy"; ids: number[]; mode: "move" | "attack" | "hold"; x?: number; z?: number } | { type: "priority"; ids: number[]; focus: "supply" | "generator" | "aa" } | { type: "depot-priority"; ids: number[]; focus: "ammo" | "fuel" | "repair" | "balanced" } | { type: "logistics-source"; ids:number[]; sourceIndex:number|null; paused?:boolean } | { type: "logistics-route"; ids: number[]; x: number; z: number; append?: boolean; clear?: boolean } | {type:"air-return";ids:number[]} | { type: "air-mission"; ids: number[]; mission: "cap" | "strike" | "sead" | "ground"; x?: number; z?: number }) & { team?: Team };
 
 export type SimEvent =
+  | {type:"strategic-launch";team:Team;x:number;z:number;payload:StrategicPayload}
   | {type:"air-fuel-warning";team:Team;unitId:number;x:number;z:number;emergency:boolean}
   | {type:"order-rejected";team:Team;unitId:number;x:number;z:number;message:string}
   | { type: "impact"; x: number; y: number; z: number; weapon: string;visual?:string;result?:"penetration"|"ricochet"|"ground"|"airburst"|"miss"|"intercept";size?:number }

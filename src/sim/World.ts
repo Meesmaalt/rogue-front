@@ -1,6 +1,7 @@
 import {runwayEdgePoint} from "./cargoApproach";
 import {BATTLE_SCALE,metricUnitDefinition} from "./battleScale";
 import {updateEquipment} from "./equipment";
+import {updateStrategicWeapons} from "./strategicWeapons";
 import {CORE_PLATFORMS} from "./platforms";
 import {dispatchExternalHelicopters,airportDepot,externalEntry} from "./externalSupply";
 import {receiveResourceCargo,stockCapacity,stockTotal,STOCK_KEYS,needsBackhaul} from "./stockLogistics";
@@ -163,13 +164,14 @@ export class World {
   availableBuilds(team: Team, source?: UnitKind): BuildableKind[] {
     const roots: Record<string, BuildableKind[]> = {
       hq: ["generator", "supply", "landCommand", "airCommand", "seaCommand"],
-      landCommand: ["barracks", "factory", "combatEngineer", "landStrategy", "supply", "generator"],
+      landCommand: ["gunTurret","flakTurret","atTurret","aa","barracks", "factory", "combatEngineer", "landStrategy", "supply", "generator"],
       airCommand: ["helipad", "airbase", "airStrategy", "supply", "generator"],
       seaCommand: ["shipyard", "seaStrategy", "supply", "generator"],
-      landStrategy: ["barracks", "factory", "combatEngineer", "radar", "bunker", "aa"],
+      missileCommand: ["icbmSilo"],
+      landStrategy: ["missileCommand","barracks", "factory", "combatEngineer", "radar", "bunker", "aa"],
       airStrategy: ["helipad", "airbase", "radar", "aa"],
       seaStrategy: ["shipyard", "supply", "radar"],
-      combatEngineer: ["bunker", "aa", "radar"],
+      combatEngineer: ["gunTurret","flakTurret","atTurret","bunker", "aa", "radar"],
       supply: ["generator", "radar"],
     };
     return (roots[source ?? "hq"] ?? []).filter(k => this.canBuildKind(team, k));
@@ -215,7 +217,7 @@ export class World {
   }
   unitRequiredBuildingLevel(kind: UnitKind): number {
     const elite = ["sam","special","atgm","manpad","tankDestroyer","spaa","mlrs","gunship","casHeli","interceptor","bomber","ecm","attackAircraft","destroyer","submarine"];
-    const advanced = ["howitzer","engineer","reconInf","sniper","mortar","apc","ifv","artillery","reconVehicle","lightTank","fighter","multirole","frigate"];
+    const advanced = ["airTransport","howitzer","engineer","reconInf","sniper","mortar","apc","ifv","artillery","reconVehicle","lightTank","fighter","multirole","frigate"];
     return elite.includes(kind) ? 3 : advanced.includes(kind) ? 2 : 1;
   }
   canProduceAtLevel(producer: Entity, kind: UnitKind): boolean {
@@ -238,7 +240,7 @@ export class World {
     const command = this.hasCommandLink(producer);
     const power = this.powerStatus(producer.team).ratio >= 0.25;
     const depot = this.nearestSupplyDepot(producer.team, { x: producer.x, z: producer.z }, true, true);
-    const logistics = producer.kind === "barracks" || producer.kind === "factory" || producer.kind === "helipad" || producer.kind === "airbase" || producer.kind === "shipyard"
+    const logistics = producer.kind === "barracks" || producer.kind === "factory" || producer.kind === "helipad" || producer.kind === "airbase" || producer.kind === "shipyard" || producer.kind === "missileCommand"
       ? !!depot && depot.kind === "supply" && Math.hypot(depot.x-producer.x,depot.z-producer.z) <= logisticsConfig.depot.productionRadius && (depot.ammoStock ?? 0) > 0 && (depot.fuelStock ?? 0) > 0
       : true;
     const requiredLevel = kind ? this.unitRequiredBuildingLevel(kind) : 1;
@@ -260,7 +262,7 @@ export class World {
   /** Returns the strategic production buildings that can currently operate. */
   operationalProducers(team: Team): Entity[] {
     return this.entities.filter(e => !e.dead && e.team === team && !e.underConstruction &&
-      ["barracks", "factory", "helipad", "airbase", "shipyard"].includes(e.kind) && this.productionOperational(e).operational);
+      ["missileCommand","barracks", "factory", "helipad", "airbase", "shipyard"].includes(e.kind) && this.productionOperational(e).operational);
   }
 
   hasStrategyForProducer(team: Team, kind: UnitKind): boolean {
@@ -567,7 +569,7 @@ export class World {
     if (this.mapFeatures.some(f => (f.kind === "wall" || f.kind === "chokepoint") && pointInFeature(x,z,f,r+1))) return false;
     if(this.mapFeatures.some(f=>f.kind==="gate"&&f.id.startsWith("base-")&&Math.hypot(f.x-x,f.z-z)<r+12))return false;
     if (kind === "refinery" && !this.resourcePoints.some(p => Math.hypot(p.x - x, p.z - z) <= p.radius + r)) return false;
-    if (["supply", "generator", "radar", "helipad", "bunker", "aa", "shipyard", "landCommand", "airCommand", "seaCommand", "combatEngineer", "landStrategy", "airStrategy", "seaStrategy"].includes(kind)) return true;
+    if (["gunTurret","flakTurret","atTurret","missileCommand","icbmSilo","supply", "generator", "radar", "helipad", "bunker", "aa", "shipyard", "landCommand", "airCommand", "seaCommand", "combatEngineer", "landStrategy", "airStrategy", "seaStrategy"].includes(kind)) return true;
     return this.bases[team] ? Math.hypot(this.bases[team].x - x, this.bases[team].z - z) < 155 : true;
   }
 
@@ -863,6 +865,7 @@ export class World {
     this.updateIntel();
     updateArtillery(this, dt);
     updateEquipment(this,dt);
+    updateStrategicWeapons(this,dt);
     updateUnits(this, dt);
     updateMorale(this, dt);
     updateProjectiles(this, dt);

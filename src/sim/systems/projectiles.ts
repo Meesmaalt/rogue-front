@@ -1,3 +1,5 @@
+import expansion from "../../data/expansion.json";
+import {strategicImpact} from "../strategicWeapons";
 import {stepMissile,missileTrackingPoint} from "../missileDynamics";
 import physics from "../../data/physics.json";
 import {equipmentModule} from "../equipment";
@@ -30,6 +32,7 @@ function penetrationMultiplier(p:Projectile,e:Entity):number {
 
 }
 function impact(w:World,p:Projectile,terrain:boolean):void {
+  if(p.strategicPayload){strategicImpact(w,p);return;}
   const opts={weapon:p.weapon,fromX:p.x-p.vx,fromZ:p.z-p.vz,sourceId:p.sourceId,penetration:p.penetration,suppressionPower:p.suppressionPower};
   let result:"penetration"|"ricochet"|"ground"|"airburst"|"miss"=terrain?"ground":"miss";
   impactGarrisonBuildings(w,p,(u,amount)=>damage(w,u,amount,opts));
@@ -72,7 +75,8 @@ export function updateProjectiles(w:World,dt:number):void {
     const ballistic=p.flight==="ballistic",physicalMissile=guided&&p.motorTime!=null;
     if(guided&&!p.guidanceLost){
       const source=w.byId.get(p.sourceId),t=p.target;
-      if(!t||t.dead||(p.guidance==="command"&&(!source||source.dead||(source.suppression??0)>85||!w.isSpottedByTeam(t,p.team)||!w.vision.hasLineOfSight(source,t))))p.guidanceLost=true;
+      if(p.pointGuidance&&!t){/* Coordinate guidance has no entity lock to lose. */}
+      else if(!t||t.dead||(p.guidance==="command"&&(!source||source.dead||(source.suppression??0)>85||!w.isSpottedByTeam(t,p.team)||!w.vision.hasLineOfSight(source,t))))p.guidanceLost=true;
       else {
         if(physicalMissile){if(p.age>=(p.nextGuidanceAt??0)){const aim=missileTrackingPoint(p,t);p.tx=aim.x;p.tz=aim.z;p.aimY=aim.y;p.nextGuidanceAt=p.age+physics.missiles.guidanceInterval;}}
         else {const miss=!w.platformRosterOnly&&(p.hitRoll??0)>(p.hitChance??1);
@@ -83,7 +87,7 @@ export function updateProjectiles(w:World,dt:number):void {
     const horizontal=Math.hypot(p.tx-p.x,p.tz-p.z);
     if(p.cruiseAltitude){
       const cruise=Math.max(ty,heightAt(p.x,p.z)+p.cruiseAltitude,w.waterNav.surfaceAt(p.x,p.z)+p.cruiseAltitude);
-      const blend=Math.max(0,Math.min(1,(horizontal-10)/35));ty+=(cruise-ty)*blend;
+      const blend=p.pointGuidance?Math.min(1,horizontal/expansion.strategic.terminalDescentDistance):Math.max(0,Math.min(1,(horizontal-10)/35));ty+=(cruise-ty)*blend;
     }
     if(p.visual==="torpedo")ty=w.waterNav.surfaceAt(p.tx,p.tz)+.2;
     if(p.age<(p.boostTime??0))ty=Math.max(ty,p.y+30);

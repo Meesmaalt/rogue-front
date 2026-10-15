@@ -1,3 +1,4 @@
+import {createExpansionModel} from "./ExpansionModels";
 import mobility from "../data/mobility.json";
 import {factionUnitDefinition} from "../sim/units";
 import * as THREE from "three";
@@ -341,6 +342,8 @@ function infantryModel(kind:UnitKind,team:Team,faction:FactionId,tactical:boolea
 
 /** Detailed procedural military models – readable silhouettes at RTS scale. */
 export function createModel(kind: UnitKind, team: Team, faction: FactionId = team === 0 ? "usa" : "russia",tactical=false): Model {
+  const expansion=createExpansionModel(kind,team);if(expansion)return expansion;
+  if(kind==='airTransport')kind='cargoPlane';
   const architecture=createBuildingModel(kind,team,faction);if(architecture)return architecture;
   const g = new THREE.Group();
   let turret: THREE.Group | null = null;

@@ -30,17 +30,11 @@
     "manpad": [0.45, 1600, 0.19, 82, 0.12],
     "rocket": [0.35, 1700, 0.2, 90, 0.08],
     "rpg": [0.3, 1700, 0.22, 85, 0.12],
-    "mlrs": [0.7, 1300, 0.28, 58, 0.18]
+    "mlrs": [0.7, 1300, 0.28, 58, 0.18],
+    "icbm": [1.1, 800, 0.4, 35, 0.3],
+    "nuclear": [1.1, 800, 0.4, 35, 0.3]
   },
-  "missiles": [
-    "atgm",
-    "sam",
-    "aam",
-    "manpad",
-    "rocket",
-    "rpg",
-    "mlrs"
-  ],
+  "missiles": ["atgm", "sam", "aam", "manpad", "rocket", "rpg", "mlrs", "icbm", "nuclear"],
   "missileMotor": {
     "duration": 2.05,
     "attack": 0.028,
@@ -57,12 +51,12 @@
   "dopplerSpeed": 160,
   "engineKinds": {
     "tracked": ["tank", "lightTank", "tankDestroyer", "artillery", "mlrs", "spaa", "aa", "sam", "howitzer"],
-    "wheeled": ["apc", "ifv", "reconVehicle", "logiTruck", "supply"],
+    "wheeled": ["apc", "ifv", "reconVehicle", "logiTruck", "supply", "cruiseLauncher"],
     "heli": ["heli", "transport", "gunship", "casHeli"],
-    "jet": ["fighter", "interceptor", "bomber", "ecm", "multirole", "attackAircraft", "cargoPlane"],
+    "jet": ["fighter", "interceptor", "bomber", "ecm", "multirole", "attackAircraft", "cargoPlane", "airTransport"],
     "prop": [],
     "ship": ["destroyer", "submarine", "landingcraft", "frigate", "missileBoat"],
-    "hum": ["generator", "refinery", "factory"]
+    "hum": ["generator", "refinery", "factory", "missileCommand"]
   },
   "engines": {
     "tracked": [38, 360, 0.09, 280, 0],

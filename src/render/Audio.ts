@@ -327,8 +327,9 @@ export class AudioManager {
  }
  events(events:readonly SimEvent[],playerTeam=0):void{
   const ctx=this.ctx;if(!ctx||ctx.state!=='running'||this.settings.masterVolume<=0||this.settings.sfxVolume<=0)return;
-  for(const e of events){const mix='x' in e&&'z' in e?spatialSound(e.x,e.z,this.listener):{gain:1,pan:0};if(mix.gain<.008&&e.type!=='air-fuel-warning')continue;
-   if(e.type==='air-fuel-warning'&&e.team===playerTeam){this.ui(e.emergency?'siren':'warn');this.onCue({kind:'alert',x:e.x,z:e.z});}
+  for(const e of events){const mix='x' in e&&'z' in e?spatialSound(e.x,e.z,this.listener):{gain:1,pan:0};if(mix.gain<.008&&e.type!=='air-fuel-warning'&&e.type!=='strategic-launch')continue;
+   if(e.type==='strategic-launch'){this.ui('siren');this.onCue({kind:'siren',x:e.x,z:e.z});}
+   else if(e.type==='air-fuel-warning'&&e.team===playerTeam){this.ui(e.emergency?'siren':'warn');this.onCue({kind:'alert',x:e.x,z:e.z});}
    else if(e.type==='fire'){
     const kind=e.visual??e.weapon??'rifle',profile=(config.shots as Record<string,number[]>)[kind]??config.shots.rifle,now=ctx.currentTime;
     if(now-(this.lastShot.get(kind)??-10)<profile[4])continue;this.lastShot.set(kind,now);this.activity=Math.min(1,this.activity+mix.gain*.12);
@@ -349,6 +350,7 @@ export class AudioManager {
       }
     }
    }else if(e.type==='impact'){
+    if(e.visual==='nuclear'){this.noise(5,200,.65*mix.gain,mix.pan,'sfx',.03,.5);this.noise(2,2200,.25*mix.gain,mix.pan,'sfx',.01,.1);this.tone(28,4,'sine',.45*mix.gain,mix.pan);this.onCue({kind:'impact',x:e.x,z:e.z,intensity:1});continue;}
     if(e.visual==='splash'||e.weapon==='splash'){this.noise(.08,5200,.12*mix.gain,mix.pan);this.noise(.42,1100,.16*mix.gain,mix.pan);this.tone(150,.22,'sine',.07*mix.gain,mix.pan);this.noise(.7,700,.08*mix.gain,mix.pan,'sfx',.05,.04);}
     else if(e.result==='intercept'){this.noise(.07,7600,.18*mix.gain,mix.pan);this.noise(.22,1600,.12*mix.gain,mix.pan);this.tone(380,.11,'triangle',.1*mix.gain,mix.pan);}
     else if(e.result==='ricochet'){this.tone(1900,.08,'triangle',.075*mix.gain,mix.pan,'sfx',.003,2.1);this.tone(3100,.12,'sine',.04*mix.gain,mix.pan,'sfx',.004,1.35);this.noise(.08,7400,.06*mix.gain,mix.pan);}

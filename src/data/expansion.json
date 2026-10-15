@@ -1,0 +1,168 @@
+{
+  "buildings": {
+    "gunTurret": {
+      "kind": "gunTurret",
+      "cost": 150,
+      "buildTime": 12,
+      "footprint": 4,
+      "repairPerSec": 20,
+      "maxBuilders": 3,
+      "requires": [
+        "barracks"
+      ],
+      "powerUse": 5,
+      "limit": 8,
+      "role": "defense",
+      "productionSpeed": 1
+    },
+    "flakTurret": {
+      "kind": "flakTurret",
+      "cost": 220,
+      "buildTime": 18,
+      "footprint": 5,
+      "repairPerSec": 20,
+      "maxBuilders": 3,
+      "requires": [
+        "radar"
+      ],
+      "powerUse": 12,
+      "limit": 6,
+      "role": "defense",
+      "productionSpeed": 1
+    },
+    "atTurret": {
+      "kind": "atTurret",
+      "cost": 240,
+      "buildTime": 20,
+      "footprint": 5,
+      "repairPerSec": 20,
+      "maxBuilders": 3,
+      "requires": [
+        "factory"
+      ],
+      "powerUse": 8,
+      "limit": 6,
+      "role": "defense",
+      "productionSpeed": 1
+    },
+    "missileCommand": {
+      "kind": "missileCommand",
+      "cost": 650,
+      "buildTime": 45,
+      "footprint": 10,
+      "repairPerSec": 20,
+      "maxBuilders": 3,
+      "requires": [
+        "landStrategy",
+        "radar"
+      ],
+      "powerUse": 25,
+      "limit": 1,
+      "role": "production",
+      "productionSpeed": 1
+    },
+    "icbmSilo": {
+      "kind": "icbmSilo",
+      "cost": 1200,
+      "buildTime": 70,
+      "footprint": 8,
+      "repairPerSec": 20,
+      "maxBuilders": 3,
+      "requires": [
+        "missileCommand"
+      ],
+      "powerUse": 35,
+      "limit": 2,
+      "role": "defense",
+      "productionSpeed": 1
+    }
+  },
+  "airlift": {
+    "tankLimit": 1,
+    "apcLimit": 2,
+    "vehicleSlots": 2,
+    "troops": 50,
+    "loadRange": 12,
+    "loadTimeout": 120,
+    "dropRadius": 30,
+    "dropSpread": 20,
+    "landingSearch": 60,
+    "minimumAltitude": 25,
+    "maximumAltitude": 220,
+    "descentSpeed": 7,
+    "vehicleDescentSpeed": 9,
+    "driftSpeed": 12,
+    "groundExitRadius": 40,
+    "flightAltitude": 180,
+    "minimumSpeedFraction": 0.35,
+    "turnApproachFactor": 0.4
+  },
+  "strategic": {
+    "payloads": {
+      "cruise": {
+        "name": "Tiibrakett",
+        "cost": 260,
+        "seconds": 24,
+        "capacity": 4,
+        "range": 4000,
+        "minimumRange": 120,
+        "damage": 460,
+        "radius": 24,
+        "flightSeconds": 12,
+        "speed": 120,
+        "launchSpeed": 45,
+        "launchHeight": 4,
+        "cruiseAltitude": 35,
+        "scatter": 8,
+        "launchVerticalSpeed": 15,
+        "motorSeconds": 45,
+        "acceleration": 35,
+        "turnRate": 2,
+        "lateralAcceleration": 180,
+        "drag": 0.0003,
+        "boostSeconds": 0.25
+      },
+      "icbm": {
+        "name": "ICBM · tavalaeng",
+        "cost": 650,
+        "seconds": 55,
+        "capacity": 2,
+        "range": 10000,
+        "minimumRange": 250,
+        "damage": 1000,
+        "radius": 65,
+        "flightSeconds": 24,
+        "speed": 200,
+        "launchSpeed": 55,
+        "launchHeight": 5,
+        "cruiseAltitude": 0,
+        "scatter": 20
+      },
+      "nuclear": {
+        "name": "ICBM · tuumalaeng",
+        "cost": 2200,
+        "seconds": 120,
+        "capacity": 1,
+        "range": 10000,
+        "minimumRange": 350,
+        "damage": 2400,
+        "radius": 145,
+        "flightSeconds": 30,
+        "speed": 200,
+        "launchSpeed": 55,
+        "launchHeight": 5,
+        "cruiseAltitude": 0,
+        "scatter": 30
+      }
+    },
+    "research": {
+      "cost": 1800,
+      "seconds": 120,
+      "level": 3
+    },
+    "postLaunchCooldown": 10,
+    "launcherStationarySpeed": 0.3,
+    "terminalDescentDistance": 300,
+    "productionRadius": 160
+  }
+}

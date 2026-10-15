@@ -35,6 +35,7 @@ export function supportsAirMission(u:Entity,mission:AirMission):boolean {
   return (u.def.weapons??[weaponSpec(u)]).some(s=>s.damage>0&&(mission==="cap"?s.targets==="air"||s.targets==="all"||!!s.targetHelicopters:s.targets!=="air"));
 }
 export function hasAirMissionAmmo(u:Entity):boolean {
+  if(u.kind==="airTransport")return true;
   if((u.maxAmmo??0)===0)return true;
   const mission=u.airMission;
   return (u.def.weapons??[weaponSpec(u)]).some((s,i)=>s.damage>0&&(mission==null||mission==="cap"?(mission==null||s.targets==="air"||s.targets==="all"||!!s.targetHelicopters):s.targets!=="air")&&(s.ammoCapacity<=0||weaponAmmo(u,i)>=s.ammoUsePerShot));

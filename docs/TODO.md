@@ -1,5 +1,17 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Baasiehitus, dessant ja strateegilised relvad · 15.10.2026
+
+- [x] Tavaline menüü- ja URL-vaikimisi algus: mõlemal poolel peamaja + kaks inseneri. Valmis baas ja lahingugrupp on eraldi „Näidis / test” valik.
+- [x] Lennubaasis toodetav raske dessantlennuk, eraldi automaatsest varustuslennukist. Kaks sõidukikohta: üks tank VÕI kaks APC-d; lisaks kuni 50 päris sõdurit, arvestades ka APC reisijaid ja laadimisbroneeringuid.
+- [x] Päris üksus sõidab pargitud lennukisse; U + paremklõps käsib langevarjudessanti. Vabad maandumiskohad, järkjärguline laskumine, relvade keeld õhus ning lennuki tagasipöördumine baasi. Olek ja last säilivad salvestuses.
+- [x] Inseneriga ehitatavad kuulipilduja-, õhutõrjekahuri- ja tankitõrjetornid: eeltingimused, ehitusaeg, hind, energia, juhtimisühendus ning relvaliigi sihtmärgipiirangud.
+- [x] Maastrateegia + radar → raketiarenduskeskus → ICBM raketišaht või toodetav mobiilne tiibraketiheitja. Iga rakett tuleb eraldi raha ja materjalide eest valmistada; piiratud ladu, minimaalne laskekaugus, stardivahe ja füüsiline lend.
+- [x] Tuumalaeng vajab raketikeskuse 3. taset, õhustrateegiat, radarit ning eraldi 1800 + 1800 / 120 s uurimist; iga tuumarakett 2200 + 2200 / 120 s. Tuumalöök kahjustab ka omi üksusi.
+- [x] Uute moodulite testid katavad laadimise, tegelikud tootmiskäsud/stardi/dessandi, ehitusfondi, raketivaru, tuumauuringu, füüsilised tabamused ja salvestuse determinismi. DOM-kontroll katab tavarežiimi vaikimisi valiku, tootmis-/ehituspaneeli, ingliskeelsed põhitekstid ja raketikäskude nupud.
+- [ ] WebGL mängupildi ja subjektiivse helikõla ülevaatus brauseris; kohalik Chromium endiselt puudub. DOM- ja geomeetriakontroll ei kinnita GPU pilti.
+
+
 ## Õhusõidukid, raketid ja kütusereserv · 15.10.2026
 
 - [x] Kopteri stardifaasis renderdatakse tegelikku interpoleeritud kõrgust; rootorid kiirenevad/aeglustuvad sujuvalt. Liikumine ja sihtimine jagavad üht aeglasemat pööramispiiri, raketirakid ning kahuri sektor piiravad tegelikku laskmist.

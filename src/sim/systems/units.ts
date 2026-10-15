@@ -1,3 +1,5 @@
+import {updateAirdrop,updateAirliftLoading,releaseAirliftCargo} from "../airlift";
+import expansion from "../../data/expansion.json";
 import {updateHelicopterEmergency} from "../emergencyLanding";
 import {turnHelicopter,helicopterYawRate} from "../aircraftHandling";
 import {runwayEdgePoint,cargoDepartureRunway} from "../cargoApproach";
@@ -22,7 +24,7 @@ import { fireProjectile, canEngage, effectiveWeaponRange,selectWeapon,weaponSpec
 import { coverValueAt,isSpottedBy } from "./sensors";
 import { moraleSpeedMul, moraleAccuracyMul, moraleState } from "./morale";
 import { outOfFuel, outOfAmmo,repairDepotFor } from "./tacticalSupply";
-import { updateAirDoctrine,airFacilityPoint,airParkingPoint,freeAirSlot,airOperationStatus,hasAirMissionAmmo,airMissionAllowsTarget } from "./airDoctrine";
+import { requestAirReturn,updateAirDoctrine,airFacilityPoint,airParkingPoint,freeAirSlot,airOperationStatus,hasAirMissionAmmo,airMissionAllowsTarget } from "./airDoctrine";
 import { findPath } from "../nav/Pathfinder";
 
 function inFiringArc(u: Entity, target: Entity): boolean {
@@ -364,7 +366,9 @@ function moveAirTo(u: Entity, target: Point, dt: number, w: World, cruise=false)
   const bank=u.def.metricScale&&!helicopter?coordinatedBank(speed,delta,profile.maxBank):Math.max(-profile.maxBank,Math.min(profile.maxBank,-delta*(helicopter?.18:.48)));
   if(!helicopter)u.flightBank=(u.flightBank??0)+(bank-(u.flightBank??0))*Math.min(1,dt*3);
   if(!helicopter)u.flightPitch=(u.flightPitch??0)+(Math.max(-.22,Math.min(.22,-(u.y-oldY)/Math.max(1,speed*dt)))-(u.flightPitch??0))*Math.min(1,dt*3);
-  const desiredSpeed=outOfFuel(u)?0:helicopter?Math.min(u.def.speed,Math.sqrt(2*Math.max(0,distance-helicopterMobility(u).hoverRadius)*profile.braking)):u.def.metricScale&&u.airState==="returning"&&!final?u.def.speed*BATTLE_SCALE.aircraft.minimumSpeed:final?(u.def.metricScale?BATTLE_SCALE.aircraft.landingSpeed:Math.min(u.def.speed*.48,Math.max(4,distance*.8))):u.def.speed*Math.max(aircraftMobility(u).minimumSpeed,1-Math.abs(u.flightBank??0)*.35);
+  const normalDesiredSpeed=outOfFuel(u)?0:helicopter?Math.min(u.def.speed,Math.sqrt(2*Math.max(0,distance-helicopterMobility(u).hoverRadius)*profile.braking)):u.def.metricScale&&u.airState==="returning"&&!final?u.def.speed*BATTLE_SCALE.aircraft.minimumSpeed:final?(u.def.metricScale?BATTLE_SCALE.aircraft.landingSpeed:Math.min(u.def.speed*.48,Math.max(4,distance*.8))):u.def.speed*Math.max(aircraftMobility(u).minimumSpeed,1-Math.abs(u.flightBank??0)*.35);
+  // Slow cargo runs before the turn: pure pursuit at cruise speed can circle a nearby drop zone forever.
+  const desiredSpeed=u.kind==='airTransport'&&u.mode==='transport-unload'&&!landing?Math.min(normalDesiredSpeed,Math.max(u.def.speed*expansion.airlift.minimumSpeedFraction,Math.sqrt(distance*Math.min(aircraftMobility(u).lateralAcceleration,physics.gravity*Math.tan(profile.maxBank))*expansion.airlift.turnApproachFactor))):normalDesiredSpeed;
   const acceleration=desiredSpeed>speed?profile.acceleration:profile.braking;
   if(!helicopter)u.motionSpeed=speed+Math.max(-acceleration*dt,Math.min(acceleration*dt,desiredSpeed-speed));
   const step=Math.min(final||helicopter?distance:Infinity,(u.motionSpeed??0)*dt);
@@ -568,6 +572,9 @@ export function updateUnits(w: World, dt: number): void {
 
 function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): void {
   const d = u.def;u.navWaiting=false;
+  if(updateAirdrop(w,u,dt))return;
+  if(u.kind==='airTransport'&&u.mode==='transport-load'){updateAirliftLoading(w,u);return;}
+  if(u.kind==='airTransport'&&['grounded','rearming'].includes(u.airState??'')&&u.mode==='transport-unload'&&u.unloadPoint&&dist2d(u,u.unloadPoint)<expansion.airlift.groundExitRadius){if(releaseAirliftCargo(w,u,true))u.mode='idle';return;}
   if(updateHelicopterEmergency(w,u,dt))return;
   if(u.refit){u.motionSpeed=0;return;}
   const transporting=d.domain!=="air"&&transportCapacity(u)>0&&prepareTransport(w,u);
@@ -674,7 +681,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       u.airState="airborne";u.airSortieCount=(u.airSortieCount??0)+1;u.airSortieTime=0;u.airLandingPhase=undefined;
     }
     u.airSortieTime=(u.airSortieTime??0)+dt;
-    if(u.airState==="airborne")updateAirDoctrine(w,u,dt);
+    if(u.airState==="airborne"&&u.kind!=="airTransport")updateAirDoctrine(w,u,dt);
     const returnFuel=pad?(dist2d(u,pad)/Math.max(1,d.speed*mobility.combat.airReturnSpeedFraction)+mobility.combat.airReturnLandingSeconds)*(d.fuelUsePerSec??1)*mobility.combat.airReturnFuelMargin:0;
     const reason=(u.fuel??0)<Math.max((u.maxFuel??0)*mobility.combat.airReturnFuelFraction,returnFuel)?"fuel":armed&&!hasAirMissionAmmo(u)?"ammo":u.hp<maxHitPoints(u)*mobility.combat.airReturnHealthFraction||Math.max(0,...Object.values(u.components??{}))>mobility.combat.airReturnComponentDamage?"damage":null;
     if(reason&&u.airState!=="returning"&&u.airState!=="landing"){u.airState="returning";u.airReturnReason=reason;u.airLandingPhase="approach";}
@@ -699,6 +706,10 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
         else if(u.def.metricScale&&!helicopter&&u.airLandingPhase==="final"&&(u.x-pad.x)*Math.sin(pad.heading)+(u.z-pad.z)*Math.cos(pad.heading)>BATTLE_SCALE.aircraft.missedApproachDistance){u.airLandingPhase="approach";}
       }else {u.dest=null;const angle=w.time*.22+u.id;moveAirTo(u,{x:u.x+Math.sin(angle)*35,z:u.z+Math.cos(angle)*35},dt,w,true);}
       return;
+    }
+    if(u.kind==='airTransport'){
+      if(u.mode==='transport-unload'&&u.unloadPoint){const point=u.unloadPoint;moveAirTo(u,point,dt,w,true);if(dist2d(u,point)<=expansion.airlift.dropRadius&&u.y-heightAt(u.x,u.z)>=expansion.airlift.minimumAltitude&&releaseAirliftCargo(w,u)){requestAirReturn(u);}return;}
+      if(u.dest)moveAirTo(u,u.dest,dt,w,true);return;
     }
     if(u.kind==="transport"){if(u.flightAttackExit){moveAirTo(u,u.flightAttackExit,dt,w,true);return;}updateTransport(w,u,dt);return;}
   }

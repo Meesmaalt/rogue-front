@@ -1,3 +1,4 @@
+import {createParachute} from "./ExpansionModels";
 import {aircraftEngineProfile} from "./AircraftAudio";
 import {createMetricAirfieldStructures} from "./Architecture";
 import {createMetricRunway} from "./MetricRunway";
@@ -23,7 +24,7 @@ contactContext.fillStyle = contactGradient; contactContext.fillRect(0,0,64,64);
 const contactGeometry = new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2); contactGeometry.userData.sharedArt = true;
 const contactMaterial = new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(contactCanvas),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1}); contactMaterial.userData.sharedArt = true;
 
-interface View { rotorRpm:number;surface?:THREE.Mesh; resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;suspensionPitch:SuspensionState;suspensionRoll:SuspensionState; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group; lastBuildingLevel?: number; lastAirState?: string }
+interface View { parachute?:THREE.Group;rotorRpm:number;surface?:THREE.Mesh; resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;suspensionPitch:SuspensionState;suspensionRoll:SuspensionState; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group; lastBuildingLevel?: number; lastAirState?: string }
 const lerpAngle = (a: number, b: number, t: number) => a + wrapAngle(b - a) * t;
 
 
@@ -118,7 +119,7 @@ export class UnitRenderer {
 
   reset():void {
     for(const v of this.views.values()){
-      this.scene.remove(v.group);v.group.traverse(o=>{const m=o as THREE.Mesh;if(!m.isMesh)return;disposeUnitMesh(m,this.ringMat);});
+      this.scene.remove(v.group);v.group.traverse(o=>{const m=o as THREE.Mesh;if(o instanceof THREE.LineSegments){o.geometry.dispose();(o.material as THREE.Material).dispose();return;}if(!m.isMesh)return;disposeUnitMesh(m,this.ringMat);});
     }
     for(const m of this.intelGhosts.values()){this.scene.remove(m);m.geometry.dispose();(m.material as THREE.Material).dispose();}
     this.views.clear();this.intelGhosts.clear();this.rotorParts.clear();this.recoilById.clear();this.shadowDirty=true;
@@ -176,7 +177,7 @@ export class UnitRenderer {
 
         // Enamik üksusi ei vaja dünaamilist shadow-map kirjutamist.
         // Hooneid võib varjutada, liikuvad üksused kasutavad odavamat valgustust.
-        const staticBuilding = ["hq", "barracks", "factory", "helipad", "airbase", "refinery", "supply", "radar", "bunker", "aa", "generator", "shipyard", "landCommand", "airCommand", "seaCommand", "combatEngineer", "landStrategy", "airStrategy", "seaStrategy"].includes(e.kind);
+        const staticBuilding = ["gunTurret","flakTurret","atTurret","missileCommand","icbmSilo","hq", "barracks", "factory", "helipad", "airbase", "refinery", "supply", "radar", "bunker", "aa", "generator", "shipyard", "landCommand", "airCommand", "seaCommand", "combatEngineer", "landStrategy", "airStrategy", "seaStrategy"].includes(e.kind);
         lod.traverse((o) => {
           const mesh = o as THREE.Mesh;
           if (!mesh.isMesh) return;
@@ -204,7 +205,8 @@ export class UnitRenderer {
       const distance=this.camera.position.distanceTo(this.bounds.center);
       if(v.far){const unitLimit=e.squadMaxMembers?(quality==="high"?90:quality==="medium"?70:50):lodDistance;const limit=unitLimit*(v.far.visible?.85:1.1);const detailed=(quality!=="low"&&selected.size<=12&&selected.has(e.id))||distance<limit;v.near.visible=detailed;v.far.visible=!detailed;}
       const ground=heightAt(x,z);
-      const flying=usesFlightHeight(e);
+      const flying=!!e.airdrop||usesFlightHeight(e);
+      if(e.airdrop&&!v.parachute){v.parachute=createParachute(e.def.radius);v.group.add(v.parachute);}if(v.parachute)v.parachute.visible=!!e.airdrop;
       v.group.position.set(x,flying||e.def.domain==="sea"?v.pose.y:e.garrisonId?e.y:ground,z);
       const shadow=v.shadow;
       if(shadow)shadow.position.y=ground-v.group.position.y+.045;
@@ -263,7 +265,7 @@ export class UnitRenderer {
         v.group.position.y+=Math.abs(Math.sin(v.walkPhase))*.045*pace;
         v.group.rotation.z=Math.sin(v.walkPhase)*.025*pace;
       }
-      if(e.def.domain==="land"&&e.def.speed>0&&e.def.category!=="infantry"){
+      if(!e.airdrop&&e.def.domain==="land"&&e.def.speed>0&&e.def.category!=="infantry"){
         const pace=Math.min(1,v.visualSpeed/Math.max(.1,e.def.speed));
         v.group.position.y+=Math.sin(v.walkPhase*2)*mobility.presentation.vehicleBounce*pace;
       }
@@ -320,7 +322,8 @@ export class UnitRenderer {
           }
         }
       }
-      if (e.kind === "tank") {
+      if(e.airdrop)v.group.rotation.set(0,h,0,"YXZ");
+      else if (e.kind === "tank") {
         const f = 2, sa = Math.sin(h), ca = Math.cos(h);
         const hf = heightAt(x + sa * f, z + ca * f), hb = heightAt(x - sa * f, z - ca * f);
         const hr = heightAt(x + ca * 1.5, z - sa * 1.5), hl = heightAt(x - ca * 1.5, z + sa * 1.5);
@@ -353,6 +356,7 @@ export class UnitRenderer {
       this.scene.remove(v.group);
       v.group.traverse((o) => {
         const m = o as THREE.Mesh;
+        if(o instanceof THREE.LineSegments){o.geometry.dispose();(o.material as THREE.Material).dispose();return;}
         if (!m.isMesh) return;
         disposeUnitMesh(m, this.ringMat);
       });

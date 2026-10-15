@@ -2,7 +2,7 @@ import type {World} from '../sim/World';
 import type {Entity,UnitKind} from '../sim/types';
 import {MAX_QUEUE} from '../sim/constants';
 import {producerKind} from '../sim/systems/production';
-const producers=new Set(['barracks','factory','helipad','airbase','shipyard']);
+const producers=new Set(['missileCommand','barracks','factory','helipad','airbase','shipyard']);
 /** Explicit selection only: never redirect an order to another base building. */
 export function selectedProductionBuilding(world:World,selection:ReadonlySet<number>):Entity|undefined {
  for(const id of selection){const u=world.byId.get(id);if(u&&!u.dead&&u.team===world.playerTeam&&producers.has(u.kind))return u;}

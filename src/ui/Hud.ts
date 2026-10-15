@@ -1,3 +1,4 @@
+import {expansionPanel} from "./StrategicPanel";
 import {displayedWeaponDistance} from "../sim/battleScale";
 import {equipmentCards} from "./EquipmentCard";
 import type {EquipmentSlot} from "../sim/equipment";
@@ -28,7 +29,7 @@ import {selectedProductionBuilding,buildingOrderState} from "./BuildingProductio
 import {producerKind as producerFor} from "../sim/systems/production";
 import type { FactionId } from "../sim/factions";
 import { FACTIONS, FACTION_LIST, factionLandUnits, factionAirUnits, factionSeaUnits } from "../sim/factions";
-import { BUILDINGS } from "../sim/buildings";
+import { BUILDINGS, type BuildableKind } from "../sim/buildings";
 import { MODE_RULES, type MatchMode } from "../sim/gameModes";
 
 function logisticsCard(w:World,u:Entity):string {
@@ -99,6 +100,7 @@ const rootButton = (hud: Hud, selector: string) => hud.findButton(selector);
 
 /** HTML/CSS HUD: ressursid, valiku info, tootmispaneel, minikaardi konteiner, alustus-/lõpuekraan. */
 const BUILD_LABELS: Record<string, string> = {
+  ...Object.fromEntries(Object.keys(BUILDINGS).map(k=>[k,UNITS[k as UnitKind].name])),
   generator: "Generaator", supply: "Varustusladu",
   landCommand: "Maaväe juhtimiskeskus", airCommand: "Õhuväe juhtimiskeskus", seaCommand: "Mereväe juhtimiskeskus",
   barracks: "Kasarmu", factory: "Soomustehas", helipad: "Helikopteribaas", airbase: "Lennubaas",
@@ -106,16 +108,18 @@ const BUILD_LABELS: Record<string, string> = {
   combatEngineer: "Insenerikeskus", landStrategy: "Maastrateegia", airStrategy: "Õhustrateegia", seaStrategy: "Mereistrateegia",
 };
 const BUILD_COSTS: Record<string, number> = {
+  ...Object.fromEntries(Object.entries(BUILDINGS).map(([k,v])=>[k,v.cost])),
   generator:140,barracks:160,factory:220,helipad:200,airbase:320,refinery:180,supply:130,radar:190,bunker:120,aa:160,shipyard:360,
   landCommand:100,airCommand:120,seaCommand:120,combatEngineer:150,landStrategy:240,airStrategy:260,seaStrategy:260,
 };
 const BUILDINGS_REQ: Record<string, string | undefined> = {
+  ...Object.fromEntries(Object.entries(BUILDINGS).map(([k,v])=>[k,v.requires?.[0]])),
   supply: "generator", barracks: "landCommand", factory: "landCommand",
   helipad: "airCommand", airbase: "airCommand", shipyard: "seaCommand",
   landStrategy: "landCommand", airStrategy: "airCommand", seaStrategy: "seaCommand",
   combatEngineer: "landCommand", bunker: "barracks", aa: "radar", radar: "supply",
 };
-const SOURCE_LABELS: Record<string, string> = {
+const SOURCE_LABELS: Record<string, string> = {missileCommand:"RAKETIARENDUSKESKUS",
   hq: "HQ", landCommand: "Maaväe juhtimiskeskus", airCommand: "Õhuväe juhtimiskeskus", seaCommand: "Mereväe juhtimiskeskus",
   landStrategy: "Maastrateegia", airStrategy: "Õhustrateegia", seaStrategy: "Mereistrateegia",
   combatEngineer: "Insenerikeskus", supply: "Varustusladu",
@@ -147,7 +151,7 @@ export class Hud {
   private noticeUntil=0;
   onSave: () => void = () => {};
   onLoad: () => void = () => {};
-  onBuild: (kind: "barracks"|"factory"|"helipad"|"airbase"|"refinery"|"supply"|"radar"|"bunker"|"aa"|"generator"|"shipyard"|"landCommand"|"airCommand"|"seaCommand"|"combatEngineer"|"landStrategy"|"airStrategy"|"seaStrategy") => void = () => {};
+  onBuild: (kind: BuildableKind) => void = () => {};
   onEquipment:(ids:number[],slot:EquipmentSlot,module:string)=>void=()=>{};
   onCancelRefit:(ids:number[])=>void=()=>{};
   onUnitUpgrade:(ids:number[],upgrade:UnitUpgrade)=>void=()=>{};
@@ -164,6 +168,8 @@ export class Hud {
   onNavalReturn:(ids:number[])=>void=()=>{};
   onAirReturn:(ids:number[])=>void=()=>{};
   onAirMission: (ids: number[], mission: "cap" | "strike" | "sead" | "ground") => void = () => {};
+  onStrategicBuild:(id:number,payload:import("../sim/types").StrategicPayload|"research")=>void=()=>{};
+  onStrategicStrike:(ids:number[],payload:import("../sim/types").StrategicPayload)=>void=()=>{};
   onCancelProduce: (producerId: number) => void = () => {};
   onMultiplayer: (mission: MissionDef, room?: string) => void = () => {};
   onSkirmish: (mission: MissionDef, difficulty: "easy"|"normal"|"hard", mode?: MatchMode) => void = () => {};
@@ -296,6 +302,8 @@ export class Hud {
     root.querySelectorAll<HTMLButtonElement>("[data-order]").forEach(b=>b.onclick=()=>this.onOrder(b.dataset.order as "move"|"fast"|"attack"|"unload"|"stop"|"focus"));
     this.buttons.forEach(b=>b.addEventListener("contextmenu",e=>{e.preventDefault();e.stopPropagation();this.inspectedKind=b.dataset.kind as UnitKind;}));
     this.el.selP.addEventListener("click",e=>{
+      const build=(e.target as HTMLElement).closest<HTMLButtonElement>("[data-strategic-build]");if(build&&!build.disabled)this.onStrategicBuild(Number(build.dataset.unit),build.dataset.strategicBuild as import("../sim/types").StrategicPayload|"research");
+      const strike=(e.target as HTMLElement).closest<HTMLButtonElement>("[data-strategic-fire]");if(strike&&!strike.disabled)this.onStrategicStrike([...this.selectedIds],strike.dataset.strategicFire as import("../sim/types").StrategicPayload);
       const gear=(e.target as HTMLElement).closest<HTMLButtonElement>("[data-equipment]");if(gear&&!gear.disabled)this.onEquipment([...this.selectedIds],gear.dataset.slot as EquipmentSlot,gear.dataset.equipment!);
       const cancel=(e.target as HTMLElement).closest<HTMLButtonElement>("[data-cancel-refit]");if(cancel&&!cancel.disabled)this.onCancelRefit([...this.selectedIds]);
       const upgrade=(e.target as HTMLElement).closest<HTMLButtonElement>("[data-unit-upgrade]");if(upgrade&&!upgrade.disabled)this.onUnitUpgrade([...this.selectedIds],upgrade.dataset.unitUpgrade as UnitUpgrade);
@@ -585,7 +593,7 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     let status=u.team===world.playerTeam&&u.productionQueue.length?productionStatus(world,u):(u.kind==="logiTruck"||u.kind==="transport"&&u.supplyDepotId!=null)?logisticsStatus(world,u):u.def.armor==="air"?airOperationStatus(world,u):(u.def.damage||u.kind==="engineer"&&u.mode==="repair")?combatStatus(world,u):u.underConstruction?"Ehitamisel":u.def.building?"Hoone · tase "+world.producerLevel(u):u.mode==="move"?"Liigub":"Ootab käsku";
       if(u.team===world.playerTeam&&u.def.armor==="air"&&u.target)status+=" · "+combatStatus(world,u);
       const movement=u.def.speed>0&&u.team===world.playerTeam?`<small class="movement-status">Kiirus ${(u.motionSpeed??0).toFixed(1)} m/s${u.dest?` · sihini ${Math.round(Math.hypot(u.dest.x-u.x,u.dest.z-u.z))} m`:""}${u.moveQueue?.length?` · ${u.moveQueue.length} järgnevat käsku`:""}</small>`:"";
-      this.setSelectedMarkup(`<div class="selected-summary"><div class="selected-picture">${unitPicture(u.kind,(u.team===world.playerTeam?world.playerFaction:world.enemyFaction))}</div><div class="meters">${meter("Elud",u.hp,maxHitPoints(u))}${(u.maxAmmo??0)>0?meter("Moon",u.ammo??0,u.maxAmmo!):""}${(u.maxFuel??0)>0?meter("Kütus",u.fuel??0,u.maxFuel!):""}${u.def.speed>0?meter("Moraal",u.morale??100,100):""}</div></div><span class="unit-status">${status}</span><small class="role-summary">${u.squadMaxMembers?`Meeskond ${u.squadMembers}/${u.squadMaxMembers} · `:""}${u.def.roleLabel??BUILD_LABELS[u.kind]??u.kind}${u.def.damage?` · Ulatus ${Math.round(Math.max(0,...(u.def.weapons??[]).map(s=>displayedWeaponDistance(s,weaponRange(u,s)))))} m${u.def.minimumRange?` (min ${u.def.weapons?.[0]?.displayMinimumRange??u.def.minimumRange})`:""} · Läbivus ${u.def.weapons?.[0]?weaponPenetration(u,u.def.weapons[0]).toFixed(1):u.def.penetration??0}`:""}${u.kind==="supply"?` · Moon ${Math.floor(u.ammoStock??0)} · Kütus ${Math.floor(u.fuelStock??0)} · Remont ${Math.floor(u.repairStock??0)} · ${u.logisticsPaused?"VEOD PEATATUD":u.preferredResourceIndex!=null?"Rajatis "+(u.preferredResourceIndex+1):"Import ja veokitarne"} · Vahepunkte ${u.logisticsWaypoints?.length??0}`:""}</small><div class="armor-strip">Soomus E/K/T <b>${armorValue(u,"front")}/${armorValue(u,"side")}/${armorValue(u,"rear")}</b> · Optika <b>${Math.round(u.def.displayOpticsRange??u.def.opticsRange??0)} m</b></div>${weaponCards(world,u,u,this.rangeSlot,this.showWeaponRanges)}<details class="selection-context" data-detail-key="context"><summary>Maastik, liikumine ja varustus</summary>${movement}${terrainReadout(world,u)}${u.team===world.playerTeam&&u.def.speed>0&&u.def.armor!=="air"?`<div class="garrison-card"><b>Varustus</b><small>${tacticalSupplyStatus(world,u)}</small></div>`:""}</details><details class="unit-details" data-detail-key="tactical"><summary>Taktikalised andmed</summary>Kate ${coverValueAt(world,u.x,u.z)} · Soomus ${armorValue(u,"front")}/${armorValue(u,"side")}/${armorValue(u,"rear")} · Surve ${Math.round(u.suppression??0)} · Optika ${u.def.optics??"—"} (${Math.round(u.def.displayOpticsRange??u.def.opticsRange??0)} m) · Varjatus ${u.def.stealthLevel??0} · Liikumise baas ${u.def.speed.toFixed(1)} m/s${u.def.armor!=="air"&&u.def.domain!=="sea"?` · Tee ×${mobilityProfile(u).roadSpeed} · Maastik praegu ×${groundTerrainFactor(world,u).toFixed(2)}`:""} · Stabilisaator ${u.def.stabilizer??"none"} · ${world.isInSupply(u)?"Varustusalas":"Väljaspool varustusala"}${u.components?` · Kahjustused ${Math.round(Math.max(...Object.values(u.components)))}%`:""}</details>${u.def.damage?`<div class="range-controls"><button data-range-toggle aria-pressed="${this.showWeaponRanges}">◎ Ulatusringid ${this.showWeaponRanges?"sees":"väljas"}</button><small>${this.rangeSlot==null?"Kõik relvad":"Relv "+(this.rangeSlot+1)+" · sama nupp taastab kõik"} · Katkendjoon = minimaalne kaugus. Relvaandmed on meetrites; kaart kasutab kompaktset lahingumõõtkava. Ulatus ei taga luuret ega tulejoont.</small></div>`:""}${u.garrisonId?`<div class="garrison-card"><b>Garnison · ${u.kind==="manpad"?"katusepositsioon":"laskeava"}</b><small>${world.mapFeatures.find(f=>f.id===u.garrisonId)?.label??"Tsiviilhoone"} · Sektor ${Math.round(GARRISON_RULES.firingArc*180/Math.PI)}° · HE ja hoone varisemine on ohtlikud</small>${u.team===world.playerTeam?`<button data-garrison-face>◎ Vaatesuund</button><button data-garrison-exit>↪ Välju hoonest</button>`:""}</div>`:""}${u.loadedIntoId!=null&&u.team===world.playerTeam?`<button data-select-unit="${u.loadedIntoId}">Vali transport · väljumine U + paremklõps</button>`:""}${transportCapacity(u)>0?`<div class="transport-status"><b>Transport ${occupiedSeats(world,u)}/${transportCapacity(u)} kohta</b><small> Broneeritud ${occupiedSeats(world,u,true)-occupiedSeats(world,u)} kohta (${u.transportQueue?.length??0} rühma) · Jalavägi → paremklõps transpordile. Väljumine: U + paremklõps kaardil.</small>${u.cargoUnitIds.map(id=>world.byId.get(id)).filter(p=>p&&!p.dead).map(p=>`<span>${world.unitDisplayName(p!.kind,p!.team)} (${p!.squadMembers??1})</span>`).join(" ")}${u.mode==="transport-unload"&&u.cargoUnitIds.length?"<small>Väljub pärast saabumist; takistatud väljapääsu korral jääb pardale.</small>":""}</div>`:""}${u.team===world.playerTeam&&(u.logisticsRoute==="strategic"||u.kind==="supply"||u.kind==="logiTruck"||u.kind==="transport"&&u.supplyDepotId!=null)?logisticsCard(world,u):""}${u.team===world.playerTeam?unitDevelopmentCards(world,u,running):""}${["airbase","helipad"].includes(u.kind)?`<div class="air-roster"><small>${world.productionOperational(u).operational?"Lennurajatis töötab":world.productionOperational(u).reason} · Vali õhuoperatsioon ja paremklõpsa sihtpunktile.</small>${airUnitsForOrder(world,[u.id],u.team).map(a=>`<button data-select-unit="${a.id}"><span>${unitPicture(a.kind,u.team===world.playerTeam?world.playerFaction:world.enemyFaction)}</span><span><b>${world.unitDisplayName(a.kind,a.team)}</b><small>${airOperationStatus(world,a)}</small></span></button>`).join("")}</div>`:""}`);
+      this.setSelectedMarkup(`<div class="selected-summary"><div class="selected-picture">${unitPicture(u.kind,(u.team===world.playerTeam?world.playerFaction:world.enemyFaction))}</div><div class="meters">${meter("Elud",u.hp,maxHitPoints(u))}${(u.maxAmmo??0)>0?meter("Moon",u.ammo??0,u.maxAmmo!):""}${(u.maxFuel??0)>0?meter("Kütus",u.fuel??0,u.maxFuel!):""}${u.def.speed>0?meter("Moraal",u.morale??100,100):""}</div></div><span class="unit-status">${status}</span><small class="role-summary">${u.squadMaxMembers?`Meeskond ${u.squadMembers}/${u.squadMaxMembers} · `:""}${u.def.roleLabel??BUILD_LABELS[u.kind]??u.kind}${u.def.damage?` · Ulatus ${Math.round(Math.max(0,...(u.def.weapons??[]).map(s=>displayedWeaponDistance(s,weaponRange(u,s)))))} m${u.def.minimumRange?` (min ${u.def.weapons?.[0]?.displayMinimumRange??u.def.minimumRange})`:""} · Läbivus ${u.def.weapons?.[0]?weaponPenetration(u,u.def.weapons[0]).toFixed(1):u.def.penetration??0}`:""}${u.kind==="supply"?` · Moon ${Math.floor(u.ammoStock??0)} · Kütus ${Math.floor(u.fuelStock??0)} · Remont ${Math.floor(u.repairStock??0)} · ${u.logisticsPaused?"VEOD PEATATUD":u.preferredResourceIndex!=null?"Rajatis "+(u.preferredResourceIndex+1):"Import ja veokitarne"} · Vahepunkte ${u.logisticsWaypoints?.length??0}`:""}</small><div class="armor-strip">Soomus E/K/T <b>${armorValue(u,"front")}/${armorValue(u,"side")}/${armorValue(u,"rear")}</b> · Optika <b>${Math.round(u.def.displayOpticsRange??u.def.opticsRange??0)} m</b></div>${expansionPanel(world,u,running)}${weaponCards(world,u,u,this.rangeSlot,this.showWeaponRanges)}<details class="selection-context" data-detail-key="context"><summary>Maastik, liikumine ja varustus</summary>${movement}${terrainReadout(world,u)}${u.team===world.playerTeam&&u.def.speed>0&&u.def.armor!=="air"?`<div class="garrison-card"><b>Varustus</b><small>${tacticalSupplyStatus(world,u)}</small></div>`:""}</details><details class="unit-details" data-detail-key="tactical"><summary>Taktikalised andmed</summary>Kate ${coverValueAt(world,u.x,u.z)} · Soomus ${armorValue(u,"front")}/${armorValue(u,"side")}/${armorValue(u,"rear")} · Surve ${Math.round(u.suppression??0)} · Optika ${u.def.optics??"—"} (${Math.round(u.def.displayOpticsRange??u.def.opticsRange??0)} m) · Varjatus ${u.def.stealthLevel??0} · Liikumise baas ${u.def.speed.toFixed(1)} m/s${u.def.armor!=="air"&&u.def.domain!=="sea"?` · Tee ×${mobilityProfile(u).roadSpeed} · Maastik praegu ×${groundTerrainFactor(world,u).toFixed(2)}`:""} · Stabilisaator ${u.def.stabilizer??"none"} · ${world.isInSupply(u)?"Varustusalas":"Väljaspool varustusala"}${u.components?` · Kahjustused ${Math.round(Math.max(...Object.values(u.components)))}%`:""}</details>${u.def.damage?`<div class="range-controls"><button data-range-toggle aria-pressed="${this.showWeaponRanges}">◎ Ulatusringid ${this.showWeaponRanges?"sees":"väljas"}</button><small>${this.rangeSlot==null?"Kõik relvad":"Relv "+(this.rangeSlot+1)+" · sama nupp taastab kõik"} · Katkendjoon = minimaalne kaugus. Relvaandmed on meetrites; kaart kasutab kompaktset lahingumõõtkava. Ulatus ei taga luuret ega tulejoont.</small></div>`:""}${u.garrisonId?`<div class="garrison-card"><b>Garnison · ${u.kind==="manpad"?"katusepositsioon":"laskeava"}</b><small>${world.mapFeatures.find(f=>f.id===u.garrisonId)?.label??"Tsiviilhoone"} · Sektor ${Math.round(GARRISON_RULES.firingArc*180/Math.PI)}° · HE ja hoone varisemine on ohtlikud</small>${u.team===world.playerTeam?`<button data-garrison-face>◎ Vaatesuund</button><button data-garrison-exit>↪ Välju hoonest</button>`:""}</div>`:""}${u.loadedIntoId!=null&&u.team===world.playerTeam?`<button data-select-unit="${u.loadedIntoId}">Vali transport · väljumine U + paremklõps</button>`:""}${transportCapacity(u)>0?`<div class="transport-status"><b>Transport ${occupiedSeats(world,u)}/${transportCapacity(u)} kohta</b><small> Broneeritud ${occupiedSeats(world,u,true)-occupiedSeats(world,u)} kohta (${u.transportQueue?.length??0} rühma) · Jalavägi → paremklõps transpordile. Väljumine: U + paremklõps kaardil.</small>${u.cargoUnitIds.map(id=>world.byId.get(id)).filter(p=>p&&!p.dead).map(p=>`<span>${world.unitDisplayName(p!.kind,p!.team)} (${p!.squadMembers??1})</span>`).join(" ")}${u.mode==="transport-unload"&&u.cargoUnitIds.length?"<small>Väljub pärast saabumist; takistatud väljapääsu korral jääb pardale.</small>":""}</div>`:""}${u.team===world.playerTeam&&(u.logisticsRoute==="strategic"||u.kind==="supply"||u.kind==="logiTruck"||u.kind==="transport"&&u.supplyDepotId!=null)?logisticsCard(world,u):""}${u.team===world.playerTeam?unitDevelopmentCards(world,u,running):""}${["airbase","helipad"].includes(u.kind)?`<div class="air-roster"><small>${world.productionOperational(u).operational?"Lennurajatis töötab":world.productionOperational(u).reason} · Vali õhuoperatsioon ja paremklõpsa sihtpunktile.</small>${airUnitsForOrder(world,[u.id],u.team).map(a=>`<button data-select-unit="${a.id}"><span>${unitPicture(a.kind,u.team===world.playerTeam?world.playerFaction:world.enemyFaction)}</span><span><b>${world.unitDisplayName(a.kind,a.team)}</b><small>${airOperationStatus(world,a)}</small></span></button>`).join("")}</div>`:""}`);
 
     } else {
       const c: Record<string, number> = {};
@@ -606,19 +614,20 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     const host = this.el.buildButtons as HTMLElement | undefined;
     if (!host) return;
     const selected = [...selection].map(id => world.byId.get(id)).filter((e): e is NonNullable<typeof e> => !!e && !e.dead && e.team === world.playerTeam);
-    const branchSources = ["hq","landCommand","airCommand","seaCommand","landStrategy","airStrategy","seaStrategy","combatEngineer","supply"] as const;
+    const branchSources = ["missileCommand","hq","landCommand","airCommand","seaCommand","landStrategy","airStrategy","seaStrategy","combatEngineer","supply"] as const;
     const sourceEnt = selected.find(e => (branchSources as readonly string[]).includes(e.kind));
     const sourceKind = (sourceEnt?.kind ?? "hq") as string;
     const available = world.availableBuilds(world.playerTeam, sourceKind as import("../sim/types").UnitKind);
     const branchAll: Record<string, string[]> = {
       hq: ["generator","supply","landCommand","airCommand","seaCommand"],
-      landCommand: ["barracks","factory","combatEngineer","landStrategy","supply","generator"],
+      landCommand: ["gunTurret","flakTurret","atTurret","aa","barracks","factory","combatEngineer","landStrategy","supply","generator"],
       airCommand: ["helipad","airbase","airStrategy","supply","generator"],
       seaCommand: ["shipyard","seaStrategy","supply","generator"],
-      landStrategy: ["barracks","factory","combatEngineer","radar","bunker","aa"],
+      missileCommand: ["icbmSilo"],
+      landStrategy: ["missileCommand","barracks","factory","combatEngineer","radar","bunker","aa"],
       airStrategy: ["helipad","airbase","radar","aa"],
       seaStrategy: ["shipyard","supply","radar"],
-      combatEngineer: ["bunker","aa","radar"],
+      combatEngineer: ["gunTurret","flakTurret","atTurret","bunker","aa","radar"],
       supply: ["generator","radar"],
     };
     const list = branchAll[sourceKind] ?? branchAll.hq;

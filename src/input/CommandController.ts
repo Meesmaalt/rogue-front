@@ -1,7 +1,7 @@
 import {isIndirectUnit} from "../sim/equipment";
 import {formationPoints} from "../sim/systems/commands";
-import type {SimEvent,Entity} from "../sim/types";
-import {transportCapacity,isPassenger} from "../sim/transport";
+import type {SimEvent,Entity,StrategicPayload} from "../sim/types";
+import {transportCapacity,isPassenger,canLoadPassenger} from "../sim/transport";
 import {maxHitPoints} from "../sim/unitStats";
 import type { World } from "../sim/World";
 import type { Picker } from "./Picker";
@@ -13,6 +13,7 @@ import { loadSettings } from "../ui/Settings";
 /** Hiir/klaviatuur → sim-käsud: parem hiir = liigu/ründa, X = peata. */
 export class CommandController {
   enabled = false;
+  private strategicOrder:{ids:number[];payload:StrategicPayload}|null=null;
   private rightDrag:{x:number;y:number;point:{x:number;z:number};end:{x:number;z:number};ids:number[];append:boolean}|null=null;
   private markers:Array<{x:number;z:number;color:string;label:string;until:number}>=[];
   get orderMarkers(){return this.markers.filter(m=>m.until>performance.now());}
@@ -37,7 +38,7 @@ export class CommandController {
   }
   private notify(text:string):void {this.feedback=text;this.feedbackUntil=performance.now()+2600;}
   cancelOrders():void {
-    this.rightDrag=null;this.logisticsOrder=null;this.airOrder=null;this.attackMoveMode=false;this.fastMoveMode=false;this.unloadMode=false;this.garrisonFaceMode=false;this.fireMissionMode=false;this.patrolMode=false;this.moveMode=false;
+    this.strategicOrder=null;this.rightDrag=null;this.logisticsOrder=null;this.airOrder=null;this.attackMoveMode=false;this.fastMoveMode=false;this.unloadMode=false;this.garrisonFaceMode=false;this.fireMissionMode=false;this.patrolMode=false;this.moveMode=false;
     this.buildMode=null;this.buildPoint=null;this.buildValid=false;this.el.style.cursor="default";
   }
   armOrder(mode:"move"|"attack"|"fast"|"unload"|"face"|"fire"|"patrol"):void {
@@ -137,6 +138,7 @@ export class CommandController {
         this.ack(p.x,p.z,0xa4d57c);this.notify("Logistikakäsk antud");this.cancelOrders();return;
       }
       if (this.airOrder) {const p=this.picker.groundAt(e.clientX,e.clientY);this.world.issue({type:"air-mission",...this.airOrder,x:p.x,z:p.z});this.ack(p.x,p.z,0x55b7ff);this.notify("Õhuoperatsiooni käsk antud");this.cancelOrders();return;}
+      if(this.fireMissionMode&&this.strategicOrder){const p=this.picker.groundAt(e.clientX,e.clientY);this.world.issue({type:"strategic-strike",...this.strategicOrder,x:p.x,z:p.z});this.ack(p.x,p.z,0xff7a33,"RAKETILÖÖK");this.cancelOrders();return;}
       if (this.fireMissionMode) {
         const p = this.picker.groundAt(e.clientX,e.clientY);
         const ids = this.ids().filter(id => isIndirectUnit(this.world.byId.get(id)));
@@ -150,12 +152,12 @@ export class CommandController {
       if(visibleEnemy){this.world.issue({type:"attack",ids:this.ids(),targetId:visibleEnemy.id});this.ack(visibleEnemy.x,visibleEnemy.z,0xe0553f);this.notify(`Ründa: ${this.world.unitDisplayName(visibleEnemy.kind,visibleEnemy.team)}`);this.cancelOrders();return;}
       const friendly = this.picker.pickEntity(e.clientX, e.clientY, this.world.playerTeam);
       const selectedTransports = this.selection.selectedIds().filter(id => { const u=this.world.byId.get(id); return !!u && !u.dead && u.team===this.world.playerTeam && (transportCapacity(u)>0||u.kind==="landingcraft"); });
-      if (friendly && selectedTransports.length && isPassenger(friendly) && friendly.loadedIntoId === null) {
+      if (friendly && selectedTransports.length && selectedTransports.some(id=>canLoadPassenger(this.world.byId.get(id)!,friendly)) && friendly.loadedIntoId === null) {
         this.world.issue({ type: "load", ids: selectedTransports, targetId: friendly.id });
         this.ack(friendly.x, friendly.z, 0x55b7ff);
         return;
       }
-      if(friendly&&transportCapacity(friendly)>0&&this.ids().some(id=>{const p=this.world.byId.get(id);return !!p&&isPassenger(p);})){this.world.issue({type:"load",ids:this.ids(),targetId:friendly.id});this.ack(friendly.x,friendly.z,0x55b7ff);return;}
+      if(friendly&&transportCapacity(friendly)>0&&this.ids().some(id=>{const p=this.world.byId.get(id);return !!p&&canLoadPassenger(friendly,p);})){this.world.issue({type:"load",ids:this.ids(),targetId:friendly.id});this.ack(friendly.x,friendly.z,0x55b7ff);return;}
       const engineers = this.selection.selectedIds().filter(id => { const u=this.world.byId.get(id); return !!u && !u.dead && u.team===this.world.playerTeam && u.kind==="engineer"; });
       if (friendly && (friendly.underConstruction || friendly.hp < maxHitPoints(friendly) || (friendly.components && Object.values(friendly.components).some(v=>v>0))) && engineers.length) {
         this.world.issue({ type: "repair", ids: engineers, targetId: friendly.id });
@@ -199,13 +201,15 @@ export class CommandController {
     const {x,y}=this.pointer,enemy=this.picker.pickEntity(x,y,this.world.playerTeam===0?1:0);
     if(enemy){this.hoverHint=`Parem klõps: ründa ${this.world.unitDisplayName(enemy.kind,enemy.team)}`;return;}
     const own=this.picker.pickEntity(x,y,this.world.playerTeam),ids=this.ids();
-    if(own&&transportCapacity(own)>0&&ids.some(id=>isPassenger(this.world.byId.get(id)!))){this.hoverHint="Parem klõps: sisene transporti";return;}
+    if(own&&transportCapacity(own)>0&&ids.some(id=>canLoadPassenger(own!,this.world.byId.get(id)!))){this.hoverHint="Parem klõps: sisene transporti";return;}
     if(own&&own.hp<maxHitPoints(own)&&ids.some(id=>this.world.byId.get(id)?.kind==="engineer")){this.hoverHint="Parem klõps: remondi";return;}
     const house=this.picker.pickGarrisonBuilding(x,y);
-    this.hoverHint=house&&ids.some(id=>isPassenger(this.world.byId.get(id)!))?"Parem klõps: sisene majja":ids.length?"Paremklõps: liigu · lohista: rühma suund · Shift: vahepunkt":"Parem klõps: määra kogunemispunkt";
+    this.hoverHint=house&&ids.some(id=>canLoadPassenger(own!,this.world.byId.get(id)!))?"Parem klõps: sisene majja":ids.length?"Paremklõps: liigu · lohista: rühma suund · Shift: vahepunkt":"Parem klõps: määra kogunemispunkt";
   }
 
   startLogisticsOrder(ids:number[],action:"source"|"route"):void {this.cancelOrders();this.logisticsOrder={ids:[...ids],action};this.el.style.cursor="crosshair";}
+
+  startStrategicStrike(ids:number[],payload:StrategicPayload):void {this.cancelOrders();this.strategicOrder={ids:[...ids],payload};this.fireMissionMode=true;this.el.style.cursor="crosshair";}
 
   startAirMission(ids:number[],mission:"cap"|"strike"|"sead"|"ground"):void {this.cancelOrders();this.airOrder={ids:[...ids],mission};this.el.style.cursor="crosshair";}
 
@@ -227,6 +231,7 @@ export class CommandController {
   moveTo(x: number, z: number, append = false): void {
     if (!this.enabled) return;
     if(this.buildMode)return;
+    if(this.fireMissionMode&&this.strategicOrder){this.world.issue({type:"strategic-strike",...this.strategicOrder,x,z});this.cancelOrders();this.ack(x,z,0xff7a33);return;}
     if(this.fireMissionMode){const ids=this.ids().filter(id=>isIndirectUnit(this.world.byId.get(id)));if(ids.length)this.world.issue({type:"fire-mission",ids,x,z});this.cancelOrders();this.ack(x,z,0xff7a33);return;}
     if(this.patrolMode){this.world.issue({type:"patrol",ids:this.ids(),x,z});this.cancelOrders();this.ack(x,z,0x79c9ff);return;}
     if(this.airOrder){this.world.issue({type:"air-mission",...this.airOrder,x,z});this.cancelOrders();this.ack(x,z,0x55b7ff);return;}

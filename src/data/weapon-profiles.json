@@ -719,6 +719,44 @@
         "cooldown": 5,
         "ammoCapacity": 32
       }
+    ],
+    "airTransport": [],
+    "cruiseLauncher": [],
+    "missileCommand": [],
+    "icbmSilo": [],
+  "gunTurret": [
+      {
+        "profile": "mg",
+        "range": 650,
+        "damage": 12,
+        "cooldown": 0.14,
+        "ammoCapacity": 500,
+        "muzzleHeight": 4.3,
+        "muzzle": 3
+      }
+    ],
+    "flakTurret": [
+      {
+        "profile": "flak",
+        "range": 1800,
+        "damage": 20,
+        "cooldown": 0.2,
+        "ammoCapacity": 400,
+        "muzzleHeight": 4.3,
+        "muzzle": 3
+      }
+    ],
+    "atTurret": [
+      {
+        "profile": "atgm",
+        "range": 2200,
+        "damage": 85,
+        "cooldown": 5,
+        "ammoCapacity": 12,
+        "minimumRange": 80,
+        "muzzleHeight": 4.3,
+        "muzzle": 3
+      }
     ]
   }
 }

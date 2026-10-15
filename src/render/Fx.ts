@@ -14,8 +14,8 @@ interface Pool{mesh:THREE.InstancedMesh;fade:THREE.InstancedBufferAttribute;part
 interface Shell{group:THREE.Group;flame?:THREE.Object3D;lastX:number;lastY:number;lastZ:number}
 interface Ring{mesh:THREE.Mesh;t:number;life:number;size:number;hold?:boolean}
 interface Burst{t:number;delay:number;run:()=>void}
-const ROCKETS=["atgm","sam","aam","manpad","rpg","rocket","mlrs","cruise","anti-ship","naval-sam"];
-const HEAVY=["bomb","howitzer","mlrs","cruise","anti-ship","torpedo"];
+const ROCKETS=["icbm","nuclear","atgm","sam","aam","manpad","rpg","rocket","mlrs","cruise","anti-ship","naval-sam"];
+const HEAVY=["icbm","bomb","howitzer","mlrs","cruise","anti-ship","torpedo"];
 /** White radial sprites. Alpha stops only — instance color tints them. Test stub supports this canvas API. */
 function blob(stops:[number,number][]):THREE.CanvasTexture{
   const cv=document.createElement("canvas");cv.width=cv.height=64;const c=cv.getContext("2d")!;
@@ -160,6 +160,13 @@ export class Fx {
     }
   }
   private impact(e:Extract<SimEvent,{type:"impact"}>,world:World):void{
+    if(e.visual==='nuclear'){
+      this.emit('glow',e.x,e.y+8,e.z,55,1.2,0xfff7ce);this.emit('glow',e.x,e.y+15,e.z,32,3,0xffa132);
+      for(let i=0;i<42;i++){const a=i*Math.PI*2/42;this.emit('dust',e.x,e.y+.5,e.z,7,7,0xc1b497,Math.cos(a)*26,1,Math.sin(a)*26);}
+      for(let i=0;i<28;i++)this.emit('smoke',e.x+this.r(6),e.y+i*1.8,e.z+this.r(6),7,11,0x5e5c50,this.r(1),4,this.r(1));
+      for(let i=0;i<36;i++){const a=i*Math.PI*2/36;this.emit('smoke',e.x+Math.cos(a)*18,e.y+48+this.r(4),e.z+Math.sin(a)*18,13,13,0x69675b,Math.cos(a)*2,3,Math.sin(a)*2);}return;
+    }
+    if(e.visual==='icbm'){this.explode(e.x,e.y,e.z,8,false);return;}
     if(e.result!=="intercept"&&e.result!=="ricochet"&&["bomb","howitzer","mlrs"].includes(e.visual??"")){const gy=heightAt(e.x,e.z)+.3;for(let i=0;i<18;i++){const a=i/18*Math.PI*2;this.emit("dust",e.x,gy,e.z,1.15,1.05,0xc4b592,Math.cos(a)*16,.8,Math.sin(a)*16,1.2);}}
     if(e.result==="intercept"){
       this.emit("glow",e.x,e.y,e.z,2.1,.1,0xfff6df);

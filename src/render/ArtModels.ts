@@ -64,7 +64,8 @@ async function loadModel(faction: FactionId, kind: UnitKind, tactical=false): Pr
 }
 
 export function createArtModel(kind: UnitKind, team: Team, faction: FactionId, tactical=false): Model | null {
-  const source = cache.get(`${faction}/${kind}${tactical?"-lod":""}`);
+  const modelKind=kind==="airTransport"?"cargoPlane":kind;
+  const source = cache.get(`${faction}/${modelKind}${tactical?"-lod":""}`);
   if (!source) return null;
   const group = source.clone(true);
   group.traverse(o => {

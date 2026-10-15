@@ -4,15 +4,15 @@ export type TacticalClass = "armor"|"infantry"|"recon"|"antiTank"|"airDefense"|"
 /** Stable class symbols independent of faction-specific display names. */
 export function tacticalClass(kind:UnitKind):TacticalClass {
   if(["reconInf","reconVehicle","sniper","special"].includes(kind))return "recon";
-  if(["atInf","atgm","tankDestroyer"].includes(kind))return "antiTank";
-  if(["sam","manpad","spaa","aa"].includes(kind))return "airDefense";
-  if(["howitzer","artillery","mortar","mlrs"].includes(kind))return "artillery";
+  if(["atTurret","atInf","atgm","tankDestroyer"].includes(kind))return "antiTank";
+  if(["flakTurret","sam","manpad","spaa","aa"].includes(kind))return "airDefense";
+  if(["cruiseLauncher","howitzer","artillery","mortar","mlrs"].includes(kind))return "artillery";
   if(["tank","lightTank","ifv"].includes(kind))return "armor";
   if(["inf","mgInf"].includes(kind))return "infantry";
   if(["engineer","combatEngineer"].includes(kind))return "engineer";
   if(["logiTruck","transport","cargoPlane"].includes(kind))return "logistics";
   if(["heli","gunship","casHeli"].includes(kind))return "helicopter";
-  if(["fighter","interceptor","bomber","ecm","multirole","attackAircraft"].includes(kind))return "aircraft";
+  if(["airTransport","fighter","interceptor","bomber","ecm","multirole","attackAircraft"].includes(kind))return "aircraft";
   if(["destroyer","submarine","landingcraft","frigate","missileBoat"].includes(kind))return "naval";
   return kind==="apc"?"transport":"building";
 }

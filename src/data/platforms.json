@@ -12,12 +12,14 @@
     "manpad",
     "mortar",
     "sam",
-    "howitzer"
+    "howitzer",
+    "cruiseLauncher"
   ],
   "air": [
     "heli",
     "transport",
-    "fighter"
+    "fighter",
+    "airTransport"
   ],
   "sea": [
     "frigate",

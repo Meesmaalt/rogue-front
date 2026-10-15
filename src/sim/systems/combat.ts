@@ -1,3 +1,4 @@
+import {BUILDINGS,isBuildable} from "../buildings";
 import {BATTLE_SCALE} from "../battleScale";
 import physics from "../../data/physics.json";
 import {garrisonWeaponAllowed,garrisonCover,garrisonProtection} from "../garrison";
@@ -84,6 +85,9 @@ export function selectWeapon(u:Entity,t:Entity,ready=false):number {
 export function canEngage(u:Entity,t:Entity):boolean {return selectWeapon(u,t)>=0;}
 /** The actual shot and HUD share these gates; null means this slot may fire. */
 export function weaponFireBlocker(w:World,u:Entity,t:Entity,index:number):string|null {
+  if(u.underConstruction)return "Rajatis pole valmis";
+  if(isBuildable(u.kind)&&BUILDINGS[u.kind].role==='defense'&&(!w.hasCommandLink(u)||w.powerStatus(u.team).ratio<.25))return "Kaitsetorn vajab energiat ja juhtimisühendust";
+  if(u.airdrop)return "Langevarjudessant · oota maandumist";
   const spec=weaponSpec(u,index),distance=Math.hypot(t.x-u.x,t.z-u.z);
   if(t.dead||t.loadedIntoId!=null||t.team===u.team)return "Sihtmärk pole rünnatav";
   if(!isSpottedBy(t,u.team,w.time))return "Luurekontakt kadunud";

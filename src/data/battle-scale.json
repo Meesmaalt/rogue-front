@@ -26,7 +26,9 @@
     "cargoPlane": 120,
     "transport": 50,
     "apc": 16,
-    "ifv": 14
+    "ifv": 14,
+    "airTransport": 105,
+    "cruiseLauncher": 9
   },
   "opticsMultiplier": 18,
   "dispersionAngle": 0.003,

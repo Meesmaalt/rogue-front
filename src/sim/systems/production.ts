@@ -4,7 +4,9 @@ import {freeAirSlot,stationAircraft} from "./airDoctrine";
 import type { Entity, UnitKind } from "../types";
 import { BUILDINGS } from "../buildings";
 
-export function producerKind(kind: UnitKind): "barracks" | "factory" | "helipad" | "airbase" | "shipyard" | null {
+export function producerKind(kind: UnitKind): "barracks" | "factory" | "helipad" | "airbase" | "shipyard" | "missileCommand" | null {
+  if(kind==="cruiseLauncher")return "missileCommand";
+  if(kind==="airTransport")return "airbase";
   if (["inf","engineer","special","atInf","mgInf","reconInf","sniper","mortar","manpad","atgm"].includes(kind)) return "barracks";
   if (["sam","howitzer","tank","apc","ifv","artillery","mlrs","reconVehicle","lightTank","tankDestroyer","spaa"].includes(kind)) return "factory";
   if (["heli","transport","gunship","casHeli"].includes(kind)) return "helipad";
@@ -58,7 +60,7 @@ export function productionWorkRate(w:World,producer:Entity):number {
   const powerRatio=w.powerStatus(producer.team).ratio;
   const baseSpeed=BUILDINGS[producer.kind as keyof typeof BUILDINGS]?.productionSpeed??1;
   const level=w.producerLevel(producer),levelSpeed=level>=3?1.65:level>=2?1.35:1;
-  const commandKind=["barracks","factory"].includes(producer.kind)?"landCommand":["helipad","airbase"].includes(producer.kind)?"airCommand":"seaCommand";
+  const commandKind=["missileCommand","barracks","factory"].includes(producer.kind)?"landCommand":["helipad","airbase"].includes(producer.kind)?"airCommand":"seaCommand";
   let commandLevel=1;for(const e of w.entities)if(!e.dead&&!e.underConstruction&&e.team===producer.team&&e.kind===commandKind)commandLevel=Math.max(commandLevel,w.producerLevel(e));
   const strategyKind=commandKind==="landCommand"?"landStrategy":commandKind==="airCommand"?"airStrategy":"seaStrategy";
   return Math.max(.2,powerRatio)*baseSpeed*levelSpeed*(1+(commandLevel-1)*.12)*(w.hasBuilding(producer.team,strategyKind)?1.12:1);

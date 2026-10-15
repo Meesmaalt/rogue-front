@@ -134,3 +134,4 @@ button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .stat.resources small[data-r="economy"] { opacity:.78; white-space:nowrap; }
 
 .depot-control-bar{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;align-items:center}.depot-control-bar button{font:600 11px var(--body);padding:3px 7px;background:var(--steel2);border:1px solid var(--line);color:var(--text);cursor:pointer}.depot-control-bar button:hover{border-color:var(--amber)}
+.expansion-card{margin:.8rem 0;padding:.8rem;background:rgba(20,33,29,.8);border:1px solid #738471;border-radius:6px;display:grid;gap:.45rem}.expansion-card p{margin:.2rem 0}.expansion-card small{display:block;line-height:1.45}.strategic-row{display:grid;gap:.4rem;border-top:1px solid #4b5b4e;padding-top:.6rem}.strategic-row button{padding:.55rem;white-space:normal;text-align:left}.strategic-row button[data-strategic-fire="nuclear"]{border-color:#d6945f;color:#ffd9a8}
