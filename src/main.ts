@@ -165,7 +165,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   cam.jumpTo(world.bases[world.playerTeam].x,world.bases[world.playerTeam].z);
   const units = new UnitRenderer(ctx.scene,ctx.camera);
   const constructionPreview=new ConstructionPreview(ctx.scene);
-  const depotPads=new DepotPads(ctx.scene);
+  const depotPads=new DepotPads(ctx.scene);depotPads.onRebuild=(x,z)=>audio.depotRebuild(x,z);
   const baseLife=new BaseLife(ctx.scene);
   const ranges=new RangeOverlay(ctx.scene);
   const fx = new Fx(ctx.scene,ctx.camera);

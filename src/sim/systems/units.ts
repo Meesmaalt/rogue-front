@@ -398,8 +398,7 @@ function moveAirTo(u: Entity, target: Point, dt: number, w: World, cruise=false)
   const landing=!cruise&&(u.airState==="returning"||cargoLanding||["transport-load","transport-unload"].includes(u.mode)||u.kind==="transport"&&u.supplyDepotId!=null);
   const final=landing&&(helicopter||u.airLandingPhase==="final"||cargoLanding&&distance<80);
   const runwayReference=w.byId.get(u.airMissionHomeId??-1),landingGround=final&&!helicopter&&u.def.metricScale&&runwayReference?heightAt(runwayReference.x,runwayReference.z):ground;
-  const helicopterSettled=helicopter&&final&&distance<=logisticsConfig.handling.landingCapture&&(u.motionSpeed??0)<=logisticsConfig.handling.landingSpeed;
-  const heliAltitude=helicopterSettled?0:Math.min(profile.altitude,Math.max(logisticsConfig.handling.landingHoverHeight,(distance-logisticsConfig.handling.landingApproachRadius)*.85+logisticsConfig.handling.landingHoverHeight));
+  const heliAltitude=Math.min(profile.altitude,distance*logisticsConfig.handling.landingGlideSlope);
   const desiredAltitude=helicopter&&final?ground+heliAltitude:landingGround+(final?Math.min(profile.altitude,Math.max(0,(distance-8)*(helicopter?.85:u.def.metricScale?BATTLE_SCALE.aircraft.glideSlope:.24))):u.airState==="returning"?(u.def.metricScale?BATTLE_SCALE.aircraft.approachAltitude:20):profile.altitude+(u.airMission==="cap"&&!helicopter?15:0));
   const oldY=u.y;
   const handling=logisticsConfig.handling;
@@ -423,7 +422,7 @@ function moveAirTo(u: Entity, target: Point, dt: number, w: World, cruise=false)
   const normalDesiredSpeed=outOfFuel(u)?0:helicopter?Math.min(u.def.speed,Math.sqrt(2*Math.max(0,distance-(final?0:helicopterMobility(u).hoverRadius))*profile.braking)):u.def.metricScale&&u.airState==="returning"&&!final?u.def.speed*BATTLE_SCALE.aircraft.minimumSpeed:final?(u.def.metricScale?BATTLE_SCALE.aircraft.landingSpeed:Math.min(u.def.speed*.48,Math.max(4,distance*.8))):u.def.speed*Math.max(aircraftMobility(u).minimumSpeed,1-Math.abs(u.flightBank??0)*.35);
   // Slow cargo runs before the turn: pure pursuit at cruise speed can circle a nearby drop zone forever.
   const interceptSpeed=!helicopter&&!landing&&u.target?.def.armor==='air'?normalDesiredSpeed*Math.max(mobility.combat.airPursuitMinimumSpeed,Math.cos(Math.min(Math.PI/2,Math.abs(wrapAngle(desiredHeading-u.heading))))):normalDesiredSpeed;
-  const desiredSpeed=helicopter&&final?Math.min(normalDesiredSpeed,distance*logisticsConfig.handling.landingPositionGain):u.kind==='airTransport'&&u.mode==='transport-unload'&&!landing?Math.min(normalDesiredSpeed,Math.max(u.def.speed*expansion.airlift.minimumSpeedFraction,Math.sqrt(distance*Math.min(aircraftMobility(u).lateralAcceleration,physics.gravity*Math.tan(profile.maxBank))*expansion.airlift.turnApproachFactor))):interceptSpeed;
+  const desiredSpeed=helicopter&&final?Math.min(normalDesiredSpeed,distance*logisticsConfig.handling.landingPositionGain,distance*logisticsConfig.handling.landingDescentRate/Math.max(1,u.y-ground)):u.kind==='airTransport'&&u.mode==='transport-unload'&&!landing?Math.min(normalDesiredSpeed,Math.max(u.def.speed*expansion.airlift.minimumSpeedFraction,Math.sqrt(distance*Math.min(aircraftMobility(u).lateralAcceleration,physics.gravity*Math.tan(profile.maxBank))*expansion.airlift.turnApproachFactor))):interceptSpeed;
   const acceleration=desiredSpeed>speed?profile.acceleration:profile.braking;
   if(!helicopter)u.motionSpeed=speed+Math.max(-acceleration*dt,Math.min(acceleration*dt,desiredSpeed-speed));
   const step=Math.min(final||helicopter?distance:Infinity,(u.motionSpeed??0)*dt);

@@ -26,15 +26,15 @@ it('visible pads and reserved slots agree, stay clear of buildings and rotate wi
 for(const compact of [false,true])it(`a ${compact?'compact':'metric'} helicopter flies all the way to its pad, settles, stops yawing and actually delivers`,()=>{
  const {w,depot}=fixture(compact),h=w.spawn('transport',0,-115,-65);h.supplyDepotId=depot.id;h.logisticsRoute='strategic';h.logisticsPhase='idle';h.cargo=180;h.y=heightAt(h.x,h.z)+50;h.airState='airborne';h.heading=2.2;h.flightVx=14;h.flightVz=5;
  const pad=logisticsLandingPoint(w,depot,h)!;h.logisticsHome=pad;h.logisticsTarget={x:-280,z:-200};
- let locked:number|undefined,landed=false;
+ let locked:number|undefined,landed=false,descendingInMotion=false;
  for(let i=0;i<2400;i++){
-  const oldY=h.y;step(w);const distance=Math.hypot(h.x-pad.x,h.z-pad.z);
-  if(distance<10&&w.byId.get(h.id)?.airState!=='grounded')expect((oldY-h.y)*30).toBeLessThanOrEqual(2.21);
+  const oldY=h.y;step(w);if(oldY-h.y>.01&&(h.motionSpeed??0)>1)descendingInMotion=true;const distance=Math.hypot(h.x-pad.x,h.z-pad.z);
+  if(distance<10&&w.byId.get(h.id)?.airState!=='grounded')expect((oldY-h.y)*30).toBeLessThanOrEqual(2.76);
   if(distance<10&&locked==null)locked=h.heading;
   if(locked!=null&&distance<10)expect(Math.abs(wrapAngle(h.heading-locked))).toBeLessThan(.1);
   if(w.byId.get(h.id)?.airState==='grounded'){landed=true;break;}
  }
- expect(landed).toBe(true);expect(Math.hypot(h.x-pad.x,h.z-pad.z)).toBeLessThan(.8);expect(h.y).toBeCloseTo(heightAt(h.x,h.z));
+ expect(landed).toBe(true);expect(descendingInMotion).toBe(true);expect(Math.hypot(h.x-pad.x,h.z-pad.z)).toBeLessThan(.8);expect(h.y).toBeCloseTo(heightAt(h.x,h.z));
  const heading=h.heading;for(let i=0;i<180;i++)step(w);expect(h.heading).toBe(heading);expect(h.cargoDoor).toBe(1);expect(h.groundServiceId).toBeDefined();
  for(let i=0;i<5400&&w.airCargoDelivered[0]<180;i++)step(w);
  expect(w.airCargoDelivered[0]).toBeCloseTo(180);expect(h.cargo).toBe(0);

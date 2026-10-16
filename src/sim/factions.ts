@@ -41,7 +41,7 @@ const USA: FactionDef = {
   color: 0x4a7ab0,
   unitNames: {
     inf: "Rifle Squad",
-    engineer: "Combat Engineer",
+    engineer: "Lahinguinsenerid",
     special: "Delta Force",
     tank: "M1A2 Abrams",
     apc: "Stryker ICV",
@@ -85,7 +85,7 @@ const RUSSIA: FactionDef = {
   color: 0xb05040,
   unitNames: {
     inf: "Motor Rifle Squad",
-    engineer: "Combat Engineer",
+    engineer: "Lahinguinsenerid",
     special: "Spetsnaz",
     tank: "T-90M Proryv",
     apc: "BTR-82A",
@@ -129,7 +129,7 @@ const CHINA: FactionDef = {
   color: 0xc0a030,
   unitNames: {
     inf: "PLA Infantry",
-    engineer: "Combat Engineer",
+    engineer: "Lahinguinsenerid",
     special: "Snow Leopard SOF",
     tank: "Type 99A",
     apc: "ZBL-08",

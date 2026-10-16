@@ -5,15 +5,15 @@ import {tutorialGuide} from "./TutorialGuide";
 import type {MissionObjectiveDef} from "../sim/types";
 afterEach(resetHeightmap);
 const step=(kind:MissionObjectiveDef["kind"],unitKind?:MissionObjectiveDef["unitKind"]):MissionObjectiveDef=>({id:"training",title:"Test",description:"Test",kind,unitKind,target:{kind:"factory",count:1}});
-it("selects the actual build branch with an engineer and recovers missing engineers",()=>{
- const w=new World(71,false,[],[],[],false);w.spawn("hq",0,0,0);const command=w.spawn("landCommand",0,10,0),engineer=w.spawn("engineer",0,0,10);
+it("selects the actual build branch and never requires a combat engineer for automatic construction",()=>{
+ const w=new World(71,false,[],[],[],false);w.spawn("hq",0,0,0);const command=w.spawn("landCommand",0,10,0);const engineer=w.spawn("engineer",0,0,10);
  const pending=w.pending.length,guide=tutorialGuide(w,step("build"));
- expect(guide.ids).toEqual([command.id,engineer.id]);expect(guide.panel).toBe("builds");expect(guide.highlight).toBe('[data-build="factory"]');expect(w.pending).toHaveLength(pending);
- const barracks=w.spawn("barracks",0,20,20);engineer.dead=true;const recovery=tutorialGuide(w,step("build"));expect(recovery.ids).toEqual([barracks.id]);expect(recovery.panel).toBe("land");expect(recovery.highlight).toBe('[data-kind="engineer"]');
+ expect(guide.ids).toEqual([command.id]);expect(guide.panel).toBe("builds");expect(guide.highlight).toBe('[data-build="factory"]');expect(w.pending).toHaveLength(pending);
+ const barracks=w.spawn("barracks",0,20,20);engineer.dead=true;const recovery=tutorialGuide(w,step("build"));expect(recovery.ids).toEqual([command.id]);expect(recovery.panel).toBe("builds");expect(recovery.highlight).toBe('[data-build="factory"]');expect(barracks).toBeDefined();
 });
 it("recovers a lost producer through construction rather than an empty selection",()=>{
- const w=new World(71,false,[],[],[],false),command=w.spawn("landCommand",0,10,0),engineer=w.spawn("engineer",0,0,10);
- const guide=tutorialGuide(w,step("produce","tank"));expect(guide.ids).toEqual([command.id,engineer.id]);expect(guide.panel).toBe("builds");
+ const w=new World(71,false,[],[],[],false),command=w.spawn("landCommand",0,10,0);w.spawn("engineer",0,0,10);
+ const guide=tutorialGuide(w,step("produce","tank"));expect(guide.ids).toEqual([command.id]);expect(guide.panel).toBe("builds");
 });
 it("uses the loaded carrier and does not reveal hidden building damage or occupants",()=>{
  const features=[{id:"house",kind:"building" as const,appearance:"farmhouse" as const,x:30,z:20,width:7,depth:7,height:4}];
@@ -28,9 +28,9 @@ it("resumes a paused foundation and explains the actual placement mouse button",
  const w=new World(71,false,[],[],[],false);w.spawn("hq",0,0,0);w.spawn("landCommand",0,20,0);const engineer=w.spawn("engineer",0,0,20);
  expect(tutorialGuide(w,step("build")).hint).toContain("vasakklõps");
  const foundation=w.spawn("factory",0,30,30);foundation.underConstruction=true;
- const paused=tutorialGuide(w,step("produce","tank"));expect(paused.ids).toEqual([engineer.id]);expect(paused.point).toEqual({x:30,z:30});expect(paused.hint).toContain("Ehitus seisab");
+ const paused=tutorialGuide(w,step("produce","tank"));expect(paused.ids).toEqual([foundation.id]);expect(paused.point).toBeNull();expect(paused.hint).toContain("HQ");
  engineer.target=foundation;engineer.mode="build";expect(tutorialGuide(w,step("build")).hint).toContain("Oota");
- w.spawn("barracks",0,50,50);engineer.dead=true;expect(tutorialGuide(w,step("build")).highlight).toBe('[data-kind="engineer"]');
+ w.spawn("barracks",0,50,50);engineer.dead=true;expect(tutorialGuide(w,step("build")).ids).toEqual([foundation.id]);
 });
 
 it("combat guidance selects armor with recon and reveals only a spotted target location",()=>{

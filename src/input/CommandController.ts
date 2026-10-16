@@ -52,6 +52,7 @@ export class CommandController {
   unloadMode = false;
   garrisonFaceMode = false;
   buildMode: BuildableKind | null = null;
+  private buildSourceId?:number;
   buildRotation = 0;
   buildPoint: { x: number; z: number } | null = null;
   fireMissionMode = false;
@@ -118,7 +119,7 @@ export class CommandController {
         if(e.button===2){this.cancelBuild(this.el);return;}
         this.updateBuildPreview(e.clientX,e.clientY);
         if (this.buildValid && this.buildPoint) {
-          this.world.issue({type:"build",ids:[],kind:this.buildMode,x:this.buildPoint.x,z:this.buildPoint.z,rotation:this.buildRotation});this.ack(this.buildPoint.x,this.buildPoint.z,0xf2a33a,"EHITA");this.cancelBuild(this.el);
+          this.world.issue({type:"build",ids:[],kind:this.buildMode,sourceId:this.buildSourceId,x:this.buildPoint.x,z:this.buildPoint.z,rotation:this.buildRotation});this.ack(this.buildPoint.x,this.buildPoint.z,0xf2a33a,"EHITA");this.cancelBuild(this.el);
         }else this.notify("Siin ei saa ehitada — vali vaba plats ja kontrolli hoone eeltingimusi");
         return;
       }
@@ -211,14 +212,14 @@ export class CommandController {
 
   startAirMission(ids:number[],mission:"cap"|"strike"|"sead"|"ground"):void {this.cancelOrders();this.airOrder={ids:[...ids],mission};this.el.style.cursor="crosshair";}
 
-  startBuild(kind: BuildableKind): void { this.cancelOrders();this.el.style.cursor="crosshair";this.buildMode=kind; this.buildRotation=0; this.buildPoint=null; this.buildValid=false; }
+  startBuild(kind: BuildableKind): void { const source=[...this.selection.selected].map(id=>this.world.byId.get(id)).find(e=>e&&!e.dead&&!e.underConstruction&&this.world.availableBuilds(this.world.playerTeam,e.kind).includes(kind));if(!source){this.notify('Vali selle ehitusharu juhtimishoone');return;}this.buildSourceId=source.id;this.cancelOrders();this.el.style.cursor="crosshair";this.buildMode=kind; this.buildRotation=0; this.buildPoint=null; this.buildValid=false; }
 
   private updateBuildPreview(x: number, y: number): void {
     if (!this.buildMode) return;
     const p = this.picker.groundAt(x,y);
     const spec = BUILDINGS[this.buildMode];
     this.buildPoint = p;
-    this.buildValid = constructionHubs(this.world,this.world.playerTeam).length>0 && this.world.resources >= spec.cost && this.world.credits >= spec.cost && this.world.canPlaceBuilding(this.world.playerTeam, this.buildMode, p.x, p.z);
+    this.buildValid = constructionHubs(this.world,this.world.playerTeam).length>0 && this.world.resources >= spec.cost && this.world.credits >= spec.cost && this.world.canPlaceBuilding(this.world.playerTeam, this.buildMode, p.x, p.z,this.buildRotation);
   }
 
   private cancelBuild(el: HTMLElement): void { this.cancelOrders();el.style.cursor="default"; }

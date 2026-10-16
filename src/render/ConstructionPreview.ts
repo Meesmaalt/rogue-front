@@ -1,3 +1,4 @@
+import {constructionArea} from '../sim/buildingPlacement';
 import {depotPad} from '../sim/depotPads';
 import {createDepotBase,createDepotPad,createDepotFence} from './DepotPads';
 import {createMetricRunway} from "./MetricRunway";
@@ -6,7 +7,7 @@ import {createModel} from './models';
 import {createArtModel,disposeUnitMesh} from './ArtModels';
 import {createMetricAirfieldStructures} from './Architecture';
 import {heightAt} from '../sim/heightmap';
-import {BUILDINGS,type BuildableKind} from '../sim/buildings';
+import {type BuildableKind} from '../sim/buildings';
 import type {World} from '../sim/World';
 import type {Point} from '../sim/types';
 /** Reuses the final building silhouette, scale and heading; ghost materials never touch the model cache. */
@@ -38,9 +39,10 @@ export class ConstructionPreview {
    }
    model.traverse(o=>{if(o instanceof THREE.Mesh){o.material=this.material;o.castShadow=o.receiveShadow=false;const edges=new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry,32),this.outline);o.add(edges);}});
    this.group.add(model);
-   const r=BUILDINGS[kind].footprint;
-   const boundary=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-r,.15,-r),new THREE.Vector3(r,.15,-r),new THREE.Vector3(r,.15,r),new THREE.Vector3(-r,.15,r),new THREE.Vector3(-r,.15,-r)]);
+   const area=constructionArea(kind,0,0,0);
+   const boundary=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(area.left,.15,area.back),new THREE.Vector3(area.right,.15,area.back),new THREE.Vector3(area.right,.15,area.front),new THREE.Vector3(area.left,.15,area.front),new THREE.Vector3(area.left,.15,area.back)]);
    this.group.add(new THREE.Line(boundary,this.outline));
+   if(kind==='supply'){const material=new THREE.MeshBasicMaterial({transparent:true,opacity:.07,depthWrite:false,side:THREE.DoubleSide});material.color=this.material.color;const areaFill=new THREE.Mesh(new THREE.PlaneGeometry(area.right-area.left,area.front-area.back).rotateX(-Math.PI/2),material);areaFill.position.set((area.left+area.right)/2,.14,(area.back+area.front)/2);this.group.add(areaFill);}
   }
   this.material.color.set(valid?0x78e7ae:0xf17465);this.outline.color.copy(this.material.color);
   this.group.position.set(point.x,heightAt(point.x,point.z)+.08,point.z);this.group.rotation.y=heading;

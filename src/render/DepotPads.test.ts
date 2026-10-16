@@ -1,13 +1,12 @@
-import {afterEach,expect,it} from 'vitest';
+import {afterEach,expect,it,vi} from 'vitest';
 import * as THREE from 'three';
-import {createDepotPad} from './DepotPads';
-import {renderedGroundHeightAt} from './GroundSurface';
-import {resetHeightmap} from '../sim/heightmap';
+import {DepotPads} from './DepotPads';
+import {World} from '../sim/World';
+import {resetHeightmap,setBases,setMapSize} from '../sim/heightmap';
+import {availableDepotPads} from '../sim/depotPads';
 afterEach(resetHeightmap);
-it('marked landing surface and H conform to the rendered terrain at the actual leased coordinates',()=>{
- const pad=createDepotPad({x:40,z:25,heading:Math.PI/3,slot:2});pad.updateMatrixWorld(true);
- expect(pad.name).toBe('DepotHelicopterPad-2');expect(pad.children).toHaveLength(5);
- const p=new THREE.Vector3();let vertices=0;
- pad.traverse(o=>{if(o instanceof THREE.Mesh){const positions=o.geometry.getAttribute('position');for(let i=0;i<positions.count;i++){p.fromBufferAttribute(positions,i).applyMatrix4(o.matrixWorld);const above=p.y-renderedGroundHeightAt(p.x,p.z);expect(above).toBeGreaterThan(.025);expect(above).toBeLessThan(.08);vertices++;}}});expect(vertices).toBeGreaterThan(100);
- const bounds=new THREE.Box3().setFromObject(pad);expect((bounds.min.x+bounds.max.x)/2).toBeCloseTo(40);expect((bounds.min.z+bounds.max.z)/2).toBeCloseTo(25);
+it('a depot upgrade updates navigation, adds its pad and replaces the old fence with a bounded transition',()=>{
+ setMapSize(512);const bases=[{x:0,z:0,r:220},{x:220,z:220,r:20}];setBases(bases);const w=new World(18,false,[],[],bases,false);w.networkMode=true;w.spawn('hq',0,-80,0);w.spawn('generator',0,0,-50);const depot=w.spawn('supply',0,0,0);depot.heading=0;w.teamCredits[0]=w.teamResources[0]=5000;w.nav.syncBuildings(w.entities);
+ const scene=new THREE.Scene(),view=new DepotPads(scene);view.onRebuild=vi.fn();view.sync(w);expect(view.group.getObjectByName('DepotHelicopterPad-1')).toBeUndefined();expect(w.upgradeSupplyDepot(0,depot.id)).toBe(true);w.tick(1/30);w.time+=1;view.sync(w);expect(availableDepotPads(w,depot)).toHaveLength(2);expect(view.group.getObjectByName('DepotHelicopterPad-1')).toBeDefined();expect(view.onRebuild).toHaveBeenCalledTimes(1);
+ const fence=view.group.getObjectByName('DepotCompoundLevel2')!;expect(fence.children[0].scale.y).toBeLessThan(.1);w.time+=3;view.sync(w);expect(fence.children[0].scale.y).toBe(1);expect(scene.children[1].children).toHaveLength(0);
 });

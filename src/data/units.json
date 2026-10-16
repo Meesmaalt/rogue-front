@@ -786,7 +786,7 @@
     "size": "small",
     "optics": "poor",
     "roleLabel": "Lahinguinsener",
-    "ability": "Relvastatud pioneerirühm: eesliini toetus ja sõidukite remont",
+    "ability": "Kasarmust ostetav pioneerirühm. Hõivab ja käivitab ressursirajatisi ning remondib tehnikat. Vii rühm ressursialasse ja oota käivituse lõppu. Baasi ehituspersonal töötab automaatselt.",
     "targetClass": "ground",
     "stealthLevel": 1,
     "armorFront": 4,

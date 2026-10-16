@@ -1,3 +1,4 @@
+import constructionPolicy from '../data/construction-policy.json';
 import {automaticAircraft} from '../sim/automaticConstruction';
 import baseLife from '../data/base-life.json';
 import {constructionHubs} from '../sim/automaticConstruction';
@@ -289,7 +290,7 @@ export class Hud {
             </div>
           </div>
           <div class="facility-actions" data-r="facilityActions" hidden aria-label="Valitud hoone arendamine">                <button data-upgrade-producer hidden>Uuenda tootjat</button>
-                <button data-upgrade-supply hidden>Uuenda varustusladu</button>
+
                 <button data-upgrade-fob hidden>Ehita FOB</button>
           </div><div class="queue-heading"><span>TOOTMISJÄRJEKORD</span><button data-cancel-produce hidden title="Tühista viimane tellimus; 75% kulust tagasi">${icon("stop")} Tühista viimane</button></div><div class="qbar"><i data-r="qbar"></i></div>
           <div class="qtxt" data-r="qtxt"></div>
@@ -325,7 +326,6 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     }));
     // build buttons are rebound each frame from availableBuilds()
     root.querySelector<HTMLButtonElement>("button[data-upgrade-producer]")?.addEventListener("click",()=>this.onUpgradeProducer([...this.selectedIds]));
-    root.querySelector<HTMLButtonElement>("button[data-upgrade-supply]")?.addEventListener("click",()=>this.onUpgradeSupply([...this.selectedIds]));
     root.querySelector<HTMLButtonElement>("button[data-upgrade-fob]")?.addEventListener("click",()=>this.onUpgradeFOB([...this.selectedIds]));
     root.querySelectorAll<HTMLButtonElement>("button[data-logistics-edit]").forEach(b=>b.addEventListener("click",()=>this.onLogisticsEdit([...this.selectedIds],b.dataset.logisticsEdit as "source"|"route"|"clear"|"auto"|"pause")));
     root.querySelectorAll<HTMLButtonElement>("button[data-depot-priority]").forEach((b)=>b.addEventListener("click",()=>{ if(this.selectedIds.length) this.onDepotPriority([...this.selectedIds], b.dataset.depotPriority as "ammo"|"fuel"|"repair"|"balanced"); }));
@@ -506,7 +506,7 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
       const guide=tutorialGuide(world,step);this.guideIds=guide.ids;this.guidePoint=guide.point;this.guidePanel=guide.panel;this.guideHighlight=guide.highlight;
       this.el.tutorialState.textContent=guide.hint;
       this.findButton("[data-guide-focus]")!.disabled=!guide.ids.length;
-      this.findButton("[data-guide-focus]")!.textContent=step.kind==="build"?"Vali ehitusharu ja insener":"Vali sobiv üksus";
+      this.findButton("[data-guide-focus]")!.textContent=step.kind==="build"?"Vali ehituse juhtimishoone":"Vali sobiv üksus";
       const open=this.findButton("[data-guide-panel]")!;open.hidden=!guide.panel;open.textContent=guide.panel==="builds"?"Ava ehitus":"Ava tootmine";
       this.findButton("[data-guide-target]")!.hidden=!this.guidePoint;
     }
@@ -570,10 +570,10 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     const producerUpgrade = rootButton(this, "button[data-upgrade-producer]");
     if (producerUpgrade) { producerUpgrade.hidden=!selectedUpgrade; producerUpgrade.innerHTML=icon("upgrade")+(selectedUpgrade?.upgrading ? `Uuendamine… ${Math.ceil((selectedUpgrade.upgradeTime??10)-(selectedUpgrade.upgradeProgress??0))}s` : (selectedUpgrade && world.producerLevel(selectedUpgrade)>=3 ? `${selectedUpgrade.kind === "airbase" ? "Lennujaam" : "Tootja"} MAX · Tase 3` : `${selectedUpgrade?.kind === "airbase" ? (world.producerLevel(selectedUpgrade)===1?"Ehita hooldusangaar ja kütuseladu":"Ehita lennurelvastuse keskus") : "Uuenda hoonet"} → tase ${(selectedUpgrade ? world.producerLevel(selectedUpgrade)+1 : 2)} (${selectedUpgrade ? world.producerUpgradeCost(world.producerLevel(selectedUpgrade)) : 260})`)); producerUpgrade.disabled=!running||!selectedUpgrade||!!selectedUpgrade.upgrading||!world.canUpgradeProducer(selectedUpgrade)||world.resources<(selectedUpgrade ? world.producerUpgradeCost(world.producerLevel(selectedUpgrade)) : 9999)||world.credits<(selectedUpgrade ? world.producerUpgradeCost(world.producerLevel(selectedUpgrade)) : 9999); }
     const supplyDepot = [...selection].map(id=>world.byId.get(id)).find(e=>e && !e.dead && e.team===world.playerTeam && e.kind==="supply");
-    const supplyButton = rootButton(this, "button[data-upgrade-supply]");
-    if (supplyButton) { const level=supplyDepot?world.supplyDepotLevel(supplyDepot):0; supplyButton.hidden=!supplyDepot; supplyButton.innerHTML=icon("upgrade")+(level>=2 ? "Varustusladu MAX" : `Uuenda varustusladu (${180 + level*120}) · tase ${level+1}/3`); supplyButton.disabled=!running||!supplyDepot||level>=2||world.resources<(180+level*120)||world.credits<(180+level*120); }
+
+    if(producerUpgrade&&selectedUpgrade?.kind==='supply'){const level=world.producerLevel(selectedUpgrade);producerUpgrade.innerHTML=icon('upgrade')+(selectedUpgrade.upgrading?`Uuendamine… ${Math.ceil((selectedUpgrade.upgradeTime??10)-(selectedUpgrade.upgradeProgress??0))}s`:level>=3?'Varustusladu MAX · 3 kopteriplatsi':`Uuenda ladu → tase ${level+1} · ${level+1} kopteriplatsi (${world.producerUpgradeCost(level)})`);}
     const fobButton = rootButton(this, "button[data-upgrade-fob]");
-    if (fobButton) { const lvl=supplyDepot?.fobLevel ?? 0; const cost=world.fobUpgradeCost(lvl); fobButton.hidden=!supplyDepot; fobButton.innerHTML=icon("upgrade")+(lvl>=2 ? "FOB MAX · juhtimisvõrk" : `Ehita FOB (${cost}) · tase ${lvl+1}/2`); fobButton.disabled=!running||!supplyDepot||lvl>=2||world.resources<cost||world.credits<cost; }
+    if (fobButton) { fobButton.title="Juhtimispost lisab ehitusmeeskonna ja juhtimisvõrgu; kopteriplatse lisab hoone taseme uuendamine";const lvl=supplyDepot?.fobLevel ?? 0; const cost=world.fobUpgradeCost(lvl); fobButton.hidden=!supplyDepot; fobButton.innerHTML=icon("upgrade")+(lvl>=2 ? "FOB MAX · juhtimisvõrk" : `Raja juhtimispost (FOB) · ${cost}`); fobButton.disabled=!running||!supplyDepot||lvl>=2||world.resources<cost||world.credits<cost; }
     const depotControl = this.el.depotControlBar as HTMLElement | undefined; if (depotControl) depotControl.hidden=!supplyDepot;
 
     const sel = [...selection].map((id) => world.byId.get(id)).filter((e) => e && !e.dead);
@@ -600,6 +600,7 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     const crews=world.entities.filter(e=>!e.dead&&e.constructionCrew?.homeId===u.id),crewInfo=(u.kind==='hq'||world.isFOB(u))?` · Ehitusmeeskondi ${crews.length}, tööl ${crews.filter(e=>e.target||e.loadedIntoId!=null).length} · Õhuvedu ${baseLife.construction.airliftCost} krediiti + ${baseLife.construction.airliftCost} ressurssi`:'';
     let status=u.underConstruction?constructionStatus(world,u):u.team===world.playerTeam&&u.productionQueue.length?productionStatus(world,u):(u.kind==="groundHandler"||u.kind==="logiTruck"||u.kind==="transport"&&u.supplyDepotId!=null)?logisticsStatus(world,u):u.def.armor==="air"?airOperationStatus(world,u):(u.def.damage||u.kind==="engineer"&&u.mode==="repair")?combatStatus(world,u):u.underConstruction?"Ehitamisel":u.def.building?"Hoone · tase "+world.producerLevel(u):u.mode==="move"?"Liigub":"Ootab käsku";
     if(automaticAircraft(u)){const phase=u.constructionFlight?.phase;const phases:Record<string,string>={arriving:'Saabub kaardi tagant',pickup:'Lendab meeskonna järele',loading:'Meeskond pardale',outbound:'Teel ehitusplatsile',unloading:'Meeskond väljub',working:'Ootab ehitusmeeskonda',returning:'Tagasilend',parked:'Ootab uut ülesannet'};status=(phase?phases[phase]:status)+' · Automaatne lend · ainult vaatamine';}
+    if(u.kind==='engineer'&&!u.constructionCrew)status+=' · Kasarmu lahinguinsenerid: hõivavad ja käivitavad ressursirajatisi';
     status+=crewInfo;
       if(u.team===world.playerTeam&&u.def.armor==="air"&&u.target)status+=" · "+combatStatus(world,u);
       const movement=u.def.speed>0&&u.team===world.playerTeam?`<small class="movement-status">Kiirus ${(u.motionSpeed??0).toFixed(1)} m/s${u.dest?` · sihini ${Math.round(Math.hypot(u.dest.x-u.x,u.dest.z-u.z))} m`:""}${u.moveQueue?.length?` · ${u.moveQueue.length} järgnevat käsku`:""}</small>`:"";
@@ -626,26 +627,15 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     const selected = [...selection].map(id => world.byId.get(id)).filter((e): e is NonNullable<typeof e> => !!e && !e.dead && e.team === world.playerTeam);
     const branchSources = ["missileCommand","hq","landCommand","airCommand","seaCommand","landStrategy","airStrategy","seaStrategy","combatEngineer","supply"] as const;
     const sourceEnt = selected.find(e => (branchSources as readonly string[]).includes(e.kind));
-    const sourceKind = (sourceEnt?.kind ?? "hq") as string;
+    const sourceKind = (sourceEnt?.kind ?? "") as string;
     const available = world.availableBuilds(world.playerTeam, sourceKind as import("../sim/types").UnitKind);
-    const branchAll: Record<string, string[]> = {
-      hq: ["generator","supply","landCommand","airCommand","seaCommand"],
-      landCommand: ["gunTurret","flakTurret","atTurret","aa","barracks","factory","combatEngineer","landStrategy","supply","generator"],
-      airCommand: ["helipad","airbase","airStrategy","supply","generator"],
-      seaCommand: ["shipyard","seaStrategy","supply","generator"],
-      missileCommand: ["icbmSilo"],
-      landStrategy: ["missileCommand","barracks","factory","combatEngineer","radar","bunker","aa"],
-      airStrategy: ["helipad","airbase","radar","aa"],
-      seaStrategy: ["shipyard","supply","radar"],
-      combatEngineer: ["gunTurret","flakTurret","atTurret","bunker","aa","radar"],
-      supply: ["generator","radar"],
-    };
-    const list = branchAll[sourceKind] ?? branchAll.hq;
+    const branchAll=constructionPolicy.branches as Record<string,string[]>;
+    const list=sourceEnt?branchAll[sourceKind]??[]:[];
     if (this.el.treeLabel) this.el.treeLabel.textContent = `EHITUSPUU: ${SOURCE_LABELS[sourceKind] ?? sourceKind}`;
     if (this.el.treeHint) {
       this.el.treeHint.textContent = sourceEnt
         ? `Haru: ${SOURCE_LABELS[sourceKind] ?? sourceKind}`
-        : "Vali asukoht — lähim HQ / FOB saadab ehitusmeeskonna.";
+        : "Vali peamaja või vastava haru juhtimishoone. Ehitusmeeskonna saadab HQ / FOB.";
     }
     const power = world.powerStatus(world.playerTeam);
     const markup = list.map((kind) => {
@@ -663,7 +653,7 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
         if (!reason) reason = "Lukus";
       } else if (world.resources < cost || world.credits < cost) reason = "Puudub ressurss";
       else if (!hasEngineer) reason = "Vajab HQ-d või FOB-i";
-      const disabled = !running || !unlocked || world.resources < cost || world.credits < cost || !hasEngineer;
+      const disabled = !running || !unlocked || world.resources < cost || world.credits < cost || !hasEngineer || !!sourceEnt?.underConstruction;
       const bs = BUILDINGS[kind as keyof typeof BUILDINGS];
       const functionLabel = bs?.role === "production" ? "TOOTMINE" : bs?.role === "logistics" ? "LOGISTIKA" : bs?.role === "command" ? "JUHTIMINE" : bs?.role === "sensor" ? "SENSOR" : bs?.role === "defense" ? "KAITSE" : bs?.role === "power" ? "ENERGIA" : "ARENDUS";
       return `<button data-build="${kind}" ${disabled ? "disabled" : ""} title="${reason || label}"><span class="build-icon">${icon(kind)}</span><span>${label}</span><span class="unit-cost">${cost}</span><small class="build-role">${functionLabel}</small>${reason && disabled ? `<small class="lock-reason">${reason}</small>` : ""}</button>`;

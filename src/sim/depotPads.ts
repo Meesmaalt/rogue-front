@@ -21,5 +21,5 @@ export function availableDepotPads(w:World,depot:Entity):DepotPad[]{
  }return pads;
 }
 export function visibleDepotPads(w:World,depot:Entity):DepotPad[]{
- return availableDepotPads(w,depot);
+ return Array.from({length:cfg.padLevels[w.supplyDepotLevel(depot)]},(_,slot)=>depotPad(depot,slot));
 }

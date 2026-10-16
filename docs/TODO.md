@@ -1,5 +1,16 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Laugem maandumine, reserveeritud laoala ja selged ehitusharud · 16.10.2026
+
+- [x] Kopteri maandumise laskumis-/lõppfaasi kiirused umbes 20% lühema kestuse jaoks; laugem kõrgusprofiil ja kõrgusega seotud edasiliikumine väldivad esmalt kohale lendamist ning pikka vertikaalset laskumist.
+- [x] Lao kogu 3. taseme arendusala on juba ehituse eelvaates ja alates vundamendist reserveeritud, sh pööramisel ning teise lao lähedusse paigutamisel. Nähtav piir ja läbipaistev ala vastavad samale paigutusreeglile.
+- [x] Lao uuendus näitab alati taseme järgi uut füüsilist kopteriplatsi; kasutatavust kontrollitakse eraldi. Parandatud vana lao uuendusmeetodi puuduva navigatsioonivärskenduse põhjus. Vana aed vajub paneelidena maha ja hajub, uus kerkib asemele koos sahinaga.
+- [x] Tiheda metsa peale ehitada ei saa; vähesed puud ja istanduste taimed peidetakse vundamendi alalt instantsgeomeetrias, ümbritsev taimestik säilib.
+- [x] Lao üks tavaline uuendusnupp näitab järgmist taset ja kopteriplatside arvu. FOB on eraldi selgelt nimetatud juhtimisposti rajamine, koos oma eesmärgi selgitusega.
+- [x] Suurem alumine info-/tootmispaneel ja loetavamad näidikud. Ühine andmepõhine ehituspuu: HQ majandus, väeliikide juhtimiskeskused tootmine, insenerikeskus kaitserajatised; laost ja tootmishoonest ei pakuta suvalisi ehitisi.
+- [x] Kasarmu ostetav rühm on „Lahinguinsenerid”; ressursipunktide ja õpetuse tekst selgitab ostmist, hõivamist/käivitamist ning vahet HQ automaatse ehituspersonaliga. Vanad ehitamiseks inseneri valimist nõudnud õpetuse juhised eemaldatud.
+
+
 ## Pardale sõitev tööauto, arenev laokompleks ja Vahemere v14 · 16.10.2026
 
 - [x] Tööauto mudel 72% senisest, Chinook 124%; avatud tagumine kaubaruum ja püsiv ramp. Auto joondub, sõidab nähtavalt üle rambi pardale ja tagurdab pärast maandumist välja; pardal olev auto jääb kopteri mudelisse nähtava veosena.

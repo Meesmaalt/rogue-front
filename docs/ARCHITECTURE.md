@@ -663,3 +663,11 @@ Ehituslennu `arriving` faas algab `externalEntry` punktis väljaspool kaarti ja 
 `italianLandscape.ts` rikastab ainult v14 põllumassiive `landUse` piirkondade ja teega ühendatud talukohtadega. Vanad generaatoriversioonid jäävad taastatavaks. `ItalianScenery` lisab ühise instantsgeomeetriaga viinapuud, oliivi-/tsitrusepuud, küpressid ja kivised terrassiservad; detailid on piiratud ning peidetakse ruumiplokkide kaupa kauguses. Kaart läbib sama navigeerimis-/lennurajakontrolli. v14 tunnused on arvestatud kliendi lahinguskaalas ja serveri kaardireeglites.
 
 `camouflages.json` määrab menüü valikud. `UnitCamouflage` loob väikese jagatud makromustri ja vahetab ainult oma üksuse märgitud kere-/maskeerimismaterjali vahemälutatud klooni vastu; klaasid, tööriistad ja vastase lähtematerjalid säilivad. Valik on visuaalne ega kuulu lockstep-simulatsiooni olekusse.
+
+### Reserveeritud arendusala ja ehituse loogika (16.10.2026)
+
+`buildingPlacement.ts` määrab pööratud planeeritava ala. Laos arvestatakse algusest 3. taseme kompleksi ning `World.canPlaceBuilding` kasutab sama ala vundamentide, teiste hoonete, vee/müüride ja metsamassiivide kontrolliks. `ConstructionPreview` kuvab selle ala piiri ja läbipaistvat pinda. Tihe mets tuvastatakse ruumilise indeksi ja piiratud valimiga; renderduse `syncForestTerrain` peidab vundamendi alalt üksikud metsa-/istanduste instantsid ainult ehitiste loendi muutumisel.
+
+`construction-policy.json` on ühine HQ/harude ehituspuu nii Worldile kui HUD-ile. Mängija ehituskäsk võib sisaldada `sourceId`, mida simulatsioon kontrollib valitud haru ja omandi järgi; automaatsed ehitusmeeskonnad jäävad HQ/FOB poolt korraldatuks. Kasarmu ostetav lahinguinsener on ressursirajatiste hõivaja/käivitaja, mitte automaatse ehituse eeltingimus.
+
+Lao nähtavate platside arv tuleneb tasemest; `availableDepotPads` kontrollib eraldi tegelikku läbitavust/reserveerimist. Vana lao uuendusmeetod invalideerib nüüd navigatsiooni nagu tavaline tasemeuuendus. `DepotPads` animatsioon kallutab vana aia paneele, hajutab need ja kasvatab uue piirde; helikutse on ainult esituses. Kopteri maandumine seob lubatud edasikiiruse allesjäänud kõrguse ja laskumiskiirusega, nii et lähenemine laskub edasi liikudes ning sujuv lõppfaas lõpetab maandumise.

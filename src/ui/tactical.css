@@ -162,3 +162,7 @@
 
 /* Larger type cards retain small tactical badges. */
 .unit-btn:has(.aircraft-portrait) .unit-icon{height:52px}.selected-picture:has(.aircraft-portrait){width:90px;height:64px}.class-badge .aircraft-portrait{min-height:0;max-height:none}
+
+@media(min-width:701px){.bottom .sel{flex-basis:410px;max-height:310px;padding:10px}.sel h3{font-size:15px}.unit-status{font-size:12px;line-height:1.45}.role-summary,.unit-details,.selection-context{font-size:11px}.unit-meter{height:18px;font-size:11px;grid-template-columns:48px 1fr 76px}.unit-details{max-height:110px}.sel:has(details[open]){max-height:65vh}}
+
+@media(min-width:901px){.bottom .build.tactical{flex-basis:500px;width:min(500px,44vw);max-height:min(470px,56dvh)!important;padding:10px}.bottom .build.tactical small,.bottom .build.tactical .qtxt{font-size:12px;line-height:1.4}}

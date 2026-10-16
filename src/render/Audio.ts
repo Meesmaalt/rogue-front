@@ -295,6 +295,7 @@ export class AudioManager {
   o.connect(g).connect(this.sfx!);o.onended=()=>{this.voices.sfx--;o.disconnect();g.disconnect();};o.start(now);o.stop(now+duration+.02);
  }
  private applyVolumes():void {const t=this.ctx?.currentTime??0;this.master?.gain.setTargetAtTime(this.settings.masterVolume,t,.04);this.sfx?.gain.setTargetAtTime(this.settings.sfxVolume,t,.04);this.music?.gain.setTargetAtTime(this.settings.musicVolume*(1-this.activity*.3),t,.12);}
+ depotRebuild(x:number,z:number):void {if(!this.pointAudible(x,z))return;const mix=spatialSound(x,z,this.listener);if(mix.gain<.01)return;this.noise(1.1,1200,.1*mix.gain,mix.pan,'sfx',.08,.1);this.noise(.18,4200,.06*mix.gain,mix.pan);this.tone(210,.25,'triangle',.035*mix.gain,mix.pan);}
  setSettings(settings:GameSettings):void{this.settings=settings;this.applyVolumes();}
  setListener(x:number,z:number,yaw:number,dist=0):void{
   this.listener={x,z,yaw,distance:dist};const m=config.muffle,f=this.listenerFilter,ctx=this.ctx;if(!f||!ctx)return;

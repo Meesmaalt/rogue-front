@@ -1,3 +1,6 @@
+import baseLayoutRules from '../data/base-life.json';
+import constructionPolicy from '../data/construction-policy.json';
+import {constructionArea,entitySite,sitesOverlap,siteWorld,siteInDenseForest} from './buildingPlacement';
 import {constructionHubs} from './automaticConstruction';
 import airportRules from '../data/airport-support.json';
 import {airportHasSupport} from './airportSupport';
@@ -166,19 +169,8 @@ export class World {
 
   /** Returns the buildings currently exposed by the selected command/building branch. */
   availableBuilds(team: Team, source?: UnitKind): BuildableKind[] {
-    const roots: Record<string, BuildableKind[]> = {
-      hq: ["generator", "supply", "landCommand", "airCommand", "seaCommand"],
-      landCommand: ["gunTurret","flakTurret","atTurret","aa","barracks", "factory", "combatEngineer", "landStrategy", "supply", "generator"],
-      airCommand: ["helipad", "airbase", "airStrategy", "supply", "generator"],
-      seaCommand: ["shipyard", "seaStrategy", "supply", "generator"],
-      missileCommand: ["icbmSilo"],
-      landStrategy: ["missileCommand","barracks", "factory", "combatEngineer", "radar", "bunker", "aa"],
-      airStrategy: ["helipad", "airbase", "radar", "aa"],
-      seaStrategy: ["shipyard", "supply", "radar"],
-      combatEngineer: ["gunTurret","flakTurret","atTurret","bunker", "aa", "radar"],
-      supply: ["generator", "radar"],
-    };
-    return (roots[source ?? "hq"] ?? []).filter(k => this.canBuildKind(team, k));
+    const roots=constructionPolicy.branches as Record<string,BuildableKind[]>;
+    return (roots[source??'hq']??[]).filter(k=>this.canBuildKind(team,k));
   }
 
   /** Phase 70: every strategic building has a visible 1-3 technology level. */
@@ -561,10 +553,20 @@ export class World {
     return { x: base.x + (dx / len) * distance, z: base.z + (dz / len) * distance };
   }
 
-  canPlaceBuilding(team: Team, kind: UnitKind, x: number, z: number): boolean {
+  canPlaceBuilding(team: Team, kind: UnitKind, x: number, z: number,rotation=team?-Math.PI/4:Math.PI*.75): boolean {
     if (!isBuildable(kind) || !this.canBuildKind(team, kind)) return false;
     if(Math.abs(x)+buildFootprint(kind)>this.mapSize/2-10||Math.abs(z)+buildFootprint(kind)>this.mapSize/2-10)return false;
     const r = buildFootprint(kind);
+    const area=constructionArea(kind,x,z,rotation);
+    if(siteInDenseForest(this.mapFeatures,area))return false;
+    if(this.entities.some(e=>!e.dead&&e.def.building&&(kind==='supply'||e.kind==='supply')&&sitesOverlap(area,entitySite(e),constructionPolicy.reserveMargin)))return false;
+    if(kind==='supply'){
+      for(const pad of baseLayoutRules.depot.pads){const p=siteWorld(area,pad.x,pad.z),r=logisticsConfig.handling.padRadius,y=heightAt(p.x,p.z);if(!this.nav.isWalkableWorld(p.x,p.z,r)||[[r,0],[-r,0],[0,r],[0,-r]].some(([dx,dz])=>Math.abs(heightAt(p.x+dx,p.z+dz)-y)>logisticsConfig.handling.padHeightTolerance))return false;}
+      const corners=[[area.left,area.back],[area.right,area.back],[area.right,area.front],[area.left,area.front]].map(([x,z])=>siteWorld(area,x,z));
+      if(corners.some(p=>Math.abs(p.x)>this.mapSize/2-10||Math.abs(p.z)>this.mapSize/2-10))return false;
+      if(this.mapFeatures.some(f=>['water','wall','building','chokepoint'].includes(f.kind)&&sitesOverlap(area,{...f,heading:f.rotation??0,left:-f.width/2,right:f.width/2,back:-f.depth/2,front:f.depth/2})))return false;
+    }
+
     if(kind==="shipyard"&&!this.waterNav.nearestWater({x,z},5,64))return false;
     if(this.mapFeatures.some(f=>(f.kind==="water"||f.kind==="bridge")&&pointInFeature(x,z,f,r)))return false;
     // Soft walkability – allow gentle slopes so crater edges don't block builds
@@ -645,7 +647,7 @@ export class World {
     if (this.teamResources[team] < cost || this.teamCredits[team] < cost) return false;
     this.teamResources[team] -= cost; this.teamCredits[team] -= cost;
     depot.supplyLevel = level + 1;
-    depot.buildingLevel=Math.max(this.producerLevel(depot),level+2);
+    depot.buildingLevel=Math.max(this.producerLevel(depot),level+2);this.invalidateNavigation();
     depot.logisticsMaxStorage=(logisticsConfig.depot.ammoCapacity+logisticsConfig.depot.fuelCapacity+logisticsConfig.depot.repairCapacity)*(1+(level+1)*logisticsConfig.depot.capacityPerLevel);
     if (team === this.playerTeam) { this.resources = this.teamResources[team]; this.credits = this.teamCredits[team]; }
     return true;

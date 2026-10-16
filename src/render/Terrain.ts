@@ -1,3 +1,4 @@
+import {entitySite,insideSite} from '../sim/buildingPlacement';
 import {createItalianScenery} from './ItalianScenery';
 import {createCropFields,fieldCrop,cropColors} from "./CropFields";
 import {createRoadSurfaces,roadTexture as asphaltTexture} from "./RoadSurface";
@@ -720,16 +721,21 @@ export function createForest(features:readonly MapFeatureDef[],cells=sampleFores
 
 /** Persistent charred canopy uses existing forest batches; no per-tree mesh creation. */
 export function syncForestTerrain(group:THREE.Group,world:World):boolean {
-  if(group.userData.forestRevision===world.terrain.revision)return false;
-  group.userData.forestRevision=world.terrain.revision;let changed=false;
+  const buildings=world.entities.filter(e=>!e.dead&&e.def.building),buildingKey=buildings.map(e=>`${e.id}/${e.x}/${e.z}/${e.heading}`).join('|');
+  if(group.userData.forestRevision===world.terrain.revision&&group.userData.forestBuildingKey===buildingKey)return false;
+  group.userData.forestRevision=world.terrain.revision;group.userData.forestBuildingKey=buildingKey;let changed=false;
+  const areas=buildings.map(entitySite),cleared=(x:number,z:number)=>areas.some(a=>insideSite(a,{x,z},2));
   const matrix=new THREE.Matrix4(),color=new THREE.Color(),position=new THREE.Vector3(),scale=new THREE.Vector3(),rotation=new THREE.Quaternion();
   group.traverse(o=>{
-    if(!(o instanceof THREE.InstancedMesh)||!o.userData.forestPoints)return;
+    if(!(o instanceof THREE.InstancedMesh))return;
+    if(o.userData.vegetationPoints){const points=o.userData.vegetationPoints as {x:number;z:number}[],matrices=o.userData.vegetationMatrices as Float32Array;points.forEach((p,i)=>{matrix.fromArray(matrices,i*16);if(cleared(p.x,p.z)){matrix.decompose(position,rotation,scale);scale.set(0,0,0);matrix.compose(position,rotation,scale);}o.setMatrixAt(i,matrix);});o.instanceMatrix.needsUpdate=true;changed=true;return;}
+    if(!o.userData.forestPoints)return;
     const points=o.userData.forestPoints as {x:number;z:number}[],colors=o.userData.forestColors as Float32Array,matrices=o.userData.forestMatrices as Float32Array;
     const count=o.userData.forestTrunks?1:(o.userData.forestCrownCount??3);
     points.forEach((p,i)=>{const burnt=world.terrain.burntAt(p.x,p.z);
       for(let j=0;j<count;j++){const index=i*count+j;matrix.fromArray(matrices,index*16);color.fromArray(colors,index*3);
-        if(burnt){if(!o.userData.forestTrunks){matrix.decompose(position,rotation,scale);scale.multiplyScalar(.18);matrix.compose(position,rotation,scale);}color.setHex(0x34342d);}
+        if(cleared(p.x,p.z)){matrix.decompose(position,rotation,scale);scale.set(0,0,0);matrix.compose(position,rotation,scale);}
+        else if(burnt){if(!o.userData.forestTrunks){matrix.decompose(position,rotation,scale);scale.multiplyScalar(.18);matrix.compose(position,rotation,scale);}color.setHex(0x34342d);}
         o.setMatrixAt(index,matrix);o.setColorAt(index,color);
       }
     });o.instanceMatrix.needsUpdate=true;o.instanceColor!.needsUpdate=true;changed=true;

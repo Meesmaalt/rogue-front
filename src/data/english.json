@@ -593,5 +593,15 @@
   "Karjamaa": "Pasture",
   "Külakabel": "Village chapel",
   "Istanduse talumaja": "Estate farmhouse",
-  "Talu kruusatee": "Farm access track"
+  "Talu kruusatee": "Farm access track",
+  "Lahinguinsenerid": "Combat engineers",
+  "Vali selle ehitusharu juhtimishoone": "Select the command building for this construction branch",
+  "Vali peamaja või vastava haru juhtimishoone. Ehitusmeeskonna saadab HQ / FOB.": "Select HQ or the relevant command building. HQ / FOB dispatches the construction crew.",
+  "Kasarm → Lahinguinsenerid siia": "Barracks → send combat engineers here",
+  "Raja juhtimispost (FOB)": "Establish command outpost (FOB)",
+  "Varustusladu MAX · 3 kopteriplatsi": "Supply depot MAX · 3 helipads",
+  "Uuenda ladu": "Upgrade depot",
+  "kopteriplatsi": "helipads",
+  "Kasarmu lahinguinsenerid: hõivavad ja käivitavad ressursirajatisi": "Barracks combat engineers: capture and activate resource facilities",
+  "Juhtimispost lisab ehitusmeeskonna ja juhtimisvõrgu; kopteriplatse lisab hoone taseme uuendamine": "An outpost adds a construction crew and command coverage; building level upgrades add helipads"
 }

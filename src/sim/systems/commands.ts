@@ -198,12 +198,13 @@ function apply(w: World, c: Command): void {
       const team = c.team ?? w.playerTeam;
       const reject=(message:string)=>w.events.push({type:"order-rejected",team,unitId:c.ids[0]??0,x:c.x,z:c.z,message});
       if(!isBuildable(c.kind)||!constructionHubs(w,team).length){reject("Ehitamiseks on vaja HQ-d või FOB-i");break;}
+      if(c.sourceId!=null){const source=w.byId.get(c.sourceId);if(!source||source.dead||source.underConstruction||source.team!==team||!w.availableBuilds(team,source.kind).includes(c.kind)){reject('Vali selle ehitusharu juhtimishoone');break;}}
       const spec = BUILDINGS[c.kind];
       const walletCredits = w.teamCredits[team], walletResources = w.teamResources[team];
       if (walletResources < spec.cost || walletCredits < spec.cost) {reject("Ehitus peatatud: raha või ressursse ei jätku");break;}
       if (!w.canBuildKind(team, c.kind)) {reject("Ehitus pole lubatud: eeltingimus, energia või hoonete arvu piir");break;}
       // No range gate – foundation is placed and engineer walks to it (Real War style)
-      if (!w.canPlaceBuilding(team, c.kind, c.x, c.z)) {reject("Siin ei saa ehitada: vali vaba, läbitav plats");break;}
+      if (!w.canPlaceBuilding(team, c.kind, c.x, c.z,c.rotation)) {reject("Siin ei saa ehitada: vali vaba, läbitav plats");break;}
       w.teamCredits[team] -= spec.cost; w.teamResources[team] -= spec.cost;
       if (team === w.playerTeam) { w.credits = w.teamCredits[team]; w.resources = w.teamResources[team]; }
       const b = w.spawn(c.kind, team, c.x, c.z);
