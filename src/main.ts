@@ -1,3 +1,5 @@
+import {SmokeScreens} from "./render/SmokeScreens";
+import {smokeReady} from "./sim/battleSmoke";
 import {DepotPads} from "./render/DepotPads";
 import {BaseLife} from "./render/BaseLife";
 import {ConstructionPreview} from "./render/ConstructionPreview";
@@ -179,6 +181,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   topCanvas.addEventListener("mousedown",e=>{if(e.button!==2||!running||paused)return;const first=selection.selectedIds()[0];if(first!==undefined)audio.ack(world.byId.get(first)?.kind,world.playerFaction,"order");});
   const overlay = new Overlay(topCanvas,document.getElementById("ui"));
   const minimap = new Minimap(hud.minimapCanvas, world, picker);
+  const smokeScreens=new SmokeScreens(ctx.scene,ctx.camera);
   const alerts = new AlertOverlay();
   audio.onCue = cue => {
     if (cue.kind === "impact") { const amount = shakeAmount(cue.intensity ?? 0); if (amount > 0) cam.shake(amount); return; }
@@ -247,6 +250,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     const port=world.entities.filter(e=>!e.dead&&!e.underConstruction&&e.team===u.team&&e.kind==="shipyard").sort((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z))[0];
     const point=port?world.waterNav.nearestWater(port,u.def.radius,64):null;if(point)world.issue({type:"move",ids:[u.id],x:point.x,z:point.z});else hud.setWarning("Puudub ligipääsetav oma sadam");
   }};
+  hud.onSmoke=ids=>{if(running&&!paused){const ready=ids.filter(id=>{const u=world.byId.get(id);return !!u&&u.team===world.playerTeam&&smokeReady(u,world.time);});if(ready.length)world.issue({type:"smoke",ids:ready});}};
   hud.onVehicleService=ids=>{if(running&&!paused){commands.cancelOrders();world.issue({type:"vehicle-service",ids});}};
   hud.onAirReturn=ids=>{if(running&&!paused){commands.cancelOrders();world.issue({type:"air-return",ids});hud.setWarning("EVAC: lennuvägi naaseb baasi");}};
   hud.onAirMission=(ids,mission)=>{if(running&&!paused){commands.startAirMission(ids,mission);hud.setWarning("Õhuoperatsioon: paremklõps sihtpunktile, Esc tühistab");}};
@@ -401,6 +405,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       performancePanel.mark("maastik");
       fx.handleEvents(events,world);
       audio.setListener(cam.x,cam.z,cam.yaw,cam.dist);audio.events(events, world.playerTeam);audio.engines(world.entities,frameDt,world.playerTeam);audio.capture(()=>world.resourcePoints,frameDt,world.playerTeam);audio.fires(()=>world.terrain.fires(),frameDt,(x,z)=>world.vision.isVisible(world.playerTeam,x,z));{const sel=selection.selectedIds(),key=sel.length+":"+(sel[0]??-1);if(key!==lastSelectionKey){lastSelectionKey=key;if(sel.length)audio.ack(world.byId.get(sel[0])?.kind,world.playerFaction);}}
+      smokeScreens.sync(world,visualQuality);
       fx.syncProjectiles(world, visualAlpha);
       fx.syncForestFires(world,frameDt);fx.syncNavalWakes(world,frameDt);fx.syncUnitEffects(world,animationDt);
       fx.update(frameDt);

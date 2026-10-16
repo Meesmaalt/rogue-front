@@ -1,3 +1,5 @@
+import {smokeReady} from "../battleSmoke";
+import smokeRules from "../../data/battle-smoke.json";
 import {serviceFuelAvailable} from "../stockLogistics";
 import {weaponSpec,weaponRange,canEngage} from '../systems/combat';
 import {aaThreatAt} from '../systems/airDoctrine';
@@ -23,6 +25,7 @@ export function updateTacticalAI(w:World,team:Team,dt:number):void {
    if(needsRecovery(u)||aaThreatAt(w,team,u.x,u.z)>.82&&u.airMission!=='sead'){u.aiIntent='retreat';w.issue({type:'air-return',ids:[u.id],team});}
    continue;
   }
+  if(smokeReady(u,w.time)&&(u.hp<maxHitPoints(u)*smokeRules.aiHealthFraction&&(u.suppression??0)>smokeRules.aiMinSuppression||(u.suppression??0)>smokeRules.aiSuppression))w.issue({type:'smoke',ids:[u.id],team});
   if(u.aiIntent==='resupply'||u.aiIntent==='retreat'){
    if(recoveryComplete(u)){for(const e of own)if(!e.constructionCrew&&e.kind==='engineer'&&e.mode==='repair'&&e.target===u)w.issue({type:'stop',ids:[e.id],team});u.aiIntent=null;w.issue({type:'hold',ids:[u.id],team});}else recover(u);
    continue;

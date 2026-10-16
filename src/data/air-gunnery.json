@@ -1,0 +1,12 @@
+{
+  "halfAngle": 0.1,
+  "maximumLeadSeconds": 2,
+  "burstSeconds": 1.05,
+  "pauseSeconds": 1.4,
+  "pursuitRangeFactor": 2.5,
+  "minimumAltitude": 24,
+  "breakRangeFraction": 0.18,
+  "breakRadiusFactor": 2,
+  "breakSeconds": 2.4,
+  "trackingRangeFactor": 1.35
+}

@@ -1,5 +1,21 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Ühendatud õhulahing ja taktikaline suitsukate · 16.10.2026
+
+- [x] Võrreldud kasutaja zipi kõik viis faili GitHubi `6d1c5a8` versiooniga: identsed. Säilitatud tema raketi-/pommirelvade laskesektorid, G-koormuse/põiksuunalise liikumise/põiklemise täpsusmõjud, alternatiivse relva valik ja eemaldumine. Need on ühendatud 3D ettehoiu, ninateljel kahuri ja lühivalangutega; `flightClimb` kuulub samuti replay räsisse.
+- [x] Uus C / Suitsukate käsk valitud jalaväele ja maaväetehnikale. Piiratud varu, kasutuspaus, aeglane laovarust täiendamine päris laskemoona eest; liikumine ja muud käsud jätkuvad. Automaatne ehituspersonal, pardal/garnisonis olevad üksused ei saa suitsu käsitsi paigaldada.
+- [x] Kasvav/hajuv suits piirab mõlema poole optilist tuvastamist ja sihitud tulejoont, säilitades radarjuhitud relvade töö, maastikutakistused ja juba lennus laskemoona. Ühine tulejoone erand kehtib ka liikumise/sihtmärgivaliku puhul. Suits pole suurtükitule kaitsekilp.
+- [x] AI kasutab sama tasulist/piiratud võimet surve all taandudes. Nähtav suitsupilv, rahulik heitelaengu/gaasi heli, loetav valmisoleku/varu näit HUD-is. Kuni 32 sim-pilve; üks renderduspartii kuni 384 pehme instantsiga ja madala kvaliteedi vähendatud detail.
+- [x] Suits, varud, pausid ning laadimise edenemine säilivad save/replay/hash-is. Õhulahingu, suitsu, radarierandi, mürsu liikumise, AI, varude ja renderdusandmete sihitud kontrollid ning kliendi/serveri build läbisid. Tegelik GPU vaade ja subjektiivne mängutunnetus jäävad mängus ülevaatuseks.
+
+## Lennukikahur ja lähiõhulahing · 16.10.2026
+
+- [x] Parandatud hävitaja virtuaalse torni tõttu küljele/taha tulistamine. Kõik fikseeritud lennukikahurid kasutavad kere suunda, 3D ninakoonust ja tegelikku ettehoidu. Lennuki sihtimine ei kuluta pärast lennudünaamikat teist pööramiskiiruse eelarvet ega pööra kujuteldavat torni.
+- [x] Ühine kahuri ettehoiulahend firing-gate'is, lähijälituses ja päris mürsu sihtpunktis. Hajuvuse piirang hoiab möödalasud samuti ettepoole; efektide suund tuleb tegelikust kiirusvektorist. Suurt kõrgusevahet ei ignoreerita.
+- [x] Lühikesed kahurivalangud koos pausiga; uus käsk ei nulli relva pausi. Taimerid säilivad save/replay/hash olekus. Lennuk valib vajadusel kahuri asemel valmis ja sobiva laskesektoriga raketi.
+- [x] Kahurilahingus kohandub jälitaja sihtmärgi kõrgusega, säilitades ohutu maapinnavahe. Vahetus 3D läheduses eemaldub ta oma lennusuunas uueks lähenemiseks, mitte ei lenda otse vastasest läbi. Kaugelt kasutatakse endiselt lõikepunkti ettehoidu.
+- [x] Sihitud kahuri, päris tulistamisringi, lennu/kopteri, save/hash ja raketivaliku kontrollid ning kliendi/serveri build. Tegelik 3D pilt ja lahingu tasakaal vajavad mängus ülevaatust.
+
 ## Ehitusplatside etapid ja püsiv maastik · 16.10.2026
 
 - [x] Uus hoone säilitab tegelikud mõõtmed. Platsi tähised, vundament, materjalivirn ja partiidesse koondatud tellingud; hoone osad avanevad kõrguse järgi ehituse edenedes, ilma kummise skaleerimiseta. Kaugemal jäävad tellingud/virnad ära. Lennuraja kate ilmub pärast vundamendifaasi.

@@ -87,6 +87,12 @@ export function applyCommands(w: World): void {
 
 function apply(w: World, c: Command): void {
   switch (c.type) {
+    case "smoke": {
+      const team=c.team??w.playerTeam;
+      for(const id of c.ids){const u=w.byId.get(id);if(!u||u.team!==team)continue;
+        if(!w.smoke.deploy(w,u))w.events.push({type:"order-rejected",team,unitId:u.id,x:u.x,z:u.z,message:"Suitsukate pole valmis: kontrolli varu, pausi ja üksuse asukohta"});
+      }break;
+    }
     case "strategic-build": {beginStrategicBuild(w,c.id,c.payload,c.team??w.playerTeam);break;}
     case "strategic-strike": {strategicStrike(w,c.ids,c.payload,c.x,c.z,c.team??w.playerTeam);break;}
     case "face-building": {for(const u of mobile(w,c.ids,c.team))if(u.garrisonId){u.garrisonLookPoint={x:c.x,z:c.z};u.garrisonShiftAt=w.time;u.target=null;}break;}

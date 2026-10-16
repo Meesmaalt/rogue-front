@@ -1,3 +1,4 @@
+import {smokeReady} from '../sim/battleSmoke';
 import {canVehicleService} from '../sim/vehicleService';
 import {automaticAircraft} from '../sim/automaticConstruction';
 import {constructionHubs} from '../sim/automaticConstruction';
@@ -102,6 +103,7 @@ export class CommandController {
       const k=e.key.toLowerCase(), keys = loadSettings().keys;
       if(k===keys.stop){this.world.issue({type:"stop",ids:this.ids()});this.cancelOrders();this.notify("Valitud üksused peatuvad");}
       if(k===keys.attackMove)this.armOrder("attack");
+      if(k==='c'&&!e.ctrlKey&&!e.altKey&&!e.metaKey&&!Object.values(keys).includes('c')){const ids=this.ids().filter(id=>{const u=this.world.byId.get(id);return !!u&&smokeReady(u,this.world.time);});if(ids.length)this.world.issue({type:'smoke',ids});}
       if(k===keys.hold){this.cancelOrders();this.world.issue({type:"hold",ids:this.ids()});this.notify("Valitud üksused hoiavad positsiooni");}
       if(k===keys.patrol)this.armOrder("patrol");
       if (k === "t"&&!e.ctrlKey&&!e.altKey&&!e.metaKey) { const hasArtillery=this.ids().some(id=>isIndirectUnit(this.world.byId.get(id))); if(hasArtillery){this.armOrder("fire");} }

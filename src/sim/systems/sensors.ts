@@ -109,7 +109,7 @@ export function updateSensors(w: World): void {
 
     w.spatial.queryRadius(observer.x, observer.z, range, (target) => {
       if (target.dead || target.loadedIntoId!=null || target.team === team) return;
-      if (!w.vision.hasLineOfSight(observer, target)) return;
+      if (!w.vision.hasLineOfSight(observer,target,target.def.armor==='air'&&(observer.kind==='radar'||!!observer.def.weapons?.some(s=>s.guidance==='radar')))) return;
       const forest=w.vision.forestDepth(observer,target);
       const cover=coverValueAt(w,target.x,target.z)+forest*.35+garrisonConcealment(w,target);
       const close=Math.hypot(target.x-observer.x,target.z-observer.z)<7;

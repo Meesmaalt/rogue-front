@@ -1,3 +1,4 @@
+import {BattleSmoke} from "./battleSmoke";
 import baseLayoutRules from '../data/base-life.json';
 import constructionPolicy from '../data/construction-policy.json';
 import {constructionArea,entitySite,sitesOverlap,siteWorld,siteInDenseForest} from './buildingPlacement';
@@ -62,6 +63,7 @@ export class World {
   waterNav:WaterNavGrid;
   vision: Vision;
   readonly terrain:TerrainState;
+  readonly smoke=new BattleSmoke();
   get mapSize():number{return this.nav.width*this.nav.cellSize;}
   /** Spatial index rebuilt each tick for nearest/separation queries. */
   spatial = new SpatialHash(16);
@@ -297,7 +299,7 @@ export class World {
     this.nav = new NavGrid([], this.mapFeatures);
     this.waterNav=new WaterNavGrid(this.mapFeatures);
     this.terrain=new TerrainState(this.mapFeatures);
-    this.vision = new Vision(metricBattle||MAP_SIZE>=4096);this.vision.structureDamage=this.infrastructureDamage;this.vision.setFeatures(this.mapFeatures);this.vision.forestObscuration=(a,b)=>this.terrain.obscuration(a,b);
+    this.vision = new Vision(metricBattle||MAP_SIZE>=4096);this.vision.structureDamage=this.infrastructureDamage;this.vision.setFeatures(this.mapFeatures);this.vision.forestObscuration=(a,b)=>this.terrain.obscuration(a,b);this.vision.smokeBlocks=(a,b)=>this.smoke.blocks(a,b);
     this.operationalMap = new OperationalMap(this);
     this.operationalCommander = new OperationalCommander(this.operationalMap, this);
     this.fobManager = new FOBManager(this);
@@ -786,7 +788,7 @@ export class World {
 
   captureRuntime() {
     return {
-      mapSize:this.mapSize,terrain:this.terrain.snapshot(),
+      mapSize:this.mapSize,terrain:this.terrain.snapshot(),smoke:this.smoke.snapshot() as ReturnType<BattleSmoke["snapshot"]>|undefined,
       playerTeam: this.playerTeam, playerFaction: this.playerFaction, enemyFaction: this.enemyFaction,
       metricBattle:this.metricBattle,compactBattle:this.compactBattle,platformRosterOnly:this.platformRosterOnly, networkMode: this.networkMode, incomeMultiplier: this.incomeMultiplier, victoryMode: this.victoryMode,
       objectiveDriven: this.objectiveDriven, externalVictoryMode: this.externalVictoryMode,
@@ -810,8 +812,8 @@ export class World {
   }
   restoreRuntime(s: ReturnType<World["captureRuntime"]>): void {
     setTerrainFeatures(this.mapFeatures.filter(f=>f.kind!=="bridge"||(this.infrastructureDamage.get(f.id)??0)<1));ensureHeightCache();
-    if((s.mapSize??this.mapSize)!==this.mapSize||(s.metricBattle??false)!==this.metricBattle){setMapSize(s.mapSize??this.mapSize);ensureHeightCache();this.nav=new NavGrid(this.entities,this.mapFeatures);this.waterNav=new WaterNavGrid(this.mapFeatures);this.spatial=new SpatialHash(16);this.spatial.rebuild(this.entities);this.vision=new Vision((s.metricBattle??false)||MAP_SIZE>=4096);this.vision.structureDamage=this.infrastructureDamage;this.vision.setFeatures(this.mapFeatures);this.vision.forestObscuration=(a,b)=>this.terrain.obscuration(a,b);}
-    this.terrain.restore(s.terrain);
+    if((s.mapSize??this.mapSize)!==this.mapSize||(s.metricBattle??false)!==this.metricBattle){setMapSize(s.mapSize??this.mapSize);ensureHeightCache();this.nav=new NavGrid(this.entities,this.mapFeatures);this.waterNav=new WaterNavGrid(this.mapFeatures);this.spatial=new SpatialHash(16);this.spatial.rebuild(this.entities);this.vision=new Vision((s.metricBattle??false)||MAP_SIZE>=4096);this.vision.structureDamage=this.infrastructureDamage;this.vision.setFeatures(this.mapFeatures);this.vision.forestObscuration=(a,b)=>this.terrain.obscuration(a,b);this.vision.smokeBlocks=(a,b)=>this.smoke.blocks(a,b);}
+    this.terrain.restore(s.terrain);this.smoke.restore(s.smoke);
     this.playerTeam=s.playerTeam; this.playerFaction=s.playerFaction; this.enemyFaction=s.enemyFaction;
     this.compactBattle=s.compactBattle??false;this.metricBattle=s.metricBattle??false;this.platformRosterOnly=s.platformRosterOnly??false;this.networkMode=s.networkMode; this.incomeMultiplier=s.incomeMultiplier; this.victoryMode=s.victoryMode;
     this.objectiveDriven=s.objectiveDriven; this.externalVictoryMode=s.externalVictoryMode;
@@ -840,7 +842,7 @@ export class World {
   tick(dt: number): void {
     if (this.status !== "running") return;
     for (const e of this.entities) { e.px = e.x; e.py = e.y; e.pFlightBank=e.flightBank??0; e.pFlightPitch=e.flightPitch??0; e.pz = e.z; e.pHeading = e.heading; e.pTurretYaw = e.turretYaw; }
-    this.time += dt;
+    this.time += dt;this.smoke.tick(this.time);
     // Flight dispatch must see the same building grid before and after restoring a save.
     if(this.navDirty){this.nav.syncBuildings(this.entities);this.navDirty=false;}
     // Money is credited by physical imports or resource cargo delivery, never by a passive tick.

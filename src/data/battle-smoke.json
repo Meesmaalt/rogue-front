@@ -1,0 +1,42 @@
+{
+  "vehicleKinds": [
+    "tank",
+    "ifv",
+    "apc",
+    "reconVehicle",
+    "spaa",
+    "sam",
+    "irSam",
+    "artillery",
+    "mlrs"
+  ],
+  "infantryKinds": [
+    "inf",
+    "atInf",
+    "mgInf",
+    "reconInf",
+    "special",
+    "engineer"
+  ],
+  "vehicleCharges": 2,
+  "infantryCharges": 1,
+  "cooldown": 26,
+  "duration": 24,
+  "growSeconds": 2.5,
+  "fadeSeconds": 5,
+  "radius": 10,
+  "height": 7,
+  "density": 2,
+  "blockDepth": 8,
+  "minimumRayLength": 4,
+  "forwardOffset": 7,
+  "maxClouds": 32,
+  "ammoPerCharge": 12,
+  "reloadSeconds": 8,
+  "serviceSafetySeconds": 6,
+  "aiHealthFraction": 0.45,
+  "aiSuppression": 60,
+  "visualPuffs": 12,
+  "visualDistance": 900,
+  "aiMinSuppression": 20
+}

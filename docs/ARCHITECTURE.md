@@ -2,6 +2,24 @@
 
 Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 16, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
 
+## Taktikaline suitsukate ja õhulahingu ühendus · 16.10.2026
+
+Kasutaja `6d1c5a8` õhulahingu muudatused on ühendatud `airGunnery` tööga. Tema `airFireEnvelope` jääb rakettide/pommide ning üldise ninajoondamise väravaks; fikseeritud kahur lisab täpse 3D ettehoiu ja valangupausi. Säilivad manöövri/põiklemise täpsustegurid ja vahetult ülelennatud sihtmärgist eemaldumine. Alternatiivse relva valik kasutab samu firing-gate piiranguid. `flightClimb` ja `airGunBurst` kuuluvad deterministlikku räsisse.
+
+`BattleSmoke` on fikseeritud sim-ajaga, piiratud pilvede arvuga optiline varjaja. `smoke` käsk ei vaheta üksuse liikumis-/lahinguülesannet. `battle-smoke.json` määrab kandjad, varu, kasutuspausi, eluea, nähtavustiheduse ja laskemoonast täiendamise kulu. Täiendamine käib taktikalisest laost paigal olles ja madala survega; kulu võetakse pärast päris laadimisaega. AI annab sama käsu oma kahjustuse/surve info järgi, ilma varjatud vastase asukohta lugemata.
+
+Pilvede mõjupiirkond arvutatakse lõigu ja vertikaalse silindri täpse lõikena; kasv/tihedus valmistatakse ette kord sim-sammu kohta ja kauged pilved jäetakse kiire eelfiltriga kõrvale. `Vision.smokeBlocks` täiendab optilist LOS-i. Radarjuhitud relvade/sensorite erand möödub ainult suitsust; metsa/maastiku/hoonete piirangud jäävad alles. `hasWeaponLineOfSight` annab sama erandi sihtmärgivalikule ja laskepositsioonide otsingule. Kaudtuli ja olemasolevad mürsud ei kao pilve sees; käsujuhtimisega rakett võib kaotada oma laskuri kontakti.
+
+`World.captureRuntime` salvestab pilved ja nende aja; üksuse laengud/paus/laadimise edenemine kuuluvad täissalvestusse ning räsisse. Puuduva suitsuolekuga vana salvestus taastub tühja pilveloendiga. `SmokeScreens` tuletab pildi otse samast olekust: üks piiratud instantsitud partii, mitte uus osakeste hulk igal renderduskaadril. Nähtavus ja kaugus piiravad pilvede esitust; shaderi alpha toetab kasvamist ning hajumist. UI annab käske ega muuda varu.
+
+## Fikseeritud lennukikahur · 16.10.2026
+
+`airGunnery.ts` eristab lennuki fikseeritud otsetulerelva maaväe tornist ja kopteri liigendkahurist. Vana hävitaja `def.turret=true` ei anna enam kahurile ega raketirakkele eraldi pöörlevat suunda. Lennudünaamika pöörab kere; sihtimisfaas hoiab lennuki `turretYaw=0` ega pööra kere samal sammul uuesti. Relva ava järgib sama kere suunda.
+
+Kahuri firing-gate ja mürsu tekitamine kasutavad sama 3D ettehoiulahendit: relvaava, sihtmärgi liikumiskiirus/kõrgus ja mürsu lennuaeg. Ninatelg arvestab `flightPitch`-i. Ka hajuvusega mürsu kiirus jääb andmepõhisesse ninakoonusesse ning lõpp-punkt seatakse selle tegelikule kiirele. Juhitavate relvade loogika jääb eraldi; lennuki valmis relva valik saab kontrollida firing-gate'i enne valikut, et takistatud kahur ei blokeeriks kasutatavat raketti.
+
+`air-gunnery.json` määrab koonuse, valangu-/pausiaja ning lähijälituse piirid. `Entity.airGunBurst` säilib täissalvestuses ja replay räsis; käsu vahetamine ei taasta relva tasuta. Kaugelt kasutab lennuk lõikepunkti jälitust; kahuri läheduses juhib nina sama ettehoiulahend ning kõrgus läheneb õhusihtmärgile ohutu maapinnavahega. Vahetu lähedus kontrollitakse 3D-s ja kasutab olemasolevat salvestatavat `flightAttackExit` eemaldumisolekut. Helikopterite pööratavate kahurite ja maaväe tornide piirangud jäävad oma reeglite alla.
+
 ## Ehitusplats ja püsiv raadamine · 16.10.2026
 
 `TerrainState.clearBuilding` registreerib tegeliku ehitatud ala, sh lao tasemepõhise kompleksi. Alles meeskonna esimene töö puhastab uue vundamendi; valmishooned ja uuendused registreeritakse sama ehitussüsteemi käigus. Pööratud ristkülikud indekseeritakse 32 m ruumiplokkidesse ning muutumata hoone kontroll kasutab WeakMap-vahemälu. `densityAt`/`foliageAt`, liikumine, metsa varjumine ja süttimine arvestavad puhastatud ala; renderdaja peidab puu-/istanduse instantsid sama `clearedAt` päringuga. Ala ei kao hoone hävimisel. Snapshot sisaldab `clearings` loendit; vana puuduva loendiga salvestus jääb taastatavaks. Revisionsüsteem väldib muutumata taimestikupuhvrite korduvat üleslaadimist.

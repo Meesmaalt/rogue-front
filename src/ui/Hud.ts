@@ -1,4 +1,5 @@
 import {canVehicleService,vehicleServiceStatus,vehicleServiceProgress} from '../sim/vehicleService';
+import {smokeCapacity,smokeCharges,smokeReady} from "../sim/battleSmoke";
 import constructionPolicy from '../data/construction-policy.json';
 import {automaticAircraft} from '../sim/automaticConstruction';
 import baseLife from '../data/base-life.json';
@@ -175,6 +176,7 @@ export class Hud {
   onPreDeploy: (ids: number[], mode: "move" | "attack" | "hold") => void = () => {};
   onFormation: (kind: "box" | "line" | "wedge" | "column") => void = () => {};
   onNavalReturn:(ids:number[])=>void=()=>{};
+  onSmoke:(ids:number[])=>void=()=>{};
   onVehicleService:(ids:number[])=>void=()=>{};
   onAirReturn:(ids:number[])=>void=()=>{};
   onAirMission: (ids: number[], mission: "cap" | "strike" | "sead" | "ground") => void = () => {};
@@ -225,6 +227,7 @@ export class Hud {
             <button data-stance="holdfire" title="Ära tulista – hoia tuld (Wargame ROE)">${icon("holdfire")}<span>Ära tulista</span></button>
             <button data-stance="patrol" title="Patrull – liigub ja ründab teel">${icon("patrol")}<span>Patrull</span></button>
           </div>
+          <div class="smoke-orders" data-r="smokeOrders" hidden><button data-smoke title="Suitsukate (C): varja nähtavus enda ees. Suits piirab mõlema poole optikat ja sihitud tuld. Radar, kaudtuli ning juba lennus mürsud jäävad ohtlikuks.">${icon("smoke")}<span>Suitsukate · C</span></button><small data-r="smokeStock"></small></div>
           <details class="advanced-orders"><summary>Formatsioon ja prioriteet</summary><div class="priority-bar" data-r="priorityBar">
             <button data-priority="supply" title="Prioriteet: vaenlase varustuslaod">Ladud</button>
             <button data-priority="generator" title="Prioriteet: generaatorid">Energia</button>
@@ -372,6 +375,7 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
       });
     });
     root.querySelector<HTMLButtonElement>("button[data-naval-return]")?.addEventListener("click",()=>this.onNavalReturn(this.selectedIds));
+    root.querySelector<HTMLButtonElement>("button[data-smoke]")?.addEventListener("click",()=>this.onSmoke(this.selectedIds));
     root.querySelector<HTMLButtonElement>("button[data-vehicle-service]")?.addEventListener("click",()=>this.onVehicleService(this.selectedIds));
     root.querySelector<HTMLButtonElement>("button[data-air-return]")?.addEventListener("click",()=>this.onAirReturn(this.selectedIds));
     root.querySelectorAll<HTMLButtonElement>("button[data-air-mission]").forEach((b) => {
@@ -442,6 +446,11 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     const signature=this.selectedIds.join(",");if(signature!==this.selectionSignature){this.inspectedKind=null;this.inspectedBuildingId=null;this.rangeSlot=null;}this.selectionSignature=signature;
     const hasMobile=this.selectedIds.some(id=>{const u=world.byId.get(id);return !!u&&!automaticAircraft(u)&&!u.dead&&u.team===world.playerTeam&&u.def.speed>0&&u.logisticsRoute!=="strategic";});
     this.root.querySelector<HTMLElement>(".advanced-orders")!.hidden=!hasMobile;
+    const smokeUnits=this.selectedIds.map(id=>world.byId.get(id)).filter((u):u is Entity=>!!u&&!u.dead&&u.team===world.playerTeam&&smokeCapacity(u)>0),smokeAvailable=smokeUnits.filter(u=>smokeReady(u,world.time)).length;
+    this.el.smokeOrders.hidden=!smokeUnits.length;
+    const smokeButton=this.findButton('[data-smoke]')!;smokeButton.disabled=!running||!smokeAvailable;
+    const smokeStock=smokeUnits.reduce((n,u)=>n+smokeCharges(u),0),smokeMax=smokeUnits.reduce((n,u)=>n+smokeCapacity(u),0),smokePause=Math.ceil(Math.max(0,...smokeUnits.map(u=>(u.smokeReadyAt??0)-world.time)));
+    this.el.smokeStock.textContent=`Suitsuvaru ${smokeStock}/${smokeMax} · ${smokeAvailable?'Valmis '+smokeAvailable:smokeStock?'Paus '+smokePause+' s':'Täienda laos'}`;
     const serviceUnits=this.selectedIds.map(id=>world.byId.get(id)).filter((u):u is Entity=>!!u&&u.team===world.playerTeam&&canVehicleService(u));
     this.el.serviceBar.hidden=!serviceUnits.length;
     const serviceButton=this.findButton('[data-vehicle-service]')!;

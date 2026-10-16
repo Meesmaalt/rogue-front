@@ -1,3 +1,6 @@
+import gunRules from "../../data/air-gunnery.json";
+import {fixedAirGun,airGunSolution} from "../airGunnery";
+import {weaponRange} from "./combat";
 import {updateVehicleService} from "../vehicleService";
 import {automaticAircraft,updateConstructionFlight,updateConstructionBoarding,constructionReach} from '../automaticConstruction';
 import {updateEngineerDuty} from '../engineerDuty';
@@ -25,7 +28,7 @@ import logisticsConfig from "../../data/logistics.json";
 import mobility from "../../data/mobility.json";
 import { heightAt, MAP_SIZE } from "../heightmap";
 import { dist2d, turnToward, wrapAngle } from "../math";
-import { fireProjectile, canEngage, effectiveWeaponRange,selectWeapon,weaponSpec,weaponAmmo,weaponMuzzle,weaponFireBlocker,alternateAirWeapon } from "./combat";
+import { fireProjectile, canEngage, effectiveWeaponRange,selectWeapon,weaponSpec,weaponAmmo,weaponMuzzle,weaponFireBlocker,hasWeaponLineOfSight,alternateAirWeapon } from "./combat";
 import { coverValueAt,isSpottedBy } from "./sensors";
 import { moraleSpeedMul, moraleAccuracyMul, moraleState } from "./morale";
 import { outOfFuel, outOfAmmo,repairDepotFor } from "./tacticalSupply";
@@ -73,7 +76,7 @@ export function nearestEnemy(w: World, u: Entity, range: number): Entity | null 
     // Real War priority orders: focus supply / power / AA when set
     if (u.priorityFocus && e.kind === u.priorityFocus) priority -= 80;
     if(d<=reach&&Math.sqrt(distSq)>=spec.minimumRange){
-      if(isIndirectUnit(u)||w.vision.hasLineOfSight(u,e))priority-=mobility.combat.clearShotPreference;
+      if(isIndirectUnit(u)||hasWeaponLineOfSight(w,u,e))priority-=mobility.combat.clearShotPreference;
       else priority+=mobility.combat.blockedShotPenalty;
     }
     if (priority < bestScore || priority===bestScore&&e.id<(best?.id??Infinity)) { bestScore = priority; best = e; }
@@ -123,7 +126,7 @@ function firingPosition(w:World,u:Entity,target:Entity,range:number):Point|null 
   for(const factor of (u.def.category==="infantry"?cfg.infantryFiringFactors:cfg.vehicleFiringFactors))for(const offset of [0,.35,-.35,.7,-.7,1.1,-1.1,1.6,-1.6,Math.PI]){
     const r=Math.max(spec.minimumRange+u.def.radius+target.def.radius,radius*factor),a=angle+offset+(u.id%3-1)*.06,p={x:target.x+Math.sin(a)*r,z:target.z+Math.cos(a)*r};
     if(!w.nav.isWalkableWorld(p.x,p.z,u.def.radius)||!bodyClear(w,u,p)||reservations.some(q=>dist2d(p,q)<u.def.radius+q.radius+cfg.firingPositionGap))continue;
-    if(!isIndirectUnit(u)&&!w.vision.hasLineOfSight({...u,...p,y:heightAt(p.x,p.z)},target))continue;
+    if(!isIndirectUnit(u)&&!hasWeaponLineOfSight(w,{...u,...p,y:heightAt(p.x,p.z)},target))continue;
     const cover=u.def.category==="infantry"?coverValueAt(w,p.x,p.z)/34*cfg.coverPreference:0;
     candidates.push({point:p,score:dist2d(u,p)-cover+Math.abs(offset)*3+(radius-r)*.3});
   }
@@ -400,12 +403,16 @@ function moveAirTo(u: Entity, target: Point, dt: number, w: World, cruise=false)
   const final=landing&&(helicopter||u.airLandingPhase==="final"||cargoLanding&&distance<80);
   const runwayReference=w.byId.get(u.airMissionHomeId??-1),landingGround=final&&!helicopter&&u.def.metricScale&&runwayReference?heightAt(runwayReference.x,runwayReference.z):ground;
   const heliAltitude=Math.min(profile.altitude,distance*logisticsConfig.handling.landingGlideSlope);
-  const desiredAltitude=helicopter&&final?ground+heliAltitude:landingGround+(final?Math.min(profile.altitude,Math.max(0,(distance-8)*(helicopter?.85:u.def.metricScale?BATTLE_SCALE.aircraft.glideSlope:.24))):u.airState==="returning"?(u.def.metricScale?BATTLE_SCALE.aircraft.approachAltitude:20):profile.altitude+(u.airMission==="cap"&&!helicopter?15:0));
-  const oldY=u.y,oldYBefore=u.y;
+  let desiredAltitude=helicopter&&final?ground+heliAltitude:landingGround+(final?Math.min(profile.altitude,Math.max(0,(distance-8)*(helicopter?.85:u.def.metricScale?BATTLE_SCALE.aircraft.glideSlope:.24))):u.airState==="returning"?(u.def.metricScale?BATTLE_SCALE.aircraft.approachAltitude:20):profile.altitude+(u.airMission==="cap"&&!helicopter?15:0));
+  if(!helicopter&&!landing&&!u.flightAttackExit&&u.target?.def.armor==='air'&&u.mode!=='move'){
+    const slot=(u.def.weapons??[]).findIndex((s,i)=>fixedAirGun(u,s)&&weaponAmmo(u,i)>=s.ammoUsePerShot);
+    if(slot>=0&&dist2d(u,u.target)<weaponRange(u,weaponSpec(u,slot))*gunRules.pursuitRangeFactor)desiredAltitude=Math.max(ground+gunRules.minimumAltitude,u.target.y+u.target.def.height*.45-weaponSpec(u,slot).muzzleHeight*(u.def.modelScale??1));
+  }
+  const oldY=u.y;
   const handling=logisticsConfig.handling;
   const descent=helicopter&&final?Math.min(profile.descentRate,handling.landingDescentRate,Math.max(handling.landingTouchdownRate,(u.y-desiredAltitude)*handling.landingFlareGain)):profile.descentRate;
   u.y+=Math.max(-descent*dt,Math.min(profile.climbRate*dt,desiredAltitude-u.y));
-  if(!helicopter)u.flightClimb=Math.atan2((u.y-oldYBefore)/Math.max(dt,1e-3),Math.max(1,u.motionSpeed??0));
+  if(!helicopter)u.flightClimb=Math.atan2((u.y-oldY)/Math.max(dt,1e-3),Math.max(1,u.motionSpeed??0));
   const runway=w.byId.get(u.airMissionHomeId??-1);
   const aligned=!u.def.metricScale||helicopter||!runway||Math.abs(wrapAngle(u.heading-runway.heading))<BATTLE_SCALE.aircraft.headingTolerance&&Math.abs((u.x-runway.x)*Math.cos(runway.heading)-(u.z-runway.z)*Math.sin(runway.heading))<=BATTLE_SCALE.aircraft.runwayWidth/2;
   if(distance<(helicopter?logisticsConfig.handling.landingCapture:u.def.metricScale?BATTLE_SCALE.aircraft.landingCapture:8)&&aligned&&landing&&u.y-ground<(helicopter?.15:3)&&(!helicopter||(u.motionSpeed??0)<=logisticsConfig.handling.landingSpeed)){if(!u.def.metricScale||helicopter)u.motionSpeed=0;u.flightVx=u.flightVz=0;if(landing)u.y=ground;u.flightBank=(u.flightBank??0)*Math.max(0,1-dt*4);return true;}
@@ -794,7 +801,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
   if (mayAcquire&&u.mode !== "attack") {
     const lim = u.mode === "move" ? effectiveRange : Math.max(effectiveRange, u.aggro);
     const tick = Math.floor(w.time * 30);
-    const reconsider=!!u.target&&(tick+u.id)%mobility.combat.reconsiderTicks===0&&(!canEngage(u,u.target)||(!isIndirectUnit(u)&&!w.vision.hasLineOfSight(u,u.target)));
+    const reconsider=!!u.target&&(tick+u.id)%mobility.combat.reconsiderTicks===0&&(!canEngage(u,u.target)||(!isIndirectUnit(u)&&!hasWeaponLineOfSight(w,u,u.target)));
     const needNew = !u.target || u.target.dead || !isSpottedBy(u.target,u.team,w.time) || !canEngage(u,u.target) || dist2d(u, u.target) - u.target.def.radius > lim * 1.15 || reconsider;
     if (needNew) {
       if ((tick + u.id) % 4 === 0 || !u.target || u.target.dead || reconsider) {
@@ -820,7 +827,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
   const inRange = !!target && dist2d(u, target) - target.def.radius <= effectiveRange * stopFactor;
   let goal: Point | null = null;
   const indirect=isIndirectUnit(u);
-  const clearShot=!target || indirect || w.vision.hasLineOfSight(u,target);
+  const clearShot=!target || indirect || hasWeaponLineOfSight(w,u,target);
   if(transporting)goal=u.dest;
   else if(target&&u.mode!=="move"&&u.mode!=="enter-building"){
     const index=selectWeapon(u,target),minimum=index>=0?weaponSpec(u,index).minimumRange:0;
@@ -838,7 +845,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       if(u.combatPositionTarget!==target.id||!u.combatPositionAnchor||dist2d(u.combatPositionAnchor,target)>mobility.navigation.firingTargetMove||w.time>=(u.combatPositionRetryAt??0)){
         const angle=Math.atan2(u.x-target.x,u.z-target.z),offset=mobility.combat.helicopterLosSearchAngle*(u.id%2?1:-1);
         const candidates=[0,1,-1,2,-2,3,-3].map(n=>{const a=angle+n*offset;return {x:target.x+Math.sin(a)*standoff,z:target.z+Math.cos(a)*standoff};}).filter(p=>Math.abs(p.x)<MAP_SIZE/2-10&&Math.abs(p.z)<MAP_SIZE/2-10);
-        u.combatPosition=candidates.find(p=>w.vision.hasLineOfSight({...u,x:p.x,z:p.z,y:heightAt(p.x,p.z)+mobility.helicopter.altitude},target))??candidates[1]??candidates[0];
+        u.combatPosition=candidates.find(p=>hasWeaponLineOfSight(w,{...u,x:p.x,z:p.z,y:heightAt(p.x,p.z)+mobility.helicopter.altitude},target))??candidates[1]??candidates[0];
         u.combatPositionTarget=target.id;u.combatPositionAnchor={x:target.x,z:target.z};u.combatPositionRetryAt=w.time+mobility.navigation.firingPositionRetry;
       }
       goal=u.combatPosition??null;
@@ -874,9 +881,19 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     if (isAir && u.airState === "grounded") return;
     if(isAir){
       if(u.flightAttackExit&&(dist2d(u,u.flightAttackExit)<mobility.combat.airEgressArrival||w.time>=(u.flightAttackExitUntil??0))){u.flightAttackExit=undefined;u.flightAttackExitUntil=undefined;}
+      if(d.category==='air'&&target?.def.armor==='air'&&!u.flightAttackExit&&u.mode!=='move'){
+        const gun=(d.weapons??[]).find((s,i)=>fixedAirGun(u,s)&&weaponAmmo(u,i)>=s.ammoUsePerShot);
+        if(gun&&Math.hypot(target.x-u.x,target.y-u.y,target.z-u.z)<Math.max((u.def.radius+target.def.radius)*gunRules.breakRadiusFactor,weaponRange(u,gun)*gunRules.breakRangeFraction)){
+          const span=Math.max(u.def.speed,u.motionSpeed??0)*gunRules.breakSeconds,edge=w.mapSize/2-20;
+          u.flightAttackExit={x:Math.max(-edge,Math.min(edge,u.x+Math.sin(u.heading)*span)),z:Math.max(-edge,Math.min(edge,u.z+Math.cos(u.heading)*span))};u.flightAttackExitUntil=w.time+gunRules.breakSeconds;
+        }
+      }
       if(d.category!=="heli"&&target){
         const lead=target.def.armor==='air'?Math.min(mobility.combat.airInterceptLeadSeconds,dist2d(u,target)/Math.max(1,d.speed)*mobility.combat.airInterceptLookAhead):0;
-        goal=u.flightAttackExit??{x:target.x+(target.flightVx??Math.sin(target.heading)*(target.motionSpeed??0))*lead,z:target.z+(target.flightVz??Math.cos(target.heading)*(target.motionSpeed??0))*lead};
+        const gun=(d.weapons??[]).find((s,i)=>fixedAirGun(u,s)&&weaponAmmo(u,i)>=s.ammoUsePerShot);
+        // Intercept at distance; inside the gun window steer the nose to the actual firing solution.
+        const gunTracking=gun&&target.def.armor==='air'&&dist2d(u,target)<weaponRange(u,gun)*gunRules.trackingRangeFactor;
+        goal=u.flightAttackExit??(gunTracking?airGunSolution(u,target,gun).point:{x:target.x+(target.flightVx??Math.sin(target.heading)*(target.motionSpeed??0))*lead,z:target.z+(target.flightVz??Math.cos(target.heading)*(target.motionSpeed??0))*lead});
       }
       else if(u.flightAttackExit)goal=u.flightAttackExit;
       if(d.category!=="heli"){
@@ -1026,7 +1043,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     if(!target||delta>mobility.combat.airMissileAimTolerance)u.airMissileLock=undefined;
     else if(u.airMissileLock?.targetId!==target.id)u.airMissileLock={targetId:target.id,readyAt:w.time+mobility.combat.airMissileLockSeconds};
   }
-  if(target&&d.category==='air'&&!u.flightAttackExit){
+  if(target&&d.category==='air'&&!u.flightAttackExit&&u.mode!=='move'){
     // Overshoot: target is behind and inside the turn circle -> extend straight, then come back for a new pass.
     const bearing=Math.abs(wrapAngle(Math.atan2(target.x-u.x,target.z-u.z)-u.heading)),radius=d.speed*d.speed/Math.max(1,aircraftMobility(u).lateralAcceleration);
     if(bearing>mobility.combat.airBreakBearing&&dist2d(u,target)<radius*mobility.combat.airBreakRadiusFactor){

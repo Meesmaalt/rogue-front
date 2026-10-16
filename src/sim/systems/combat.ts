@@ -1,3 +1,4 @@
+import {fixedAirGun,airGunAligned,airGunSolution,airGunRecovering,recordAirGunShot,constrainAirGunDirection} from "../airGunnery";
 import {BUILDINGS,isBuildable} from "../buildings";
 import {BATTLE_SCALE} from "../battleScale";
 import physics from "../../data/physics.json";
@@ -62,7 +63,7 @@ export function weaponCanTarget(spec:WeaponSpec,t:Pick<Entity,"def">&Partial<Pic
   const air=t.def.armor==="air";
   return spec.targets==="naval"?t.def.domain==="sea":spec.targets==="air"?air:spec.targets==="armor"?!air&&t.def.speed>0&&t.def.category!=="infantry"&&t.def.domain!=="sea":spec.targets==="all"?true:!air||!!spec.targetHelicopters&&t.def.category==="heli";
 }
-export function selectWeapon(u:Entity,t:Entity,ready=false):number {
+export function selectWeapon(u:Entity,t:Entity,ready=false,world?:World):number {
   if(t.dead||t.loadedIntoId!=null||t.team===u.team)return -1;
   let best=-1,score=-Infinity,bestReach=-Infinity,bestInRange=false;const distance=Math.hypot(t.x-u.x,t.z-u.z);
   for(let i=0;i<(u.def.weapons?.length??1);i++){
@@ -71,6 +72,7 @@ export function selectWeapon(u:Entity,t:Entity,ready=false):number {
     if(spec.warhead==="kinetic"&&penetrationFactor(spec.warhead,weaponPenetration(u,spec),armorValue(t,hitFace(u.x,u.z,t)),t.def.category==="infantry"||t.def.armor==="air",distance)<=0)continue;
     if(spec.ammoCapacity>0&&weaponAmmo(u,i)<spec.ammoUsePerShot)continue;
     if(ready&&(weaponCooldown(u,i)>0||distance-t.def.radius>weaponRange(u,spec)||distance<spec.minimumRange))continue;
+    if(ready&&world&&weaponFireBlocker(world,u,t,i)!==null)continue;
     const infantry=t.def.category==="infantry";
     let value=weaponImpactAgainst(u,spec,t,distance)*spec.accuracy/Math.max(.15,spec.cooldown);
     if(infantry&&spec.visual==="sabot")value*=.12;
@@ -87,6 +89,12 @@ export function selectWeapon(u:Entity,t:Entity,ready=false):number {
   }return best;
 }
 export function canEngage(u:Entity,t:Entity):boolean {return selectWeapon(u,t)>=0;}
+/** Movement and target scoring use the same smoke exception as radar-guided firing. */
+export function hasWeaponLineOfSight(w:World,u:Entity,t:Entity):boolean {
+ if(w.vision.hasLineOfSight(u,t))return true;
+ return w.smoke.active.length>0&&(u.def.weapons??[]).some((s,i)=>s.guidance==='radar'&&s.damage>0&&weaponCanTarget(s,t)&&(s.ammoCapacity<=0||weaponAmmo(u,i)>=s.ammoUsePerShot))&&w.vision.hasLineOfSight(u,t,true);
+}
+
 
 /** Fixed-wing weapons point along the nose: no turret traverse, only a narrow firing cone. */
 function airFireEnvelope(u:Entity,t:Entity,spec:WeaponSpec,delta:number):string|null {
@@ -135,13 +143,19 @@ export function weaponFireBlocker(w:World,u:Entity,t:Entity,index:number):string
   }
   if(["artillery","mlrs","mortar"].includes(u.kind)&&(u.def.stabilizer??"none")==="none"&&(u.motionSpeed??0)>.6)return "Peatub kaudtule avamiseks";
   if(weaponCooldown(u,index)>0)return "Laadib · "+weaponCooldown(u,index).toFixed(1)+" s";
-  if(spec.visual!=="cruise"&&!["artillery","mortar","mlrs"].includes(u.kind)&&!w.vision.hasLineOfSight(u,t))return "Tulejoon blokeeritud";
+  if(spec.visual!=="cruise"&&!["artillery","mortar","mlrs"].includes(u.kind)&&!w.vision.hasLineOfSight(u,t,spec.guidance==='radar'))return w.smoke.blocks(u,t)?"Suits varjab sihitud tulejoont":"Tulejoon blokeeritud";
   const angle=Math.atan2(t.x-u.x,t.z-u.z),delta=Math.abs(wrapAngle(angle-u.heading));
   if(u.def.category==='air'&&spec.flight==='guided'){
     if(delta>mobility.combat.airMissileAimTolerance)return "Ootab raketi laskesektorit";
     if(u.airMissileLock?.targetId!==t.id||w.time<u.airMissileLock.readyAt)return "Lukustab raketi sihtmärki";
     const assessing=w.projectiles.some(p=>p.sourceId===u.id&&p.flight==='guided'&&p.target===t&&!p.guidanceLost&&(p.age??0)<mobility.combat.airMissileReengageSeconds);
     if(assessing)return "Jälgib lastud raketi tulemust";
+  }
+  if(u.def.category==='air'){const envelope=airFireEnvelope(u,t,spec,delta);if(envelope)return envelope;}
+  if(fixedAirGun(u,spec)){
+    if(!airGunAligned(u,t,spec))return "Pöörab lennuki nina ja ettehoiu sihtmärgile";
+    if(airGunRecovering(u,w.time))return "Kahuri valangupaus";
+    return null;
   }
   if(u.def.category==='air')return airFireEnvelope(u,t,spec,delta);
   if(u.firingArc<Math.PI*2-.01&&delta>u.firingArc*.5)return "Sihtmärk väljaspool laskesektorit";
@@ -325,7 +339,9 @@ export function shotAccuracy(w:World,u:Entity,t:Entity,spec:WeaponSpec,distance=
 }
 
 export function fireProjectile(w: World, u: Entity, t: Entity, x: number, y: number, z: number,index=selectWeapon(u,t)): void {
-  if(index<0)return;const spec=weaponSpec(u,index);u.activeWeapon=index;
+  if(index<0)return;const spec=weaponSpec(u,index);
+  if(fixedAirGun(u,spec)&&(!airGunAligned(u,t,spec)||airGunRecovering(u,w.time)))return;
+  u.activeWeapon=index;
   const squadMul = spec.weapon==="bullet"?u.squadFirepower??1:1;
   const weaponCondition = u.components ? Math.max(0.35, 1 - (u.components.weapon ?? 0) / 140) : 1;
   const base = weaponDamage(u,spec) * squadMul * weaponCondition * (1 + u.veteran * 0.08);
@@ -339,17 +355,19 @@ export function fireProjectile(w: World, u: Entity, t: Entity, x: number, y: num
   const dealt=base*classMult*fMult;
   const eta=Math.hypot(t.x-x,t.z-z)/Math.max(1,spec.speed);
   const targetSpeed=(t.motionSpeed??0)*(t.motionReverse?-1:1);
-  const tx=t.x+(t.flightVx??Math.sin(t.heading)*targetSpeed)*eta,tz=t.z+(t.flightVz??Math.cos(t.heading)*targetSpeed)*eta;
+  const gunAim=fixedAirGun(u,spec)?airGunSolution(u,t,spec).point:null;
+  const tx=gunAim?.x??t.x+(t.flightVx??Math.sin(t.heading)*targetSpeed)*eta,tz=gunAim?.z??t.z+(t.flightVz??Math.cos(t.heading)*targetSpeed)*eta;
+  const aimY=gunAim?.y??t.y+t.def.height*.45;
   const hitRoll=w.rng(),angle=w.rng()*Math.PI*2,miss=1.5+t.def.radius+(1-hitChance)*5;
   const missX=Math.cos(angle)*miss,missZ=Math.sin(angle)*miss;
   const missShot=hitRoll>hitChance;
   if(w.platformRosterOnly){const spread=(1-hitChance)*Math.max(physics.minimumDispersion,Math.hypot(t.x-x,t.z-z)*(w.metricBattle?(spec.flight==="ballistic"?BATTLE_SCALE.indirectDispersionAngle:BATTLE_SCALE.dispersionAngle):physics.dispersionAngle))*Math.sqrt(hitRoll);
     const ax=tx+Math.cos(angle)*spread,az=tz+Math.sin(angle)*spread;
     const seekerSpread=(1-hitChance)*Math.max(t.def.radius*physics.missiles.targetRadiusErrorFactor,Math.hypot(t.x-x,t.z-z)*physics.missiles.seekerErrorAngle)*Math.sqrt(hitRoll);
-    launchProjectile(w,u,spec,index,x,y,z,spec.flight==="guided"?t.x:ax,t.y+t.def.height*.45,spec.flight==="guided"?t.z:az,t,dealt,hitChance,penetration,hitRoll,spec.flight==="guided"?Math.cos(angle)*seekerSpread:0,spec.flight==="guided"?Math.sin(angle)*seekerSpread:0);
+    launchProjectile(w,u,spec,index,x,y,z,spec.flight==="guided"?t.x:ax,aimY,spec.flight==="guided"?t.z:az,t,dealt,hitChance,penetration,hitRoll,spec.flight==="guided"?Math.cos(angle)*seekerSpread:0,spec.flight==="guided"?Math.sin(angle)*seekerSpread:0);
     w.projectiles[w.projectiles.length-1].damage=base;return;
   }
-  launchProjectile(w,u,spec,index,x,y,z,spec.flight==="guided"?t.x:tx+(missShot?missX:0),t.y+t.def.height*.45,spec.flight==="guided"?t.z:tz+(missShot?missZ:0),t,dealt,hitChance,penetration,hitRoll,missX,missZ);
+  launchProjectile(w,u,spec,index,x,y,z,spec.flight==="guided"?t.x:tx+(missShot?missX:0),aimY,spec.flight==="guided"?t.z:tz+(missShot?missZ:0),t,dealt,hitChance,penetration,hitRoll,missX,missZ);
   w.projectiles[w.projectiles.length-1].damage=base;
 }
 
@@ -365,6 +383,13 @@ function launchProjectile(w:World,u:Entity,spec:WeaponSpec,index:number,x:number
   const p:Projectile={id:w.nextId++,team:u.team,x,y,z,px:x,py:y,pz:z,vx,vy,vz,tx,tz,aimY:ty,target,sourceId:u.id,damage:dealt,impactDamage:dealt,speed,splash:spec.splash,weapon:spec.weapon,profile:spec.profile,visual:spec.visual,flight:ballistic?"ballistic":spec.flight,guidance:spec.guidance,warhead:spec.warhead,gravity,flightTime,suppressionPower:spec.suppressionPower,launchX:u.x,launchZ:u.z,age:0,lifetime:Math.max(8,flightTime+4,length/Math.max(1,speed)+4),turnRate:spec.turnRate,acceleration:spec.acceleration,maxSpeed:spec.speed,boostTime:spec.boostTime,cruiseAltitude:spec.cruiseAltitude,penetration,hitChance,hitRoll,missX,missZ};
   if(aircraftRack&&!vertical){p.vx+=u.flightVx??Math.sin(u.heading)*(u.motionSpeed??0);p.vz+=u.flightVz??Math.cos(u.heading)*(u.motionSpeed??0);p.speed=Math.hypot(p.vx,p.vy,p.vz);}
   if(w.platformRosterOnly&&spec.flight==="guided"&&spec.visual!=="torpedo"){const cfg=physics.missiles,profile=(cfg.profiles as Record<string,{motorSeconds:number;lateralAcceleration:number;seekerAngle:number}>)[spec.profile];p.motorTime=profile?.motorSeconds??cfg.motorSeconds;p.lateralAcceleration=profile?.lateralAcceleration??cfg.lateralAcceleration;p.drag=cfg.drag;p.seekerAngle=profile?.seekerAngle??cfg.seekerAngle;p.nextGuidanceAt=0;}
+  if(fixedAirGun(u,spec)){
+    const direction=constrainAirGunDirection(u,p.vx,p.vy,p.vz);
+    p.vx=direction.x*speed;p.vy=direction.y*speed;p.vz=direction.z*speed;
+    // Keep the impact point on the actual constrained ray; no late snap toward a target.
+    const distance=Math.hypot(tx-x,ty-y,tz-z);p.tx=x+direction.x*distance;p.aimY=y+direction.y*distance;p.tz=z+direction.z*distance;
+    recordAirGunShot(u,w.time);
+  }
   w.projectiles.push(p);
   if(index===0&&spec.weapon==="cannon")u.gunElevation=Math.atan2(vy,Math.hypot(vx,vz));
   if(index===0){if(spec.ammoCapacity>0)u.ammo=Math.max(0,(u.ammo??0)-spec.ammoUsePerShot);}else {u.secondaryAmmo??=[];u.secondaryAmmo[index]=Math.max(0,weaponAmmo(u,index)-spec.ammoUsePerShot);}

@@ -1,3 +1,4 @@
+import {refillSmoke} from "../battleSmoke";
 import {serviceFuelAvailable} from "../stockLogistics";
 import logisticsRules from "../../data/logistics.json";
 import {maxHitPoints} from "../unitStats";
@@ -156,6 +157,7 @@ export function updateTacticalSupply(w: World, dt: number): void {
       const spec=weaponSpec(e,i),need=Math.max(0,spec.ammoCapacity-weaponAmmo(e,i));
       const take=Math.min(need,(e.def.resupplyRate??1)*4.5*eff*dt,depot.ammoStock??0);e.secondaryAmmo??=[];e.secondaryAmmo[i]=(e.secondaryAmmo[i]??0)+take;depot.ammoStock=(depot.ammoStock??0)-take;
     }
+    refillSmoke(w,e,inRadius?depot:null,dt);
     // Soft operational degradation instead of an instant out-of-supply switch.
     if (!supplied || !commandLinked) {
       const s=e.supply??0;

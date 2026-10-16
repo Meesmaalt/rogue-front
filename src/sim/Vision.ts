@@ -11,6 +11,7 @@ export type VisibilityState = 0 | 1 | 2;
 
 /** Fog of war with terrain/structure line-of-sight. Heavily optimised for 30 Hz. */
 export class Vision {
+  smokeBlocks?:(a:Entity,b:Entity)=>boolean;
   forestObscuration?: (a:Entity,b:Entity)=>number;
   /** Derived invalidation token for render consumers; not simulation state. */
   revision = 0;
@@ -118,7 +119,8 @@ export class Vision {
       if(this.forests.some(f=>pointInFeature(x,z,f)&&y<heightAt(x,z)+Math.max(4,f.height??5)))length+=d/steps;
     }return length;
   }
-  hasLineOfSight(a: Entity, b: Entity): boolean {
+  hasLineOfSight(a: Entity, b: Entity,ignoreSmoke=false): boolean {
+    if(!ignoreSmoke&&this.smokeBlocks?.(a,b))return false;
     if(!garrisonFaces(a,b))return false;
     if(this.forestDepth(a,b)>38)return false;
     const dx = b.x - a.x;

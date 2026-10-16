@@ -627,5 +627,19 @@
   "Platsi ettevalmistus": "Preparing the site",
   "Vundamendi rajamine": "Laying foundations",
   "Karkassi ja seinte ehitus": "Building frame and walls",
-  "Viimistlus ja paigaldus": "Finishing and installation"
+  "Viimistlus ja paigaldus": "Finishing and installation",
+  "Pöörab lennuki nina ja ettehoiu sihtmärgile": "Aligning aircraft nose with the lead solution",
+  "Kahuri valangupaus": "Cannon burst pause",
+  "Suitsukate · C": "Smoke screen · C",
+  "Suitsuvaru": "Smoke charges",
+  "Täienda laos": "Replenish at depot",
+  "Suits varjab sihitud tulejoont": "Smoke obscures the aiming line",
+  "Suitsukate pole valmis: kontrolli varu, pausi ja üksuse asukohta": "Smoke unavailable: check charges, cooldown and unit location",
+  "Suitsukate (C): varja nähtavus enda ees. Suits piirab mõlema poole optikat ja sihitud tuld. Radar, kaudtuli ning juba lennus mürsud jäävad ohtlikuks.": "Smoke screen (C): obscure visibility ahead. Smoke blocks optics and aimed fire for both sides. Radar, indirect fire and rounds already in flight remain dangerous.",
+  "Pöörab lennuki nina sihtmärgile": "Aligning the aircraft nose",
+  "Pommitaja ootab sihtmärki lennujoonel": "Waiting for target on the bombing line",
+  "Sihtmärk väljaspool kahuri vertikaalnurka": "Target outside cannon elevation",
+  "Lennuki manööver (G-koormus)": "Aircraft manoeuvre (G-load)",
+  "Sihtmärgi põiksuunaline liikumine": "Target crossing motion",
+  "Sihtmärgi põiklemine": "Target evasion"
 }

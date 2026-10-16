@@ -155,6 +155,8 @@ export interface Entity {
   facingLocked: boolean;
   combatWithdrawing?: boolean;
   stationaryFireReadyAt?: number;
+  smokeCharges?:number;smokeReadyAt?:number;smokeReloadProgress?:number;
+  airGunBurst?:{until:number;readyAt:number};
   airMissileLock?:{targetId:number;readyAt:number};
   combatHoldingTarget?: number;
   flightAttackExit?: Point;
@@ -204,7 +206,7 @@ export interface Projectile {
   hitRoll?:number;missX?:number;missZ?:number;
 }
 
-export type Command = ({type:"strategic-build";id:number;payload:StrategicPayload|"research"} | {type:"strategic-strike";ids:number[];payload:StrategicPayload;x:number;z:number} | {type:"configure-unit";ids:number[];slot:"weapon"|"protection"|"mobility";module:string} | {type:"cancel-refit";ids:number[]} | {type:"face-building";ids:number[];x:number;z:number} | {type:"enter-building";ids:number[];featureId:string} | {type:"leave-building";ids:number[];x?:number;z?:number} | {
+export type Command = ({type:"smoke";ids:number[]} | {type:"strategic-build";id:number;payload:StrategicPayload|"research"} | {type:"strategic-strike";ids:number[];payload:StrategicPayload;x:number;z:number} | {type:"configure-unit";ids:number[];slot:"weapon"|"protection"|"mobility";module:string} | {type:"cancel-refit";ids:number[]} | {type:"face-building";ids:number[];x:number;z:number} | {type:"enter-building";ids:number[];featureId:string} | {type:"leave-building";ids:number[];x?:number;z?:number} | {
   type: "move"; ids: number[]; x: number; z: number; append?: boolean; facing?:number
 } | { type: "fast-move"; ids: number[]; x: number; z: number; append?: boolean; facing?:number } | { type: "amove"; ids: number[]; x: number; z: number; append?: boolean; facing?:number } | { type: "attack"; ids: number[]; targetId: number } |
   { type: "formation"; kind: "box" | "line" | "wedge" | "column" } | { type: "stop"; ids: number[] } | { type: "repair"; ids: number[]; targetId: number } | { type: "rally"; ids: number[]; x: number; z: number } | { type: "patrol"; ids: number[]; x: number; z: number } | { type: "hold"; ids: number[] } |
@@ -213,6 +215,7 @@ export type Command = ({type:"strategic-build";id:number;payload:StrategicPayloa
   { type: "research"; tech: "air" | "advanced-armor" } | { type: "produce"; kind: UnitKind; producerId?: number } | { type: "cancel-produce"; producerId: number } | { type: "load"; ids: number[]; targetId: number } | { type: "unload"; ids: number[]; x: number; z: number } | { type: "fire-mission"; ids: number[]; x: number; z: number } | { type: "standing"; ids: number[]; mode: "hold" | "patrol" | "attack" | "holdfire"; x?: number; z?: number } | { type: "predeploy"; ids: number[]; mode: "move" | "attack" | "hold"; x?: number; z?: number } | { type: "priority"; ids: number[]; focus: "supply" | "generator" | "aa" } | { type: "depot-priority"; ids: number[]; focus: "ammo" | "fuel" | "repair" | "balanced" } | { type: "logistics-source"; ids:number[]; sourceIndex:number|null; paused?:boolean } | { type: "logistics-route"; ids: number[]; x: number; z: number; append?: boolean; clear?: boolean } | {type:"vehicle-service";ids:number[]} | {type:"air-return";ids:number[]} | { type: "air-mission"; ids: number[]; mission: "cap" | "strike" | "sead" | "ground"; x?: number; z?: number }) & { team?: Team };
 
 export type SimEvent =
+  | {type:"smoke-deployed";team:Team;unitId:number;x:number;y:number;z:number}
   | {type:"unit-serviced";team:Team;unitId:number;x:number;z:number}
   | {type:"strategic-launch";team:Team;x:number;z:number;payload:StrategicPayload}
   | {type:"air-fuel-warning";team:Team;unitId:number;x:number;z:number;emergency:boolean}
