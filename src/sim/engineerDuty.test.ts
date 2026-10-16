@@ -32,3 +32,11 @@ it('the blue construction bar advances from a real first-building command on the
 
  expect(building.underConstruction).toBe(false);
 });
+
+it('walking personnel pass through other personnel instead of circling in place',()=>{
+ const bases=[{x:0,z:0,r:120},{x:250,z:250,r:120}];setBases(bases);const w=new World(94,false,[],[],bases,false);w.networkMode=true;
+ const walker=w.spawn('engineer',0,-10,0);for(const z of [-2,0,2])w.spawn('inf',0,0,z);
+ walker.mode='move';walker.dest={x:10,z:0};w.nav.syncBuildings(w.entities);
+ for(let i=0;i<900&&walker.x<8;i++){w.time+=1/30;w.spatial.rebuild(w.entities);updateUnits(w,1/30);}
+ expect(walker.x).toBeGreaterThan(8);expect(Math.abs(walker.z)).toBeLessThan(1);
+});

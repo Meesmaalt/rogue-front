@@ -1,6 +1,6 @@
 import {createCropFields,fieldCrop,cropColors} from "./CropFields";
 import {createRoadSurfaces,roadTexture as asphaltTexture} from "./RoadSurface";
-import {groundLayout,withAirfieldAprons} from "./GroundSurface";
+import {groundLayout,withAirfieldAprons,groundRectangle} from "./GroundSurface";
 import {applyTerrainDetail,createTerrainDetailTexture,terrainNoise} from "./TerrainDetail";
 import terrainConfig from "../data/terrain.json";
 import {isGarrisonBuilding,GARRISON_RULES} from "../sim/garrison";
@@ -289,8 +289,12 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
   // Ground-bound paving: paint the whole network in layers, rather than overlapping elevated strips.
   const roads=features.filter(f=>f.kind==="road"),index=new MapFeatureIndex(features);
   for(const f of features.filter(f=>f.appearance==="yard"))local(f,()=>{
+    // Airport clearing is meadow, not an enormous painted rectangle; pavement is rendered separately.
+    if(f.id.startsWith('base-airfield-yard-'))return;
     ctx.fillStyle=`#${(f.color??0x99998b).toString(16).padStart(6,"0")}`;
-    ctx.fillRect(-f.width/2,-f.depth/2,f.width,f.depth);
+    const fringe=Math.min(4,f.width*.2,f.depth*.2);
+    for(let n=0;n<6;n++){const inset=fringe*n/6;ctx.globalAlpha=.08;ctx.fillRect(-f.width/2+inset,-f.depth/2+inset,f.width-inset*2,f.depth-inset*2);}
+    ctx.globalAlpha=1;
   });
   const strokeRoad=(f:MapFeatureDef,width:number,color:string)=>local(f,()=>{
     ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(0,-f.depth/2);ctx.lineTo(0,f.depth/2);ctx.stroke();
@@ -403,7 +407,7 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
   if(!landscapeAtlas)for(const f of features)if(f.kind==="road"&&f.roadClass!=="track")group.add(drapedStrip(f,f.width+1.2,0x8c907c,.028,vergeMat));
   for (const f of features) {
     const y = heightAt(f.x, f.z);
-    if(f.appearance==="yard"){if(landscapeAtlas)continue;group.add(drapedStrip(f,f.width,f.color??0x858578,f.width>12&&f.depth>12?.025:.07));continue;}
+    if(f.appearance==="yard"){if(landscapeAtlas||f.id.startsWith('base-airfield-yard-'))continue;group.add(weatheredYard(f));continue;}
     if (f.appearance === "forest") continue;
     if (f.appearance === "field") {
       if(landscapeAtlas)continue;
@@ -507,7 +511,7 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
       mesh.receiveShadow = true;
       if(f.appearance === "farmhouse") {
         // Small paving/apron grounds the facade without covering neighbouring roads.
-        if(!landscapeAtlas)group.add(drapedStrip({...f,kind:"cover",appearance:"yard",depth:f.depth+3},f.width+3,0x8f9181,.025,undefined,features));
+        if(!landscapeAtlas)group.add(weatheredYard({...f,width:f.width+3,depth:f.depth+3,color:0x8f9181}));
         const variant=Number(f.id.split("-").at(-1))||0,house=new THREE.LOD();
         house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,false,f.color,f.buildingStyle,f.facadeColor),0);
         house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,true,f.color,f.buildingStyle,f.facadeColor),235, .15);
@@ -788,4 +792,10 @@ export function syncGarrisonTerrain(group:THREE.Group,world:World):boolean {
     });changed=true;
   }
   return changed;
+}
+
+const yardMaterial=new THREE.MeshStandardMaterial({vertexColors:true,transparent:true,depthWrite:false,roughness:1,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-2});
+function weatheredYard(f:MapFeatureDef):THREE.Mesh {
+ const origin={x:f.x,z:f.z,y:0,heading:f.rotation??0},geometry=groundRectangle(origin,-f.width/2,f.width/2,-f.depth/2,f.depth/2,f.color??0x8b8776,.03,Math.min(3,f.width*.2,f.depth*.2));
+ const mesh=new THREE.Mesh(geometry,yardMaterial);mesh.position.set(f.x,0,f.z);mesh.rotation.y=origin.heading;mesh.receiveShadow=true;return mesh;
 }

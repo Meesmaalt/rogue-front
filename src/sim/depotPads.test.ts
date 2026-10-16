@@ -28,7 +28,8 @@ for(const compact of [false,true])it(`a ${compact?'compact':'metric'} helicopter
  const pad=logisticsLandingPoint(w,depot,h)!;h.logisticsHome=pad;h.logisticsTarget={x:-280,z:-200};
  let locked:number|undefined,landed=false;
  for(let i=0;i<2400;i++){
-  step(w);const distance=Math.hypot(h.x-pad.x,h.z-pad.z);
+  const oldY=h.y;step(w);const distance=Math.hypot(h.x-pad.x,h.z-pad.z);
+  if(distance<10&&w.byId.get(h.id)?.airState!=='grounded')expect((oldY-h.y)*30).toBeLessThanOrEqual(2.21);
   if(distance<10&&locked==null)locked=h.heading;
   if(locked!=null&&distance<10)expect(Math.abs(wrapAngle(h.heading-locked))).toBeLessThan(.1);
   if(w.byId.get(h.id)?.airState==='grounded'){landed=true;break;}

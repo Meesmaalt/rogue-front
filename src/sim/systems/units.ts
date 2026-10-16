@@ -84,9 +84,13 @@ function clearGroundSegment(w:World,u:Entity,p:Point):boolean {
   for(let i=1;i<=steps;i++)if(!w.nav.isWalkableWorld(u.x+(p.x-u.x)*i/steps,u.z+(p.z-u.z)*i/steps,u.def.radius)||!bodyClear(w,u,{x:u.x+(p.x-u.x)*i/steps,z:u.z+(p.z-u.z)*i/steps}))return false;
   return true;
 }
+function onFoot(u:Entity):boolean {
+ return u.def.category==='infantry'&&!(u.engineerDuty&&['travel','return'].includes(u.engineerDuty.phase))||u.kind==='groundHandler'&&['walking','returning','boarding','rest'].includes(u.groundService?.crewState??'');
+}
 function bodyClear(w:World,u:Entity,p:Point):boolean {
   let clear=true;
   w.spatial.queryRadius(p.x,p.z,u.def.radius+8,o=>{
+    if(onFoot(u)&&onFoot(o))return;
     if(o===u||o.dead||o.garrisonId||o.loadedIntoId!=null||o.def.speed===0||o.def.domain!=="land")return;
     const old=dist2d(u,o),next=dist2d(p,o),min=(u.def.radius+o.def.radius)*mobility.navigation.bodyRadiusFactor+mobility.navigation.bodyClearance;
     if(next<min&&next<old-.001)clear=false;
@@ -141,7 +145,7 @@ function movePorterTo(w:World,u:Entity,goal:Point,dt:number):boolean {
   const changed=!u.roadPathGoal||dist2d(u.roadPathGoal,goal)>.1;
   if(changed||!u.navPath.length||u.navPathIndex>=u.navPath.length){
     if(!changed&&w.time<(u.roadPathRetryAt??0)){u.motionSpeed=0;return false;}
-    const parked=w.entities.filter(e=>e!==u&&!e.dead&&e.def.domain==='land'&&e.def.speed>0&&e.loadedIntoId==null&&!e.groundService&&(e.motionSpeed??0)<.1).map(e=>({x:e.x,z:e.z,radius:e.def.radius}));
+    const parked=w.entities.filter(e=>e!==u&&!e.dead&&e.def.domain==='land'&&e.def.speed>0&&e.loadedIntoId==null&&!e.groundService&&!(onFoot(u)&&onFoot(e))&&(e.motionSpeed??0)<.1).map(e=>({x:e.x,z:e.z,radius:e.def.radius}));
     u.navPath=findPath(w.nav,u,goal,u.def.radius,undefined,parked);u.navPathIndex=0;u.roadPathGoal={...goal};u.roadPathRetryAt=w.time+.5;
     if(!u.navPath.length){u.motionSpeed=0;return false;}
   }
@@ -392,7 +396,9 @@ function moveAirTo(u: Entity, target: Point, dt: number, w: World, cruise=false)
   const heliAltitude=helicopterSettled?0:Math.min(profile.altitude,Math.max(logisticsConfig.handling.landingHoverHeight,(distance-logisticsConfig.handling.landingApproachRadius)*.85+logisticsConfig.handling.landingHoverHeight));
   const desiredAltitude=helicopter&&final?ground+heliAltitude:landingGround+(final?Math.min(profile.altitude,Math.max(0,(distance-8)*(helicopter?.85:u.def.metricScale?BATTLE_SCALE.aircraft.glideSlope:.24))):u.airState==="returning"?(u.def.metricScale?BATTLE_SCALE.aircraft.approachAltitude:20):profile.altitude+(u.airMission==="cap"&&!helicopter?15:0));
   const oldY=u.y;
-  u.y+=Math.max(-profile.descentRate*dt,Math.min(profile.climbRate*dt,desiredAltitude-u.y));
+  const handling=logisticsConfig.handling;
+  const descent=helicopter&&final?Math.min(profile.descentRate,handling.landingDescentRate,Math.max(handling.landingTouchdownRate,(u.y-desiredAltitude)*handling.landingFlareGain)):profile.descentRate;
+  u.y+=Math.max(-descent*dt,Math.min(profile.climbRate*dt,desiredAltitude-u.y));
   const runway=w.byId.get(u.airMissionHomeId??-1);
   const aligned=!u.def.metricScale||helicopter||!runway||Math.abs(wrapAngle(u.heading-runway.heading))<BATTLE_SCALE.aircraft.headingTolerance&&Math.abs((u.x-runway.x)*Math.cos(runway.heading)-(u.z-runway.z)*Math.sin(runway.heading))<=BATTLE_SCALE.aircraft.runwayWidth/2;
   if(distance<(helicopter?logisticsConfig.handling.landingCapture:u.def.metricScale?BATTLE_SCALE.aircraft.landingCapture:8)&&aligned&&landing&&u.y-ground<(helicopter?.15:3)&&(!helicopter||(u.motionSpeed??0)<=logisticsConfig.handling.landingSpeed)){if(!u.def.metricScale||helicopter)u.motionSpeed=0;u.flightVx=u.flightVz=0;if(landing)u.y=ground;u.flightBank=(u.flightBank??0)*Math.max(0,1-dt*4);return true;}
@@ -878,6 +884,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     const sepRange = d.radius + 10;
     const sepRange2 = sepRange * sepRange;
     w.spatial.queryRadius(u.x, u.z, sepRange, (o) => {
+      if(onFoot(u)&&onFoot(o))return;
       if (o === u || o.dead || o.garrisonId || o.loadedIntoId!==null || (o.def.armor==="air") !== isAir) return;
       const ox = u.x - o.x, oz = u.z - o.z;
       const d2 = ox * ox + oz * oz;

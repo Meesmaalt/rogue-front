@@ -7,7 +7,8 @@ export function stepSoldier(p:SoldierPose,target:{x:number;z:number},heading:num
  if(reset||distance>config.teleportDistance){p.x=target.x;p.z=target.z;p.heading=heading;p.speed=0;return;}
  const gain=config.followResponse*(.82+(phase%7)*.055),step=Math.min(distance,Math.max(speed*config.catchupMultiplier,config.idleAdjustSpeed)*dt,distance*(1-Math.exp(-gain*dt)));
  const dx=target.x-p.x,dz=target.z-p.z;p.speed=dt>0?step/dt:0;
- if(distance>.001){p.x+=dx/distance*step;p.z+=dz/distance*step;}
+ if(distance<.035&&speed<.15){p.x=target.x;p.z=target.z;p.speed=0;}
+ else if(distance>.001){p.x+=dx/distance*step;p.z+=dz/distance*step;}
  const look=p.speed>config.headingSpeed?Math.atan2(dx,dz):heading;p.heading+=wrapAngle(look-p.heading)*(1-Math.exp(-config.turnResponse*dt));
  p.stride+=step*Math.PI*2/config.strideLength;
 }

@@ -7,6 +7,7 @@ export function basePoint(e:Pick<Entity,'x'|'z'|'heading'>,x:number,z:number):Po
  const c=Math.cos(e.heading),s=Math.sin(e.heading);return {x:e.x+c*x+s*z,z:e.z-s*x+c*z};
 }
 export function depotCrewPoint(e:Pick<Entity,'x'|'z'|'heading'>,index:number,place:'rest'|'bays'|'dock'):Point {
+ if(place==='rest')return basePoint(e,data.depot.rest.x+index*data.depot.rest.spacing-.28,data.depot.rest.z+.6);
  const p=data.depot[place];return basePoint(e,p.x+(place==='dock'?Math.floor(index/4)*4:index*p.spacing),p.z+(place==='dock'?(index%4-1.5)*p.spacing:0));
 }
 /** World-metre boxes shared by the warehouse model, nav grid and pedestrian paths. */

@@ -4,14 +4,14 @@ import terrainConfig from '../data/terrain.json';
 export function buildingScale(kind:string):number{return kind==='supply'?1:terrainConfig.render.buildings.militaryScale*(kind==='hq'?layout.hq.scale:1);}
 /** Shared layout for static furniture (Architecture.ts) and animated sitters (UnitRenderer/BaseLife). Model-space units, before the building scale. */
 export interface Seat{x:number;z:number;/** Local facing angle, 0 = +z. */heading:number}
-export const HQ_LOUNGE={x:5.8,z:6.6};
+export const HQ_LOUNGE={x:5.8,z:9.6};
 export const DEPOT_LOUNGE={x:layout.depot.rest.x,z:layout.depot.rest.z};
 function around(cx:number,cz:number,points:ReadonlyArray<[number,number]>):Seat[]{return points.map(([dx,dz])=>({x:cx+dx,z:cz+dz,heading:Math.atan2(-dx,-dz)}));}
 /** Three sofa seats, two armchairs and a crate stool around the HQ coffee table. */
 export function hqSeats():Seat[]{return around(HQ_LOUNGE.x,HQ_LOUNGE.z,[[-.8,1.55],[0,1.55],[.8,1.55],[-1.7,-.2],[1.7,-.2],[0,-1.5]]);}
 /** Bench rows beside the depot office; enough places for two workers per helipad up to the pad cap. */
 export function depotSeats(count:number):Seat[]{
- const seats:Seat[]=[];for(let i=0;i<count;i++)seats.push({x:DEPOT_LOUNGE.x+Math.floor(i/2)*layout.depot.rest.spacing,z:DEPOT_LOUNGE.z+(i%2)*1.1,heading:Math.PI});
+ const seats:Seat[]=[];for(let i=0;i<count;i++)seats.push({x:DEPOT_LOUNGE.x+Math.floor(i/2)*layout.depot.rest.spacing+(i%2===0?-.28:.28),z:DEPOT_LOUNGE.z+.6,heading:Math.PI});
  return seats;
 }
 export function seatWorld(anchor:{x:number;z:number;heading:number},scale:number,seat:Seat):{x:number;z:number;heading:number}{

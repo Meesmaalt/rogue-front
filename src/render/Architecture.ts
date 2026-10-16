@@ -205,7 +205,7 @@ function depotYard(g:THREE.Group,p:Pal):void {
  // Narrow fascia and open terrace keep people, forks and cargo visible from above.
  box(g,1.8,.12,.5,4.8,2.8,-1,p.camo);
  const lx=DEPOT_LOUNGE.x,lz=DEPOT_LOUNGE.z;
- box(g,6,.06,2.6,lx+2,.08,lz+.5,p.concrete);
+ box(g,7.5,.06,2.6,lx+2.7,.08,lz+.5,p.concrete);
  for(let i=0;i<4;i++)sofa(g,lx+i*baseLayout.depot.rest.spacing,lz+.6,Math.PI,1.2,p.camo,p.trim,p.dark);
  box(g,.8,1.5,.6,lx-1,.75,lz-.8,p.accent);box(g,.65,1.2,.55,lx-1,.6,lz+.5,p.wall);
  fieldCrates(g,-5,-4,3);cylinder(g,.04,2.5,-3.2,4.3,-4,p.steel);

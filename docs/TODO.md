@@ -1,5 +1,15 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Loomulikud tööpinnad, vaba puhkeala ja pehmem maandumine · 16.10.2026
+
+- [x] Lao suur ühtlane hall alus asendatud väiksemate töö-/parkimis-/puhkeala pindadega. Maastik paistab läbi, servad hajuvad ja kruusa toon varieerub; kopteriplatsi kate ning H jäävad selgeks.
+- [x] Lennuvälja tausta suur värvitud ristkülik eemaldatud maastikuatlasest ja varuesitusest. Raja asfalt ja märgistused säilivad, perroon/teepeenar sulanduvad ümbritsevasse pinnasesse; teiste hoonete õuepinnad saavad samuti hajuvad servad.
+- [x] Lao laadurid pargivad diivanitest eraldi, puhkeistmed on kõrvuti diivanitel ning sim-töötaja naaseb sama nähtava istme juurde. HQ puhkeala nihutatud jämeda navigatsioonivõrgu seinamaskist välja, insenerirühmadele eri istmed ja lähisihtkohas kindel seismajäämine.
+- [x] Jalgsikäijad ei blokeeri üksteist keharuumide, teeotsingu ajutiste takistuste ega eraldusjõuga; hoonete ja sõidukite vältimine säilib.
+- [x] Kopteri lõplähenemine rahulikum, laskumine kuni 2,2 m/s ning maa lähedal järkjärguline pidurdus. Metric/compact lennud maanduvad ja tarnivad endiselt päris kauba.
+- [x] 16 sihitud kontrolli ning TypeScript/tootmisbuild läbisid. GPU mängupilti ei kontrollitud; brauseri lõplik välimuse ja sujuvuse proov jääb kasutajale.
+
+
 ## Ehitusriba, lennujaama hooldus ja kasvavad hooned · 16.10.2026
 
 - [x] Jämeda nav-ruudustiku tõttu tööulatusest välja jäänud tööauto läheneb nüüd varuga; ehitaja ja ehitussüsteem kasutavad sama töökaugust. Valikupaneel selgitab tööauto/ehitamise olekut.

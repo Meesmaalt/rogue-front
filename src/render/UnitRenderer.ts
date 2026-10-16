@@ -165,7 +165,7 @@ export class UnitRenderer {
         for(const o of v.members){const index=Number(o.name.slice('SquadMember'.length));o.visible=index<Math.min(alive,e.garrisonId?2:alive)&&!(e.kind==='engineer'&&['travel','return'].includes(e.engineerDuty?.phase??''));const origin=o.userData.squadPosition as THREE.Vector3;
           const offset=soldierOffset(origin.x*spread,origin.z*spread,index,world.time,pace),localX=offset.x*(e.garrisonId?.2:1)*scale,localZ=offset.z*(e.garrisonId?.2:1)*scale;
           let target={x:x+Math.cos(h)*localX+Math.sin(h)*localZ,z:z-Math.sin(h)*localX+Math.cos(h)*localZ};
-          const seat=seats?seats[(index+(e.id%2)*3)%seats.length]:undefined;if(seat)target={x:seat.x,z:seat.z};
+          const seat=seats?seats[index]:undefined;if(seat)target={x:seat.x,z:seat.z};
           let p=v.soldiers.get(index);if(!p){p={...target,heading:h,stride:index*2.4,speed:0};v.soldiers.set(index,p);}
           if(!updated.has(index)){const before={x:p.x,z:p.z};stepSoldierNavigated(p,e.kind==="engineer"?hopTarget(p,target):target,seat?seat.heading:h,v.visualSpeed,index,frameDt,world.nav,v.resetPose||!!e.garrisonId||!!e.airdrop||e.kind==='engineer'&&['travel','return'].includes(e.engineerDuty?.phase??''));
             if(!e.garrisonId&&!e.airdrop&&!world.nav.isWalkableWorld(p.x,p.z,.2)){p.x=before.x;p.z=before.z;p.speed=0;}updated.add(index);}

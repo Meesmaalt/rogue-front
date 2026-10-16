@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {visibleDepotPads,type DepotPad} from '../sim/depotPads';
 import type {World} from '../sim/World';
 import type {Entity} from '../sim/types';
@@ -7,7 +8,7 @@ import {renderedGroundHeightAt,groundRectangle} from './GroundSurface';
 const concrete=new THREE.MeshStandardMaterial({color:0x586661,roughness:1,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-2});
 const paint=new THREE.MeshStandardMaterial({color:0xe0e1c9,roughness:1,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-4});
 const colors=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-6});
-const baseColors=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1,polygonOffset:true,polygonOffsetFactor:-.5,polygonOffsetUnits:-1});
+const baseColors=new THREE.MeshStandardMaterial({vertexColors:true,transparent:true,depthWrite:false,roughness:1,polygonOffset:true,polygonOffsetFactor:-.5,polygonOffsetUnits:-1});
 for(const m of [concrete,paint,colors,baseColors])m.userData.sharedArt=true;
 export function createDepotPad(p:DepotPad):THREE.Group {
  const group=new THREE.Group();group.name=`DepotHelicopterPad-${p.slot}`;const r=rules.handling.padRadius;
@@ -26,10 +27,10 @@ export function createDepotPad(p:DepotPad):THREE.Group {
 }
 /** Local geometry shared by the finished depot and its construction ghost. */
 export function createDepotBase(depot:Pick<Entity,'x'|'y'|'z'|'heading'>,pads:readonly DepotPad[],level=0):THREE.Mesh {
- const r=rules.handling,c=Math.cos(depot.heading),s=Math.sin(depot.heading);
- let left=-r.baseHalfWidth,right=r.baseHalfWidth,start=-(r.baseHalfDepth+(level>0?2:0)),end=r.baseHalfDepth;
- for(const p of pads){const dx=p.x-depot.x,dz=p.z-depot.z,x=c*dx-s*dz,z=s*dx+c*dz;left=Math.min(left,x-r.padRadius-1);right=Math.max(right,x+r.padRadius+1);start=Math.min(start,z-r.padRadius-1);end=Math.max(end,z+r.padRadius+1);}
- const base=new THREE.Mesh(groundRectangle(depot,left,right,start,end,0x747b70,.025),baseColors);base.name='DepotSharedFoundation';return base;
+ // Only working surfaces are gravelled: keep the terrain visible between the pad and the warehouse.
+ const pieces=[[-6,7,-7-(level>0?2:0),6],[-10,2,5,11],[0,13,9,16],[4,11,-3,12]].map(([l,r,a,b])=>groundRectangle(depot,l,r,a,b,0x8e8876,.025,2));
+ const geometry=mergeGeometries(pieces,false)!;pieces.forEach(g=>g.dispose());
+ const base=new THREE.Mesh(geometry,baseColors);base.name='DepotSharedFoundation';base.userData.padCount=pads.length;return base;
 }
 /** Markings use the exact slots leased by the simulation, including additional occupied pads. */
 export class DepotPads {

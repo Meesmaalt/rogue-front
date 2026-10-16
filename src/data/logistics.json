@@ -113,10 +113,13 @@
     "landingHoverHeight": 6,
     "landingCapture": 0.8,
     "landingSpeed": 0.6,
-    "landingPositionGain": 0.9,
+    "landingPositionGain": 0.6,
     "porterWaypointArrival": 0.15,
     "porterJamSeconds": 3,
     "baseHalfWidth": 12,
-    "baseHalfDepth": 13
+    "baseHalfDepth": 13,
+    "landingDescentRate": 2.2,
+    "landingFlareGain": 0.7,
+    "landingTouchdownRate": 0.28
   }
 }

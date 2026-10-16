@@ -18,7 +18,7 @@ export function renderedGroundHeightAt(x:number,z:number):number {
 }
 interface SurfaceOrigin extends Point {y:number;heading:number}
 /** Clip each ground triangle to a local rectangle: the entire surface stays above the mesh. */
-export function groundRectangle(origin:SurfaceOrigin,left:number,right:number,start:number,end:number,color:number,offset:number):THREE.BufferGeometry {
+export function groundRectangle(origin:SurfaceOrigin,left:number,right:number,start:number,end:number,color:number,offset:number,feather=0):THREE.BufferGeometry {
  const {step}=groundLayout(),half=MAP_SIZE/2,c=Math.cos(origin.heading),s=Math.sin(origin.heading);
  const world=(x:number,z:number)=>({x:origin.x+c*x+s*z,z:origin.z-s*x+c*z});
  const corners=[world(left,start),world(right,start),world(left,end),world(right,end)];
@@ -33,16 +33,25 @@ export function groundRectangle(origin:SurfaceOrigin,left:number,right:number,st
    if((da<=0)!==(db<=0)){const t=da/(da-db);out.push({x:a.x+(b.x-a.x)*t,z:a.z+(b.z-a.z)*t});}
   }return out;
  }
+ function emit(a:Point,b:Point,d:Point):void {
+  const nearEdge=feather&&[a,b,d].some(p=>Math.min(p.x-left,right-p.x,p.z-start,end-p.z)<feather);
+  if(nearEdge&&Math.max(Math.hypot(a.x-b.x,a.z-b.z),Math.hypot(a.x-d.x,a.z-d.z),Math.hypot(b.x-d.x,b.z-d.z))>6){
+   const ab={x:(a.x+b.x)/2,z:(a.z+b.z)/2},ad={x:(a.x+d.x)/2,z:(a.z+d.z)/2},bd={x:(b.x+d.x)/2,z:(b.z+d.z)/2};emit(a,ab,ad);emit(ab,b,bd);emit(ad,bd,d);emit(ab,bd,ad);return;
+  }
+  for(const p of [a,b,d]){
+   const w=world(p.x,p.z),grain=feather?Math.sin(w.x*1.7+w.z*.9)*Math.cos(w.z*2.1-w.x*.6):0,edge=Math.min(p.x-left,right-p.x,p.z-start,end-p.z);
+   const fade=feather?Math.max(0,Math.min(1,edge/feather*(.85+grain*.15))):1,alpha=feather?fade*fade*(3-2*fade)*(.65+grain*.09):1,shade=feather?.96+grain*.04:1;
+   positions.push(p.x,renderedGroundHeightAt(w.x,w.z)-origin.y+offset,p.z);colors.push(tint.r*shade,tint.g*shade,tint.b*shade,alpha);uv.push(p.x/16,p.z/16);
+  }
+ }
  for(let iz=minZ;iz<maxZ;iz++)for(let ix=minX;ix<maxX;ix++){
   const x=-half+ix*step,z=-half+iz*step,a=local(x,z),b=local(x,z+step),d=local(x+step,z),q=local(x+step,z+step);
   for(let poly of [[a,b,d],[b,q,d]]){
    poly=clip(clip(clip(clip(poly,'x',left,-1),'x',right,1),'z',start,-1),'z',end,1);
-   for(let i=1;i<poly.length-1;i++)for(const p of [poly[0],poly[i],poly[i+1]]){
-    const w=world(p.x,p.z);positions.push(p.x,renderedGroundHeightAt(w.x,w.z)-origin.y+offset,p.z);colors.push(tint.r,tint.g,tint.b);uv.push(p.x/16,p.z/16);
-   }
+   for(let i=1;i<poly.length-1;i++)emit(poly[0],poly[i],poly[i+1]);
   }
  }
- const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geometry.computeVertexNormals();return geometry;
+ const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,4));geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));geometry.computeVertexNormals();return geometry;
 }
 
 /** Airport scenery masks clear the apron as well as the existing reserved runway. */
