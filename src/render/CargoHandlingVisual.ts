@@ -32,7 +32,8 @@ export function createForklift(withDriver=true):THREE.Group {
  const g=new THREE.Group();g.name='WarehouseForklift';
  box(g,.95,.28,1.7,0,.42,0,0xd6a62c);box(g,.8,.55,.7,0,.78,-.45,0xe1b53a);box(g,.5,.08,.5,0,1.1,.1,0x2d3234);
  for(const x of [-.4,.4]){box(g,.06,1.15,.06,x,1.45,.52,0x3b4144);box(g,.06,.06,.7,x,1.62,.2,0x3b4144);}
- const roof=box(g,.95,.06,.8,0,1.95,.05,0x3b4144);roof.name='ForkRoof';
+ // Open protective bars leave the driver visible from the RTS camera.
+ for(const x of [-.4,.4])box(g,.05,.05,.8,x,1.95,.05,0x3b4144);box(g,.85,.05,.05,0,1.95,-.35,0x3b4144);
  const mast=new THREE.Group();mast.name='ForkMast';mast.position.set(0,0,.95);g.add(mast);
  for(const x of [-.28,.28])box(mast,.07,1.7,.08,x,.95,0,0x4a5155);
  const fork=new THREE.Group();fork.name='ForkCarriage';mast.add(fork);for(const x of [-.25,.25])box(fork,.1,.05,1.05,x,.18,.45,0x6e777a);
@@ -40,8 +41,9 @@ export function createForklift(withDriver=true):THREE.Group {
  box(cargo,.85,.12,.8,0,.06,0,0x8a6a3f);for(const x of [-.22,.22])for(const y of [0,1]){box(cargo,.38,.4,.55,x,.38+y*.42,0,0x94794c);box(cargo,.04,.41,.56,x,.38+y*.42,0,0xd1c29b);}
  for(const x of [-.5,.5])for(const z of [-.6,.55]){const w=new THREE.Mesh(new THREE.CylinderGeometry(z<0?.3:.26,z<0?.3:.26,.22,12),mat(0x242a27));w.name='ForkWheel';w.rotation.z=Math.PI/2;w.position.set(x,z<0?.3:.26,z);g.add(w);}
  if(withDriver){
-  box(g,.3,.5,.22,0,1.28,-.12,0xf08a24);const head=new THREE.Mesh(new THREE.SphereGeometry(.13,8,6),mat(0xb58c6c));head.position.set(0,1.68,-.12);g.add(head);
-  box(g,.3,.09,.28,0,1.8,-.12,0xe7c45d);for(const x of [-.14,.14])box(g,.14,.14,.55,x,1.1,.15,0x3a4b53);
+  const driver=new THREE.Group();driver.name='ForkliftDriver';g.add(driver);
+  box(driver,.3,.5,.22,0,1.28,-.12,0xf08a24);const head=new THREE.Mesh(new THREE.SphereGeometry(.13,8,6),mat(0xb58c6c));head.position.set(0,1.68,-.12);driver.add(head);
+  box(driver,.3,.09,.28,0,1.8,-.12,0xe7c45d);for(const x of [-.18,.18])box(driver,.1,.12,.42,x,1.37,.18,0xf08a24);for(const x of [-.14,.14])box(driver,.14,.14,.55,x,1.1,.15,0x3a4b53);
  }
  return g;
 }
@@ -53,4 +55,12 @@ export function createSeatedWorker(vest=0xf08a24):THREE.Group {
  const head=new THREE.Mesh(new THREE.SphereGeometry(.14,8,6),mat(0xb58c6c));head.name='SeatedHead';head.position.set(0,1.2,0);g.add(head);
  box(g,.34,.09,.3,0,1.33,0,0xe7c45d);
  return g;
+}
+/** Same persistent worker alternates between walking to the bay and driving the visible forklift. */
+export function createDepotHandler():THREE.Group {
+ const root=new THREE.Group(),vehicle=createForklift(),walker=new THREE.Group();vehicle.name='ServiceForklift';walker.name='ServiceWalker';
+ box(walker,.4,.55,.3,0,1.05,0,0xf08a24);box(walker,.3,.08,.28,0,1.33,0,0xd4e0af);
+ const head=new THREE.Mesh(new THREE.SphereGeometry(.15,10,8),mat(0xbd9271));head.position.set(0,1.52,0);walker.add(head);box(walker,.36,.09,.34,0,1.68,0,0xe9c646);
+ for(const side of [-1,1]){const leg=new THREE.Group();leg.name=side<0?'PorterLeftLeg':'PorterRightLeg';leg.position.set(side*.12,.78,0);box(leg,.18,.7,.22,0,-.35,0,0x354956);box(leg,.21,.12,.32,0,-.7,.07,0x242b2b);walker.add(leg);box(walker,.14,.5,.16,side*.28,1.02,0,0xf08a24);}
+ root.add(vehicle,walker);return root;
 }

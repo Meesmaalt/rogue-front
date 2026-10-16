@@ -1,4 +1,6 @@
-import {handleGroundCargo,logisticsDeparture,logisticsLandingPoint,updateGroundHandler} from "../groundHandling";
+import {updateEngineerDuty} from '../engineerDuty';
+import baseLife from '../../data/base-life.json';
+import {ensureDepotCrews,prepareDepotCrew,handleGroundCargo,logisticsDeparture,logisticsLandingPoint,updateGroundHandler} from "../groundHandling";
 import {updateAirdrop,updateAirliftLoading,releaseAirliftCargo} from "../airlift";
 import expansion from "../../data/expansion.json";
 import {updateHelicopterEmergency} from "../emergencyLanding";
@@ -144,9 +146,11 @@ function movePorterTo(w:World,u:Entity,goal:Point,dt:number):boolean {
     if(!u.navPath.length){u.motionSpeed=0;return false;}
   }
   while(u.navPathIndex<u.navPath.length-1&&dist2d(u,u.navPath[u.navPathIndex])<cfg.porterWaypointArrival)u.navPathIndex++;
-  const p=u.navPath[u.navPathIndex]??goal,dist=dist2d(u,p),dx=(p.x-u.x)/Math.max(.001,dist),dz=(p.z-u.z)/Math.max(.001,dist),step=Math.min(dist,u.def.speed*dt);
+  const p=u.navPathIndex===u.navPath.length-1&&clearGroundSegment(w,u,goal)?goal:u.navPath[u.navPathIndex]??goal,dist=dist2d(u,p),dx=(p.x-u.x)/Math.max(.001,dist),dz=(p.z-u.z)/Math.max(.001,dist),want=Math.atan2(dx,dz);
+  u.heading=turnToward(u.heading,want,u.def.turnRate*dt);
+  const driving=u.groundService?.onFoot&&(!u.groundService.crewState||['driving','parking'].includes(u.groundService.crewState))||u.engineerDuty&&['travel','return'].includes(u.engineerDuty.phase);
+  const step=Math.min(dist,u.def.speed*dt*(driving?Math.max(0,Math.cos(wrapAngle(want-u.heading))):1));
   const next={x:u.x+dx*step,z:u.z+dz*step};
-  u.heading=turnToward(u.heading,Math.atan2(dx,dz),u.def.turnRate*dt);
   const before={x:u.x,z:u.z};
   if((w.nav.isWalkableWorld(next.x,next.z,u.def.radius)||!w.nav.isWalkableWorld(u.x,u.z,u.def.radius))&&bodyClear(w,u,next)){u.x=next.x;u.z=next.z;}
   else {
@@ -518,6 +522,8 @@ function updateCargoPlane(w:World,u:Entity,dt:number):void {
 }
 
 function updateTransport(w: World, u: Entity, dt: number): void {
+  if(u.cargo>0&&u.supplyDepotId!=null&&!u.logisticsManual){const depot=w.byId.get(u.supplyDepotId);if(depot&&!depot.dead){const home=u.logisticsHome;if(home&&dist2d(u,home)<baseLife.depot.prepareDistance)prepareDepotCrew(w,u,depot);}}
+
   if(u.logisticsManual){
     if(u.mode==='hold'||!u.dest){u.motionSpeed=0;return;}
     if(!logisticsDeparture(u,dt))return;
@@ -602,6 +608,7 @@ function groupKey(u:Entity):string {
   return label+'/'+u.moveAxis!.x+','+u.moveAxis!.z;
 }
 export function updateUnits(w: World, dt: number): void {
+  ensureDepotCrews(w);
   // Derived membership is shared per tick; ordering uses live positions so merges cannot use stale priority.
   const groups=new Map<string,Entity[]>();
   for(const u of w.entities)if(!u.dead&&u.moveGroup&&u.moveAxis&&["move","amove"].includes(u.mode)){
@@ -614,6 +621,7 @@ export function updateUnits(w: World, dt: number): void {
 function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): void {
   const d = u.def;u.navWaiting=false;
   if(u.kind==='groundHandler'){updateGroundHandler(w,u,dt,p=>u.groundService?.onFoot?movePorterTo(w,u,p,dt):moveRoadTruckTo(w,u,p,dt,logisticsConfig.handling.arrival));return;}
+  if(updateEngineerDuty(w,u,dt,p=>movePorterTo(w,u,p,dt)))return;
   if(updateAirdrop(w,u,dt))return;
   if(u.kind==='airTransport'&&u.mode==='transport-load'){updateAirliftLoading(w,u);return;}
   if(u.kind==='airTransport'&&['grounded','rearming'].includes(u.airState??'')&&u.mode==='transport-unload'&&u.unloadPoint&&dist2d(u,u.unloadPoint)<expansion.airlift.groundExitRadius){if(releaseAirliftCargo(w,u,true))u.mode='idle';return;}

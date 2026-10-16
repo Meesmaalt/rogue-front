@@ -1,3 +1,4 @@
+import {createChinook} from './Chinook';
 import {aircraftCamouflage} from "./AircraftCamouflage";
 import artKinds from "../data/art-models.json";
 import {CORE_PLATFORMS} from "../sim/platforms";
@@ -64,6 +65,7 @@ async function loadModel(faction: FactionId, kind: UnitKind, tactical=false): Pr
 }
 
 export function createArtModel(kind: UnitKind, team: Team, faction: FactionId, tactical=false): Model | null {
+  if(kind==='transport'&&faction==='usa')return {group:createChinook(tactical),turret:null};
   const modelKind=kind==="airTransport"?"cargoPlane":kind;
   const source = cache.get(`${faction}/${modelKind}${tactical?"-lod":""}`);
   if (!source) return null;

@@ -1,5 +1,20 @@
-import type { Point } from "./types";
+import data from '../data/base-life.json';
+import type {Entity,Point} from './types';
 import type { MapFeatureDef } from "./mapFeatures";
+export type LocalBox={x:number;z:number;width:number;depth:number};
+export function basePoint(e:Pick<Entity,'x'|'z'|'heading'>,x:number,z:number):Point {
+ const c=Math.cos(e.heading),s=Math.sin(e.heading);return {x:e.x+c*x+s*z,z:e.z-s*x+c*z};
+}
+export function depotCrewPoint(e:Pick<Entity,'x'|'z'|'heading'>,index:number,place:'rest'|'bays'|'dock'):Point {
+ const p=data.depot[place];return basePoint(e,p.x+(place==='dock'?Math.floor(index/4)*4:index*p.spacing),p.z+(place==='dock'?(index%4-1.5)*p.spacing:0));
+}
+/** World-metre boxes shared by the warehouse model, nav grid and pedestrian paths. */
+export function buildingSolidBoxes(e:Entity):LocalBox[]|null {
+ if(e.kind==='hq')return data.hq.solidBoxes;
+ if(e.kind!=='supply')return null;
+ const boxes:LocalBox[]=[data.depot.hall],level=e.buildingLevel??(e.upgrades.has('producer-3')?3:e.upgrades.has('producer-2')?2:1);
+ for(let i=1;i<level;i++)boxes.push({...data.depot.annex,x:(i===1?-1:1)*data.depot.annex.x});return boxes;
+}
 
 /** Generates a light RTS base shell: perimeter walls, a forward gate and internal roads. */
 export function generateBaseFeatures(bases: readonly (Point & { r: number })[]): MapFeatureDef[] {

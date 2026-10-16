@@ -12,8 +12,8 @@ interface HqSet{group:THREE.Group;hammers:THREE.Object3D[];shovels:THREE.Object3
 function dispose(group:THREE.Object3D):void{group.traverse(o=>{if(o instanceof THREE.Mesh)o.geometry.dispose();});}
 function placed(group:THREE.Group,e:Entity):THREE.Group{group.position.set(e.x,e.y,e.z);group.rotation.y=e.heading;return group;}
 /**
- * Presentation-only life around the base: one depot crew (two workers + forklift) per helipad, chilling in the depot lounge
- * while their pad is idle, and the HQ tool rack whose hammers/shovels return when engineers rest. Never touches the simulation.
+ * Draws the resting counterparts of the persistent sim drivers and their parked forklifts.
+ * Active drivers are drawn by UnitRenderer; this layer never changes staff or cargo state.
  */
 export class BaseLife {
  readonly group=new THREE.Group();
@@ -36,7 +36,7 @@ export class BaseLife {
   for(const e of world.entities){
    if(e.dead)continue;
    if(e.groundService)carriers.add(e.groundService.carrierId);
-   if(e.kind==='engineer'&&e.mode==='idle'&&!e.dest&&!e.target&&(e.motionSpeed??0)<.1)this.resting.set(e.team,(this.resting.get(e.team)??0)+(e.squadMembers??e.squadMaxMembers??1));
+   if(e.kind==='engineer'&&(!e.engineerDuty||e.engineerDuty.phase==='rest')&&e.mode==='idle'&&!e.dest&&!e.target&&(e.motionSpeed??0)<.1)this.resting.set(e.team,(this.resting.get(e.team)??0)+(e.squadMembers??e.squadMaxMembers??1));
   }
   for(const u of world.entities){
    if(u.dead||u.kind!=='transport'||u.supplyDepotId==null||u.logisticsPadSlot==null)continue;
@@ -45,26 +45,29 @@ export class BaseLife {
   const depotIds=new Set<number>(),hqIds=new Set<number>();
   for(const e of world.entities){
    if(e.dead||e.underConstruction||e.team!==world.playerTeam)continue;
-   if(e.kind==='supply'){depotIds.add(e.id);this.syncDepot(e,near(e),padsByDepot.get(e.id)??[]);}
+   if(e.kind==='supply'){depotIds.add(e.id);this.syncDepot(world,e,near(e),padsByDepot.get(e.id)??[]);}
    else if(e.kind==='hq'||e.kind==='combatEngineer'){hqIds.add(e.id);this.syncHq(e,near(e),this.resting.get(e.team)??0);}
   }
   for(const [id,set] of this.depots)if(!depotIds.has(id)){dispose(set.group);this.group.remove(set.group);this.depots.delete(id);}
   for(const [id,set] of this.hqs)if(!hqIds.has(id)){dispose(set.group);this.group.remove(set.group);this.hqs.delete(id);}
  }
- private syncDepot(depot:Entity,visible:boolean,pads:DepotPad[]):void{
+ private syncDepot(world:World,depot:Entity,visible:boolean,pads:DepotPad[]):void{
   const count=Math.min(MAX_CREWS,Math.max(1,pads.length));let set=this.depots.get(depot.id);
   if(set&&set.crews.length!==count){dispose(set.group);this.group.remove(set.group);this.depots.delete(depot.id);set=undefined;}
   if(!set){
    const group=placed(new THREE.Group(),depot),seats=depotSeats(MAX_CREWS*2),bays=depotBays(MAX_CREWS),crews:Crew[]=[];
    for(let i=0;i<count;i++){
     const workers=[0,1].map(k=>{const s=seats[i*2+k],w=createSeatedWorker(i%2?0xf08a24:0x6fb35a);w.position.set(s.x*DEPOT_SCALE,.6*(DEPOT_SCALE-1),s.z*DEPOT_SCALE);w.rotation.y=s.heading;group.add(w);return w;});
-    const forklift=createForklift(false);forklift.position.set(bays[i].x*DEPOT_SCALE,0,bays[i].z*DEPOT_SCALE);forklift.rotation.y=bays[i].heading;group.add(forklift);crews.push({workers,forklift});
+    const forklift=createForklift(false);const cargo=forklift.getObjectByName('HandlingCargo');if(cargo)cargo.visible=false;forklift.position.set(bays[i].x*DEPOT_SCALE,0,bays[i].z*DEPOT_SCALE);forklift.rotation.y=bays[i].heading;group.add(forklift);crews.push({workers,forklift});
    }
    this.group.add(group);set={group,crews};this.depots.set(depot.id,set);
   }
   set.group.visible=visible;if(!visible)return;
-  const busy=this.busy.get(depot.id);
-  set.crews.forEach((crew,i)=>{const away=!!busy&&pads[i]!==undefined&&busy.has(pads[i].slot);crew.workers.forEach(w=>{w.visible=!away;});crew.forklift.visible=!away;});
+  set.crews.forEach((crew,i)=>{
+   const worker=world.entities.find(e=>!e.dead&&e.groundService?.depotId===depot.id&&e.groundService.crewIndex===i),state=worker?.groundService?.crewState;
+   crew.workers[0].visible=!state||state==='rest';crew.workers[1].visible=true;
+   crew.forklift.visible=!state||state==='rest'||state==='walking'||state==='boarding'||state==='returning';
+  });
  }
  private syncHq(hq:Entity,visible:boolean,restingMembers:number):void{
   let set=this.hqs.get(hq.id);

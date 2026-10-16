@@ -1,5 +1,16 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Päris laomeeskond, tööautod ja lähivaade · 16.10.2026
+
+- [x] Sisse tõmmatud kasutaja a8dfce1 baasi-elu muudatused ja edasi arendatud nende peale.
+- [x] Püsiv laotöötaja: puhkeala → jalgsi laadurini → pardaleminek → ohutu ooteala → päris mahalaadimine → parkimine → tagasi puhkama. Ettevalmistus algab saabuva lastiga kopteri lähenemisel. Kauba arvestus toimub ainult luugil ja lao dokis.
+- [x] Madalam ladu, avatud puhkeala ja kitsas ukseääris suure varikatuse asemel; nähtav laadurijuht ja jalgsikäigu mudel. Hoone ühikutes suurendus ei rakendu enam kaks korda.
+- [x] Lao ja peamaja füüsiliste seinte pööratud ruumkastid vastavad mudeli seintele; laaduri tegelik raadius, täpne viimase meetri lähenemine ning individuaalsete mehikeste kõrvaltee hoonenurgast mööda.
+- [x] Inseneri päris töötsükkel: puhkeala, tööriistaauto juurde minek, pardaleminek, sõit objektile ja alles siis ehitamine/remont; tööauto jääb objektile ning naaseb pärast tööd baasi. Tööolek ja kauba teenindus säilivad salvestuses/räsis.
+- [x] USA Chinookile eraldi CH-47 mudel: kõrgem tagumine torn, kaks vastassuunalist kolme labaga rootorit, lai kaubaruum, kokpit, mootoripaar ja neljapunktiline telik. Detailne ja kaugmudel kasutavad sama siluetti.
+- [x] Kaamera lähisuurendus 58 → 18. Kontroll: 24 sihitud testi, TypeScript/tootmisbuild ning mudelite eraldi 3D geomeetriaeelvaade. Päris WebGL mängupildi/juhtimise kontroll jääb kasutaja brauserisse.
+
+
 ## Õhulahing, moodsad õhutõrjed ja heli · 15.10.2026
 
 - [x] Baasi elu: insenerid (tööriistad, käru, diivan peamaja juures), laiem varustusladu, meeskond+laadur iga kopteriplatsi kohta. Vt BASE-LIFE.md. Brauseris vaatlus pooleli.

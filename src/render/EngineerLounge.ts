@@ -11,6 +11,7 @@ type Spot={x:number;z:number;heading:number};
  * first walk to the rack, take hammer and shovel, and only then head out (members follow the squad as usual afterwards).
  */
 export function engineerSeats(world:World,e:Entity,st:LoungeState,dt:number):Spot[]|null {
+ if(e.engineerDuty){const home=world.byId.get(e.engineerDuty.homeId);st.gearPhase=e.engineerDuty.phase==='to-van'||e.engineerDuty.phase==='boarding';st.toolsAway=e.engineerDuty.phase==='rest'||!!st.gearPhase;return home&&e.engineerDuty.phase==='rest'?hqSeats().map(s=>seatWorld(home,buildingScale('hq'),s)):null;}
  const resting=e.mode==='idle'&&!e.dest&&!e.target&&(e.motionSpeed??0)<.1&&!e.garrisonId&&!e.airdrop&&e.loadedIntoId==null;
  st.engIdle=resting?(st.engIdle??0)+dt:0;
  if(st.engIdle>=IDLE_BEFORE_LOUNGE){
@@ -42,7 +43,7 @@ export function animateBarrow(group:THREE.Object3D,st:LoungeState,e:Entity,walkP
  if(st.barrow===undefined)st.barrow=group.getObjectByName('EngBarrow')??null;
  const barrow=st.barrow;if(!barrow)return;
  // Pushed ahead of one squad member; parked (hidden) while the engineers rest because the yard shows its own barrow.
- barrow.visible=!parked&&(pusher?.visible??true);
+ barrow.visible=!e.engineerDuty?.vanPoint&&!parked&&(pusher?.visible??true);
  if(pusher){const r=pusher.rotation.y;barrow.position.set(pusher.position.x+Math.sin(r)*1.3,pusher.position.y,pusher.position.z+Math.cos(r)*1.3);barrow.rotation.y=r;}
  const load=barrow.getObjectByName('BarrowLoad'),wheel=barrow.getObjectByName('BarrowWheel');
  if(load)load.visible=e.mode==='build'||e.mode==='repair';if(wheel)wheel.rotation.x=walkPhase*2;

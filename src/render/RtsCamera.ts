@@ -1,3 +1,4 @@
+import baseLife from '../data/base-life.json';
 import {BATTLE_SCALE} from "../sim/battleScale";
 import mobility from "../data/mobility.json";
 import * as THREE from "three";
@@ -35,7 +36,7 @@ export class RtsCamera {
     el.addEventListener("wheel", (e) => {
       e.preventDefault();
       if(!this.enabled)return;
-      this.targetDist = Math.max(58, Math.min(MAP_SIZE*.62, this.targetDist * (1 + Math.sign(e.deltaY) * 0.11)));
+      this.targetDist = Math.max(baseLife.camera.minimumDistance, Math.min(MAP_SIZE*.62, this.targetDist * (1 + Math.sign(e.deltaY) * 0.11)));
     }, { passive: false });
   }
 

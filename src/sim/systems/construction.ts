@@ -20,7 +20,7 @@ export function updateConstruction(w: World, dt: number): void {
     const builders = buildersFor(w, building);
     if (building.underConstruction) {
       building.builderIds = builders.map(b => b.id).slice(0, spec.maxBuilders);
-      const active = builders.filter(b => dist2d(b, building) <= 13).slice(0, spec.maxBuilders);
+      const active = builders.filter(b => (!b.engineerDuty||b.engineerDuty.phase==='working')&&dist2d(b, building) <= 13).slice(0, spec.maxBuilders);
       const rate = (building.upgrading ? 1 : active.length) * dt;
       if (rate > 0) {
         building.constructionProgress += rate;
@@ -59,7 +59,7 @@ export function updateConstruction(w: World, dt: number): void {
 
     // Engineers can repair a friendly damaged structure by being assigned through a repair command.
     if (building.hp < maxHitPoints(building) && building.builderIds.length) {
-      const active = builders.filter(b => dist2d(b, building) <= 13);
+      const active = builders.filter(b => (!b.engineerDuty||b.engineerDuty.phase==='working')&&dist2d(b, building) <= 13);
       if (active.length) {
         const depot = w.nearestSupplyDepot(building.team, {x:building.x,z:building.z}, true);
         const available = depot && dist2d(depot,building)<80 ? depot.repairStock??0 : 0;

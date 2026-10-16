@@ -15,3 +15,23 @@ export function soldierOffset(x:number,z:number,index:number,time:number,pace:nu
  const phase=index*2.399963;
  return {x:x+Math.sin(time*.83+phase)*config.lateralWander*pace,z:z+Math.cos(time*.61+phase)*config.longitudinalWander*pace};
 }
+
+import {findPath} from '../sim/nav/Pathfinder';
+import type {NavGrid} from '../sim/nav/NavGrid';
+type WalkingPose=SoldierPose&{walkPath?:Array<{x:number;z:number}>;walkGoal?:{x:number;z:number}};
+/** Presentation follows the same wall mask, with a cached detour instead of freezing against a corner. */
+export function stepSoldierNavigated(p:WalkingPose,target:{x:number;z:number},heading:number,speed:number,phase:number,dt:number,nav:NavGrid,reset=false):void {
+ if(reset){p.walkPath=undefined;p.walkGoal=undefined;stepSoldier(p,target,heading,speed,phase,dt,true);return;}
+ const end=nav.isWalkableWorld(target.x,target.z,.22)?target:nav.nearestWalkable(target,.22);if(!end){p.speed=0;return;}
+ const clear=(to:{x:number;z:number})=>{const n=Math.max(1,Math.ceil(Math.hypot(to.x-p.x,to.z-p.z)/.5));for(let i=1;i<=n;i++)if(!nav.isWalkableWorld(p.x+(to.x-p.x)*i/n,p.z+(to.z-p.z)*i/n,.22))return false;return true;};
+ let goal=end;
+ if(!clear(end)){
+  if(!p.walkGoal||Math.hypot(p.walkGoal.x-end.x,p.walkGoal.z-end.z)>1.5||!p.walkPath?.length){p.walkPath=findPath(nav,p,end,.22);p.walkGoal={...end};}
+  while(p.walkPath&&p.walkPath.length>1&&Math.hypot(p.walkPath[0].x-p.x,p.walkPath[0].z-p.z)<.2)p.walkPath.shift();
+  goal=p.walkPath?.[0]??end;
+ }else {p.walkPath=undefined;p.walkGoal=undefined;}
+ const distance=Math.hypot(goal.x-p.x,goal.z-p.z),limit=config.teleportDistance*.75;
+ const next=distance>limit?{x:p.x+(goal.x-p.x)*limit/distance,z:p.z+(goal.z-p.z)*limit/distance}:goal;
+ const before={x:p.x,z:p.z};stepSoldier(p,next,heading,speed,phase,dt,false);
+ if(!nav.isWalkableWorld(p.x,p.z,.22)){p.x=before.x;p.z=before.z;p.speed=0;p.walkPath=undefined;}
+}

@@ -26,3 +26,11 @@ export function addEngineerProps(member:THREE.Group):void {
  const hammer=createHammer();hammer.position.set(.3,.95,.22);hammer.rotation.x=.4;member.add(hammer);
  const shovel=createShovel();shovel.position.set(-.18,1.2,-.36);shovel.rotation.set(-.15,0,.12);member.add(shovel);
 }
+/** Open-sided service van: visible driver, tool rack and short flatbed. */
+export function createToolVan():THREE.Group {
+ const g=new THREE.Group();g.name='EngineerToolVan';box(g,1.6,.35,3,0,.62,0,0xb5ad74);box(g,1.5,.5,1.5,0,.95,-.6,0x8a946b);box(g,1.4,.12,1.2,0,1.85,.8,0xc9bd80);
+ for(const x of [-.65,.65])box(g,.06,1,.06,x,1.35,1.25,0x414b46);
+ box(g,1.1,.42,.05,0,1.55,1.3,0x415d65);box(g,.35,.5,.25,.35,1.35,.65,0xed8d30);const head=new THREE.Mesh(new THREE.SphereGeometry(.14,10,8),mat(0xbd9271));head.position.set(.35,1.73,.65);g.add(head);
+ for(const x of [-.85,.85])for(const z of [-.95,.95]){const w=new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,.18,12),mat(0x242b28));w.rotation.z=Math.PI/2;w.position.set(x,.3,z);w.name='VanWheel';g.add(w);}
+ for(const x of [-.5,0,.5])box(g,.32,.35,.6,x,1.3,-.6,0xc28e36);const shovel=createShovel();shovel.position.set(-.65,1.35,-.7);shovel.rotation.z=Math.PI/2;g.add(shovel);return g;
+}

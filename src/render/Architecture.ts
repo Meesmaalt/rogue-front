@@ -1,3 +1,4 @@
+import baseLayout from '../data/base-life.json';
 import {BATTLE_SCALE} from "../sim/battleScale";
 import {facilityLabel,addFacilityDetails} from "./FacilityDetails";
 import {renderedGroundHeightAt} from "./GroundSurface";
@@ -175,7 +176,7 @@ function hqYard(g:THREE.Group,p:Pal):void {
  box(g,5.6,.05,4.2,HQ_LOUNGE.x,.04,HQ_LOUNGE.z,p.dark);
  const seats=hqSeats();sofa(g,HQ_LOUNGE.x,HQ_LOUNGE.z+1.55,Math.PI,2.6,p.accent,p.trim,p.dark);
  armchair(g,seats[3],p);armchair(g,seats[4],p);
- box(g,.7,.5,.7,seats[5].x,.3,seats[5].z,p.crates);coffeeTable(g,HQ_LOUNGE.x,HQ_LOUNGE.z+.1,p);parasol(g,HQ_LOUNGE.x+2.2,HQ_LOUNGE.z-1.4,2.3,p);
+ box(g,.7,.5,.7,seats[5].x,.3,seats[5].z,p.crates);coffeeTable(g,HQ_LOUNGE.x,HQ_LOUNGE.z+.1,p);parasol(g,HQ_LOUNGE.x+3.5,HQ_LOUNGE.z-2,1,p);
  cylinder(g,.22,.5,HQ_LOUNGE.x-2.4,.3,HQ_LOUNGE.z-1.6,p.steel);box(g,.5,.35,.4,HQ_LOUNGE.x-2.4,.78,HQ_LOUNGE.z-1.6,p.wall);
  engineerYard(g,p);
 }
@@ -195,30 +196,21 @@ function engineerYard(g:THREE.Group,p:Pal):void {
 }
 function armchair(g:THREE.Group,seat:{x:number;z:number;heading:number},p:Pal):void {sofa(g,seat.x,seat.z,seat.heading,1.05,p.camo,p.trim,p.dark);}
 function depotYard(g:THREE.Group,p:Pal):void {
- // Stays inside +-6 m on the pad sides (+/-x, +z); the back (-z) is free for forklift bays.
- // Warehouse hall with dock doors and a raised central bay with skylights
- pavilion(g,7.4,8.2,4.2,.4,-2.2,p.camo,p.wall,p.dark,false);
- box(g,4.4,1.1,5.6,.4,4.9,-2.2,p.camo);for(const z of [-3.9,-2.2,-.5])box(g,4.0,.06,.6,.4,5.5,z,p.glass);
- for(const z of [-4.6,-2.2,.2]){box(g,.18,2.5,1.9,4.1,1.45,z,p.dark);box(g,.2,.12,2.1,4.1,2.78,z,p.yellow);}
- // Raised loading dock with canopy, bumpers, pallets and ramp
- box(g,1.6,.9,8.4,4.9,.45,-2.2,p.concrete);box(g,1.9,.14,8.8,4.9,3.4,-2.2,p.camo);for(const z of [-6.3,1.9])box(g,.14,3,.14,5.7,1.5,z,p.steel);
- for(const z of [-4.6,-2.2,.2])box(g,.2,.35,.5,5.8,.55,z,p.dark);for(let i=0;i<3;i++){box(g,.9,.14,.9,4.9,1,-5.2+i*2.4,p.wood);box(g,.7,.5,.7,4.9,1.35,-5.2+i*2.4,p.crates);}
- const ramp=box(g,1.4,.12,1.8,4.9,.4,2.9,p.concrete);ramp.rotation.x=-.25;
- // Roof plant, antenna and sign
- box(g,1.4,.9,1.1,-.6,5.9,-4.2,p.steel);box(g,1.0,.7,.8,2.4,5.8,-.6,p.steel);cylinder(g,.06,3.5,-2.4,6.3,-5.6,p.steel);box(g,1.5,.7,.04,-1.6,7.6,-5.6,p.accent);
- // Outdoor storage on the back-left
- fieldCrates(g,-5.2,-4.2,6);for(const x of [-4.6,-3.7,-2.8])cylinder(g,.45,1.4,x,.75,-7.2,p.steel);
- // Crew lounge terrace: lean-to roof, two long sofas facing the TV, vending machine, fridge
+ const h=baseLayout.depot.hall;
+ // Compact low warehouse; its walls match the simulation footprint in metres.
+ pavilion(g,h.width,h.depth,h.height,h.x,h.z,p.camo,p.wall,p.dark,false);
+ for(const z of [-3,1]){box(g,.14,2.4,1.8,4.06,1.3,z,p.dark);box(g,.18,.12,2,4.1,2.6,z,p.yellow);}
+ box(g,1.4,.16,6,4.9,.14,-1,p.concrete);
+ for(const z of [-3,0,3]){box(g,.8,.14,.8,5.1,.3,z,p.wood);}
+ // Narrow fascia and open terrace keep people, forks and cargo visible from above.
+ box(g,1.8,.12,.5,4.8,2.8,-1,p.camo);
  const lx=DEPOT_LOUNGE.x,lz=DEPOT_LOUNGE.z;
- box(g,5,.05,4.4,lx,.04,lz+.9,p.dark);
- for(const z of [lz,lz+1.9])sofa(g,lx,z,Math.PI,3.6,z===lz?p.accent:p.camo,p.trim,p.dark);
- for(const x of [-2.6,2.6])for(const z of [-1,3])box(g,.12,2.2,.12,lx+x,1.1,lz+z,p.dark);
- box(g,5.6,.14,5.2,lx,2.3,lz+1,p.camo);box(g,2.2,1.1,.12,lx,1.55,lz-.9,p.dark);box(g,2.4,.8,.4,lx,.4,lz-.9,p.dark);box(g,2.0,.9,.04,lx,1.55,lz-.83,p.glass);
- box(g,.9,1.9,.8,lx-2.1,.95,lz-.5,p.accent);box(g,.7,.9,.7,lx+2.2,.45,lz-.5,p.wall);
- // Forklift bays with charging posts and painted outlines (back side)
- for(const bay of depotBays(4)){
-  for(const side of [-1,1])box(g,.07,.02,2.2,bay.x+side*.8,.08,bay.z,p.yellow);box(g,1.7,.02,.07,bay.x,.08,bay.z-1.1,p.yellow);box(g,.14,1.1,.14,bay.x,.55,bay.z-1.3,p.dark);box(g,.2,.2,.1,bay.x,1.0,bay.z-1.22,p.yellow);
- }
+ box(g,6,.06,2.6,lx+2,.08,lz+.5,p.concrete);
+ for(let i=0;i<4;i++)sofa(g,lx+i*baseLayout.depot.rest.spacing,lz+.6,Math.PI,1.2,p.camo,p.trim,p.dark);
+ box(g,.8,1.5,.6,lx-1,.75,lz-.8,p.accent);box(g,.65,1.2,.55,lx-1,.6,lz+.5,p.wall);
+ fieldCrates(g,-5,-4,3);cylinder(g,.04,2.5,-3.2,4.3,-4,p.steel);
+ for(const bay of depotBays(4)){for(const side of [-1,1])box(g,.06,.025,2.4,bay.x+side*.9,.08,bay.z,p.yellow);box(g,1.8,.025,.06,bay.x,.08,bay.z-1.2,p.yellow);box(g,.14,.9,.14,bay.x,.45,bay.z-1.4,p.dark);}
+
 }
 const kinds=new Set(["hq","barracks","factory","supply","generator","helipad","airbase","refinery","shipyard","landCommand","airCommand","seaCommand","landStrategy","airStrategy","seaStrategy","combatEngineer","radar"]);
 export function createBuildingModel(kind:UnitKind,team:Team,faction:FactionId):{group:THREE.Group;turret:null}|null {
@@ -300,8 +292,8 @@ export function createMetricAirfieldStructures(pad:Pick<Entity,"x"|"y"|"z"|"head
 }
 /** Merge architecture by material without losing texture UVs. */
 function batch(g:THREE.Group):THREE.Group {
-  g.updateMatrixWorld(true);const batches=new Map<THREE.Material,THREE.BufferGeometry[]>();
-  g.traverse(o=>{if(o instanceof THREE.Mesh&&!Array.isArray(o.material)){const transformed=o.geometry.clone().applyMatrix4(o.matrixWorld);const geometry=transformed.index?transformed.toNonIndexed():transformed;if(geometry!==transformed)transformed.dispose();if(!geometry.getAttribute("uv"))geometry.setAttribute("uv",new THREE.Float32BufferAttribute(new Float32Array(geometry.getAttribute("position").count*2),2));const list=batches.get(o.material)??[];list.push(geometry);batches.set(o.material,list);o.geometry.dispose();}});
+  g.updateMatrixWorld(true);const inverseRoot=g.matrixWorld.clone().invert(),batches=new Map<THREE.Material,THREE.BufferGeometry[]>();
+  g.traverse(o=>{if(o instanceof THREE.Mesh&&!Array.isArray(o.material)){const transformed=o.geometry.clone().applyMatrix4(inverseRoot.clone().multiply(o.matrixWorld));const geometry=transformed.index?transformed.toNonIndexed():transformed;if(geometry!==transformed)transformed.dispose();if(!geometry.getAttribute("uv"))geometry.setAttribute("uv",new THREE.Float32BufferAttribute(new Float32Array(geometry.getAttribute("position").count*2),2));const list=batches.get(o.material)??[];list.push(geometry);batches.set(o.material,list);o.geometry.dispose();}});
   g.clear();for(const [material,parts] of batches){const geometry=mergeGeometries(parts);parts.forEach(p=>p.dispose());if(geometry){const mesh=new THREE.Mesh(geometry,material);mesh.castShadow=mesh.receiveShadow=true;g.add(mesh);}}
   return g;
 }

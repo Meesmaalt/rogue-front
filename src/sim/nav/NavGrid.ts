@@ -1,3 +1,4 @@
+import {buildingSolidBoxes} from '../baseLayout';
 import battleScale from "../../data/battle-scale.json";
 import { heightAt, MAP_SIZE } from "../heightmap";
 import type { Entity, Point } from "../types";
@@ -98,6 +99,12 @@ export class NavGrid {
     this.clearBuildings();
     for (const e of entities) {
       if (e.dead || e.def.speed > 0 || e.underConstruction) continue;
+      const boxes=buildingSolidBoxes(e);
+      if(boxes){for(const box of boxes){const radius=Math.hypot(box.x,box.z)+Math.hypot(box.width,box.depth)/2+this.cellSize,c=this.worldToCell(e.x,e.z),r=Math.ceil(radius/this.cellSize),cos=Math.cos(e.heading),sin=Math.sin(e.heading);
+       for(let dz=-r;dz<=r;dz++)for(let dx=-r;dx<=r;dx++){const ix=c.x+dx,iz=c.z+dz;if(!this.inBounds(ix,iz))continue;const p=this.cellToWorld(ix,iz),x=cos*(p.x-e.x)-sin*(p.z-e.z),z=sin*(p.x-e.x)+cos*(p.z-e.z),margin=this.cellSize*.5*(Math.abs(cos)+Math.abs(sin));
+        if(Math.abs(x-box.x)<box.width/2+margin&&Math.abs(z-box.z)<box.depth/2+margin&&this.blocked[this.index(ix,iz)]===0){const i=this.index(ix,iz);this.blocked[i]=2;this.dynamicCells.push(i);}
+       }
+      }continue;}
       const c = this.worldToCell(e.x, e.z);
       const r = Math.ceil((e.def.radius + 1) / this.cellSize);
       for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {

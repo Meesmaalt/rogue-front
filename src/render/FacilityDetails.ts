@@ -23,7 +23,7 @@ export function addFacilityDetails(g:THREE.Group,kind:UnitKind,metal:THREE.Mater
  if(kind==='hq'){features.push('command-tower');box(2.8,2,2.4,-1,5.2,-1);for(const x of [-2,-.8,.4])box(.08,2.4,.08,x,7,-1,dark);}
  if(kind==='barracks'){features.push('training-yard','bunks');for(let i=0;i<5;i++){box(.15,1.1,.15,-4+i*1.6,.55,5.3);box(1.3,.12,.25,-3.4+i*1.6,1,5.3);}for(const x of [-3,0,3])box(2,.4,.8,x,.3,-5,mark);}
  if(kind==='factory'){features.push('gantry','exhausts');for(const x of [-4,4])box(.4,7,.4,x,3.5,3);box(8.5,.5,.5,0,7,3,mark);box(.15,2,.15,1,5.8,3,dark);for(const x of [-3,-1])box(.45,3,.45,x,5,-3,dark);}
- if(kind==='supply'){features.push('loading-canopy','storage-racks');box(7,.25,3,0,3,5);for(const x of [-3,3])box(.18,3,.18,x,1.5,6);for(const x of [-3,-1,1]){box(.12,2,.12,x,1,-5,dark);for(const y of [.5,1.3,2])box(1.8,.12,1.2,x+.8,y,-5,mark);}}
+ if(kind==='supply')features.push('open-loading-dock');
  if(kind==='helipad'){features.push('H-mark','windsock');const ring=new THREE.Mesh(new THREE.RingGeometry(4.8,5.1,40).rotateX(-Math.PI/2),mark);ring.position.set(-1,.27,6);g.add(ring);box(.1,5,.1,8,2.5,4,dark);box(2,.5,.5,9,4.8,4,mark);}
  if(kind==='generator'){features.push('cooling-fins');for(let i=0;i<6;i++)box(.1,2,2,-3+i,1.2,1.6,dark);}
  if(kind==='radar'){features.push('radar-lattice');for(const x of [-2,2])box(.2,6,.2,x,3,-3);box(4.6,.3,.3,0,6,-3);}

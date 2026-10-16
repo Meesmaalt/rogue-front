@@ -1,0 +1,84 @@
+{
+  "depot": {
+    "hall": {
+      "x": 0,
+      "z": -1,
+      "width": 8,
+      "depth": 8,
+      "height": 3.8
+    },
+    "annex": {
+      "x": 4.2,
+      "z": -8,
+      "width": 4.8,
+      "depth": 5.5
+    },
+    "rest": {
+      "x": -7.4,
+      "z": 7.5,
+      "spacing": 1.4
+    },
+    "bays": {
+      "x": -3.6,
+      "z": 8.8,
+      "spacing": 2.6
+    },
+    "dock": {
+      "x": 6.4,
+      "z": 0,
+      "spacing": 3
+    },
+    "maxCrews": 4,
+    "prepareDistance": 140,
+    "forkliftRadius": 1,
+    "forkliftSpeed": 4,
+    "walkRadius": 0.35,
+    "walkSpeed": 1.8,
+    "boardingSeconds": 1.4,
+    "turnRate": 1.5
+  },
+  "engineer": {
+    "restAfter": 3,
+    "homeRadius": 140,
+    "boardingSeconds": 2,
+    "vanSpeed": 7,
+    "vanRadius": 1.2,
+    "vanTurnRate": 1.5,
+    "workDistance": 12,
+    "van": {
+      "x": -8,
+      "z": 5,
+      "spacing": 3.6
+    },
+    "rest": {
+      "x": 7.5,
+      "z": 6.5,
+      "spacing": 2.8
+    }
+  },
+  "camera": {
+    "minimumDistance": 18
+  },
+  "hq": {
+    "solidBoxes": [
+      {
+        "x": -1.22,
+        "z": -0.61,
+        "width": 7.93,
+        "depth": 7.93
+      },
+      {
+        "x": 4.27,
+        "z": 1.586,
+        "width": 3.904,
+        "depth": 4.88
+      },
+      {
+        "x": -2.684,
+        "z": -4.88,
+        "width": 5.49,
+        "depth": 3.294
+      }
+    ]
+  }
+}
