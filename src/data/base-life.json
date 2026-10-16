@@ -44,7 +44,7 @@
     "vanSpeed": 7,
     "vanRadius": 1.2,
     "vanTurnRate": 1.5,
-    "workDistance": 12,
+    "workDistance": 13,
     "van": {
       "x": -8,
       "z": 5,
@@ -62,23 +62,27 @@
   "hq": {
     "solidBoxes": [
       {
-        "x": -1.22,
-        "z": -0.61,
-        "width": 7.93,
-        "depth": 7.93
+        "x": -1,
+        "z": -1,
+        "width": 8,
+        "depth": 7
       },
       {
-        "x": 4.27,
-        "z": 1.586,
-        "width": 3.904,
-        "depth": 4.88
+        "x": 5,
+        "z": 1.5,
+        "width": 4.5,
+        "depth": 5
       },
       {
-        "x": -2.684,
-        "z": -4.88,
-        "width": 5.49,
-        "depth": 3.294
+        "x": -3,
+        "z": -5.5,
+        "width": 5,
+        "depth": 3
       }
-    ]
+    ],
+    "scale": 1.08
+  },
+  "buildingVisuals": {
+    "instantRevealSeconds": 2.5
   }
 }

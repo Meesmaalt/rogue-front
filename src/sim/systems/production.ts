@@ -1,3 +1,4 @@
+import {updateAirportSupport} from '../airportSupport';
 import mobility from "../../data/mobility.json";
 import type { World } from "../World";
 import {freeAirSlot,stationAircraft} from "./airDoctrine";
@@ -115,6 +116,7 @@ function spawnProduced(w: World, producer: Entity, kind: UnitKind): boolean {
 }
 
 export function updateProduction(w: World, dt: number): void {
+  updateAirportSupport(w);
   for (const producer of w.entities) {
     if (producer.dead || producer.underConstruction || (producer.disabledUntil ?? 0) > w.time || !producer.productionQueue.length) continue;
     const kind = producer.productionQueue[0];
@@ -128,7 +130,7 @@ export function updateProduction(w: World, dt: number): void {
     if(def.armor==="air"&&freeAirSlot(w,producer)<0)continue;
     const operational = w.productionOperational(producer, kind);
     if (!operational.operational) continue;
-    const depot=w.nearestSupplyDepot(producer.team,producer,true,true);
+    const depot=producer.kind==='airbase'?producer:w.nearestSupplyDepot(producer.team,producer,true,true);
     if(!depot)continue;
     const wanted=dt*productionWorkRate(w,producer);
     const materialRate = Math.max(1, def.cost / Math.max(1, def.buildTime) * 0.12);

@@ -22,3 +22,13 @@ it('engineers physically collect their van, drive to the site and finish constru
  for(let i=0;i<3600&&building.underConstruction;i++){w.time+=1/30;w.spatial.rebuild(w.entities);updateConstruction(w,1/30);updateUnits(w,1/30);if(e.engineerDuty?.phase==='travel')drove=true;}
  expect(drove).toBe(true);expect(building.underConstruction).toBe(false);expect(e.engineerDuty?.vanPoint).toBeDefined();
 });
+import {setMapSize} from './heightmap';
+import {applyCommands} from './systems/commands';
+it('the blue construction bar advances from a real first-building command on the coarse grid',()=>{
+ setMapSize(4096);const bases=[{x:-700,z:700,r:200},{x:700,z:-700,r:200}];setBases(bases);const w=new World(83,false,[],[],bases,false,true);w.networkMode=true;w.externalVictoryMode=true;
+ w.spawn('hq',0,-700,700);const a=w.spawn('engineer',0,-688,712),b=w.spawn('engineer',0,-686,708);w.teamCredits[0]=w.teamResources[0]=w.credits=w.resources=3000;w.nav.syncBuildings(w.entities);
+ w.pending.push({type:'build',ids:[a.id,b.id],kind:'generator',x:-670,z:700,team:0});applyCommands(w);const building=w.entities.find(e=>e.kind==='generator')!;expect(building).toBeDefined();
+ for(let i=0;i<2700&&building.underConstruction;i++){w.time+=1/30;w.spatial.rebuild(w.entities);updateConstruction(w,1/30);updateUnits(w,1/30);}
+
+ expect(building.underConstruction).toBe(false);
+});

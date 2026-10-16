@@ -216,7 +216,7 @@ const kinds=new Set(["hq","barracks","factory","supply","generator","helipad","a
 export function createBuildingModel(kind:UnitKind,team:Team,faction:FactionId):{group:THREE.Group;turret:null}|null {
  if(!kinds.has(kind))return null;
  const g=new THREE.Group(),concrete=material(0x8b8d84,"concrete"),wall=material(faction==="usa"?0xc1c7bd:faction==="russia"?0xa4ae91:0xbab59b,"plaster"),steel=material(0x646f68,"metal",.3),dark=material(0x424a48,"metal",.3),camo=material(faction==="usa"?0xb5d2cd:faction==="russia"?0xa9b69b:0xc1b69c,"camouflage"),trim=material(team===0?0x6995a1:0xa77b64);
- const pal:Pal={wall,dark,camo,concrete,steel,trim,accent:material(team===0?0x699fc5:0xac765f),crates:material(0x827e5e,"metal"),wood:material(0x7a5d3b),yellow:material(0xe0b53a),glass:material(0x9fc7d6,undefined,.4)};
+ const pal:Pal={wall,dark,camo,concrete,steel,trim,accent:material(team===0?0x699fc5:0xac765f),crates:material(0x827e5e,"metal"),wood:material(0x7a5d3b),yellow:material(0xe0b53a),glass:trim};
  if(kind==="airbase"||kind==="helipad"){
   const airbase=kind==="airbase",mark=material(0xd0cbb7);
   box(g,airbase?10:25,.12,airbase?48:18,0,.12,6,material(0x73776e,"asphalt"));
@@ -231,7 +231,24 @@ export function createBuildingModel(kind:UnitKind,team:Team,faction:FactionId):{
    for(const x of [-7,0,7]){box(g,.25,.03,4,x-1,.21,6,mark);box(g,.25,.03,4,x+1,.21,6,mark);box(g,2,.03,.25,x,.21,6,mark);}
    pavilion(g,6,4,3.4,-4,-5,camo,wall,dark,true);fieldCrates(g,2,-5,3);mast(g,7,-4,4,team,steel);
   }
- }else if(kind==="supply"){
+ }else if(kind==='hq'){
+  const [hall,wing,rear]=baseLayout.hq.solidBoxes;
+  pavilion(g,hall.width,hall.depth,4.6,hall.x,hall.z,camo,wall,dark);
+  pavilion(g,wing.width,wing.depth,3.3,wing.x,wing.z,camo,wall,dark);
+  pavilion(g,rear.width,rear.depth,3.2,rear.x,rear.z,camo,wall,dark);
+  // Operations gallery, entrance canopy and distinct glass command room.
+  box(g,5.8,1.45,2.7,-1,4.85,-1,pal.glass);box(g,6.2,.22,3.1,-1,5.7,-1,steel);
+  for(const x of [-3,-1,1])box(g,.12,1.5,2.8,x,4.9,-1,trim);
+  for(const x of [-3.6,-1.8,0,1.8]){box(g,.9,.8,.1,x,2,2.57,pal.glass);box(g,1.1,.1,.2,x,2.5,2.6,trim);}
+  for(const x of [-3,-1,1])box(g,1.1,.9,.09,x,2,-4.56,trim);
+  for(const z of [-3,-1,1])box(g,.09,.9,1.1,-5.05,2,z,trim);
+  for(const z of [0,1.5,3])box(g,.09,.8,.9,7.29,1.9,z,trim);
+  for(const x of [-4.5,-3,-1.5])box(g,.9,.75,.09,x,1.9,-7.05,trim);
+  box(g,2.4,2.6,.14,3.1,1.4,4.05,dark);box(g,3.2,.14,1.2,3.1,3,4.5,steel);
+  for(const x of [2,4.2])box(g,.13,2.9,.13,x,1.45,4.9,trim);
+  for(const x of [-4.7,-3]){box(g,.65,1,.8,x,3.55,-5.5,steel);cylinder(g,.12,1.5,x,4.4,-5.5,dark);}
+  mast(g,-4.2,-3,7.8,team,steel);hqYard(g,pal);
+ }else if(kind=="supply"){
   depotYard(g,pal);
  }else if(kind==="generator"){
   box(g,6,1.5,3.6,-.6,.95,0,steel);for(const x of [-2.1,.7]){cylinder(g,.32,3.8,x,2.6,-.7,dark);cylinder(g,.43,.15,x,4.6,-.7,steel);}pavilion(g,2.5,3,2.4,3.5,0,camo,wall,dark);for(let z=-1.3;z<1.6;z+=.5)box(g,6,.08,.1,-.6,1.3,z,dark);
@@ -243,7 +260,7 @@ export function createBuildingModel(kind:UnitKind,team:Team,faction:FactionId):{
   box(g,1.3,3.2,1.3,3.8,1.7,3,steel);cylinder(g,.3,5,3.8,4.6,3,dark);
   if(kind==="shipyard"){const crane=material(0xbba054,"metal");for(const x of [-6,-4])box(g,.4,8,.4,x,4,-2,crane);box(g,3,.5,9,-5,8,1,crane);cylinder(g,.07,5,-5,5.5,5,dark);}
  }else{
-  const command=kind==="hq"||kind.includes("Command")||kind.includes("Strategy"),height=kind==="hq"?4.4:3.2;
+  const command=kind.includes("Command")||kind.includes("Strategy"),height=3.2;
   pavilion(g,6.5,6.5,height,-1,-.5,camo,wall,dark);
   pavilion(g,3.2,4,height*.75,3.5,1.3,camo,wall,dark,kind==="barracks");
   fieldCrates(g,-3,3.5,kind==="barracks"?6:3);
@@ -253,7 +270,7 @@ export function createBuildingModel(kind:UnitKind,team:Team,faction:FactionId):{
    box(g,1.5,2.4,1.6,-3.8,1.35,-3.4,dark);for(let i=0;i<3;i++)box(g,.9,.08,.15,-3.8,1.1+i*.35,-2.55,trim);
   }else{mast(g,3,-3,4,team,steel);for(const x of [-2,0,2])box(g,1.2,.6,1.4,x,.35,-4.1,concrete);}
  }
- if(kind==="hq"){box(g,4.5,2.3,2.7,-2.2,1.3,-4,wall);mast(g,-4,3.5,7.2,team,steel);hqYard(g,pal);}
+
  if(kind==="airCommand"){
   for(const x of [2,4])box(g,.18,4,.18,x,2,1.5,dark);
   box(g,3,1.8,2.8,3,4.3,1.5,wall);const cap=new THREE.Group();cap.position.y=4.2;pavilion(cap,3.2,2.9,1.2,3,1.5,camo,wall,dark,true);g.add(cap);
@@ -263,6 +280,11 @@ export function createBuildingModel(kind:UnitKind,team:Team,faction:FactionId):{
  if(kind==="seaCommand")for(const z of [-2,0,2])cylinder(g,.7,2.4,-3.8,1.3,z,steel);
  if(kind.includes("Strategy")){box(g,4.5,2.4,2.3,0,1.4,-4,wall);for(const x of [-2,0,2])cylinder(g,.04,5,x,3,-4.2,steel);}
  if(kind==="combatEngineer"){engineerYard(g,pal);box(g,4,.15,1.5,-1,1,3.5,steel);for(const x of [-2,-.5,1])box(g,.45,.6,.8,x,1.35,3.5,material(0xb0a568,"metal"));}
+ if(['factory','barracks','combatEngineer','landCommand','airCommand','seaCommand'].includes(kind)){
+  for(const x of [-3,-1,1]){box(g,.8,.55,.08,x,2.5,3.55,pal.glass);box(g,.95,.08,.16,x,2.85,3.6,trim);}
+  for(const z of [-2,0,2])box(g,.1,2.7,.08,-4.4,1.5,z,trim);
+  box(g,1.4,.18,1.1,-1,4.65,-1,steel);for(const z of [-1.4,-1,-.6])box(g,1.3,.05,.08,-1,4.78,z,dark);
+ }
  addFacilityDetails(g,kind,steel,kind==='helipad'?material(0xd0cbb7):trim,dark);
  g.scale.setScalar(buildingScale(kind));
  g.userData.militarySilhouette=kind;return {group:batch(g),turret:null};

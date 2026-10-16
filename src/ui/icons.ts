@@ -1,3 +1,4 @@
+import {aircraftIcon} from './AircraftIcon';
 import type { UnitKind } from "../sim/types";
 /** Original SVG silhouettes remain legible at command-card size. */
 const paths:Record<string,string>={
@@ -46,6 +47,7 @@ const paths:Record<string,string>={
 const iconCache=new Map<string,string>();
 export function icon(kind:string):string {
   const cached=iconCache.get(kind);if(cached)return cached;
+  const aircraft=aircraftIcon(kind as UnitKind,"usa");if(aircraft){iconCache.set(kind,aircraft);return aircraft;}
   let role=kind;
   if(["inf","special"].includes(kind))role="infantry";
   else if(["tank","lightTank","tankDestroyer"].includes(kind))role="tank";
@@ -66,6 +68,7 @@ export function icon(kind:string):string {
   const svg=`<svg viewBox="0 0 32 32" aria-hidden="true" fill="currentColor">${paths[role]??paths.building}</svg>`;iconCache.set(kind,svg);return svg;
 }
 export function unitPicture(kind:UnitKind,faction:string):string {
+  const aircraft=aircraftIcon(kind,faction);if(aircraft)return aircraft;
   const pictures=["tank","lightTank","tankDestroyer","ifv","apc","spaa","reconVehicle","artillery","mlrs","fighter","interceptor","bomber","multirole","attackAircraft","ecm","cargoPlane","heli","transport","gunship","casHeli","logiTruck"];
   return pictures.includes(kind)?`<img alt="" loading="lazy" src="${import.meta.env.BASE_URL}ui/units/${faction}/${kind}.webp">`:icon(kind);
 }

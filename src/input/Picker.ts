@@ -1,3 +1,4 @@
+import airport from '../data/airport-support.json';
 import {BATTLE_SCALE} from "../sim/battleScale";
 import * as THREE from "three";
 import type { World } from "../sim/World";
@@ -65,7 +66,7 @@ export class Picker {
       if(e.dead||e.kind!=='airbase'||e.team!==team||team!==this.world.playerTeam&&!this.world.isSpottedByTeam(e,this.world.playerTeam))continue;
       const transform=new THREE.Matrix4().compose(new THREE.Vector3(e.x,e.y,e.z),new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),e.heading),new THREE.Vector3(1,1,1));
       const local=this.ray.ray.clone().applyMatrix4(transform.clone().invert());
-      const structures=e.def.metricScale?BATTLE_SCALE.airfieldLayout.structures:[{x:26,z:-9,width:8,depth:7,height:6},{x:26,z:4,width:6,depth:6,height:5},{x:30,z:-1,width:5,depth:5,height:9}];
+      const structures=e.def.metricScale?[...BATTLE_SCALE.airfieldLayout.structures,...airport.structures.filter(s=>s.level<=this.world.producerLevel(e)+(e.upgrading?1:0))]:[{x:26,z:-9,width:8,depth:7,height:6},{x:26,z:4,width:6,depth:6,height:5},{x:30,z:-1,width:5,depth:5,height:9}];
       for(const s of structures){
         const box=new THREE.Box3(new THREE.Vector3(s.x-s.width/2,-1,s.z-s.depth/2),new THREE.Vector3(s.x+s.width/2,s.height+3,s.z+s.depth/2));
         const hit=local.intersectBox(box,new THREE.Vector3());if(!hit)continue;const distance=hit.applyMatrix4(transform).distanceTo(this.ray.ray.origin);

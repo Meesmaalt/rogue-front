@@ -1,3 +1,4 @@
+import baseVisuals from '../data/base-life.json';
 import {createToolVan} from './EngineerVisual';
 import {createDepotHandler} from "./CargoHandlingVisual";
 import {engineerSeats,hopTarget,animateEngineerTools,animateBarrow,type LoungeState} from "./EngineerLounge";
@@ -17,7 +18,7 @@ import type { World } from "../sim/World";
 import { heightAt } from "../sim/heightmap";
 import { wrapAngle } from "../sim/math";
 import {createModel as createVisualModel} from "./models";
-import {batchStaticScene} from "./Architecture";
+import {createBuildingUpgradeStages,updateBuildingUpgradeStages} from './BuildingUpgrades';
 import { createArtModel, disposeUnitMesh } from "./ArtModels";
 
 // One soft contact texture and quad shared by all vehicles (two triangles).
@@ -29,80 +30,9 @@ contactContext.fillStyle = contactGradient; contactContext.fillRect(0,0,64,64);
 const contactGeometry = new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2); contactGeometry.userData.sharedArt = true;
 const contactMaterial = new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(contactCanvas),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1}); contactMaterial.userData.sharedArt = true;
 
-interface View extends LoungeState { soldiers:Map<number,SoldierPose>;cargoRamp?:THREE.Group;parachute?:THREE.Group;rotorRpm:number;surface?:THREE.Mesh; resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;suspensionPitch:SuspensionState;suspensionRoll:SuspensionState; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group; lastBuildingLevel?: number; lastAirState?: string }
+interface View extends LoungeState { soldiers:Map<number,SoldierPose>;cargoRamp?:THREE.Group;parachute?:THREE.Group;rotorRpm:number;surface?:THREE.Mesh; resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;suspensionPitch:SuspensionState;suspensionRoll:SuspensionState; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group;upgradeRevealAt?:number;upgradeRevealLevel?:number; lastBuildingLevel?: number; lastAirState?: string }
 const lerpAngle = (a: number, b: number, t: number) => a + wrapAngle(b - a) * t;
 
-
-/** Phase 73: architectural upgrade silhouettes. Each level adds a real module,
- * not just a marker, so a developed base is visibly larger/more capable. */
-function addBuildingLevelArchitecture(kit: THREE.Group, kind: string, level: number): void {
-  if(level<2)return;
-  const concrete = new THREE.MeshStandardMaterial({ color: 0x5b615d, roughness: 0.88, metalness: 0.08 });
-  const steel = new THREE.MeshStandardMaterial({ color: 0x3d4545, roughness: 0.68, metalness: 0.28 });
-  const accent = new THREE.MeshStandardMaterial({ color: 0xb98b38, roughness: 0.62, metalness: 0.2 });
-  const module = (x:number,y:number,z:number,w:number,d:number,h:number,mat=concrete) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat); m.position.set(x,y+h/2,z); kit.add(m);
-  };
-  const silo = (x:number,z:number,r:number,h:number) => {
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,12),steel); m.position.set(x,h/2,z); kit.add(m);
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(r*0.82,r*0.82,0.12,12),accent); cap.position.set(x,h+0.06,z); kit.add(cap);
-  };
-  const mast = (x:number,z:number,h:number) => {
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.13,h,7),steel); m.position.set(x,h/2,z); kit.add(m);
-    for (const yy of [h*0.35,h*0.65]) { const arm=new THREE.Mesh(new THREE.BoxGeometry(0.75,0.06,0.06),accent); arm.position.set(x,yy,z); kit.add(arm); }
-  };
-  if (level >= 2) {
-    if (["hq","landCommand","airCommand","seaCommand","landStrategy","airStrategy","seaStrategy"].includes(kind)) {
-      module(-3.4,0,1.8,1.8,2.4,1.4,concrete); module(3.4,0,1.8,1.8,2.4,1.4,concrete); mast(0,-3.0,3.1);
-    } else if (kind === "factory") {
-      module(-3.9,0,1.0,2.4,3.6,1.8,steel); module(3.9,0,-1.2,2.2,2.8,1.3,steel); silo(-2.8,-3.1,0.65,1.9);
-    } else if (kind === "barracks") {
-      module(-3.6,0,0,2.4,4.2,1.5,concrete); module(3.6,0,0,2.4,4.2,1.5,concrete);
-    } else if (kind === "supply") {
-      module(-4.2,0,-8,4.8,5.5,3.5,steel);module(-4.2,3.5,-8,5.3,6,.35,accent);
-    } else if (kind === "airbase") {
-      module(-4.5,0,1.8,2.2,3.0,1.1,steel); module(4.5,0,1.8,2.2,3.0,1.1,steel); mast(-5.8,-3.8,2.4); mast(5.8,-3.8,2.4);
-    } else if (kind === "helipad") {
-      module(-3.2,0,1.8,2.0,2.4,1.0,steel); module(3.2,0,1.8,2.0,2.4,1.0,steel);
-    } else if (kind === "refinery") {
-      for (const x of [-3.2,-1.1,1.1,3.2]) silo(x,0.2,0.72,2.1); module(0,0,-3.1,5.5,1.1,1.5,steel);
-    } else if (kind === "radar") {
-      mast(0,0,4.0); module(-3.0,0,2.0,1.2,1.6,1.0,steel); module(3.0,0,2.0,1.2,1.6,1.0,steel);
-    } else if (kind === "generator") {
-      module(-2.5,0,0,2.0,2.6,1.1,steel); module(2.5,0,0,2.0,2.6,1.1,steel); silo(0,2.4,0.7,1.8);
-    } else if (kind === "shipyard") {
-      module(-4.0,0,1.2,2.8,4.2,1.4,steel); module(4.0,0,-1.2,2.8,4.2,1.4,steel); mast(0,-4.2,3.0);
-    } else if (kind === "bunker" || kind === "aa") {
-      module(-2.4,0,0,1.5,2.6,0.9,concrete); module(2.4,0,0,1.5,2.6,0.9,concrete);
-    }
-  }
-  if (level >= 3) {
-    if (["hq","landCommand","airCommand","seaCommand","landStrategy","airStrategy","seaStrategy"].includes(kind)) {
-      module(0,0,-1.8,4.0,2.6,3.2,steel); mast(0,1.0,6.0);
-      const dish = new THREE.Mesh(new THREE.CylinderGeometry(1.0,0.32,0.16,16),accent); dish.rotation.x=Math.PI/2; dish.position.set(0,6.1,1.0); kit.add(dish);
-    } else if (kind === "factory") {
-      module(0,0,0,4.8,3.4,2.7,steel); for (const x of [-2.0,0,2.0]) silo(x,-2.8,0.72,3.0); mast(3.8,2.5,4.2);
-    } else if (kind === "barracks") {
-      module(0,0,0,4.8,4.2,2.6,concrete); mast(0,-2.8,4.0);
-    } else if (kind === "supply") {
-      module(4.2,0,-8,4.8,5.5,3.5,steel);module(4.2,3.5,-8,5.3,6,.35,accent);
-    } else if (kind === "airbase") {
-      module(0,0,0,5.5,4.0,2.0,steel); mast(-4.8,-3.0,5.0); mast(4.8,-3.0,5.0);
-    } else if (kind === "helipad") {
-      module(0,0,0,4.4,3.2,1.7,steel); mast(0,-2.0,3.8);
-    } else if (kind === "refinery") {
-      for (const x of [-2.4,0,2.4]) silo(x,0,0.85,3.8); mast(0,-3.2,4.8);
-    } else if (kind === "radar") {
-      mast(0,0,6.5); const dish=new THREE.Mesh(new THREE.CylinderGeometry(1.4,0.38,0.18,16),accent); dish.rotation.x=Math.PI/2; dish.position.set(0,6.55,0); kit.add(dish);
-    } else if (kind === "generator") {
-      module(0,0,0,5.0,3.4,2.0,steel); silo(0,-2.5,0.9,3.0);
-    } else if (kind === "shipyard") {
-      module(0,0,0,5.8,4.6,2.0,steel); mast(0,-3.0,5.0);
-    } else if (kind === "bunker" || kind === "aa") {
-      module(0,0,0,4.8,3.2,1.8,concrete); mast(0,-2.0,2.8);
-    }
-  }
-}
 
 /** Sünkroonib sim-entiteedid three.js objektidega (interpoleeritud positsioon, kalle maastikule, valikurõngad). */
 export class UnitRenderer {
@@ -246,7 +176,9 @@ export class UnitRenderer {
       }
       if(syncEquipmentVisual(v.group,e))this.shadowDirty=true;
       const buildingLevel = e.buildingLevel ?? (e.upgrades.has("producer-3") ? 3 : e.upgrades.has("producer-2") ? 2 : 1);
-      if (v.staticBuilding && v.lastBuildingLevel !== buildingLevel) {
+      const targetLevel=e.upgrading?Math.min(3,buildingLevel+1):buildingLevel;
+      if (v.staticBuilding && v.lastBuildingLevel !== targetLevel) {
+        if(v.lastBuildingLevel!=null&&targetLevel>v.lastBuildingLevel&&!e.upgrading){v.upgradeRevealAt=now;v.upgradeRevealLevel=buildingLevel-1;}
         this.shadowDirty=true;
         if (v.upgradeKit) {
           v.upgradeKit.parent?.remove(v.upgradeKit);
@@ -257,14 +189,12 @@ export class UnitRenderer {
             else (mesh.material as THREE.Material | undefined)?.dispose();
           });
         }
-        const kit = new THREE.Group(); kit.name = "BuildingLevelDetails";
-        addBuildingLevelArchitecture(kit, e.kind, buildingLevel);
-        kit.traverse(o=>{if(o instanceof THREE.Mesh)o.castShadow=o.receiveShadow=true;});batchStaticScene(kit);
-        v.group.add(kit); v.upgradeKit = kit; v.lastBuildingLevel = buildingLevel;
+        const kit=createBuildingUpgradeStages(e.kind,buildingLevel,targetLevel);
+        v.group.add(kit); v.upgradeKit=kit;v.lastBuildingLevel=targetLevel;
       }
+      if(v.upgradeKit){const revealing=v.upgradeRevealAt!=null&&!e.upgrading&&(now-v.upgradeRevealAt)<baseVisuals.buildingVisuals.instantRevealSeconds;updateBuildingUpgradeStages(v.upgradeKit,revealing?v.upgradeRevealLevel??buildingLevel:buildingLevel,e.upgrading?(e.upgradeProgress??0)/Math.max(.01,e.upgradeTime??1):revealing?(now-v.upgradeRevealAt!)/baseVisuals.buildingVisuals.instantRevealSeconds:1);}
       if (e.upgrading) {
-        const k = Math.max(0.2, Math.min(1, (e.upgradeProgress ?? 0) / Math.max(0.01, e.upgradeTime ?? 1)));
-        v.group.scale.set(0.9 + 0.1 * k, 0.85 + 0.15 * k, 0.9 + 0.1 * k);
+        v.group.scale.set(1,1,1);
       } else if (e.underConstruction) {
         // Keep full silhouette – only slight growth; no flat green slab
         const k = Math.max(0.25, Math.min(1, e.constructionProgress / Math.max(0.01, e.constructionTime)));

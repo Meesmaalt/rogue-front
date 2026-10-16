@@ -31,7 +31,7 @@ export function updateEngineerDuty(w:World,u:Entity,dt:number,move:(p:Point)=>bo
   if(!u.target){duty.phase='return';return true;}
   const distance=Math.hypot(u.target.x-u.x,u.target.z-u.z);
   if(distance<=cfg.workDistance){duty.phase='working';duty.vanPoint={x:u.x,z:u.z};u.motionSpeed=0;return false;}
-  const span=Math.max(0,distance-cfg.workDistance+1),point=w.nav.nearestWalkable({x:u.x+(u.target.x-u.x)/distance*span,z:u.z+(u.target.z-u.z)/distance*span},cfg.vanRadius);
+  const span=Math.max(0,distance-Math.max(cfg.vanRadius*2,cfg.workDistance-w.nav.cellSize)),point=w.nav.nearestWalkable({x:u.x+(u.target.x-u.x)/distance*span,z:u.z+(u.target.z-u.z)/distance*span},cfg.vanRadius);
   if(point)drive(point);duty.vanPoint={x:u.x,z:u.z};return true;
  }
  if(duty.phase==='return'){

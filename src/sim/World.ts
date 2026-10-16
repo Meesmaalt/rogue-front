@@ -1,3 +1,5 @@
+import airportRules from '../data/airport-support.json';
+import {airportHasSupport} from './airportSupport';
 import {visibleDepotPads} from "./depotPads";
 import {runwayEdgePoint} from "./cargoApproach";
 import {BATTLE_SCALE,metricUnitDefinition} from "./battleScale";
@@ -201,7 +203,7 @@ export class World {
       barracks: ["Põhijalavägi", "Täiustatud jalavägi", "Eliit- ja raskerelvad"],
       factory: ["Põhisoomus", "IFV/artillery/recon", "MLRS/AT/õhutõrje eliit"],
       helipad: ["Transpordikopterid", "Ründekopterid", "Täiustatud kopterid/ECM"],
-      airbase: ["Põhilennukid", "Multirole/löögilennukid", "Interceptors/bomber/ECM"],
+      airbase: ["Lennurada ja juhtimistorn", "Hooldusangaar, kütus ja moon", "Lennurelvastuse keskus ja raskelennukid"],
       shipyard: ["Põhilaevad", "Frigates/landing craft", "Destroyer/submarine"],
       supply: ["Baassupply", "Suurem ladu ja FOB-võime", "Suur logistikasõlm"],
       radar: ["Lühike avastus", "Parem radar", "Pika maa sensorivõrk"],
@@ -241,11 +243,11 @@ export class World {
     const command = this.hasCommandLink(producer);
     const power = this.powerStatus(producer.team).ratio >= 0.25;
     const depot = this.nearestSupplyDepot(producer.team, { x: producer.x, z: producer.z }, true, true);
-    const logistics = producer.kind === "barracks" || producer.kind === "factory" || producer.kind === "helipad" || producer.kind === "airbase" || producer.kind === "shipyard" || producer.kind === "missileCommand"
+    const logistics = producer.kind==='airbase'?airportHasSupport(this,producer)&&(!producer.airportStoresInitialized||(producer.ammoStock??0)>0&&(producer.fuelStock??0)>0):producer.kind === "barracks" || producer.kind === "factory" || producer.kind === "helipad" || producer.kind === "shipyard" || producer.kind === "missileCommand"
       ? !!depot && depot.kind === "supply" && Math.hypot(depot.x-producer.x,depot.z-producer.z) <= logisticsConfig.depot.productionRadius && (depot.ammoStock ?? 0) > 0 && (depot.fuelStock ?? 0) > 0
       : true;
     const requiredLevel = kind ? this.unitRequiredBuildingLevel(kind) : 1;
-    const strategy = requiredLevel < 2 || this.hasStrategyForProducer(producer.team, producer.kind);
+    const strategy = producer.kind==='airbase'||requiredLevel < 2 || this.hasStrategyForProducer(producer.team, producer.kind);
     const parking= !kind||UNITS[kind].armor!=="air"||freeAirSlot(this,producer)>=0;
     const water=producer.kind!=="shipyard"||!!this.waterNav.nearestWater(producer,kind?this.unitDefinition(kind,producer.team).radius:5,64);
     const operational = water && parking && command && power && logistics && strategy && (producer.disabledUntil ?? 0) <= this.time;
@@ -253,6 +255,7 @@ export class World {
     if (!water) reason="Sadam vajab kõrval läbitavat vett";
     else if (!command) reason = "Puudub command-link";
     else if (!power) reason = "Energiapuudus";
+    else if (!logistics&&producer.kind==="airbase") reason=airportHasSupport(this,producer)?`Hooldusangaari varud otsas · vaja ${airportRules.refillCost} krediiti ja ressursse`:"Ehita lennujaama hooldusangaar · uuenda tasemele 2";
     else if (!logistics) reason = !depot || depot.kind!=="supply" || Math.hypot(depot.x-producer.x,depot.z-producer.z)>logisticsConfig.depot.productionRadius ? "Lähedal puudub toimiv varustusladu" : (depot.ammoStock??0)<=0 ? "Tootmine peatunud · laos pole laskemoona" : "Tootmine peatunud · laos pole kütust";
     else if (!strategy) reason = "Vajab vastava haru strateegiakeskust";
     else if(!parking)reason="Lennurajatise parkimiskohad on täis";

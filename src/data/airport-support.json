@@ -1,0 +1,12 @@
+{
+  "minimumLevel": 2,
+  "stocks": {"ammo": 420, "fuel": 1800, "repair": 300},
+  "levelBonus": 0.5,
+  "refillThreshold": 0.25,
+  "refillFraction": 0.5,
+  "refillCost": 100,
+  "structures": [
+    {"level": 2, "kind": "hangar", "x": 69, "z": 80, "width": 16, "depth": 12, "height": 5.2},
+    {"level": 3, "kind": "arsenal", "x": 69, "z": -89, "width": 16, "depth": 12, "height": 5.8}
+  ]
+}

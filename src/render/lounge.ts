@@ -1,10 +1,10 @@
 import layout from '../data/base-life.json';
 import terrainConfig from '../data/terrain.json';
 /** Depot geometry uses world metres; other military models keep their authored scale. */
-export function buildingScale(kind:string):number{return kind==='supply'?1:terrainConfig.render.buildings.militaryScale;}
+export function buildingScale(kind:string):number{return kind==='supply'?1:terrainConfig.render.buildings.militaryScale*(kind==='hq'?layout.hq.scale:1);}
 /** Shared layout for static furniture (Architecture.ts) and animated sitters (UnitRenderer/BaseLife). Model-space units, before the building scale. */
 export interface Seat{x:number;z:number;/** Local facing angle, 0 = +z. */heading:number}
-export const HQ_LOUNGE={x:5.8,z:4.6};
+export const HQ_LOUNGE={x:5.8,z:6.6};
 export const DEPOT_LOUNGE={x:layout.depot.rest.x,z:layout.depot.rest.z};
 function around(cx:number,cz:number,points:ReadonlyArray<[number,number]>):Seat[]{return points.map(([dx,dz])=>({x:cx+dx,z:cz+dz,heading:Math.atan2(-dx,-dz)}));}
 /** Three sofa seats, two armchairs and a crate stool around the HQ coffee table. */

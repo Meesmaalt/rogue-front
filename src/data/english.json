@@ -542,5 +542,19 @@
   "Passiivne soojusjälgimine; radarivastased raketid ei saa lukustuda": "Passive heat tracking; anti-radiation missiles cannot lock on",
   "Pikema ulatusega radarjuhitavad raketid; haavatav SEAD-lennukitele": "Longer-range radar-guided missiles; vulnerable to SEAD aircraft",
   "Radarivastased raketid radarite ja radarõhutõrje vastu; elektrooniline häiring": "Anti-radiation missiles against radars and radar SAMs; electronic jamming",
-  "SEAD / elektroonilise sõja lennuk": "SEAD / electronic warfare aircraft"
+  "SEAD / elektroonilise sõja lennuk": "SEAD / electronic warfare aircraft",
+  "Ehita hooldusangaar ja kütuseladu": "Build maintenance hangar and fuel storage",
+  "Ehita lennurelvastuse keskus": "Build aviation weapons centre",
+  "Hooldusangaar": "Maintenance hangar",
+  "Hooldusangaari varud otsas": "Maintenance hangar supplies depleted",
+  "Ehita lennujaama hooldusangaar": "Build the airport maintenance hangar",
+  "uuenda tasemele 2": "upgrade to level 2",
+  "Paigaldab hoone uusi osi": "Installing building extensions",
+  "Insenerid võtavad tööriistaautot": "Engineers are collecting their service van",
+  "Tööauto liigub ehitusplatsile": "Service van is travelling to the construction site",
+  "Ehitus ootab inseneri": "Construction awaits an engineer",
+  "varude automaattellimus": "automatic supply order",
+  "Lennurada ja juhtimistorn": "Runway and control tower",
+  "Hooldusangaar, kütus ja moon": "Maintenance hangar, fuel and ammunition",
+  "Lennurelvastuse keskus ja raskelennukid": "Aviation weapons centre and heavy aircraft"
 }

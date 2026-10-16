@@ -1,5 +1,14 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Ehitusriba, lennujaama hooldus ja kasvavad hooned · 16.10.2026
+
+- [x] Jämeda nav-ruudustiku tõttu tööulatusest välja jäänud tööauto läheneb nüüd varuga; ehitaja ja ehitussüsteem kasutavad sama töökaugust. Valikupaneel selgitab tööauto/ehitamise olekut.
+- [x] Lennukitootmise eeldus on lennujaama enda 2. taseme hooldusangaar, kütus ja moon, mitte eraldi varustusladu või lennustrateegiakeskus. Algvaru tuleb arendusega, järgmine automaattellimus maksab 100 krediiti ja 100 ressurssi. 3. tase lisab lennurelvastuse keskuse.
+- [x] Uuenduste uued ruumid, mahutid, antennid ja katuseosad kasvavad ehituse edenedes juurde; olemasolev hoone säilib. Suurem kolmetiivaline HQ saab operatsiooniruumi ja juhtimistorni. Rohkem aknaid, katuse- ja fassaadidetaile ka teistel hoonetel.
+- [x] Riigi ja lennuki rolli järgi eristuvad SVG-siluetid tootmisnuppudel, nimekirjades ning valikukaardil; Chinooki tandemrootorid, kaubalennuki neli mootorit ja erinevad lahingulennukid.
+- [x] 10 sihitud testi, viimaste mudelimuudatuste kaks korduskontrolli ning TypeScript/tootmisbuild läbisid. HQ geomeetria ja ikoonilehe staatiline eelvaade üle vaadatud; tegelikku WebGL mängupilti ei väideta kontrollituks.
+
+
 ## Päris laomeeskond, tööautod ja lähivaade · 16.10.2026
 
 - [x] Sisse tõmmatud kasutaja a8dfce1 baasi-elu muudatused ja edasi arendatud nende peale.

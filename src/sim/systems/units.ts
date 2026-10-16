@@ -664,7 +664,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
         return;
       }
     }
-    const taskReach=target.def.building?13:12;
+    const taskReach=target.def.building?baseLife.engineer.workDistance:12;
     if (Math.hypot(u.x - target.x, u.z - target.z) > taskReach) moveRoadTruckTo(w,u,target,dt,taskReach-.5);
     else u.motionSpeed=0;
     return;
@@ -687,7 +687,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     }
     const armed=(u.maxAmmo??0)>0;
     if(u.airState==="grounded"||u.airState==="rearming"){
-      const depot=pad?w.nearestSupplyDepot(u.team,pad,false):null;
+      const depot=pad?.kind==='airbase'?pad:pad?w.nearestSupplyDepot(u.team,pad,false):null;
       if(pad&&depot&&dist2d(u,airParkingPoint(u,pad))<2&&dist2d(depot,pad)<80&&(pad.disabledUntil??0)<=w.time&&w.hasCommandLink(pad)&&w.powerStatus(u.team).ratio>=.25){
         const fuel=Math.max(0,Math.min((u.maxFuel??0)-(u.fuel??0),34*dt,serviceFuelAvailable(depot)));
         const ammo=Math.max(0,Math.min((u.maxAmmo??0)-(u.ammo??0),2.2*dt,depot.ammoStock??0));
