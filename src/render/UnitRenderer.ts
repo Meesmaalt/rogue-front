@@ -1,3 +1,5 @@
+import constructionPolicy from '../data/construction-policy.json';
+import {ConstructionSite} from './ConstructionSite';
 import {renderedGroundHeightAt} from './GroundSurface';
 import logisticsRules from '../data/logistics.json';
 import {applyUnitCamouflage,selectedCamouflage} from './UnitCamouflage';
@@ -33,7 +35,7 @@ contactContext.fillStyle = contactGradient; contactContext.fillRect(0,0,64,64);
 const contactGeometry = new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2); contactGeometry.userData.sharedArt = true;
 const contactMaterial = new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(contactCanvas),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1}); contactMaterial.userData.sharedArt = true;
 
-interface View extends LoungeState { soldiers:Map<number,SoldierPose>;cargoRamp?:THREE.Group;parachute?:THREE.Group;rotorRpm:number;surface?:THREE.Mesh; resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;suspensionPitch:SuspensionState;suspensionRoll:SuspensionState; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group;upgradeRevealAt?:number;upgradeRevealLevel?:number; lastBuildingLevel?: number; lastAirState?: string }
+interface View extends LoungeState { constructionSite?:ConstructionSite; soldiers:Map<number,SoldierPose>;cargoRamp?:THREE.Group;parachute?:THREE.Group;rotorRpm:number;surface?:THREE.Mesh; resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;suspensionPitch:SuspensionState;suspensionRoll:SuspensionState; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group;upgradeRevealAt?:number;upgradeRevealLevel?:number; lastBuildingLevel?: number; lastAirState?: string }
 const lerpAngle = (a: number, b: number, t: number) => a + wrapAngle(b - a) * t;
 
 
@@ -57,6 +59,7 @@ export class UnitRenderer {
 
   reset():void {
     for(const v of this.views.values()){
+      v.constructionSite?.dispose();
       this.scene.remove(v.group);v.group.traverse(o=>{const m=o as THREE.Mesh;if(o instanceof THREE.LineSegments){o.geometry.dispose();(o.material as THREE.Material).dispose();return;}if(!m.isMesh)return;disposeUnitMesh(m,this.ringMat);});
     }
     for(const m of this.intelGhosts.values()){this.scene.remove(m);m.geometry.dispose();(m.material as THREE.Material).dispose();}
@@ -214,17 +217,13 @@ export class UnitRenderer {
         v.group.add(kit); v.upgradeKit=kit;v.lastBuildingLevel=targetLevel;
       }
       if(v.upgradeKit){const revealing=v.upgradeRevealAt!=null&&!e.upgrading&&(now-v.upgradeRevealAt)<baseVisuals.buildingVisuals.instantRevealSeconds;updateBuildingUpgradeStages(v.upgradeKit,revealing?v.upgradeRevealLevel??buildingLevel:buildingLevel,e.upgrading?(e.upgradeProgress??0)/Math.max(.01,e.upgradeTime??1):revealing?(now-v.upgradeRevealAt!)/baseVisuals.buildingVisuals.instantRevealSeconds:1);}
-      if (e.upgrading) {
-        v.group.scale.set(1,1,1);
-      } else if (e.underConstruction) {
-        // Keep full silhouette – only slight growth; no flat green slab
-        const k = Math.max(0.25, Math.min(1, e.constructionProgress / Math.max(0.01, e.constructionTime)));
-        v.group.scale.set(0.88 + 0.12 * k, 0.75 + 0.25 * k, 0.88 + 0.12 * k);
-      } else {
-        v.group.scale.set(1, 1, 1);
-      }
-      // Construction scales the buildings, not the ground-clipped runway and its markings.
-      if(v.surface)v.surface.scale.set(1/v.group.scale.x,1/v.group.scale.y,1/v.group.scale.z);
+      v.group.scale.set(1,1,1);
+      if(e.underConstruction&&!e.upgrading&&v.staticBuilding){
+        if(!v.constructionSite)v.constructionSite=new ConstructionSite(v.group,[v.near,...(v.far?[v.far]:[])]);
+        v.constructionSite.update(e,world.buildingProgress(e),onScreen&&distance<lodDistance*2);
+      }else if(v.constructionSite){v.constructionSite.dispose();v.constructionSite=undefined;this.shadowDirty=true;}
+      // Paving appears after foundations; the ground surface keeps its real dimensions.
+      if(v.surface)v.surface.visible=!e.underConstruction||!!e.upgrading||world.buildingProgress(e)>=constructionPolicy.stages.foundationEnd;
       const animT = world.time-(1-alpha)/30 + v.phase;
       if(v.staticBuilding&&(e.underConstruction||e.upgrading)&&now-this.lastConstructionShadow>.2){this.shadowDirty=true;this.lastConstructionShadow=now;}
       const recoil = this.recoilById.get(e.id) ?? 0;
@@ -336,6 +335,7 @@ export class UnitRenderer {
     }
     for (const [id, v] of this.views) {
       if (seen.has(id)) continue;
+      v.constructionSite?.dispose();
       this.scene.remove(v.group);
       v.group.traverse((o) => {
         const m = o as THREE.Mesh;

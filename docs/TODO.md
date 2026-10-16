@@ -1,5 +1,12 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Ehitusplatside etapid ja püsiv maastik · 16.10.2026
+
+- [x] Uus hoone säilitab tegelikud mõõtmed. Platsi tähised, vundament, materjalivirn ja partiidesse koondatud tellingud; hoone osad avanevad kõrguse järgi ehituse edenedes, ilma kummise skaleerimiseta. Kaugemal jäävad tellingud/virnad ära. Lennuraja kate ilmub pärast vundamendifaasi.
+- [x] HUD eristab päris töö etappe: platsi ettevalmistus, vundament, karkass/seinad ja viimistlus. Tolm tekib ainult tegelikult edenenud töö ajal ning kasutab olemasolevat piiratud osakesepuhvrit.
+- [x] Simulatsioon ja puude esitus kasutavad sama püsivat, täpselt pööratud puhastatud ala. Kaovad metsa aeglustus, varjumine ja süttimisvõimalus; puud ei ilmu pärast hoone hävimist tagasi. Lao maa puhastub tegeliku taseme järgi, tulevane arendusala jääb eraldi reserveerituks.
+- [x] Puhastatud alad säilivad save/replay olekus. Ruumiline indeks, muutumata hoone vahemälu, jagatud ajutised materjalid ning tellingute materjalide/geomeetria vabastamine. Sihitud simulatsiooni-, ehituslogistika- ja renderdusandmete testid ning kliendi/serveri build läbisid. Tegelik WebGL pilt vajab mängus ülevaatust; varasem brauserivärav jääb avatuks.
+
 ## Maaväe teeninduskäsk ja lahinguvalmidus · 16.10.2026
 
 - [x] V2/V4 järgmine piiritletud parandus: valitud maaväetehnika „Teenindusse” / E-käsk valib sobiva varuga HQ või lao ning reserveerib igale masinale eraldi läbitava koha, eemal praegustest ja tulevastest lao kopteriplatsidest. Teeotsing on käsu/korduskatse põhine ja piiratud eelarvega.

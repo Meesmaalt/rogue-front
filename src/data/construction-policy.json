@@ -1,1 +1,65 @@
-{"depotReserveLevel":3,"reserveMargin":3,"forestDensity":0.42,"forestCoverage":0.12,"forestSamples":5,"treeClearance":2,"branches":{"hq":["generator","supply","landCommand","airCommand","seaCommand"],"landCommand":["barracks","factory","combatEngineer","landStrategy"],"airCommand":["helipad","airbase","airStrategy"],"seaCommand":["shipyard","seaStrategy"],"landStrategy":["missileCommand"],"airStrategy":["radar"],"seaStrategy":[],"combatEngineer":["gunTurret","flakTurret","atTurret","bunker","aa","radar"],"missileCommand":["icbmSilo"],"supply":[]}}
+{
+  "depotReserveLevel": 3,
+  "reserveMargin": 3,
+  "forestDensity": 0.42,
+  "forestCoverage": 0.12,
+  "forestSamples": 5,
+  "treeClearance": 2,
+  "branches": {
+    "hq": [
+      "generator",
+      "supply",
+      "landCommand",
+      "airCommand",
+      "seaCommand"
+    ],
+    "landCommand": [
+      "barracks",
+      "factory",
+      "combatEngineer",
+      "landStrategy"
+    ],
+    "airCommand": [
+      "helipad",
+      "airbase",
+      "airStrategy"
+    ],
+    "seaCommand": [
+      "shipyard",
+      "seaStrategy"
+    ],
+    "landStrategy": [
+      "missileCommand"
+    ],
+    "airStrategy": [
+      "radar"
+    ],
+    "seaStrategy": [],
+    "combatEngineer": [
+      "gunTurret",
+      "flakTurret",
+      "atTurret",
+      "bunker",
+      "aa",
+      "radar"
+    ],
+    "missileCommand": [
+      "icbmSilo"
+    ],
+    "supply": []
+  },
+  "stages": {
+    "clearingEnd": 0.12,
+    "foundationEnd": 0.25,
+    "structureEnd": 0.82
+  },
+  "visual": {
+    "scaffoldGap": 1.1,
+    "scaffoldHeight": 12,
+    "scaffoldSpan": 32,
+    "scaffoldEnd": 0.95,
+    "baseHeight": 0.18,
+    "maxFloors": 3,
+    "floorHeight": 3
+  }
+}

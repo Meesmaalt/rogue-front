@@ -39,3 +39,11 @@ it('blocked vehicles with stale speed intent emit no movement dust',()=>{
  const {w,fx,meshes}=fixture(),u=w.spawn('tank',0,0,-170);u.motionSpeed=12;
  fx.syncUnitEffects(w,.13);fx.update(0);expect(meshes[2].count).toBe(0);
 });
+
+it('construction dust follows real work progress and stops when a waiting crew makes no progress',()=>{
+ const {w,fx,meshes}=fixture(),b=w.spawn('generator',0,0,-170);b.underConstruction=true;b.constructionTime=10;b.constructionProgress=0;
+ fx.syncUnitEffects(w,.13);fx.update(0);expect(meshes[2].count).toBe(0);
+ b.constructionProgress=1;fx.syncUnitEffects(w,.13);fx.update(0);expect(meshes[2].count).toBe(1);
+ fx.syncUnitEffects(w,.13);fx.update(0);expect(meshes[2].count).toBe(1);
+ fx.reset();fx.syncUnitEffects(w,.13);fx.update(0);expect(meshes[2].count).toBe(0);
+});

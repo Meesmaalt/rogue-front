@@ -2,6 +2,12 @@
 
 Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 16, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
 
+## Ehitusplats ja püsiv raadamine · 16.10.2026
+
+`TerrainState.clearBuilding` registreerib tegeliku ehitatud ala, sh lao tasemepõhise kompleksi. Alles meeskonna esimene töö puhastab uue vundamendi; valmishooned ja uuendused registreeritakse sama ehitussüsteemi käigus. Pööratud ristkülikud indekseeritakse 32 m ruumiplokkidesse ning muutumata hoone kontroll kasutab WeakMap-vahemälu. `densityAt`/`foliageAt`, liikumine, metsa varjumine ja süttimine arvestavad puhastatud ala; renderdaja peidab puu-/istanduse instantsid sama `clearedAt` päringuga. Ala ei kao hoone hävimisel. Snapshot sisaldab `clearings` loendit; vana puuduva loendiga salvestus jääb taastatavaks. Revisionsüsteem väldib muutumata taimestikupuhvrite korduvat üleslaadimist.
+
+`ConstructionSite` on ainult esitus: üksused ei saa sellest ressursse ega ehituskiirust. Ajutised hoonematerjalide koopiad jagavad kõrguse lõiketasandit, varjud kasutavad sama tasandit. Lähi-/kaugmudeli jagatud algmaterjale ei muudeta; töö lõpus/hävimisel taastatakse need ja vabastatakse koopiad ning kuni viis platsigeomeetria partiid. Ehitus ei skaleeri enam hoonet. Tähised, vundament, tellingud ja materjalid järgnevad simulatsiooni ehitusprogressile; kaugelt jäävad detailid ära. `Fx` tolm järgib vaadeldud progressi muutust, seega ootel tööauto või paus ei tekita jätkuvat ehitustolmu. Etapipiirid on `construction-policy.json` failis.
+
 ## Maaväe teenindus · 16.10.2026
 
 `vehicleService.ts` lisab tahtliku `vehicle-service` käsu maaväetehnikale. Jalavägi, automaatsed ehitusmeeskonnad ja laadurid/konvoid jäävad oma tööloogika alla. Plaan järjestab sama poole töötavad HQ/laod vajalike päris varude ning kauguse järgi; iga üksus saab navigeeritava vaba koha koos eraldi broneeringuga. Kõigi kolme tulevase lao kopteriplatsi ala jääb vabaks. Rajakontrolli katsed/sõlme-eelarve ja korduskatse sagedus on `logistics.json.vehicleService` all. Sõiduks kasutatakse olemasolevat `moveRoadTruckTo` dünaamikat, mitte asukoha muutmist animatsiooniga.

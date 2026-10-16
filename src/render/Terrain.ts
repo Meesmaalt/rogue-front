@@ -1,4 +1,3 @@
-import {entitySite,insideSite} from '../sim/buildingPlacement';
 import {createItalianScenery} from './ItalianScenery';
 import {createCropFields,fieldCrop,cropColors} from "./CropFields";
 import {createRoadSurfaces,roadTexture as asphaltTexture} from "./RoadSurface";
@@ -721,10 +720,9 @@ export function createForest(features:readonly MapFeatureDef[],cells=sampleFores
 
 /** Persistent charred canopy uses existing forest batches; no per-tree mesh creation. */
 export function syncForestTerrain(group:THREE.Group,world:World):boolean {
-  const buildings=world.entities.filter(e=>!e.dead&&e.def.building),buildingKey=buildings.map(e=>`${e.id}/${e.x}/${e.z}/${e.heading}`).join('|');
-  if(group.userData.forestRevision===world.terrain.revision&&group.userData.forestBuildingKey===buildingKey)return false;
-  group.userData.forestRevision=world.terrain.revision;group.userData.forestBuildingKey=buildingKey;let changed=false;
-  const areas=buildings.map(entitySite),cleared=(x:number,z:number)=>areas.some(a=>insideSite(a,{x,z},2));
+  if(group.userData.forestRevision===world.terrain.revision)return false;
+  group.userData.forestRevision=world.terrain.revision;let changed=false;
+  const cleared=(x:number,z:number)=>world.terrain.clearedAt(x,z);
   const matrix=new THREE.Matrix4(),color=new THREE.Color(),position=new THREE.Vector3(),scale=new THREE.Vector3(),rotation=new THREE.Quaternion();
   group.traverse(o=>{
     if(!(o instanceof THREE.InstancedMesh))return;

@@ -29,6 +29,7 @@ export class Fx {
   private forestTimer=0;
   private ambientTimer=0;
   private ambientCursor=0;
+  private constructionProgress=new Map<number,number>();
   private pools:Record<ParticleKind,Pool>;
   private shells=new Map<number,Shell>();
   private models=new Map<string,THREE.Group>();
@@ -66,6 +67,7 @@ export class Fx {
     this.pools={smoke:make("smoke",effects.pools.smoke),vapor:make("vapor",effects.pools.vapor),dust:make("dust",effects.pools.dust),glow:make("glow",effects.pools.glow),spark:make("spark",effects.pools.spark)};
   }
   reset():void {
+    this.constructionProgress.clear();
     this.forestTimer=this.wakeTimer=this.ambientTimer=this.ambientCursor=0;this.bursts.length=0;
     for(const s of this.shells.values())this.scene.remove(s.group);this.shells.clear();
     for(const pool of Object.values(this.pools)){pool.particles.length=0;pool.mesh.count=0;}
@@ -102,12 +104,23 @@ export class Fx {
   syncUnitEffects(world:World,dt:number):void {
     this.ambientTimer+=dt;const cfg=effects.ambient;if(this.ambientTimer<cfg.interval)return;this.ambientTimer%=cfg.interval;
     this.camera.updateMatrixWorld();this.frustum.setFromProjectionMatrix(this.projection.multiplyMatrices(this.camera.projectionMatrix,this.camera.matrixWorldInverse));
+    for(const id of this.constructionProgress.keys())if(!world.byId.get(id)?.underConstruction)this.constructionProgress.delete(id);
     const count=world.entities.length;if(!count)return;let emitted=0;
     for(let n=0;n<count;n++){
       const u=world.entities[(this.ambientCursor+n)%count];
-      if(u.dead||u.loadedIntoId!=null||u.underConstruction||u.def.category==="infantry"||u.team!==world.playerTeam&&!world.isSpottedByTeam(u,world.playerTeam))continue;
+      if(u.dead||u.loadedIntoId!=null||u.def.category==="infantry"||u.team!==world.playerTeam&&!world.isSpottedByTeam(u,world.playerTeam))continue;
       this.point.set(u.x,u.y+u.def.height*.5,u.z);
       if(this.camera.position.distanceToSquared(this.point)>cfg.distance**2||!this.frustum.containsPoint(this.point))continue;
+      if(u.underConstruction){
+        const previous=this.constructionProgress.get(u.id)??u.constructionProgress;
+        this.constructionProgress.set(u.id,u.constructionProgress);
+        if(u.constructionProgress<=previous)continue;
+        const angle=world.time*2+u.id,reach=Math.min(6,u.def.radius)*.6;
+        this.emit("dust",u.x+Math.sin(angle)*reach,heightAt(u.x,u.z)+.35,u.z+Math.cos(angle)*reach,.7,cfg.dustLife,0xb0a08a,.25,.55,.1);
+        if(++emitted>=cfg.maxUnits){this.ambientCursor=(this.ambientCursor+n+1)%count;return;}
+        continue;
+      }
+      this.constructionProgress.delete(u.id);
       const ground=heightAt(u.x,u.z),water=world.waterNav.isWalkableWorld(u.x,u.z),surface=water?world.waterNav.surfaceAt(u.x,u.z):ground,altitude=u.y-surface;
       const travelX=u.x-u.px,travelZ=u.z-u.pz,speed=Math.hypot(travelX,travelZ)/SIM_STEP,radius=u.def.radius;
       const damaged=u.hp/maxHitPoints(u)<cfg.damageThreshold||(u.components?.engine??0)>cfg.engineThreshold;

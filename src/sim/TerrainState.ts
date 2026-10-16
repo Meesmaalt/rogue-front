@@ -1,3 +1,6 @@
+import {builtSite,insideSite,type SiteArea} from './buildingPlacement';
+import {depotLayoutLevel} from './depotLayout';
+import construction from '../data/construction-policy.json';
 import {mobilityProfile} from "./unitStats";
 import config from "../data/terrain.json";
 import {forestDensityAt,pointInFeature,MapFeatureIndex,type MapFeatureDef} from "./mapFeatures";
@@ -12,6 +15,33 @@ const rules=config.forest;
 export class TerrainState {
   private cells=new Map<string,ForestCell>();
   private accumulator=0;
+  private clearings=new Map<string,SiteArea>();
+  private clearedBuildings=new WeakMap<Entity,{x:number;z:number;heading:number;level:number}>();
+  clearBuilding(e:Entity):void {
+    const previous=this.clearedBuildings.get(e),level=e.kind==='supply'?depotLayoutLevel(e):1;
+    if(previous&&previous.x===e.x&&previous.z===e.z&&previous.heading===e.heading&&previous.level===level)return;
+    this.clearSite(builtSite(e));this.clearedBuildings.set(e,{x:e.x,z:e.z,heading:e.heading,level});
+  }
+  private clearingBins=new Map<string,SiteArea[]>();
+  private readonly clearingBinSize=32;
+  /** Exact rotated areas, spatially indexed; cleared land stays cleared after demolition. */
+  clearSite(area:SiteArea):void {
+    const padding=construction.treeClearance,a={...area,left:area.left-padding,right:area.right+padding,back:area.back-padding,front:area.front+padding};
+    const key=JSON.stringify(a);if(this.clearings.has(key))return;
+    this.clearings.set(key,a);this.indexClearing(a);
+    for(const [cellKey,cell] of this.cells)if(insideSite(a,cell))this.cells.delete(cellKey);
+    this.revision++;
+  }
+  private indexClearing(a:SiteArea):void {
+    const c=Math.abs(Math.cos(a.heading)),s=Math.abs(Math.sin(a.heading)),r=Math.max(Math.abs(a.left),Math.abs(a.right)),d=Math.max(Math.abs(a.back),Math.abs(a.front)),hx=c*r+s*d,hz=s*r+c*d;
+    for(let x=Math.floor((a.x-hx)/this.clearingBinSize);x<=Math.floor((a.x+hx)/this.clearingBinSize);x++)for(let z=Math.floor((a.z-hz)/this.clearingBinSize);z<=Math.floor((a.z+hz)/this.clearingBinSize);z++){
+      const key=`${x}/${z}`,bin=this.clearingBins.get(key);if(bin)bin.push(a);else this.clearingBins.set(key,[a]);
+    }
+  }
+  clearedAt(x:number,z:number):boolean {
+    const bin=this.clearingBins.get(`${Math.floor(x/this.clearingBinSize)}/${Math.floor(z/this.clearingBinSize)}`);
+    return !!bin?.some(a=>insideSite(a,{x,z}));
+  }
   revision=0;
   private readonly vegetation:MapFeatureIndex;
   private readonly coverBins=new Map<string,MapFeatureDef[]>();
@@ -38,10 +68,10 @@ export class TerrainState {
   }
   roadAt(x:number,z:number):boolean {return this.vegetation.at(x,z).some(f=>(f.kind==="road"||f.kind==="bridge")&&pointInFeature(x,z,f));}
   slowCoverAt(x:number,z:number):boolean {return this.vegetation.at(x,z).some(f=>f.kind==="cover"&&f.appearance!=="forest"&&f.appearance!=="field"&&f.appearance!=="yard"&&pointInFeature(x,z,f));}
-  densityAt(x:number,z:number):number{return forestDensityAt(x,z,this.vegetation.at(x,z));}
+  densityAt(x:number,z:number):number{return this.clearedAt(x,z)?0:forestDensityAt(x,z,this.vegetation.at(x,z));}
   burntAt(x:number,z:number):boolean{return this.cells.get(this.key(x,z))?.burnt??false;}
   foliageAt(x:number,z:number):number{return this.densityAt(x,z)*(this.burntAt(x,z)?rules.burntCover:1);}
-  fireAt(x:number,z:number):boolean {const c=this.cells.get(this.key(x,z));return !!c&&!c.burnt&&c.age<rules.burnDuration;}
+  fireAt(x:number,z:number):boolean {if(this.clearedAt(x,z))return false;const c=this.cells.get(this.key(x,z));return !!c&&!c.burnt&&c.age<rules.burnDuration;}
   fires():readonly ForestCell[]{return [...this.cells.values()].filter(c=>c.age<rules.burnDuration+rules.smokeLifetime);}
   burntCells():readonly ForestCell[]{return [...this.cells.values()].filter(c=>c.burnt);}
   ignite(x:number,z:number,y:number,damage:number,radius:number):void {
@@ -89,6 +119,6 @@ export class TerrainState {
     }
 
   }
-  snapshot(){return {cells:[...this.cells.values()].map(c=>({...c})),accumulator:this.accumulator};}
-  restore(s?:ReturnType<TerrainState["snapshot"]>):void {this.cells.clear();s?.cells.forEach(c=>this.cells.set(this.key(c.x,c.z),{...c}));this.accumulator=s?.accumulator??0;this.revision++;}
+  snapshot():{cells:ForestCell[];accumulator:number;clearings?:SiteArea[]}{return {clearings:[...this.clearings.values()].map(a=>({...a})),cells:[...this.cells.values()].map(c=>({...c})),accumulator:this.accumulator};}
+  restore(s?:ReturnType<TerrainState["snapshot"]>):void {this.clearedBuildings=new WeakMap();this.clearings.clear();this.clearingBins.clear();for(const a of s?.clearings??[]){const copy={...a};this.clearings.set(JSON.stringify(copy),copy);this.indexClearing(copy);}this.cells.clear();s?.cells.forEach(c=>this.cells.set(this.key(c.x,c.z),{...c}));this.accumulator=s?.accumulator??0;this.revision++;}
 }

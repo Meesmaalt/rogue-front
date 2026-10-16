@@ -623,5 +623,9 @@
   "Teenindus: sobiva varuga baasi juurde pole vaba läbitavat kohta": "Service: no reachable free space at a stocked base",
   "Teenindusse (E): sõida vaba koha juurde HQ või lao lähedal. Remont, tankimine ja relvastamine kasutavad päris laovarusid. Uus käsk katkestab teeninduse.": "Service (E): drive to a free space near HQ or a depot. Repairs, fuel and ammunition consume real stocks. New orders cancel service.",
   "teeninduses": "servicing",
-  "teenindatud": "serviced"
+  "teenindatud": "serviced",
+  "Platsi ettevalmistus": "Preparing the site",
+  "Vundamendi rajamine": "Laying foundations",
+  "Karkassi ja seinte ehitus": "Building frame and walls",
+  "Viimistlus ja paigaldus": "Finishing and installation"
 }

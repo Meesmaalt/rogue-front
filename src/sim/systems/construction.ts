@@ -1,3 +1,4 @@
+import policy from '../../data/construction-policy.json';
 import {dispatchConstruction,constructionReach} from '../automaticConstruction';
 import baseLife from '../../data/base-life.json';
 import {stockCapacity,stockTotal} from "../stockLogistics";
@@ -20,6 +21,7 @@ export function updateConstruction(w: World, dt: number): void {
     const spec = isBuildable(building.kind) ? BUILDINGS[building.kind] : null;
     if (!spec) continue;
 
+    if(!building.underConstruction||building.upgrading||building.constructionProgress>0)w.terrain.clearBuilding(building);
     const builders = buildersFor(w, building);
     if (building.underConstruction) {
       building.builderIds = builders.map(b => b.id).slice(0, spec.maxBuilders);
@@ -27,6 +29,7 @@ export function updateConstruction(w: World, dt: number): void {
       const rate = (building.upgrading ? 1 : active.length) * dt;
       if (rate > 0) {
         building.constructionProgress += rate;
+        w.terrain.clearBuilding(building);
         if (building.upgrading) building.upgradeProgress = building.constructionProgress;
         for (const b of active) {
           b.mode = "build";
@@ -86,7 +89,7 @@ export function constructionStatus(w:World,building:Entity):string {
  const progress=Math.round(w.buildingProgress(building)*100);
  if(building.upgrading)return `Paigaldab hoone uusi osi · ${progress}%`;
  const builders=buildersFor(w,building),working=builders.some(e=>(!e.engineerDuty||e.engineerDuty.phase==='working')&&dist2d(e,building)<=(e.constructionCrew?constructionReach(w,building):baseLife.engineer.workDistance));
- if(working)return `Ehitamine · ${progress}%`;
+ if(working){const fraction=w.buildingProgress(building);return `${fraction<policy.stages.clearingEnd?'Platsi ettevalmistus':fraction<policy.stages.foundationEnd?'Vundamendi rajamine':fraction<policy.stages.structureEnd?'Karkassi ja seinte ehitus':'Viimistlus ja paigaldus'} · ${progress}%`;}
  if(builders.some(e=>e.engineerDuty?.phase==='to-van'||e.engineerDuty?.phase==='boarding'))return `Insenerid võtavad tööriistaautot · ${progress}%`;
  if(builders.some(e=>e.constructionCrew?.transportId!=null||e.loadedIntoId!=null))return `Chinook toob ehitusmeeskonda · ${progress}%`;
  if(builders.length)return `Tööauto liigub ehitusplatsile · ${progress}%`;

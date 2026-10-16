@@ -1,6 +1,6 @@
 import rules from '../data/construction-policy.json';
 import {BUILDINGS,isBuildable} from './buildings';
-import {depotCompound} from './depotLayout';
+import {depotLayoutLevel,depotCompound} from './depotLayout';
 import {MapFeatureIndex,forestDensityAt,type MapFeatureDef} from './mapFeatures';
 import type {Entity,Point,UnitKind} from './types';
 export interface SiteArea extends Point {heading:number;left:number;right:number;back:number;front:number}
@@ -23,3 +23,7 @@ export function siteInDenseForest(features:readonly MapFeatureDef[],area:SiteAre
  for(let i=0;i<rules.forestSamples;i++)for(let j=0;j<rules.forestSamples;j++){const p=siteWorld(area,area.left+(i+.5)*(area.right-area.left)/rules.forestSamples,area.back+(j+.5)*(area.front-area.back)/rules.forestSamples);if(forestDensityAt(p.x,p.z,index.at(p.x,p.z))>rules.forestDensity)dense++;}return dense/(rules.forestSamples**2)>rules.forestCoverage;
 }
 export function entitySite(e:Entity):SiteArea{return constructionArea(e.kind,e.x,e.z,e.heading);}
+/** Clearance follows the built compound; the larger placement reservation stays untouched. */
+export function builtSite(e:Entity):SiteArea {
+ return e.kind==='supply'?{x:e.x,z:e.z,heading:e.heading,...depotCompound(depotLayoutLevel(e))}:entitySite(e);
+}

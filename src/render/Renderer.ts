@@ -22,6 +22,7 @@ export interface RenderContext {
 export function createRenderContext(canvas: HTMLCanvasElement, temperate = false, quality:GameSettings["quality"]="medium",compact=false): RenderContext {
   let profile = chooseVisualProfile(quality);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+  renderer.localClippingEnabled=true;
   renderer.setPixelRatio(profile.pixelRatio);
   renderer.shadowMap.enabled = profile.shadows;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
