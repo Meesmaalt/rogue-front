@@ -172,8 +172,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const resourceSites=new ResourceSites(ctx.scene,world);
   const fog = new FogOfWar(terrainView,world);
   const picker = new Picker(ctx.camera, world);
-  const inAudioView=(x:number,y:number,z:number)=>{const p=picker.toScreen(x,y,z);return p.z>=-1&&p.z<=1&&p.x>=0&&p.x<=innerWidth&&p.y>=0&&p.y<=innerHeight;};
-  audio.setAudibility(e=>selection.selected.has(e.id)&&inAudioView(e.x,e.y,e.z)&&(e.team===world.playerTeam||world.isSpottedByTeam(e,world.playerTeam)),(x,z)=>inAudioView(x,heightAt(x,z),z)&&world.vision.isVisible(world.playerTeam,x,z));
+  audio.setAudibility(e=>e.team===world.playerTeam||world.isSpottedByTeam(e,world.playerTeam),(x,z)=>world.vision.isVisible(world.playerTeam,x,z));
   picker.setPresentation(id=>units.positionFor(id));
   const selection = new SelectionController(topCanvas, world, picker);
   const commands = new CommandController(topCanvas, world, picker, selection);
@@ -399,7 +398,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       animateRiverTerrain(terrainView,world.time);
       performancePanel.mark("maastik");
       fx.handleEvents(events,world);
-      audio.setListener(cam.x,cam.z,cam.yaw,cam.dist);audio.events(events, world.playerTeam);audio.engines(world.entities,frameDt,world.playerTeam);audio.capture(()=>world.resourcePoints,frameDt,world.playerTeam);audio.fires(()=>world.terrain.fires(),frameDt,(x,z)=>inAudioView(x,heightAt(x,z),z)&&world.vision.isVisible(world.playerTeam,x,z));{const sel=selection.selectedIds(),key=sel.length+":"+(sel[0]??-1);if(key!==lastSelectionKey){lastSelectionKey=key;if(sel.length)audio.ack(world.byId.get(sel[0])?.kind,world.playerFaction);}}
+      audio.setListener(cam.x,cam.z,cam.yaw,cam.dist);audio.events(events, world.playerTeam);audio.engines(world.entities,frameDt,world.playerTeam);audio.capture(()=>world.resourcePoints,frameDt,world.playerTeam);audio.fires(()=>world.terrain.fires(),frameDt,(x,z)=>world.vision.isVisible(world.playerTeam,x,z));{const sel=selection.selectedIds(),key=sel.length+":"+(sel[0]??-1);if(key!==lastSelectionKey){lastSelectionKey=key;if(sel.length)audio.ack(world.byId.get(sel[0])?.kind,world.playerFaction);}}
       fx.syncProjectiles(world, visualAlpha);
       fx.syncForestFires(world,frameDt);fx.syncNavalWakes(world,frameDt);fx.syncUnitEffects(world,animationDt);
       fx.update(frameDt);

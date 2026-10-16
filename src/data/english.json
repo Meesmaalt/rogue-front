@@ -576,5 +576,8 @@
   "Tagasilend": "Return flight",
   "Ootab uut ülesannet": "Waiting for next assignment",
   "Automaatne lend": "Automatic flight",
-  "ainult vaatamine": "inspection only"
+  "ainult vaatamine": "inspection only",
+  "Keskmine hiir + lohista: pööra/kalluta": "Middle mouse drag: orbit/tilt",
+  "keskmine hiir + lohista pöörab/kallutab": "middle mouse drag orbits/tilts",
+  "Kaamera: nooled või ekraaniserv · Alt+Q/E pöörab · keskmine hiir + lohista pöörab/kallutab · rull suumib. Käsk: üks täht/number või Escape.": "Camera: arrow keys or screen edge · Alt+Q/E rotates · middle mouse drag orbits/tilts · scroll wheel zooms. Command: one letter/number or Escape."
 }

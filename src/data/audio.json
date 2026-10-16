@@ -1,8 +1,8 @@
 {
   "maxSfxVoices": 28,
   "maxMusicVoices": 16,
-  "referenceDistance": 600,
-  "maxDistance": 5000,
+  "referenceDistance": 320,
+  "maxDistance": 3200,
   "musicStepMs": 750,
   "roots": [
     36.708,

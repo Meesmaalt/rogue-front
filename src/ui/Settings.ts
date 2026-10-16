@@ -50,7 +50,7 @@ export class SettingsPanel {
       <label>Efektid <input data-k="sfxVolume" type="range" min="0" max="1" step=".05" value="${s.sfxVolume}"></label>
       <label>Graafika <select data-k="quality"><option value="low">Madal</option><option value="medium">Keskmine</option><option value="high">Kõrge</option></select></label>
       <label>Jõudluse mõõdikud (F8) <input data-performance type="checkbox" ${s.performanceOverlay?"checked":""}></label>
-      <p>Kaamera: nooled või ekraaniserv · Alt+Q/E pöörab · rull suumib. Käsk: üks täht/number või Escape.</p><h3>Klahvid</h3><div class="key-grid">
+      <p>Kaamera: nooled või ekraaniserv · Alt+Q/E pöörab · keskmine hiir + lohista pöörab/kallutab · rull suumib. Käsk: üks täht/number või Escape.</p><h3>Klahvid</h3><div class="key-grid">
         <label>Ründeliikumine <input data-key="attackMove" value="${s.keys.attackMove}"></label>
         <label>Hoia <input data-key="hold" value="${s.keys.hold}"></label>
         <label>Patrull <input data-key="patrol" value="${s.keys.patrol}"></label>

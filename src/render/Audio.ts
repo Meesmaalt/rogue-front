@@ -10,8 +10,8 @@ const INFANTRY=new Set<string>(config.infantryKinds);
 const ENGINE_CLASS=new Map<string,EngineClass>();
 for(const [cls,kinds] of Object.entries(config.engineKinds))for(const k of kinds)ENGINE_CLASS.set(k,cls as EngineClass);
 interface EngineVoice{cls:EngineClass;sources:AudioScheduledSourceNode[];osc:OscillatorNode;filter:BiquadFilterNode;gain:GainNode;panner:StereoPannerNode;lfo:OscillatorNode|null;nodes:AudioNode[];approach:number;noiseSource:AudioBufferSourceNode;noiseFilter:BiquadFilterNode;noiseGain:GainNode;turbine:OscillatorNode|null;lastState?:string}
-export function spatialSound(x:number,z:number,listener:{x:number;z:number;yaw:number}):{gain:number;pan:number}{
- const dx=x-listener.x,dz=z-listener.z,distance=Math.hypot(dx,dz);
+export function spatialSound(x:number,z:number,listener:{x:number;z:number;yaw:number;distance?:number}):{gain:number;pan:number}{
+ const dx=x-listener.x,dz=z-listener.z,distance=Math.hypot(dx,dz,listener.distance??0);
  return {gain:distance>config.maxDistance?0:1/(1+(distance/config.referenceDistance)**2),pan:Math.max(-.85,Math.min(.85,(dx*Math.cos(listener.yaw)-dz*Math.sin(listener.yaw))/Math.max(1,distance)))};
 }
 /** Original procedural score and layered positional effects. Audio never changes simulation. */
@@ -33,7 +33,7 @@ export class AudioManager {
  private fireBed:{src:AudioBufferSourceNode;gain:GainNode;panner:StereoPannerNode;filter:BiquadFilterNode}|null=null;private fireClock=0;private birdTimer:number|null=null;private lastWarn=-100;
  private readonly engineVoices=new Map<number,EngineVoice>();private engineClock=0;
  private lastUi=new Map<string,number>();private lastSupply=-10;
- private listener={x:0,z:0,yaw:0};
+ private listener={x:0,z:0,yaw:0,distance:0};
  private readonly voices:Record<Channel,number>={sfx:0,music:0};
  private readonly lastShot=new Map<string,number>();
  private lastUnderAttack=-10;
@@ -297,7 +297,7 @@ export class AudioManager {
  private applyVolumes():void {const t=this.ctx?.currentTime??0;this.master?.gain.setTargetAtTime(this.settings.masterVolume,t,.04);this.sfx?.gain.setTargetAtTime(this.settings.sfxVolume,t,.04);this.music?.gain.setTargetAtTime(this.settings.musicVolume*(1-this.activity*.3),t,.12);}
  setSettings(settings:GameSettings):void{this.settings=settings;this.applyVolumes();}
  setListener(x:number,z:number,yaw:number,dist=0):void{
-  this.listener={x,z,yaw};const m=config.muffle,f=this.listenerFilter,ctx=this.ctx;if(!f||!ctx)return;
+  this.listener={x,z,yaw,distance:dist};const m=config.muffle,f=this.listenerFilter,ctx=this.ctx;if(!f||!ctx)return;
   const k=Math.max(0,Math.min(1,(dist-m.nearDist)/(m.farDist-m.nearDist)));f.frequency.setTargetAtTime(m.nearHz+(m.farHz-m.nearHz)*k,ctx.currentTime,.2);
  }
  unlock():void{const ctx=this.ensure();if(ctx?.state==='suspended')void ctx.resume();}

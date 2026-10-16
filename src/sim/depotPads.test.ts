@@ -49,3 +49,15 @@ it('walking crews take a real route around a neighbouring building and finish th
  }
  expect(w.roadCargoDelivered[0]).toBeCloseTo(180);expect(h.cargo).toBe(0);expect(w.entities.filter(e=>!e.dead&&e.groundService&&e.cargo>0)).toHaveLength(0);
 });
+it('a busy level-one depot cannot create overflow pads and upgrades unlock exactly one pad each',()=>{
+ const {w,depot}=fixture(),first=w.spawn('transport',0,-100,-80);first.supplyDepotId=depot.id;
+ expect(logisticsLandingPoint(w,depot,first)).not.toBeNull();const second=w.spawn('transport',0,-100,-100);second.supplyDepotId=depot.id;
+ expect(logisticsLandingPoint(w,depot,second)).toBeNull();expect(visibleDepotPads(w,depot)).toHaveLength(1);
+ depot.upgrading=true;depot.underConstruction=true;depot.upgradeProgress=.8;expect(visibleDepotPads(w,depot)).toHaveLength(1);
+ depot.underConstruction=false;depot.upgrading=false;depot.buildingLevel=2;expect(logisticsLandingPoint(w,depot,second)).not.toBeNull();expect(visibleDepotPads(w,depot)).toHaveLength(2);
+ depot.buildingLevel=3;expect(availableDepotPads(w,depot)).toHaveLength(3);depot.supplyLevel=20;expect(availableDepotPads(w,depot)).toHaveLength(3);
+});
+it('the two-depot limit counts foundations and frees a slot when a depot is destroyed',()=>{
+ const {w,depot}=fixture();expect(w.canBuildKind(0,'supply')).toBe(true);const second=w.spawn('supply',0,90,50);second.underConstruction=true;
+ expect(w.canBuildKind(0,'supply')).toBe(false);expect(w.canPlaceBuilding(0,'supply',150,50)).toBe(false);depot.dead=true;expect(w.canBuildKind(0,'supply')).toBe(true);
+});

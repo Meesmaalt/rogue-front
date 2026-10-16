@@ -17,7 +17,8 @@
     "fuelCapacity": 1600,
     "repairCapacity": 600,
     "capacityPerLevel": 0.35,
-    "serviceFuelReserve": 40
+    "serviceFuelReserve": 40,
+    "maxDepots": 2
   },
   "fob": {
     "upgradeCost": 300,
@@ -124,6 +125,11 @@
     "parkedHelicopterRadius": 3.7,
     "aircraftBodySearch": 22,
     "loadingHeadingTolerance": 0.12,
-    "reverseDistance": 3
+    "reverseDistance": 3,
+    "padLevels": [
+      1,
+      2,
+      3
+    ]
   }
 }

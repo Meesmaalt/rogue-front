@@ -25,7 +25,7 @@ function addBuildingLevelArchitecture(kit: THREE.Group, kind: string, level: num
     const m = new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.13,h,7),steel); m.position.set(x,h/2,z); kit.add(m);
     for (const yy of [h*0.35,h*0.65]) { const arm=new THREE.Mesh(new THREE.BoxGeometry(0.75,0.06,0.06),accent); arm.position.set(x,yy,z); kit.add(arm); }
   };
-  if(kind==='hq')addHqStaffStation(kit,level-1,concrete,steel,accent);
+  if(kind==='hq')addHqStaffStation(kit,level-1,concrete,steel);
   if (level === 2) {
     if(kind==='hq'){
       module(-1,8.2,-1,5.8,4.1,2.5,steel);mast(-4,-3,9);

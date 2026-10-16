@@ -68,7 +68,7 @@ export function icon(kind:string):string {
   const svg=`<svg viewBox="0 0 32 32" aria-hidden="true" fill="currentColor">${paths[role]??paths.building}</svg>`;iconCache.set(kind,svg);return svg;
 }
 export function unitPicture(kind:UnitKind,faction:string):string {
-  const aircraft=aircraftIcon(kind,faction);if(aircraft)return `<img alt="" loading="lazy" src="${import.meta.env.BASE_URL}ui/units/${faction}/${kind}.webp?v=model-2">`;
+  const aircraft=aircraftIcon(kind,faction,true);if(aircraft)return aircraft;
   const pictures=["tank","lightTank","tankDestroyer","ifv","apc","spaa","reconVehicle","artillery","mlrs","fighter","interceptor","bomber","multirole","attackAircraft","ecm","cargoPlane","heli","transport","gunship","casHeli","logiTruck"];
   return pictures.includes(kind)?`<img alt="" loading="lazy" src="${import.meta.env.BASE_URL}ui/units/${faction}/${kind}.webp">`:icon(kind);
 }

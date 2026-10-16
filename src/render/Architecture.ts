@@ -167,7 +167,7 @@ function sawhorse(g:THREE.Group,x:number,z:number,heading:number,p:Pal):void {
 }
 function hqYard(g:THREE.Group,p:Pal):void {
  // Field work break area: simple timber benches, steel lockers and a water station.
- addHqStaffStation(g,0,p.wood,p.steel,p.trim);
+ addHqStaffStation(g,0,p.wood,p.steel);
  box(g,1.5,1.8,.65,HQ_LOUNGE.x-2,.9,HQ_LOUNGE.z-1.5,p.steel);
  box(g,.7,1.1,.7,HQ_LOUNGE.x-2,.55,HQ_LOUNGE.z-3,p.wall);cylinder(g,.21,.45,HQ_LOUNGE.x-2,1.3,HQ_LOUNGE.z-3,p.trim);
  engineerYard(g,p);
@@ -200,7 +200,17 @@ function depotYard(g:THREE.Group,p:Pal):void {
  for(let i=0;i<4;i++)sofa(g,lx+i*baseLayout.depot.rest.spacing,lz+.6,Math.PI,1.2,p.camo,p.trim,p.dark);
  box(g,.8,1.5,.6,lx-1,.75,lz-.8,p.accent);box(g,.65,1.2,.55,lx-1,.6,lz+.5,p.wall);
  fieldCrates(g,-5,-4,3);cylinder(g,.04,2.5,-3.2,4.3,-4,p.steel);
- for(const bay of depotBays(4)){for(const side of [-1,1])box(g,.06,.025,2.4,bay.x+side*.9,.08,bay.z,p.yellow);box(g,1.8,.025,.06,bay.x,.08,bay.z-1.2,p.yellow);box(g,.14,.9,.14,bay.x,.45,bay.z-1.4,p.dark);}
+ const bayPaint=material(0xe5e5db);
+ for(const bay of depotBays(4)){for(const side of [-1,1])box(g,.06,.025,2.4,bay.x+side*.9,.08,bay.z,bayPaint);box(g,1.8,.025,.06,bay.x,.08,bay.z-1.2,bayPaint);box(g,.14,.9,.14,bay.x,.45,bay.z-1.4,p.dark);}
+
+ // Security perimeter leaves broad forklift gates on both sides and a front vehicle entrance.
+ for(const fence of baseLayout.depot.fences){
+  const horizontal=fence.width>fence.depth,length=horizontal?fence.width:fence.depth,n=Math.ceil(length/3);
+  for(let i=0;i<=n;i++){const offset=-length/2+i*length/n;box(g,.12,1.45,.12,fence.x+(horizontal?offset:0),.725,fence.z+(horizontal?0:offset),p.steel);}
+  for(const y of [.35,1.35])box(g,fence.width,y===.35?.045:.065,fence.depth,fence.x,y,fence.z,p.steel);
+  for(let i=1;i<n*3;i++){const offset=-length/2+i*length/(n*3);box(g,.025,1,.025,fence.x+(horizontal?offset:0),.85,fence.z+(horizontal?0:offset),p.steel);}
+ }
+ g.userData.yardGates=['west-loading','east-loading','front-vehicles'];
 
 }
 const kinds=new Set(["hq","barracks","factory","supply","generator","helipad","airbase","refinery","shipyard","landCommand","airCommand","seaCommand","landStrategy","airStrategy","seaStrategy","combatEngineer","radar"]);

@@ -649,3 +649,9 @@ Ehitise ekraaniriba kasutab ehitamise ajal `buildingProgress`, mitte püsivat al
 `baseLayout.hqStaffPoint` määrab iga meeskonna istumiskoha ja parkla keskpunkti maailmameetrites; `HqStaffArea` kasutab sama paigutust mudeli skaalaga. HQ baasmudel sisaldab esimest terrassi/pingirea/parkimiskoha moodulit ning `BuildingUpgrades` lisab järgmised tasemetega 2 ja 3. Istujad on seotud meeskonna püsiva pesaga.
 
 Ehituslennu `arriving` faas algab `externalEntry` punktis väljaspool kaarti ja lõpeb füüsilise maandumisega. Maandumispunkti valik välistab metsa/hekid koos rootorivaru, hooned, kallakud ja hõivatud alad. Meeskond ootab saabumise ajal. `automaticAircraft` eraldab vaadeldavad automaatsed ressursi-/ehitus-Chinookid juhitavatest ostetud transpordikoptereist: Picker lubab vaatamist, käsusüsteem, õhudoktriin, reisijate laadimine ja HUD keelavad juhtimise.
+
+### Lao platsipiir ja tööala piirded (16.10.2026)
+
+`logistics.handling.padLevels` piirab nii `availableDepotPads` kui `visibleDepotPads` tasemete 1/2/3 puhul arvudeni 1/2/3. Ka varem määratud maandumislease peab kuuluma lubatud platside hulka; uusi ülevooluplatse broneerimine ei tekita. `logistics.depot.maxDepots` juhib olemasolevat ehituspiiri (ka pooleliolevad laod lähevad arvesse). `base-life.depot.fences` on maailmameetrites ühine lao piirdeplaan mudelile ja `buildingSolidBoxes` navigatsioonile, laiade laadimisavadega.
+
+`RtsCamera` pöörab keskmise nupu pointer-lohistamisel; vaikimisi brauseri kerimine on sel ajal välistatud. `AudioManager` kuuldavusfilter kontrollib nähtavust, mitte valimist või ranget ekraanipiiri, ning `spatialSound` kaugus sisaldab kaamera suumikaugust. Heli allikate/kanalite piirarvud ei muutu. `aircraft-silhouettes.json` annab tüübi ja riigi järgi lennuki põhiplaani, mootorid, sabad, EW-podid ja kaardi nurga; sama joonis juhib miniikooni ja nimelist ostukaarti.

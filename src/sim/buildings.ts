@@ -1,3 +1,4 @@
+import logisticsRules from '../data/logistics.json';
 import expansion from "../data/expansion.json";
 import type { Point, UnitKind } from "./types";
 
@@ -29,7 +30,7 @@ export const BUILDINGS: Record<BuildableKind, BuildingSpec> = {
   factory: { kind: "factory", cost: 220, buildTime: 11, footprint: 9, repairPerSec: 24, maxBuilders: 2, requires: ["landCommand"], powerUse: 18, limit: 2 , role: "production", productionSpeed: 1},
   helipad: { kind: "helipad", cost: 200, buildTime: 9, footprint: 9, repairPerSec: 24, maxBuilders: 2, requires: ["airCommand"], powerUse: 12, limit: 2 , role: "production", productionSpeed: 1},
   airbase: { kind: "airbase", cost: 320, buildTime: 14, footprint: 13, repairPerSec: 22, maxBuilders: 3, requires: ["airCommand"], powerUse: 20, limit: 1 , role: "production", productionSpeed: 1},
-  supply: { kind: "supply", cost: 130, buildTime: 7, footprint: 6, repairPerSec: 32, maxBuilders: 2, requires: ["generator"], powerUse: 6, limit: 3 , role: "logistics", supplyCapacity: 1600, fuelCapacity: 900, ammoCapacity: 1200},
+  supply: { kind: "supply", cost: 130, buildTime: 7, footprint: 6, repairPerSec: 32, maxBuilders: 2, requires: ["generator"], powerUse: 6, limit: logisticsRules.depot.maxDepots , role: "logistics", supplyCapacity: 1600, fuelCapacity: 900, ammoCapacity: 1200},
   radar: { kind: "radar", cost: 190, buildTime: 9, footprint: 6, repairPerSec: 25, maxBuilders: 2, requires: ["supply"], powerUse: 15, limit: 2 , role: "sensor"},
   refinery: { kind: "refinery", cost: 180, buildTime: 8, footprint: 8, repairPerSec: 26, maxBuilders: 2, requires: ["landCommand"], powerUse: 8, limit: 3 , role: "logistics", fuelCapacity: 1800},
   bunker: { kind: "bunker", cost: 120, buildTime: 7, footprint: 6, repairPerSec: 34, maxBuilders: 2, requires: ["barracks"], powerUse: 5, limit: 5 , role: "defense"},

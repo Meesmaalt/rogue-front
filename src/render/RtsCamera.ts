@@ -4,7 +4,7 @@ import mobility from "../data/mobility.json";
 import * as THREE from "three";
 import {MAP_SIZE} from "../sim/heightmap";
 
-/** RTS-kaamera: nooled/serv liigutavad, Alt+Q/E pöörab, rull suumib. */
+/** RTS-kaamera: nooled/serv liigutavad, Alt+Q/E pöörab, rull suumib, keskmise nupu lohistamine pöörab. */
 export class RtsCamera {
   // Tactical overview: unit identity comes from class markers at distance.
   enabled=true;
@@ -16,6 +16,7 @@ export class RtsCamera {
   shake(amount:number):void{if(typeof matchMedia==="function"&&matchMedia("(prefers-reduced-motion: reduce)").matches)return;this.shakeAmp=Math.min(1.4,Math.max(this.shakeAmp,amount));}
   private vx=0;private vz=0;private rotationSpeed=0;
   private readonly shadowFocus=new THREE.Vector3();
+  private orbit:{id:number;x:number;y:number}|null=null;
   private keys = new Set<string>();
   private mouse = { x: -1, y: -1 };
 
@@ -30,9 +31,15 @@ export class RtsCamera {
     this.sun.userData.shadowFocus=this.shadowFocus;
     window.addEventListener("keydown", (e) => {if(!(e.target instanceof Element&&e.target.closest("input,textarea,select,[contenteditable=true]")))this.keys.add((e.altKey?"alt+":"")+e.key.toLowerCase());});
     window.addEventListener("keyup", (e) => {this.keys.delete(e.key.toLowerCase());this.keys.delete("alt+"+e.key.toLowerCase());});
-    window.addEventListener("blur", () => {this.keys.clear();this.vx=this.vz=this.rotationSpeed=0;});
+    window.addEventListener("blur", () => {this.keys.clear();this.vx=this.vz=this.rotationSpeed=0;this.orbit=null;});
     window.addEventListener("mousemove", (e) => { this.mouse.x = e.clientX; this.mouse.y = e.clientY; });
     document.addEventListener("mouseleave", () => { this.mouse.x = this.mouse.y = -1; });
+    el.addEventListener('pointerdown',e=>{if(e.button!==1||!this.enabled)return;e.preventDefault();this.orbit={id:e.pointerId,x:e.clientX,y:e.clientY};this.rotationSpeed=this.vx=this.vz=0;el.setPointerCapture(e.pointerId);});
+    window.addEventListener('pointermove',e=>{const o=this.orbit;if(!o||o.id!==e.pointerId)return;if(!this.enabled){this.orbit=null;return;}this.yaw-=(e.clientX-o.x)*baseLife.camera.orbitSensitivity;this.pitch=clamp(this.pitch+(e.clientY-o.y)*baseLife.camera.pitchSensitivity,baseLife.camera.minimumPitch,baseLife.camera.maximumPitch);o.x=e.clientX;o.y=e.clientY;});
+    const release=(e:PointerEvent)=>{if(this.orbit?.id===e.pointerId){this.orbit=null;if(el.hasPointerCapture(e.pointerId))el.releasePointerCapture(e.pointerId);}};
+    window.addEventListener('pointerup',release);window.addEventListener('pointercancel',release);el.addEventListener('lostpointercapture',()=>{this.orbit=null;});
+    el.addEventListener('mousedown',e=>{if(e.button===1)e.preventDefault();});
+    el.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
     el.addEventListener("wheel", (e) => {
       e.preventDefault();
       if(!this.enabled)return;
@@ -47,13 +54,14 @@ export class RtsCamera {
   }
 
   update(dt: number): void {
-    if(!this.enabled){this.keys.clear();this.vx=this.vz=this.rotationSpeed=0;return;}
+    if(!this.enabled){this.keys.clear();this.vx=this.vz=this.rotationSpeed=0;this.orbit=null;return;}
     const k = this.keys, m = this.mouse;
     let f = 0, r = 0;
     if (k.has("arrowup") || (m.y >= 0 && m.y < 4)) f++;
     if (k.has("arrowdown") || m.y > innerHeight - 4) f--;
     if (k.has("arrowright") || m.x > innerWidth - 4) r++;
     if (k.has("arrowleft") || (m.x >= 0 && m.x < 4)) r--;
+    if(this.orbit)f=r=0;
     const response=1-Math.exp(-mobility.presentation.cameraResponse*dt);
     this.rotationSpeed+=((Number(k.has("alt+e"))-Number(k.has("alt+q")))*1.6-this.rotationSpeed)*response;
     this.yaw+=this.rotationSpeed*dt;

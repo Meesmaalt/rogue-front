@@ -35,7 +35,51 @@
     "walkRadius": 0.35,
     "walkSpeed": 1.8,
     "boardingSeconds": 1.4,
-    "turnRate": 1.5
+    "turnRate": 1.5,
+    "fences": [
+      {
+        "x": 0.5,
+        "z": -14,
+        "width": 27,
+        "depth": 0.15
+      },
+      {
+        "x": -13,
+        "z": -10,
+        "width": 0.15,
+        "depth": 8
+      },
+      {
+        "x": 14,
+        "z": -10,
+        "width": 0.15,
+        "depth": 8
+      },
+      {
+        "x": -13,
+        "z": 13,
+        "width": 0.15,
+        "depth": 8
+      },
+      {
+        "x": 14,
+        "z": 13,
+        "width": 0.15,
+        "depth": 8
+      },
+      {
+        "x": -9,
+        "z": 17,
+        "width": 8,
+        "depth": 0.15
+      },
+      {
+        "x": 12,
+        "z": 17,
+        "width": 4,
+        "depth": 0.15
+      }
+    ]
   },
   "engineer": {
     "restAfter": 3,
@@ -47,17 +91,21 @@
     "workDistance": 13,
     "van": {
       "x": -3,
-      "z": 20,
+      "z": 18,
       "spacing": 4
     },
     "rest": {
       "x": -3,
-      "z": 12,
+      "z": 10,
       "spacing": 4
     }
   },
   "camera": {
-    "minimumDistance": 18
+    "minimumDistance": 18,
+    "orbitSensitivity": 0.006,
+    "pitchSensitivity": 0.004,
+    "minimumPitch": 0.4,
+    "maximumPitch": 1.3
   },
   "hq": {
     "solidBoxes": [

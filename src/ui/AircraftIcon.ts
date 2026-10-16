@@ -1,11 +1,13 @@
+import profiles from '../data/aircraft-silhouettes.json';
 import type {UnitKind} from '../sim/types';
 import {FACTIONS,type FactionId} from '../sim/factions';
 const kinds=new Set<string>(['fighter','interceptor','bomber','ecm','multirole','attackAircraft','cargoPlane','airTransport','transport','heli','gunship','casHeli']);
 /** Recognisable top silhouettes by aircraft family, with separate engines, tails, EW pods and tandem rotors. */
-export function aircraftIcon(kind:UnitKind,faction:string):string|null {
+export function aircraftIcon(kind:UnitKind,faction:string,portrait=false):string|null {
  if(!kinds.has(kind))return null;
  const country=(['usa','russia','china'].includes(faction)?faction:'usa') as FactionId,name=FACTIONS[country].unitNames[kind]??kind;
- const body=country==='usa'?'#a9b8b9':country==='russia'?'#9dab94':'#b6b29b',dark='#31464b',glass='#547e91',accent='#dec78a';
+ const profile=(profiles[country] as Record<string,AircraftProfile>)[kind];if(profile)return fixedWingPortrait(profile,name,portrait);
+ const body=country==='usa'?'#a9b8b9':country==='russia'?'#9dab94':'#b6b29b',dark='#31464b',glass='#547e91';
  const path=(d:string,fill=body)=>`<path d="${d}" fill="${fill}" stroke="#253a40" stroke-width=".6"/>`;
  const line=(x1:number,y1:number,x2:number,y2:number,color=dark,width=1)=>`<path d="M${x1} ${y1}L${x2} ${y2}" fill="none" stroke="${color}" stroke-width="${width}"/>`;
  let silhouette='';
@@ -17,22 +19,19 @@ export function aircraftIcon(kind:UnitKind,faction:string):string|null {
   }else{
    silhouette=path('M28 22Q32 16 36 22L38 39 34 45 34 57 32 62 30 57 30 45 26 39Z')+path('M27 29L17 34 18 37 28 35M37 29L47 34 46 37 36 35',dark)+line(7,31,57,31,dark,2)+line(32,8,32,54,dark,1.5)+line(26,57,38,57,dark,2)+path('M29 23Q32 19 35 23L35 28H29Z',glass);
   }
- }else{
-  const heavy=kind==='bomber'||kind==='cargoPlane'||kind==='airTransport',attack=kind==='attackAircraft',stealth=kind==='interceptor'||kind==='multirole'&&country!=='russia',twin=country==='russia'||kind==='ecm'||kind==='interceptor'||kind==='multirole'&&country==='china';
-  if(heavy){
-   silhouette+=path(kind==='bomber'?'M30 4H34L36 23 59 40 58 44 36 35 35 51 44 58V61L32 57 20 61V58L29 51 28 35 6 44 5 40 28 23Z':'M30 5Q32 1 34 5L36 24 60 32V38L36 32 35 53 44 57V61L32 58 20 61V57L29 53 28 32 4 38V32L28 24Z');
-   for(const side of [-1,1])for(const offset of (kind==='bomber'?[8,13]:[9,17]))silhouette+=`<rect x="${32+side*offset-1.8}" y="${kind==='bomber'?35:30}" width="3.6" height="8" rx="1.6" fill="${dark}"/>`;
-  }else if(attack&&country==='usa'){
-   silhouette+=path('M30 6H34L35 24 58 25V31L35 30 35 49 46 51V57L32 54 18 57V51L29 49 29 30 6 31V25L29 24Z');
-   for(const x of [25,39])silhouette+=`<rect x="${x-3}" y="36" width="6" height="12" rx="2.5" fill="${dark}"/>`;
-   silhouette+=line(32,3,32,9,dark,1.8);
-  }else{
-   const wing=stealth?'M29 18L8 39V45L28 36 27 48 19 55V59L32 55 45 59V55L37 48 36 36 56 45V39L35 18Z':country==='china'&&kind==='fighter'?'M29 17L24 22 24 25 29 23 28 28 8 47 28 43 27 53 21 58 32 55 43 58 37 53 36 43 56 47 36 28 35 23 40 25 40 22 35 17Z':'M29 21L10 38 7 43 27 36 27 49 19 55V58L32 54 45 58V55L37 49 37 36 57 43 54 38 35 21Z';
-   silhouette+=path(wing)+path('M32 3L35 17 35 40 34 56H30L29 40 29 17Z');
-   if(twin){silhouette+=path('M26 37H30V56H25ZM34 37H38L39 56H34Z',dark)+path('M25 43L21 55 27 52M39 43L43 55 37 52',body);}else silhouette+=path('M30 48H34L35 57H29Z',dark);
-   if(kind==='ecm')for(const x of [10,54])silhouette+=`<rect x="${x-1.5}" y="37" width="3" height="11" rx="1.4" fill="${accent}"/>`;
-  }
-  silhouette+=path('M31 12Q32 8 33 12L34 21Q32 24 30 21Z',glass);
  }
  return `<svg class="aircraft-portrait" viewBox="0 0 64 64" role="img" aria-label="${name}"><title>${name}</title>${silhouette}</svg>`;
+}
+
+interface AircraftProfile{outline:string;engines:number[][];tails:number[][];label:string;angle:number;pods?:boolean}
+/** Type-specific planforms, engine count and tail geometry; no generic jet mesh thumbnail. */
+function fixedWingPortrait(p:AircraftProfile,name:string,portrait:boolean):string {
+ const id='air-'+p.label.replace(/[^a-z0-9]/gi,'');
+ const engine=p.engines.map(([x,y,w,h])=>`<rect x="${x-w/2}" y="${y}" width="${w}" height="${h}" rx="${w*.28}" fill="#283942" stroke="#78888c" stroke-width=".45"/><path d="M${x-w*.32} ${y+h-1.8}h${w*.64}" stroke="#c0b6a3" stroke-width="1.1"/>`).join('');
+ const tails=p.tails.map(([x,y,tx,ty])=>`<path d="M${x-1} ${y}L${tx-1.5} ${ty}L${tx+1.2} ${ty-1}L${x+1} ${y-2}Z" fill="#607580" stroke="#cad4d4" stroke-width=".45"/>`).join('');
+ const pods=p.pods?[10,54].map(x=>`<rect x="${x-1.2}" y="33" width="2.4" height="13" rx="1.1" fill="#d1d5cc" stroke="#43565d" stroke-width=".5"/>`).join(''):'';
+ const body=`<path d="${p.outline}" fill="url(#${id})" stroke="#263c47" stroke-width=".7" stroke-linejoin="round"/>${engine}<path d="M32 4L34 21 34 39 32 48 30 39 30 21Z" fill="#b8c5c8" opacity=".85"/><path d="M32 10Q35 13 34 21L32 25 30 21Q29 13 32 10Z" fill="#203b50" stroke="#d7ded7" stroke-width=".5"/><path d="M31 12L31 19" stroke="#94bac9" stroke-width=".8"/>${tails}${pods}<path d="M15 39L27 33M49 39L37 33M28 29H36M29 42H35" stroke="#596e78" stroke-width=".45" fill="none"/><path d="M28 33H30V37H28ZM34 33H36V37H34Z" fill="#4d6168"/>`;
+ const defs=`<defs><linearGradient id="${id}" x1="0" x2="1" y1=".1" y2=".85"><stop stop-color="#e1e6e4"/><stop offset=".42" stop-color="#aabcc3"/><stop offset=".65" stop-color="#80949f"/><stop offset="1" stop-color="#c1cdce"/></linearGradient></defs>`;
+ if(!portrait)return `<svg class="aircraft-portrait" viewBox="0 0 64 64" role="img" aria-label="${name}"><title>${name}</title>${defs}${body}</svg>`;
+ return `<svg class="aircraft-portrait" viewBox="0 0 160 112" role="img" aria-label="${name}"><title>${name}</title>${defs}<rect width="160" height="112" rx="7" fill="#1a2b34"/><path d="M0 28H160M0 56H160M0 84H160M40 0V96M80 0V96M120 0V96" stroke="#a5bcc1" stroke-opacity=".07"/><g transform="translate(80 46) rotate(${p.angle}) scale(1.28) translate(-32 -32)">${body}</g><rect y="94" width="160" height="18" fill="#10202a"/><text x="80" y="107" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="1.2" fill="#e0e8e7">${p.label}</text></svg>`;
 }

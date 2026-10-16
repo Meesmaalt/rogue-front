@@ -17,7 +17,7 @@ export function buildingSolidBoxes(e:Entity):LocalBox[]|null {
  if(e.kind==='hq'){const scale=terrain.render.buildings.militaryScale*data.hq.scale;return data.hq.solidBoxes.map(b=>({x:b.x*scale,z:b.z*scale,width:b.width*scale,depth:b.depth*scale}));}
  if(e.kind!=='supply')return null;
  const boxes:LocalBox[]=[data.depot.hall],level=e.buildingLevel??(e.upgrades.has('producer-3')?3:e.upgrades.has('producer-2')?2:1);
- for(let i=1;i<level;i++)boxes.push({...data.depot.annex,x:(i===1?-1:1)*data.depot.annex.x});return boxes;
+ for(let i=1;i<level;i++)boxes.push({...data.depot.annex,x:(i===1?-1:1)*data.depot.annex.x});return [...boxes,...data.depot.fences];
 }
 
 /** Generates a light RTS base shell: perimeter walls, a forward gate and internal roads. */

@@ -1,5 +1,15 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Tööalade viimistlus, kaamera, heli ja lao piirid · 16.10.2026
+
+- [x] HQ pingid 2 m majale lähemal, autod samuti lähemal; valged parkimisboksid ja kaitsepostid lisanduvad koos meeskonnakohtadega. Lao parkimismärgistus samuti valge.
+- [x] Lao tööala madal metallpiire kasutab samu jalajälgi mudelis ja navigatsioonis. Laiad lääne-/idapoolsed laadimisavad ja ees sõidukivärav jätavad kopteriplatside ja lao vahelise veo avatuks.
+- [x] Keskmise hiirenupu lohistamine pöörab ja kallutab kaamerat, säilitades rulliga suumimise. Piiratud kalle, pointer capture ning vabastamine nupu, katkestuse ja fookusekao korral; abi ka seadetes.
+- [x] Üksuste heli ei vaja valimist ega kao järsult ekraaniserval. Nähtavate vastaste ja oma üksuste heli vaibub kauguse ning väljasuumimisega; helikanalite arv jääb piiratuks.
+- [x] Lennukitel tüübi-/riigipõhised tiiva-, mootori- ja sabajoonised, eri pöörded ning tüübitähisega ostukaardid. Vanad sarnased mängumudelite pildid ei asenda enam neid kaarte.
+- [x] Lao tasemed lubavad täpselt kuni 1/2/3 kopteriplatsi, ka broneerimisel. Saabuv kopter ei ava lisaplatsi enne uuendust; hõivatud plats põhjustab ootamise. Maksimaalselt kaks elusat/ehitatavat ladu meeskonna kohta.
+
+
 ## HQ tööala ja automaatsete Chinookide vaatamine · 16.10.2026
 
 - [x] HQ fassaadiga ühendatud avatud töötajate terrass ja kõrval tähistatud tööautode parkla. Tasemed 1/2/3 lisavad ühe pingirea, parkimiskoha ja meeskonna; istujad, autod ja simulatsioon kasutavad sama paigutust.

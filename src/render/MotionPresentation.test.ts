@@ -70,3 +70,11 @@ it('vertical helicopter takeoff uses interpolated height throughout taxi, withou
  sampleMotion(e,.5,p);expect(usesFlightHeight(e)).toBe(true);expect(p.y).toBeCloseTo(7.9);expect(usesFlightHeight({...e,airState:'airborne'})).toBe(true);
  expect(usesFlightHeight({...e,def:{...e.def,category:'air'}})).toBe(false);
 });
+it('holding the middle button orbits and tilts, clamps pitch and stops on release or blur',()=>{
+ const events=new EventTarget(),surface=Object.assign(new EventTarget(),{setPointerCapture:vi.fn(),hasPointerCapture:()=>true,releasePointerCapture:vi.fn()});vi.stubGlobal('window',events);vi.stubGlobal('document',new EventTarget());vi.stubGlobal('Element',class {});vi.stubGlobal('innerWidth',1000);vi.stubGlobal('innerHeight',600);
+ const view=new RtsCamera(new PerspectiveCamera(),()=>0,new DirectionalLight(),surface as unknown as HTMLElement),start=view.yaw;
+ const event=(type:string,x:number,y:number)=>Object.assign(new Event(type,{cancelable:true}),{button:1,pointerId:7,clientX:x,clientY:y});
+ const down=event('pointerdown',100,100);surface.dispatchEvent(down);expect(down.defaultPrevented).toBe(true);events.dispatchEvent(event('pointermove',150,130));expect(view.yaw).toBeLessThan(start);expect(view.pitch).toBeGreaterThan(.83);
+ events.dispatchEvent(event('pointermove',150,5000));expect(view.pitch).toBeLessThanOrEqual(1.3);events.dispatchEvent(event('pointerup',150,5000));const yaw=view.yaw;events.dispatchEvent(event('pointermove',400,100));expect(view.yaw).toBe(yaw);
+ surface.dispatchEvent(event('pointerdown',100,100));events.dispatchEvent(new Event('blur'));events.dispatchEvent(event('pointermove',500,100));expect(view.yaw).toBe(yaw);
+});

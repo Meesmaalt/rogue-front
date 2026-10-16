@@ -38,8 +38,8 @@ export class DepotPads {
  constructor(scene:THREE.Scene){this.group.name='DepotLandingPads';scene.add(this.group);}
  sync(w:World):void {
   if(w.time>=this.stamp&&w.time-this.stamp<.5)return;this.stamp=w.time;
-  const depots=w.entities.filter(e=>!e.dead&&!e.underConstruction&&e.kind==='supply'&&e.team===w.playerTeam);
-  const pads=w.entities.filter(e=>!e.dead&&!e.underConstruction&&e.kind==='supply'&&e.team===w.playerTeam).flatMap(e=>visibleDepotPads(w,e).map(p=>({...p,depotId:e.id})));
+  const depots=w.entities.filter(e=>!e.dead&&(!e.underConstruction||e.upgrading)&&e.kind==='supply'&&e.team===w.playerTeam);
+  const pads=w.entities.filter(e=>!e.dead&&(!e.underConstruction||e.upgrading)&&e.kind==='supply'&&e.team===w.playerTeam).flatMap(e=>visibleDepotPads(w,e).map(p=>({...p,depotId:e.id})));
   this.padsByDepot.clear();for(const depot of depots)this.padsByDepot.set(depot.id,pads.filter(p=>p.depotId===depot.id));
   const key=pads.map(p=>`${p.depotId}/${p.slot}/${p.x}/${p.z}/${p.heading}`).join('|')+depots.map(e=>`/${e.id}/${w.supplyDepotLevel(e)}`).join('');if(key===this.key)return;this.key=key;
   this.group.traverse(o=>{if(o instanceof THREE.Mesh)o.geometry.dispose();});this.group.clear();

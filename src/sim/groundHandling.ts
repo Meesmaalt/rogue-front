@@ -38,10 +38,8 @@ function finishCrewJob(u:Entity,carrier:Entity|undefined):void {
 /** Stable per-depot leases shared by inbound and collecting helicopters. */
 export function logisticsLandingPoint(w:World,depot:Entity,u:Entity):Point|null {
  const used=new Set(w.entities.filter(e=>e!==u&&!e.dead&&e.kind==='transport'&&e.supplyDepotId===depot.id).map(e=>e.logisticsPadSlot));
- if(u.logisticsPadSlot!=null&&!used.has(u.logisticsPadSlot)){
-  const p=depotPad(depot,u.logisticsPadSlot);if(w.nav.isWalkableWorld(p.x,p.z,cfg.padRadius))return p;
- }
  const pads=availableDepotPads(w,depot);
+ if(u.logisticsPadSlot!=null&&!used.has(u.logisticsPadSlot)){const p=pads.find(p=>p.slot===u.logisticsPadSlot);if(p)return p;}
  const candidates=[...pads.filter(p=>p.slot===u.logisticsPadSlot),...pads.filter(p=>p.slot!==u.logisticsPadSlot)];
  for(const p of candidates){const slot=p.slot;if(used.has(slot)||[...used].some(i=>i!=null&&Math.hypot(depotPad(depot,i).x-p.x,depotPad(depot,i).z-p.z)<cfg.padSpacing))continue;
   if(w.entities.some(e=>e!==u&&!e.dead&&e.loadedIntoId==null&&e.def.armor!=='air'&&Math.hypot(e.x-p.x,e.z-p.z)<e.def.radius+cfg.padRadius))continue;
