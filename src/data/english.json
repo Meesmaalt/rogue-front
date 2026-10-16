@@ -556,5 +556,14 @@
   "varude automaattellimus": "automatic supply order",
   "Lennurada ja juhtimistorn": "Runway and control tower",
   "Hooldusangaar, kütus ja moon": "Maintenance hangar, fuel and ammunition",
-  "Lennurelvastuse keskus ja raskelennukid": "Aviation weapons centre and heavy aircraft"
+  "Lennurelvastuse keskus ja raskelennukid": "Aviation weapons centre and heavy aircraft",
+  "Tavaline — peamaja ja automaatne ehitus": "Standard — HQ and automatic construction",
+  "Ehitusmeeskond": "Construction crew",
+  "Ehitamiseks on vaja HQ-d või FOB-i": "Construction requires an HQ or FOB",
+  "Vajab HQ-d või FOB-i": "Requires an HQ or FOB",
+  "HQ / FOB korraldab ehitusmeeskonda": "HQ / FOB is dispatching a construction crew",
+  "Chinook toob ehitusmeeskonda": "Chinook is transporting the construction crew",
+  "Relvastatud pioneerirühm: eesliini toetus ja sõidukite remont": "Armed combat engineers: frontline support and vehicle repairs",
+  "Vali asukoht — lähim HQ / FOB saadab ehitusmeeskonna.": "Choose a site — the nearest HQ / FOB dispatches a construction crew.",
+  "Ehitusmeeskonnad saadab HQ / FOB automaatselt. Ressursirajatise hõivamiseks ja käivitamiseks kasuta ostetavat lahinguinseneri.": "HQ / FOB dispatches construction crews automatically. Purchase combat engineers to capture and restart resource facilities."
 }

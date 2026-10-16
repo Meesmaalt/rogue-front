@@ -36,7 +36,7 @@ export class BaseLife {
   for(const e of world.entities){
    if(e.dead)continue;
    if(e.groundService)carriers.add(e.groundService.carrierId);
-   if(e.kind==='engineer'&&(!e.engineerDuty||e.engineerDuty.phase==='rest')&&e.mode==='idle'&&!e.dest&&!e.target&&(e.motionSpeed??0)<.1)this.resting.set(e.team,(this.resting.get(e.team)??0)+(e.squadMembers??e.squadMaxMembers??1));
+   if(e.constructionCrew&&e.kind==='engineer'&&(!e.engineerDuty||e.engineerDuty.phase==='rest')&&e.mode==='idle'&&!e.dest&&!e.target&&(e.motionSpeed??0)<.1)this.resting.set(e.team,(this.resting.get(e.team)??0)+(e.squadMembers??e.squadMaxMembers??1));
   }
   for(const u of world.entities){
    if(u.dead||u.kind!=='transport'||u.supplyDepotId==null||u.logisticsPadSlot==null)continue;

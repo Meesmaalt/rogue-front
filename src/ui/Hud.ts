@@ -1,3 +1,5 @@
+import baseLife from '../data/base-life.json';
+import {constructionHubs} from '../sim/automaticConstruction';
 import airportRules from '../data/airport-support.json';
 import {constructionStatus} from '../sim/systems/construction';
 import {expansionPanel} from "./StrategicPanel";
@@ -205,7 +207,7 @@ export class Hud {
             <span class="pwr-bar" title="Energia"><i data-r="pwrFill"></i></span>
           </div>
           <div class="res-row logistics-row"><span class="res-label">LOGISTIKA</span><b data-r="logistics">—</b></div><details class="economy-details"><summary title="Majanduse ja varustuse andmed">ⓘ</summary><div><small data-r="commandNet">Juhtimisvõrk —</small>
-          <small>Krediit <span data-r="cr">0</span> · Moraal <span data-r="morale">100</span> · <span data-r="airstatus">Õhk 0/0</span></small><small data-r="economy">Majandus —</small><small>Vii insener ressursirajatise juurde: hõivamine → käivitus → automaatsed veod. Uuenda ladu, et suurendada kopteriparki ja koormat.</small>
+          <small>Krediit <span data-r="cr">0</span> · Moraal <span data-r="morale">100</span> · <span data-r="airstatus">Õhk 0/0</span></small><small data-r="economy">Majandus —</small><small>Ehitusmeeskonnad saadab HQ / FOB automaatselt. Ressursirajatise hõivamiseks ja käivitamiseks kasuta ostetavat lahinguinseneri.</small>
           </div></details><span data-r="clock">0:00</span>
         </div>
       </header>
@@ -523,7 +525,7 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
       cancelBtn.hidden = !selectedProducer || q.length === 0;
       cancelBtn.disabled = !running || !selectedProducer || q.length === 0;
     }
-    const engineerSelected = [...selection].some(id=>{const e=world.byId.get(id);return !!e&&!e.dead&&e.team===world.playerTeam&&e.kind==="engineer";}) || world.entities.some(e=>!e.dead&&e.team===world.playerTeam&&e.kind==="engineer");
+    const engineerSelected = constructionHubs(world,world.playerTeam).length>0;
     for (const b of this.buttons) {
       const kind=b.dataset.kind as UnitKind;if(!kind||!UNITS[kind])continue;
       const def=world.unitDefinition(kind),cost=def.cost,state=buildingOrderState(world,selectedProducer,kind,running),prod=state.visible?selectedProducer:null;
@@ -594,7 +596,9 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
       const u = sel[0]!;
       this.el.selT.textContent = u.groundService?.onFoot?"Laotöölised":world.unitDisplayName(u.kind, u.team);
       const meter=(label:string,value:number,max:number)=>`<div class="unit-meter"><span>${label}</span><b>${Math.ceil(value)}/${Math.ceil(max)}</b><i><em style="width:${Math.min(100,Math.max(0,value/Math.max(1,max)*100))}%"></em></i></div>`;
+    const crews=world.entities.filter(e=>!e.dead&&e.constructionCrew?.homeId===u.id),crewInfo=(u.kind==='hq'||world.isFOB(u))?` · Ehitusmeeskondi ${crews.length}, tööl ${crews.filter(e=>e.target||e.loadedIntoId!=null).length} · Õhuvedu ${baseLife.construction.airliftCost} krediiti + ${baseLife.construction.airliftCost} ressurssi`:'';
     let status=u.underConstruction?constructionStatus(world,u):u.team===world.playerTeam&&u.productionQueue.length?productionStatus(world,u):(u.kind==="groundHandler"||u.kind==="logiTruck"||u.kind==="transport"&&u.supplyDepotId!=null)?logisticsStatus(world,u):u.def.armor==="air"?airOperationStatus(world,u):(u.def.damage||u.kind==="engineer"&&u.mode==="repair")?combatStatus(world,u):u.underConstruction?"Ehitamisel":u.def.building?"Hoone · tase "+world.producerLevel(u):u.mode==="move"?"Liigub":"Ootab käsku";
+    status+=crewInfo;
       if(u.team===world.playerTeam&&u.def.armor==="air"&&u.target)status+=" · "+combatStatus(world,u);
       const movement=u.def.speed>0&&u.team===world.playerTeam?`<small class="movement-status">Kiirus ${(u.motionSpeed??0).toFixed(1)} m/s${u.dest?` · sihini ${Math.round(Math.hypot(u.dest.x-u.x,u.dest.z-u.z))} m`:""}${u.moveQueue?.length?` · ${u.moveQueue.length} järgnevat käsku`:""}</small>`:"";
       this.setSelectedMarkup(`<div class="selected-summary"><div class="selected-picture">${unitPicture(u.kind,(u.team===world.playerTeam?world.playerFaction:world.enemyFaction))}</div><div class="meters">${meter("Elud",u.hp,maxHitPoints(u))}${(u.maxAmmo??0)>0?meter("Moon",u.ammo??0,u.maxAmmo!):""}${(u.maxFuel??0)>0?meter("Kütus",u.fuel??0,u.maxFuel!):""}${u.def.speed>0?meter("Moraal",u.morale??100,100):""}</div></div><span class="unit-status">${status}</span><small class="role-summary">${u.squadMaxMembers?`Meeskond ${u.squadMembers}/${u.squadMaxMembers} · `:""}${u.def.roleLabel??BUILD_LABELS[u.kind]??u.kind}</small>${expansionPanel(world,u,running)}${weaponCards(world,u,u,this.rangeSlot,this.showWeaponRanges)}<details class="selection-context" data-detail-key="context"><summary>Maastik, liikumine ja varustus</summary>${movement}${terrainReadout(world,u)}${u.team===world.playerTeam&&u.def.speed>0&&u.def.armor!=="air"?`<div class="garrison-card"><b>Varustus</b><small>${tacticalSupplyStatus(world,u)}</small></div>`:""}</details><details class="unit-details" data-detail-key="tactical"><summary>Taktikalised andmed</summary>Kate ${coverValueAt(world,u.x,u.z)} · Soomus ${armorValue(u,"front")}/${armorValue(u,"side")}/${armorValue(u,"rear")} · Surve ${Math.round(u.suppression??0)} · Optika ${u.def.optics??"—"} (${Math.round(u.def.displayOpticsRange??u.def.opticsRange??0)} m) · Varjatus ${u.def.stealthLevel??0} · Liikumise baas ${u.def.speed.toFixed(1)} m/s${u.def.armor!=="air"&&u.def.domain!=="sea"?` · Tee ×${mobilityProfile(u).roadSpeed} · Maastik praegu ×${groundTerrainFactor(world,u).toFixed(2)}`:""} · Stabilisaator ${u.def.stabilizer??"none"} · ${world.isInSupply(u)?"Varustusalas":"Väljaspool varustusala"}${u.components?` · Kahjustused ${Math.round(Math.max(...Object.values(u.components)))}%`:""}</details>${u.def.damage?`<div class="range-controls"><button data-range-toggle aria-pressed="${this.showWeaponRanges}">◎ Ulatusringid ${this.showWeaponRanges?"sees":"väljas"}</button><small>${this.rangeSlot==null?"Kõik relvad":"Relv "+(this.rangeSlot+1)} · katkendjoon: minimaalne ulatus</small></div>`:""}${u.garrisonId?`<div class="garrison-card"><b>Garnison · ${u.kind==="manpad"?"katusepositsioon":"laskeava"}</b><small>${world.mapFeatures.find(f=>f.id===u.garrisonId)?.label??"Tsiviilhoone"} · Sektor ${Math.round(GARRISON_RULES.firingArc*180/Math.PI)}° · HE ja hoone varisemine on ohtlikud</small>${u.team===world.playerTeam?`<button data-garrison-face>◎ Vaatesuund</button><button data-garrison-exit>↪ Välju hoonest</button>`:""}</div>`:""}${u.loadedIntoId!=null&&u.team===world.playerTeam?`<button data-select-unit="${u.loadedIntoId}">Vali transport · väljumine U + paremklõps</button>`:""}${transportCapacity(u)>0?`<div class="transport-status"><b>Transport ${occupiedSeats(world,u)}/${transportCapacity(u)} kohta</b><small> Broneeritud ${occupiedSeats(world,u,true)-occupiedSeats(world,u)} kohta (${u.transportQueue?.length??0} rühma) · Jalavägi → paremklõps transpordile. Väljumine: U + paremklõps kaardil.</small>${u.cargoUnitIds.map(id=>world.byId.get(id)).filter(p=>p&&!p.dead).map(p=>`<span>${world.unitDisplayName(p!.kind,p!.team)} (${p!.squadMembers??1})</span>`).join(" ")}${u.mode==="transport-unload"&&u.cargoUnitIds.length?"<small>Väljub pärast saabumist; takistatud väljapääsu korral jääb pardale.</small>":""}</div>`:""}${u.team===world.playerTeam&&(u.logisticsRoute==="strategic"||u.kind==="supply"||u.kind==="logiTruck"||u.kind==="transport"&&u.supplyDepotId!=null)?logisticsCard(world,u):""}${u.team===world.playerTeam?unitDevelopmentCards(world,u,running):""}${["airbase","helipad"].includes(u.kind)?`<div class="air-roster"><small>${world.productionOperational(u).operational?"Lennurajatis töötab":world.productionOperational(u).reason} · Vali õhuoperatsioon ja paremklõpsa sihtpunktile.</small>${u.kind==="airbase"&&world.producerLevel(u)>=airportRules.minimumLevel?`<small>Hooldusangaar · kütus ${Math.floor(u.fuelStock??0)} · moon ${Math.floor(u.ammoStock??0)} · varude automaattellimus ${airportRules.refillCost}</small>`:""}${airUnitsForOrder(world,[u.id],u.team).map(a=>`<button data-select-unit="${a.id}"><span>${unitPicture(a.kind,u.team===world.playerTeam?world.playerFaction:world.enemyFaction)}</span><span><b>${world.unitDisplayName(a.kind,a.team)}</b><small>${airOperationStatus(world,a)}</small></span></button>`).join("")}</div>`:""}`);
@@ -639,7 +643,7 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
     if (this.el.treeHint) {
       this.el.treeHint.textContent = sourceEnt
         ? `Haru: ${SOURCE_LABELS[sourceKind] ?? sourceKind}`
-        : "Vali HQ / juhtimiskeskus — või ehitatakse HQ harust.";
+        : "Vali asukoht — lähim HQ / FOB saadab ehitusmeeskonna.";
     }
     const power = world.powerStatus(world.playerTeam);
     const markup = list.map((kind) => {
@@ -656,7 +660,7 @@ if((e.target as HTMLElement).closest("[data-close-inspector]")){this.inspectedKi
         if (!reason && power.ratio <= 0.01 && kind !== "generator" && kind !== "supply") reason = "Pole energiat";
         if (!reason) reason = "Lukus";
       } else if (world.resources < cost || world.credits < cost) reason = "Puudub ressurss";
-      else if (!hasEngineer) reason = "Vajab inseneri";
+      else if (!hasEngineer) reason = "Vajab HQ-d või FOB-i";
       const disabled = !running || !unlocked || world.resources < cost || world.credits < cost || !hasEngineer;
       const bs = BUILDINGS[kind as keyof typeof BUILDINGS];
       const functionLabel = bs?.role === "production" ? "TOOTMINE" : bs?.role === "logistics" ? "LOGISTIKA" : bs?.role === "command" ? "JUHTIMINE" : bs?.role === "sensor" ? "SENSOR" : bs?.role === "defense" ? "KAITSE" : bs?.role === "power" ? "ENERGIA" : "ARENDUS";

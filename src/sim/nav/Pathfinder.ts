@@ -37,7 +37,7 @@ function workspaceFor(grid:NavGrid):SearchWorkspace {
   if(!cache.generation){cache.seen.fill(0);cache.closed.fill(0);cache.generation=1;}
   return cache;
 }
-export function findPath(grid: NavGrid, from: Point, to: Point, radius = 0, cost?:PathCost,avoid:readonly (Point&{radius:number})[]=[]): Point[] {
+export function findPath(grid: NavGrid, from: Point, to: Point, radius = 0, cost?:PathCost,avoid:readonly (Point&{radius:number})[]=[],nodeBudget=Infinity): Point[] {
   // Parked-body limits are constant during a search; avoid repeated square roots per cell.
   const avoidance=avoid.map(o=>({x:o.x,z:o.z,radius2:((o.radius+radius)*mobility.navigation.bodyRadiusFactor+mobility.navigation.bodyClearance)**2,escape2:Math.max(0,Math.hypot(from.x-o.x,from.z-o.z)-.01)**2}));
   const avoided=(x:number,z:number)=>avoidance.some(o=>{const distance2=(x-o.x)**2+(z-o.z)**2;return distance2<o.radius2&&distance2<o.escape2;});
@@ -67,7 +67,8 @@ export function findPath(grid: NavGrid, from: Point, to: Point, radius = 0, cost
   gs[sid]=0;parent[sid]=-1;seen[sid]=generation;
   heap.push({id:sid,g:0,f:heuristic(sc.x,sc.z,gc.x,gc.z)*(cost?.minimum??1)});
   const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]] as const;
-  while (heap.length) {
+  let visits=0;
+  while (heap.length&&visits++<nodeBudget) {
     const cur = heap.pop()!;
     if (closed[cur.id]===generation) continue;
     closed[cur.id] = generation;
@@ -83,7 +84,7 @@ export function findPath(grid: NavGrid, from: Point, to: Point, radius = 0, cost
       heap.push({ id, g: ng, f: ng + heuristic(nx,nz,gc.x,gc.z)*(cost?.minimum??1) });
     }
   }
-  if (sid !== gid && seen[gid]!==generation) return [];
+  if (sid !== gid && closed[gid]!==generation) return [];
   const cells: NavCell[] = [];
   for (let id = gid; id >= 0; id = parent[id]) { cells.push({ x: id % grid.width, z: Math.floor(id / grid.width) }); if (id === sid) break; }
   cells.reverse();

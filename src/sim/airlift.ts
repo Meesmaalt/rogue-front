@@ -3,7 +3,7 @@ import type {World} from './World';
 import {heightAt} from './heightmap';
 import data from '../data/expansion.json';
 const cfg=data.airlift;
-export function airliftInfantry(p:Entity):boolean {return p.def.speed>0&&p.def.domain==='land'&&(p.def.category==='infantry'||!!p.squadMaxMembers||p.kind==='engineer');}
+export function airliftInfantry(p:Entity):boolean {return !p.constructionCrew&&!p.constructionFlight&&p.def.speed>0&&p.def.domain==='land'&&(p.def.category==='infantry'||!!p.squadMaxMembers||p.kind==='engineer');}
 export function airliftCargo(p:Entity):boolean {return p.kind==='tank'||p.kind==='apc'||airliftInfantry(p);}
 export function airliftManifest(w:World,plane:Entity,reserved=false):{tanks:number;apcs:number;troops:number;slots:number} {
  const out={tanks:0,apcs:0,troops:0,slots:0},seen=new Set<number>();

@@ -1,3 +1,4 @@
+import {constructionHubs} from '../sim/automaticConstruction';
 import {isIndirectUnit} from "../sim/equipment";
 import {formationPoints} from "../sim/systems/commands";
 import type {SimEvent,Entity,StrategicPayload} from "../sim/types";
@@ -116,11 +117,7 @@ export class CommandController {
         if(e.button===2){this.cancelBuild(this.el);return;}
         this.updateBuildPreview(e.clientX,e.clientY);
         if (this.buildValid && this.buildPoint) {
-          const selectedEngineer = this.selection.selectedIds().map(id=>this.world.byId.get(id)).find(u=>u && u.team===this.world.playerTeam && u.kind==="engineer" && !u.dead);
-          const hq = this.world.hq[this.world.playerTeam];
-          const engineer = selectedEngineer ?? this.world.entities.filter(u=>u.team===this.world.playerTeam && u.kind==="engineer" && !u.dead).sort((a,b)=>Math.hypot((a.x-(hq?.x ?? 0)),(a.z-(hq?.z ?? 0)))-Math.hypot((b.x-(hq?.x ?? 0)),(b.z-(hq?.z ?? 0))))[0];
-          if (engineer) { this.world.issue({type:"build",ids:[engineer.id],kind:this.buildMode,x:this.buildPoint.x,z:this.buildPoint.z,rotation:this.buildRotation}); this.ack(this.buildPoint.x,this.buildPoint.z,0xf2a33a,"EHITA");this.cancelBuild(this.el); }
-          else this.notify("Ehitamiseks on vaja inseneri");
+          this.world.issue({type:"build",ids:[],kind:this.buildMode,x:this.buildPoint.x,z:this.buildPoint.z,rotation:this.buildRotation});this.ack(this.buildPoint.x,this.buildPoint.z,0xf2a33a,"EHITA");this.cancelBuild(this.el);
         }else this.notify("Siin ei saa ehitada — vali vaba plats ja kontrolli hoone eeltingimusi");
         return;
       }
@@ -218,12 +215,9 @@ export class CommandController {
   private updateBuildPreview(x: number, y: number): void {
     if (!this.buildMode) return;
     const p = this.picker.groundAt(x,y);
-    const selectedEngineer = this.selection.selectedIds().map(id=>this.world.byId.get(id)).find(u=>u && u.team===this.world.playerTeam && u.kind==="engineer" && !u.dead);
-          const hq = this.world.hq[this.world.playerTeam];
-          const engineer = selectedEngineer ?? this.world.entities.filter(u=>u.team===this.world.playerTeam && u.kind==="engineer" && !u.dead).sort((a,b)=>Math.hypot((a.x-(hq?.x ?? 0)),(a.z-(hq?.z ?? 0)))-Math.hypot((b.x-(hq?.x ?? 0)),(b.z-(hq?.z ?? 0))))[0];
     const spec = BUILDINGS[this.buildMode];
     this.buildPoint = p;
-    this.buildValid = !!engineer && this.world.resources >= spec.cost && this.world.credits >= spec.cost && this.world.canPlaceBuilding(this.world.playerTeam, this.buildMode, p.x, p.z);
+    this.buildValid = constructionHubs(this.world,this.world.playerTeam).length>0 && this.world.resources >= spec.cost && this.world.credits >= spec.cost && this.world.canPlaceBuilding(this.world.playerTeam, this.buildMode, p.x, p.z);
   }
 
   private cancelBuild(el: HTMLElement): void { this.cancelOrders();el.style.cursor="default"; }

@@ -14,7 +14,7 @@ export function updateTacticalAI(w:World,team:Team,dt:number):void {
  if(dt<=0)return;
  const own=w.entities.filter(e=>!e.dead&&e.team===team&&e.loadedIntoId==null),enemies=visibleEnemies(w,team),contacts=knownContacts(w,team);
  const nodes=own.filter(e=>!e.underConstruction&&(e.disabledUntil??0)<=w.time&&['hq','supply'].includes(e.kind));
- const repairClaims=new Set(own.filter(e=>e.kind==='engineer'&&e.mode==='repair'&&e.target&&!e.target.dead).map(e=>e.id));
+ const repairClaims=new Set(own.filter(e=>!e.constructionCrew&&e.kind==='engineer'&&e.mode==='repair'&&e.target&&!e.target.dead).map(e=>e.id));
  for(const u of own.filter(e=>e.def.domain!=="sea"&&fieldCombat(e))){
   if(w.time<(u.aiDecisionAt??0))continue;u.aiDecisionAt=w.time+AI_RULES.decisionInterval;
   if(['returning','rearming','taxi','landing'].includes(u.airState??''))continue;
@@ -24,7 +24,7 @@ export function updateTacticalAI(w:World,team:Team,dt:number):void {
    continue;
   }
   if(u.aiIntent==='resupply'||u.aiIntent==='retreat'){
-   if(recoveryComplete(u)){for(const e of own)if(e.kind==='engineer'&&e.mode==='repair'&&e.target===u)w.issue({type:'stop',ids:[e.id],team});u.aiIntent=null;w.issue({type:'hold',ids:[u.id],team});}else recover(u);
+   if(recoveryComplete(u)){for(const e of own)if(!e.constructionCrew&&e.kind==='engineer'&&e.mode==='repair'&&e.target===u)w.issue({type:'stop',ids:[e.id],team});u.aiIntent=null;w.issue({type:'hold',ids:[u.id],team});}else recover(u);
    continue;
   }
   const hostile=enemies.filter(e=>canEngage(e,u)&&Math.hypot(e.x-u.x,e.z-u.z)<AI_RULES.localThreatRadius);
@@ -60,8 +60,8 @@ export function updateTacticalAI(w:World,team:Team,dt:number):void {
   if(point){if(u.mode!=='move'||!u.dest||Math.hypot(u.dest.x-point.x,u.dest.z-point.z)>3)w.issue({type:'move',ids:[u.id],x:point.x,z:point.z,team});return;}
   if(u.mode!=='hold')w.issue({type:'hold',ids:[u.id],team});
   if(needRepair&&(depot.repairStock??0)>0){
-   if(own.some(e=>e.kind==='engineer'&&e.mode==='repair'&&e.target===u))return;
-   const engineer=own.filter(e=>e.kind==='engineer'&&!e.garrisonId&&!repairClaims.has(e.id)&&['idle','hold','move'].includes(e.mode)&&Math.hypot(e.x-u.x,e.z-u.z)<AI_RULES.repairDispatchRadius&&!(e.dest&&w.resourcePoints.some(r=>!r.active&&Math.hypot(r.x-e.dest!.x,r.z-e.dest!.z)<r.radius))).sort((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z)||a.id-b.id)[0];
+   if(own.some(e=>!e.constructionCrew&&e.kind==='engineer'&&e.mode==='repair'&&e.target===u))return;
+   const engineer=own.filter(e=>!e.constructionCrew&&e.kind==='engineer'&&!e.garrisonId&&!repairClaims.has(e.id)&&['idle','hold','move'].includes(e.mode)&&Math.hypot(e.x-u.x,e.z-u.z)<AI_RULES.repairDispatchRadius&&!(e.dest&&w.resourcePoints.some(r=>!r.active&&Math.hypot(r.x-e.dest!.x,r.z-e.dest!.z)<r.radius))).sort((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z)||a.id-b.id)[0];
    if(engineer){repairClaims.add(engineer.id);w.issue({type:'repair',ids:[engineer.id],targetId:u.id,team});}
   }
  }

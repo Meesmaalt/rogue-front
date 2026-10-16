@@ -640,7 +640,7 @@
     },
     "engineer": {
       "squadSize": 4,
-      "ability": "Insenerimeeskond: ehitus ja lao varudest remont; relvastamata",
+      "ability": "Relvastatud pioneerirühm: eesliini toetus ja sõidukite remont",
       "hp": 48
     },
     "transport": {
@@ -1288,7 +1288,7 @@
     },
     "engineer": {
       "squadSize": 4,
-      "ability": "Insenerimeeskond: ehitus ja lao varudest remont; relvastamata",
+      "ability": "Relvastatud pioneerirühm: eesliini toetus ja sõidukite remont",
       "hp": 48
     },
     "transport": {
@@ -1936,7 +1936,7 @@
     },
     "engineer": {
       "squadSize": 4,
-      "ability": "Insenerimeeskond: ehitus ja lao varudest remont; relvastamata",
+      "ability": "Relvastatud pioneerirühm: eesliini toetus ja sõidukite remont",
       "hp": 48
     },
     "transport": {

@@ -1,5 +1,17 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## HQ/FOB automaatne ehitus ja Chinooki töövedu · 16.10.2026
+
+- [x] Ehitustellimus ei vaja valitud/vaba lahinguinseneri. HQ/FOB peab piiratud püsivat töömeeskondade parki, saadab lähimast keskusest töörühmi järjekorras ja suuremale hoonele kuni kaks meeskonda. HQ arendus lisab töövõimsust; kaotatud meeskond taastub viivitusega.
+- [x] Automaatseid töölisi, tööautosid ega ehituskopterit ei saa klõpsu, kasti, filtrite, gruppide või liikumiskäskudega juhtida. HQ/FOB kaardil on töömeeskondade ja hõivatuse ülevaade. Tavaline algus sisaldab ainult HQ-d ja automaatset personali.
+- [x] Ostetav relvastatud lahinguinsener on eraldi valitav kasarmu 1. taseme pioneerirühm; remondib sõidukeid ja käivitab ressursirajatisi. Talle ei teki baasi automaatset tööautot ega puhkeala ülesannet. Ehituspersonal ei hõiva sektoreid ega ressursse.
+- [x] Ehitusautol püsiv tööpunkt väljaspool tulevase hoone navigatsioonijalajälge, ühtne suurusest sõltuv tööulatus ning kiirendamine/pidurdamine. Pika tee sirguse kontroll ei kordu täies pikkuses igal sammul. Kinni jäämisel on uus lähenemine ja õhuveo varuvariant.
+- [x] Kaugus üle 320 m, puuduv maatee või ülemäära pikk ümbersõit valib Chinooki: vajadusel tühi pealevõtulend, päris sõit kopterini, pardaleminek, käivitus/start, lend, aeglane maandumine ja mahalaadimine, ehitamine, tagasivedu ning parkimine. Töötaja kuulub lennu ajal päriselt veosesse ega ehita pardalt.
+- [x] Kuni üks aktiivne ehitus-Chinook keskuse kohta. Tellimus maksab 60 krediiti ja 60 ressurssi; puuduv raha või hõivatud kopter jätab töö ootele. Teeotsing kuni kolm katset / 6000 sõlme katse kohta ja viivitusega kordus, mitte lõputu iga-sammu otsing.
+- [x] Varustusautode väljasõit ei tekita enam kahte masinat samale punktile; kattuvast algasendist ei teki teeotsingu surnud lukku. AI kasutab sama automaatset ehitust ning ostab pioneerid eraldi.
+- [x] 25 puudutatud käitumiskontrolli (sh tegelik Chinooki edasi-tagasi töö, veetõkke ületamine, töötaja tagasitulek, salvestus, liikumise taastumine ja AI kuue minuti majandusahel) ning TypeScript/tootmisbuild. Kogu testipakki ei käivitatud; WebGL mängupilti pole selles keskkonnas kinnitatud.
+
+
 ## Loomulikud tööpinnad, vaba puhkeala ja pehmem maandumine · 16.10.2026
 
 - [x] Lao suur ühtlane hall alus asendatud väiksemate töö-/parkimis-/puhkeala pindadega. Maastik paistab läbi, servad hajuvad ja kruusa toon varieerub; kopteriplatsi kate ning H jäävad selgeks.

@@ -1,3 +1,4 @@
+import {dispatchConstruction} from './automaticConstruction';
 import {BATTLE_SCALE} from "./battleScale";
 import {equipStartingUnit} from "./equipment";
 import {stationAircraft} from "./systems/airDoctrine";
@@ -5,7 +6,7 @@ import type { World } from "./World";
 
 /**
  * Real War–style skirmish start:
- * HQ + two combat engineers. No free combat units.
+ * HQ with autonomous construction staff. Combat engineers are purchased separately.
  * Player must build Generator → Supply Depot → Land/Air/Sea Command
  * and rely on logistics helicopters for the bulk of income.
  */
@@ -14,13 +15,10 @@ export function createSkirmish(w: World, ready = false, generated = false): void
 
   // Player
   w.spawn("hq", 0, P.x, P.z);
-  w.spawn("engineer", 0, P.x + 12, P.z - 10);
-  w.spawn("engineer", 0, P.x + 18, P.z - 8);
 
   // Enemy (same constraints – fair start)
   w.spawn("hq", 1, E.x, E.z);
-  w.spawn("engineer", 1, E.x - 12, E.z + 10);
-  w.spawn("engineer", 1, E.x - 18, E.z + 8);
+  dispatchConstruction(w);
   if (ready) {
     for (const team of [0,1] as const) {
       const b=w.bases[team], sign=team===0?1:-1;
@@ -46,7 +44,7 @@ export function createSkirmish(w: World, ready = false, generated = false): void
         for(const [i,kind] of (["frigate","missileBoat"] as const).entries()){const q=w.waterNav.nearestWater({x:water.x-dx*30,z:water.z-dz*30+i*24},w.unitDefinition(kind,team).radius,40);if(q)w.spawn(kind,team,q.x,q.z);}
       }
       const home=w.resourcePoints[team];
-      if(home){const engineer=w.entities.find(e=>e.team===team&&e.kind==="engineer");if(engineer)w.issue({type:"move",ids:[engineer.id],team,x:home.x,z:home.z});}
+      if(home){const engineer=w.entities.find(e=>e.team===team&&e.kind==="engineer"&&!e.constructionCrew);if(engineer)w.issue({type:"move",ids:[engineer.id],team,x:home.x,z:home.z});}
     }
   }
 }

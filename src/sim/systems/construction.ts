@@ -1,3 +1,4 @@
+import {dispatchConstruction,constructionReach} from '../automaticConstruction';
 import baseLife from '../../data/base-life.json';
 import {stockCapacity,stockTotal} from "../stockLogistics";
 import {maxHitPoints} from "../unitStats";
@@ -9,10 +10,11 @@ import { dist2d } from "../math";
 function buildersFor(w: World, target: Entity): Entity[] {
   return target.builderIds
     .map(id => w.byId.get(id))
-    .filter((e): e is Entity => !!e && !e.dead && e.team === target.team && e.kind === "engineer" && e.loadedIntoId==null && e.target===target && (e.mode==="build"||e.mode==="repair"));
+    .filter((e): e is Entity => !!e && !e.dead && e.team === target.team && e.kind === "engineer" && e.target===target && (e.mode==="build"||e.mode==="repair"));
 }
 
 export function updateConstruction(w: World, dt: number): void {
+  dispatchConstruction(w);
   for (const building of w.entities) {
     if (building.dead || !building.def.building) continue;
     const spec = isBuildable(building.kind) ? BUILDINGS[building.kind] : null;
@@ -21,7 +23,7 @@ export function updateConstruction(w: World, dt: number): void {
     const builders = buildersFor(w, building);
     if (building.underConstruction) {
       building.builderIds = builders.map(b => b.id).slice(0, spec.maxBuilders);
-      const active = builders.filter(b => (!b.engineerDuty||b.engineerDuty.phase==='working')&&dist2d(b, building) <= baseLife.engineer.workDistance).slice(0, spec.maxBuilders);
+      const active = builders.filter(b => b.loadedIntoId==null&&(!b.engineerDuty||b.engineerDuty.phase==='working')&&dist2d(b, building) <= (b.constructionCrew?constructionReach(w,building):baseLife.engineer.workDistance)).slice(0, spec.maxBuilders);
       const rate = (building.upgrading ? 1 : active.length) * dt;
       if (rate > 0) {
         building.constructionProgress += rate;
@@ -60,7 +62,7 @@ export function updateConstruction(w: World, dt: number): void {
 
     // Engineers can repair a friendly damaged structure by being assigned through a repair command.
     if (building.hp < maxHitPoints(building) && building.builderIds.length) {
-      const active = builders.filter(b => (!b.engineerDuty||b.engineerDuty.phase==='working')&&dist2d(b, building) <= baseLife.engineer.workDistance);
+      const active = builders.filter(b => b.loadedIntoId==null&&(!b.engineerDuty||b.engineerDuty.phase==='working')&&dist2d(b, building) <= (b.constructionCrew?constructionReach(w,building):baseLife.engineer.workDistance));
       if (active.length) {
         const depot = w.nearestSupplyDepot(building.team, {x:building.x,z:building.z}, true);
         const available = depot && dist2d(depot,building)<80 ? depot.repairStock??0 : 0;
@@ -83,9 +85,10 @@ export function updateConstruction(w: World, dt: number): void {
 export function constructionStatus(w:World,building:Entity):string {
  const progress=Math.round(w.buildingProgress(building)*100);
  if(building.upgrading)return `Paigaldab hoone uusi osi · ${progress}%`;
- const builders=buildersFor(w,building),working=builders.some(e=>(!e.engineerDuty||e.engineerDuty.phase==='working')&&dist2d(e,building)<=baseLife.engineer.workDistance);
+ const builders=buildersFor(w,building),working=builders.some(e=>(!e.engineerDuty||e.engineerDuty.phase==='working')&&dist2d(e,building)<=(e.constructionCrew?constructionReach(w,building):baseLife.engineer.workDistance));
  if(working)return `Ehitamine · ${progress}%`;
  if(builders.some(e=>e.engineerDuty?.phase==='to-van'||e.engineerDuty?.phase==='boarding'))return `Insenerid võtavad tööriistaautot · ${progress}%`;
+ if(builders.some(e=>e.constructionCrew?.transportId!=null||e.loadedIntoId!=null))return `Chinook toob ehitusmeeskonda · ${progress}%`;
  if(builders.length)return `Tööauto liigub ehitusplatsile · ${progress}%`;
- return `Ehitus ootab inseneri · ${progress}%`;
+ return `HQ / FOB korraldab ehitusmeeskonda · ${progress}%`;
 }

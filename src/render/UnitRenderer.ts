@@ -85,17 +85,18 @@ export class UnitRenderer {
       const onScreen=this.frustum.intersectsSphere(this.bounds);
       if(!v&&!onScreen&&e.def.speed>0)continue;
       if (!v) {
-        const faction = e.team === world.playerTeam ? world.playerFaction : world.enemyFaction;
+        const faction = e.constructionFlight?"usa":e.team === world.playerTeam ? world.playerFaction : world.enemyFaction;
         const metricAirfield=e.kind==="airbase"&&!!e.def.metricScale;
-        const visual = e.groundService?.onFoot?{group:createDepotHandler(),turret:null}:metricAirfield?{group:createMetricAirfieldStructures(e),turret:null}:createArtModel(e.kind, e.team, faction) ?? createVisualModel(e.kind, e.team, faction);
+        const visualKind=e.kind==='engineer'&&!e.constructionCrew?'inf':e.kind;
+        const visual = e.groundService?.onFoot?{group:createDepotHandler(),turret:null}:metricAirfield?{group:createMetricAirfieldStructures(e),turret:null}:createArtModel(visualKind, e.team, faction) ?? createVisualModel(visualKind, e.team, faction);
         visual.group.scale.multiplyScalar(e.def.modelScale??1);
         // Authored GLBs retain the silhouette at tactical camera distance.
         const lod = new THREE.LOD();
         lod.autoUpdate=false;lod.addLevel(visual.group,0);
-        const far=metricAirfield?undefined:createArtModel(e.kind,e.team,faction,true)?.group??(e.squadMaxMembers?createVisualModel(e.kind,e.team,faction,true).group:undefined);
+        const far=metricAirfield?undefined:createArtModel(visualKind,e.team,faction,true)?.group??(e.squadMaxMembers?createVisualModel(visualKind,e.team,faction,true).group:undefined);
         if(far){far.scale.multiplyScalar(e.def.modelScale??1);lod.addLevel(far,lodDistance,.15);}
         const m = { group: lod, turret: visual.turret };
-        if(e.kind==='engineer')lod.add(createToolVan());
+        if(e.constructionCrew)lod.add(createToolVan());
         const rotors: THREE.Object3D[] = [];
         lod.traverse(o => { if (o.name.startsWith("RotorMain") || o.name === "RotorCounter" || o.name === "TailRotor") rotors.push(o); });
         if (rotors.length) this.rotorParts.set(e.id, rotors);

@@ -84,5 +84,38 @@
   },
   "buildingVisuals": {
     "instantRevealSeconds": 2.5
+  },
+  "construction": {
+    "hqCrews": 2,
+    "fobCrews": 1,
+    "maxCrews": 3,
+    "workersPerCrew": 3,
+    "dispatchInterval": 1,
+    "replacementSeconds": 45,
+    "remoteDistance": 320,
+    "detourRatio": 2.4,
+    "airliftCost": 60,
+    "loadingSeconds": 5,
+    "unloadingSeconds": 6,
+    "spoolSeconds": 3,
+    "aircraftClearance": 9,
+    "landingRings": [
+      30,
+      45,
+      65
+    ],
+    "landingSamples": 16,
+    "pathRetry": 4,
+    "jamAirliftSeconds": 18,
+    "pathAttempts": 3,
+    "pathSearchLimit": 6000,
+    "fobRest": {
+      "x": -14,
+      "z": 12
+    },
+    "fobVan": {
+      "x": -14,
+      "z": -3
+    }
   }
 }

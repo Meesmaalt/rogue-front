@@ -1,3 +1,4 @@
+import {updateConstructionFlight,updateConstructionBoarding,constructionReach} from '../automaticConstruction';
 import {updateEngineerDuty} from '../engineerDuty';
 import baseLife from '../../data/base-life.json';
 import {ensureDepotCrews,prepareDepotCrew,handleGroundCargo,logisticsDeparture,logisticsLandingPoint,updateGroundHandler} from "../groundHandling";
@@ -90,7 +91,7 @@ function onFoot(u:Entity):boolean {
 function bodyClear(w:World,u:Entity,p:Point):boolean {
   let clear=true;
   w.spatial.queryRadius(p.x,p.z,u.def.radius+8,o=>{
-    if(onFoot(u)&&onFoot(o))return;
+    if(onFoot(o)&&(onFoot(u)||!!u.constructionCrew||!!o.constructionCrew))return;
     if(o===u||o.dead||o.garrisonId||o.loadedIntoId!=null||o.def.speed===0||o.def.domain!=="land")return;
     const old=dist2d(u,o),next=dist2d(p,o),min=(u.def.radius+o.def.radius)*mobility.navigation.bodyRadiusFactor+mobility.navigation.bodyClearance;
     if(next<min&&next<old-.001)clear=false;
@@ -145,15 +146,18 @@ function movePorterTo(w:World,u:Entity,goal:Point,dt:number):boolean {
   const changed=!u.roadPathGoal||dist2d(u.roadPathGoal,goal)>.1;
   if(changed||!u.navPath.length||u.navPathIndex>=u.navPath.length){
     if(!changed&&w.time<(u.roadPathRetryAt??0)){u.motionSpeed=0;return false;}
-    const parked=w.entities.filter(e=>e!==u&&!e.dead&&e.def.domain==='land'&&e.def.speed>0&&e.loadedIntoId==null&&!e.groundService&&!(onFoot(u)&&onFoot(e))&&(e.motionSpeed??0)<.1).map(e=>({x:e.x,z:e.z,radius:e.def.radius}));
+    const parked=w.entities.filter(e=>e!==u&&!e.dead&&e.def.domain==='land'&&e.def.speed>0&&e.loadedIntoId==null&&!e.groundService&&!(onFoot(e)&&(onFoot(u)||!!u.constructionCrew))&&(e.motionSpeed??0)<.1).map(e=>({x:e.x,z:e.z,radius:e.def.radius}));
     u.navPath=findPath(w.nav,u,goal,u.def.radius,undefined,parked);u.navPathIndex=0;u.roadPathGoal={...goal};u.roadPathRetryAt=w.time+.5;
     if(!u.navPath.length){u.motionSpeed=0;return false;}
   }
+  if(dist2d(u,goal)<mobility.navigation.lookAhead&&clearGroundSegment(w,u,goal)&&bodyClear(w,u,goal)){u.navPath=[goal];u.navPathIndex=0;}
   while(u.navPathIndex<u.navPath.length-1&&dist2d(u,u.navPath[u.navPathIndex])<cfg.porterWaypointArrival)u.navPathIndex++;
-  const p=u.navPathIndex===u.navPath.length-1&&clearGroundSegment(w,u,goal)?goal:u.navPath[u.navPathIndex]??goal,dist=dist2d(u,p),dx=(p.x-u.x)/Math.max(.001,dist),dz=(p.z-u.z)/Math.max(.001,dist),want=Math.atan2(dx,dz);
+  const p=u.navPathIndex===u.navPath.length-1&&dist2d(u,goal)<mobility.navigation.lookAhead&&clearGroundSegment(w,u,goal)?goal:u.navPath[u.navPathIndex]??goal,dist=dist2d(u,p),dx=(p.x-u.x)/Math.max(.001,dist),dz=(p.z-u.z)/Math.max(.001,dist),want=Math.atan2(dx,dz);
   u.heading=turnToward(u.heading,want,u.def.turnRate*dt);
   const driving=u.groundService?.onFoot&&(!u.groundService.crewState||['driving','parking'].includes(u.groundService.crewState))||u.engineerDuty&&['travel','return'].includes(u.engineerDuty.phase);
-  const step=Math.min(dist,u.def.speed*dt*(driving?Math.max(0,Math.cos(wrapAngle(want-u.heading))):1));
+  const desired=driving?Math.min(u.def.speed,Math.sqrt(2*mobility.wheeled.braking*dist))*Math.max(0,Math.cos(wrapAngle(want-u.heading))):u.def.speed;
+  const speed=driving?(u.motionSpeed??0)+Math.max(-mobility.wheeled.braking*dt,Math.min(mobility.wheeled.acceleration*dt,desired-(u.motionSpeed??0))):desired;
+  const step=Math.min(dist,speed*dt);
   const next={x:u.x+dx*step,z:u.z+dz*step};
   const before={x:u.x,z:u.z};
   if((w.nav.isWalkableWorld(next.x,next.z,u.def.radius)||!w.nav.isWalkableWorld(u.x,u.z,u.def.radius))&&bodyClear(w,u,next)){u.x=next.x;u.z=next.z;}
@@ -191,7 +195,7 @@ function moveRoadTruckTo(w: World, u: Entity, goal: Point, dt: number, arrival=3
   if(!u.navPath.length || u.navPathIndex>=u.navPath.length || !u.roadPathGoal || Math.hypot(u.roadPathGoal.x-goal.x,u.roadPathGoal.z-goal.z)>5){
     const cost=travelPathCost(w,u);
     const parked:Array<Point&{radius:number}>=[];
-    w.spatial.queryRadius(u.x,u.z,mobility.navigation.parkedSearchRadius,e=>{if(e!==u&&!e.dead&&e.loadedIntoId==null&&!e.garrisonId&&e.def.speed>0&&e.def.domain==='land'&&(!e.dest||e.mode==='hold'||(e.motionSpeed??0)<mobility.navigation.rerouteStoppedSpeed))parked.push({x:e.x,z:e.z,radius:e.def.radius});});
+    w.spatial.queryRadius(u.x,u.z,mobility.navigation.parkedSearchRadius,e=>{if(e!==u&&!e.dead&&e.loadedIntoId==null&&!e.garrisonId&&e.def.speed>0&&e.def.domain==='land'&&!(e.constructionCrew&&onFoot(e))&&dist2d(u,e)>u.def.radius+e.def.radius&&(!e.dest||e.mode==='hold'||(e.motionSpeed??0)<mobility.navigation.rerouteStoppedSpeed))parked.push({x:e.x,z:e.z,radius:e.def.radius});});
     if(goal===finalGoal&&arrival>5&&(u.kind==="engineer"||!w.nav.isWalkableWorld(goal.x,goal.z,u.def.radius)||!bodyClear(w,u,goal))){
       const angle=Math.atan2(u.x-goal.x,u.z-goal.z),points=Array.from({length:16},(_,i)=>{const a=angle+i*Math.PI/8;return {x:goal.x+Math.sin(a)*(arrival-1),z:goal.z+Math.cos(a)*(arrival-1)};}).filter(p=>w.nav.isWalkableWorld(p.x,p.z,u.def.radius)&&bodyClear(w,u,p)).sort((a,b)=>dist2d(u,a)-dist2d(u,b));
       u.navPath=[];const start=u.taskApproachIndex??0,attempts=Math.min(points.length,mobility.navigation.taskPathAttempts);
@@ -626,6 +630,8 @@ export function updateUnits(w: World, dt: number): void {
 
 function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): void {
   const d = u.def;u.navWaiting=false;
+  if(updateConstructionFlight(w,u,dt,p=>moveAirTo(u,p,dt,w)))return;
+  if(updateConstructionBoarding(w,u,p=>movePorterTo(w,u,p,dt)))return;
   if(u.kind==='groundHandler'){updateGroundHandler(w,u,dt,p=>u.groundService?.onFoot?movePorterTo(w,u,p,dt):moveRoadTruckTo(w,u,p,dt,logisticsConfig.handling.arrival));return;}
   if(updateEngineerDuty(w,u,dt,p=>movePorterTo(w,u,p,dt)))return;
   if(updateAirdrop(w,u,dt))return;
@@ -670,7 +676,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
         return;
       }
     }
-    const taskReach=target.def.building?baseLife.engineer.workDistance:12;
+    const taskReach=target.def.building?(u.constructionCrew?constructionReach(w,target):baseLife.engineer.workDistance):12;
     if (Math.hypot(u.x - target.x, u.z - target.z) > taskReach) moveRoadTruckTo(w,u,target,dt,taskReach-.5);
     else u.motionSpeed=0;
     return;
@@ -884,7 +890,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     const sepRange = d.radius + 10;
     const sepRange2 = sepRange * sepRange;
     w.spatial.queryRadius(u.x, u.z, sepRange, (o) => {
-      if(onFoot(u)&&onFoot(o))return;
+      if(onFoot(o)&&(onFoot(u)||!!u.constructionCrew||!!o.constructionCrew))return;
       if (o === u || o.dead || o.garrisonId || o.loadedIntoId!==null || (o.def.armor==="air") !== isAir) return;
       const ox = u.x - o.x, oz = u.z - o.z;
       const d2 = ox * ox + oz * oz;

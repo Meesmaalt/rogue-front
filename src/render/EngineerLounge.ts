@@ -7,7 +7,7 @@ export interface LoungeState{engIdle?:number;seats?:Array<{x:number;z:number;hea
 const IDLE_BEFORE_LOUNGE=3,LOUNGE_RANGE=28,GEAR_TIME=2;
 type Spot={x:number;z:number;heading:number};
 function assignedSeats(world:World,e:Entity,home:Entity):Spot[]|null {
- const occupants=world.entities.filter(u=>!u.dead&&u.kind==='engineer'&&u.team===e.team&&(u.engineerDuty?.homeId===home.id||!u.engineerDuty&&Math.hypot(u.x-home.x,u.z-home.z)<LOUNGE_RANGE)).sort((a,b)=>a.id-b.id);
+ const occupants=world.entities.filter(u=>!u.dead&&!!u.constructionCrew&&u.kind==='engineer'&&u.team===e.team&&(u.engineerDuty?.homeId===home.id||!u.engineerDuty&&Math.hypot(u.x-home.x,u.z-home.z)<LOUNGE_RANGE)).sort((a,b)=>a.id-b.id);
  let offset=0;for(const u of occupants){if(u===e)break;offset+=u.squadMembers??u.squadMaxMembers??1;}
  const seats=hqSeats().slice(offset,offset+(e.squadMembers??e.squadMaxMembers??1));return seats.length?seats.map(s=>seatWorld(home,buildingScale('hq'),s)):null;
 }
@@ -16,7 +16,8 @@ function assignedSeats(world:World,e:Entity,home:Entity):Spot[]|null {
  * first walk to the rack, take hammer and shovel, and only then head out (members follow the squad as usual afterwards).
  */
 export function engineerSeats(world:World,e:Entity,st:LoungeState,dt:number):Spot[]|null {
- if(e.engineerDuty){const home=world.byId.get(e.engineerDuty.homeId);st.gearPhase=e.engineerDuty.phase==='to-van'||e.engineerDuty.phase==='boarding';st.toolsAway=e.engineerDuty.phase==='rest'||!!st.gearPhase;return home&&e.engineerDuty.phase==='rest'?assignedSeats(world,e,home):null;}
+ if(!e.constructionCrew)return null;
+ if(e.engineerDuty){const home=world.byId.get(e.engineerDuty.homeId);st.gearPhase=e.engineerDuty.phase==='to-van'||e.engineerDuty.phase==='boarding';st.toolsAway=e.engineerDuty.phase==='rest'||!!st.gearPhase;return home?.kind==='hq'&&e.engineerDuty.phase==='rest'?assignedSeats(world,e,home):null;}
  const resting=e.mode==='idle'&&!e.dest&&!e.target&&(e.motionSpeed??0)<.1&&!e.garrisonId&&!e.airdrop&&e.loadedIntoId==null;
  st.engIdle=resting?(st.engIdle??0)+dt:0;
  if(st.engIdle>=IDLE_BEFORE_LOUNGE){

@@ -1,3 +1,4 @@
+import {constructionHubs,constructionHelper} from '../automaticConstruction';
 import {producerKind as producerFor} from "./production";
 import {beginStrategicBuild,strategicStrike} from "../strategicWeapons";
 import {isIndirectUnit} from "../equipment";
@@ -20,7 +21,7 @@ function mobile(w: World, ids: number[], team?: Entity["team"]): Entity[] {
   const out: Entity[] = [];
   for (const id of ids) {
     const e = w.byId.get(id);
-    if (e && !e.dead && e.def.speed > 0 && e.kind!=="groundHandler" && !e.airdrop && !e.refit && (e.logisticsRoute!=="strategic"||e.kind==="transport") && e.loadedIntoId==null && (team === undefined || e.team === team)) out.push(e);
+    if (e && !e.dead && !constructionHelper(e) && e.def.speed > 0 && e.kind!=="groundHandler" && !e.airdrop && !e.refit && (e.logisticsRoute!=="strategic"||e.kind==="transport") && e.loadedIntoId==null && (team === undefined || e.team === team)) out.push(e);
   }
   return out;
 }
@@ -177,6 +178,7 @@ function apply(w: World, c: Command): void {
     case "repair": {
       const target = w.byId.get(c.targetId);
       if (!target || target.dead || target.team !== (c.team ?? w.playerTeam) || (!target.underConstruction && target.hp >= maxHitPoints(target) && !Object.values(target.components ?? {}).some(v => v > 0))) break;
+      if(target.def.building&&target.underConstruction)break;
       const engineers = mobile(w, c.ids, c.team).filter(u => u.kind === "engineer" && (!u.garrisonId || leaveGarrison(w,u)));
       if (!engineers.length) break;
       for (const u of engineers.slice(0, 2)) { replaceTask(w,u);u.mode = target.underConstruction?"build":"repair"; u.holdPosition=false;u.target = target; u.dest = { x: target.x, z: target.z }; }
@@ -193,17 +195,8 @@ function apply(w: World, c: Command): void {
     }
     case "build": {
       const team = c.team ?? w.playerTeam;
-      // Prefer selected engineers; fall back to nearest friendly engineer
-      let builders = mobile(w, c.ids, team).filter(u => u.kind === "engineer" && (!u.garrisonId || leaveGarrison(w,u)));
-      if (!builders.length) {
-        const nearest = w.entities
-          .filter(e => !e.dead && e.team === team && e.kind === "engineer" && e.loadedIntoId === null && !e.garrisonId)
-          .sort((a, b) => Math.hypot(a.x - c.x, a.z - c.z) - Math.hypot(b.x - c.x, b.z - c.z))[0];
-        if (nearest) builders = [nearest];
-      }
-      const builder = builders[0];
-      const reject=(message:string)=>w.events.push({type:"order-rejected",team,unitId:builder?.id??c.ids[0]??0,x:c.x,z:c.z,message});
-      if (!builder || !isBuildable(c.kind)) {reject("Ehitamiseks on vaja vaba, pardalt väljunud inseneri");break;}
+      const reject=(message:string)=>w.events.push({type:"order-rejected",team,unitId:c.ids[0]??0,x:c.x,z:c.z,message});
+      if(!isBuildable(c.kind)||!constructionHubs(w,team).length){reject("Ehitamiseks on vaja HQ-d või FOB-i");break;}
       const spec = BUILDINGS[c.kind];
       const walletCredits = w.teamCredits[team], walletResources = w.teamResources[team];
       if (walletResources < spec.cost || walletCredits < spec.cost) {reject("Ehitus peatatud: raha või ressursse ei jätku");break;}
@@ -219,15 +212,7 @@ function apply(w: World, c: Command): void {
       b.constructionTime = spec.buildTime;
       b.heading = c.rotation ?? b.heading;
       b.pHeading = b.heading;
-      for (const eng of builders.slice(0, spec.maxBuilders)) {
-        replaceTask(w,eng);
-        eng.mode = "build";
-        eng.target = b;
-        eng.dest = { x: c.x, z: c.z };
-        eng.navPath = [];
-        eng.navPathIndex = 0;
-      }
-      b.builderIds = builders.slice(0, spec.maxBuilders).map(u => u.id);
+      b.builderIds=[]; // HQ/FOB dispatches a real available crew on the next construction tick.
       break;
     }
     case "research": {

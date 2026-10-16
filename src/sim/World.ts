@@ -1,3 +1,4 @@
+import {constructionHubs} from './automaticConstruction';
 import airportRules from '../data/airport-support.json';
 import {airportHasSupport} from './airportSupport';
 import {visibleDepotPads} from "./depotPads";
@@ -220,7 +221,7 @@ export class World {
   }
   unitRequiredBuildingLevel(kind: UnitKind): number {
     const elite = ["sam","special","atgm","manpad","tankDestroyer","spaa","mlrs","gunship","casHeli","interceptor","bomber","ecm","attackAircraft","destroyer","submarine"];
-    const advanced = ["irSam","airTransport","howitzer","engineer","reconInf","sniper","mortar","apc","ifv","artillery","reconVehicle","lightTank","fighter","multirole","frigate"];
+    const advanced = ["irSam","airTransport","howitzer","reconInf","sniper","mortar","apc","ifv","artillery","reconVehicle","lightTank","fighter","multirole","frigate"];
     return elite.includes(kind) ? 3 : advanced.includes(kind) ? 2 : 1;
   }
   canProduceAtLevel(producer: Entity, kind: UnitKind): boolean {
@@ -349,7 +350,7 @@ export class World {
   private updateResourceControl(dt: number): void {
     let scores: [number, number] = [0, 0];
     for (const rp of this.resourcePoints) {
-      const nearby = ([0, 1] as const).map(team => this.entities.filter(e => !e.dead && e.team === team && e.def.speed > 0 && e.def.armor !== "air" && e.def.domain !== "sea" && !["logiTruck","cargoPlane","transport"].includes(e.kind) && e.loadedIntoId === null && Math.hypot(e.x-rp.x,e.z-rp.z) <= rp.radius + 10));
+      const nearby = ([0, 1] as const).map(team => this.entities.filter(e => !e.dead && !e.constructionCrew && !e.constructionFlight && e.team === team && e.def.speed > 0 && e.def.armor !== "air" && e.def.domain !== "sea" && !["logiTruck","cargoPlane","transport"].includes(e.kind) && e.loadedIntoId === null && Math.hypot(e.x-rp.x,e.z-rp.z) <= rp.radius + 10));
       const a = nearby[0].length, b = nearby[1].length,previousOwner=rp.controlledBy;
       if (a > 0 && b === 0) { rp.controlProgress = Math.min(1, (rp.controlProgress ?? 0.5) + dt * 0.22 * Math.min(2, a)); if (rp.controlProgress >= 1) rp.controlledBy = 0; }
       else if (b > 0 && a === 0) { rp.controlProgress = Math.max(0, (rp.controlProgress ?? 0.5) - dt * 0.22 * Math.min(2, b)); if (rp.controlProgress <= 0) rp.controlledBy = 1; }
@@ -569,6 +570,7 @@ export class World {
     // Soft walkability – allow gentle slopes so crater edges don't block builds
     if (!this.nav.isWalkableWorld(x, z, r * 0.45)) return false;
     if (this.entities.some(e => !e.dead && (e.def.speed === 0 || e.underConstruction) && Math.hypot(e.x - x, e.z - z) < r + e.def.radius + 1.2)) return false;
+    if(this.entities.some(e=>!e.dead&&e.constructionFlight&&(Math.hypot(e.constructionFlight.home.x-x,e.constructionFlight.home.z-z)<r+e.def.radius||e.constructionFlight.phase!=='parked'&&Math.hypot(e.constructionFlight.site.x-x,e.constructionFlight.site.z-z)<r+e.def.radius)))return false;
     // Permanent landing surfaces and leased overflow pads remain free of new buildings.
     if(this.entities.some(e=>!e.dead&&!e.underConstruction&&e.kind==='supply'&&Math.hypot(e.x-x,e.z-z)<r+100&&visibleDepotPads(this,e).some(p=>Math.hypot(p.x-x,p.z-z)<r+logisticsConfig.handling.padRadius+1)))return false;
     // Only hard walls/chokepoints block; roads/gates/cover never do
@@ -576,7 +578,7 @@ export class World {
     if(this.mapFeatures.some(f=>f.kind==="gate"&&f.id.startsWith("base-")&&Math.hypot(f.x-x,f.z-z)<r+12))return false;
     if (kind === "refinery" && !this.resourcePoints.some(p => Math.hypot(p.x - x, p.z - z) <= p.radius + r)) return false;
     if (["gunTurret","flakTurret","atTurret","missileCommand","icbmSilo","supply", "generator", "radar", "helipad", "bunker", "aa", "shipyard", "landCommand", "airCommand", "seaCommand", "combatEngineer", "landStrategy", "airStrategy", "seaStrategy"].includes(kind)) return true;
-    return this.bases[team] ? Math.hypot(this.bases[team].x - x, this.bases[team].z - z) < 155 : true;
+    return constructionHubs(this,team).some(h=>Math.hypot(h.x-x,h.z-z)<155);
   }
 
   unitDisplayName(kind: UnitKind, team?: Team): string {
@@ -711,7 +713,7 @@ export class World {
 
   private convoyExit(depot:Entity,goal:{x:number,z:number}):{x:number,z:number}|null {
     const angle=Math.atan2(goal.x-depot.x,goal.z-depot.z),radius=depot.def.radius+UNITS.logiTruck.radius+4;
-    for(let i=0;i<16;i++){const a=angle+Math.PI/8*i,p={x:depot.x+Math.sin(a)*radius,z:depot.z+Math.cos(a)*radius};if(this.nav.isWalkableWorld(p.x,p.z,UNITS.logiTruck.radius)&&findPath(this.nav,p,goal,UNITS.logiTruck.radius).length)return p;}
+    for(let i=0;i<16;i++){const a=angle+Math.PI/8*i,p={x:depot.x+Math.sin(a)*radius,z:depot.z+Math.cos(a)*radius};if(this.nav.isWalkableWorld(p.x,p.z,UNITS.logiTruck.radius)&&!this.entities.some(e=>!e.dead&&e.loadedIntoId==null&&e.def.domain==='land'&&e.def.speed>0&&e.def.category!=='infantry'&&Math.hypot(e.x-p.x,e.z-p.z)<e.def.radius+UNITS.logiTruck.radius+1)&&findPath(this.nav,p,goal,UNITS.logiTruck.radius).length)return p;}
     return null;
   }
   private updateRoadConvoys(_dt: number): void {
@@ -882,7 +884,7 @@ export class World {
     for (let i = this.entities.length - 1; i >= 0; i--) {
       const e = this.entities[i];
       if (e.dead) {
-        if (e.def.speed > 0 && e.kind !== "engineer" && e.logisticsRoute !== "strategic") this.battlegroupForTeam(e.team)?.recordLoss(e.kind);
+        if (e.def.speed > 0 && !e.constructionFlight && e.kind !== "engineer" && e.logisticsRoute !== "strategic") this.battlegroupForTeam(e.team)?.recordLoss(e.kind);
         if ((e.kind === "cargoPlane"||e.kind==="transport"&&e.logisticsRoute==="strategic") && e.cargo > 0) { this.airCargoLost[e.team] += e.cargo; e.cargo = 0; }
         if (e.kind === "logiTruck" && e.cargo > 0) { this.roadCargoLost[e.team] += e.cargo; e.cargo = 0; }
         if (e.def.speed === 0) removedBuilding = true;

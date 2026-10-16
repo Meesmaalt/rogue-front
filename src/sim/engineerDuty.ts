@@ -1,3 +1,4 @@
+import {constructionApproach,constructionReach,startConstructionAirlift} from './automaticConstruction';
 import config from '../data/base-life.json';
 import {basePoint} from './baseLayout';
 import type {World} from './World';
@@ -5,6 +6,7 @@ import type {Entity,Point} from './types';
 const cfg=config.engineer;
 /** The engineer, van and construction share one saved fixed-tick duty state. */
 export function updateEngineerDuty(w:World,u:Entity,dt:number,move:(p:Point)=>boolean):boolean {
+ if(!u.constructionCrew){u.engineerDuty=undefined;return false;}
  if(u.kind!=='engineer'||u.dead||u.loadedIntoId!=null||u.garrisonId)return false;
  const work=(u.mode==='build'||u.mode==='repair')&&!!u.target&&!u.target.dead;
  if(!work&&u.mode!=='idle'){u.engineerDuty=undefined;return false;}
@@ -14,11 +16,12 @@ export function updateEngineerDuty(w:World,u:Entity,dt:number,move:(p:Point)=>bo
   if(!hq)return false;duty=u.engineerDuty={homeId:hq.id,phase:work?'to-van':'working',idleFor:0};
  }
  const home=w.byId.get(duty.homeId);if(!home||home.dead){u.engineerDuty=undefined;return false;}
- const van=w.nav.nearestWalkable(basePoint(home,cfg.van.x,cfg.van.z+(u.id%3)*cfg.van.spacing),cfg.vanRadius),rest=w.nav.nearestWalkable(basePoint(home,cfg.rest.x+(u.id%2)*cfg.rest.spacing,cfg.rest.z+Math.floor((u.id%4)/2)*cfg.rest.spacing),u.def.radius);
+ const vanBase=home.kind==='hq'?cfg.van:config.construction.fobVan,restBase=home.kind==='hq'?cfg.rest:config.construction.fobRest;
+ const van=w.nav.nearestWalkable(basePoint(home,vanBase.x,vanBase.z+u.constructionCrew.slot*cfg.van.spacing),cfg.vanRadius),rest=w.nav.nearestWalkable(basePoint(home,restBase.x+(u.constructionCrew.slot%2)*cfg.rest.spacing,restBase.z+Math.floor(u.constructionCrew.slot/2)*cfg.rest.spacing),u.def.radius);
  if(work){
   duty.idleFor=0;
   if(duty.phase==='rest'||duty.phase==='return')duty.phase='to-van';
-  if(duty.phase==='working'&&u.target&&Math.hypot(u.x-u.target.x,u.z-u.target.z)>cfg.workDistance)duty.phase='travel';
+  if(duty.phase==='working'&&u.target&&Math.hypot(u.x-u.target.x,u.z-u.target.z)>constructionReach(w,u.target))duty.phase='travel';
  }else if(duty.phase==='working'){
   duty.idleFor+=dt;if(duty.idleFor<cfg.restAfter)return false;if(!duty.vanPoint){duty.phase='rest';if(van)duty.vanPoint={...van};}else duty.phase='return';
  }
@@ -30,9 +33,15 @@ export function updateEngineerDuty(w:World,u:Entity,dt:number,move:(p:Point)=>bo
  if(duty.phase==='travel'){
   if(!u.target){duty.phase='return';return true;}
   const distance=Math.hypot(u.target.x-u.x,u.target.z-u.z);
-  if(distance<=cfg.workDistance){duty.phase='working';duty.vanPoint={x:u.x,z:u.z};u.motionSpeed=0;return false;}
-  const span=Math.max(0,distance-Math.max(cfg.vanRadius*2,cfg.workDistance-w.nav.cellSize)),point=w.nav.nearestWalkable({x:u.x+(u.target.x-u.x)/distance*span,z:u.z+(u.target.z-u.z)/distance*span},cfg.vanRadius);
-  if(point)drive(point);duty.vanPoint={x:u.x,z:u.z};return true;
+  if(distance<=constructionReach(w,u.target)){duty.phase='working';duty.vanPoint={x:u.x,z:u.z};u.motionSpeed=0;return false;}
+  const crew=u.constructionCrew!;
+  if(!crew.workPoint||!w.nav.isWalkableWorld(crew.workPoint.x,crew.workPoint.z,cfg.vanRadius)){
+   if(w.time<(crew.retryAt??0))return true;crew.retryAt=w.time+config.construction.pathRetry;crew.workPoint=constructionApproach(w,u,u.target)?.point;
+  }
+  const before={x:u.x,z:u.z};if(crew.workPoint)drive(crew.workPoint);
+  crew.blockedFor=Math.hypot(u.x-before.x,u.z-before.z)<.01?(crew.blockedFor??0)+dt:0;
+  if(crew.blockedFor>config.construction.jamAirliftSeconds){crew.blockedFor=0;crew.workPoint=undefined;startConstructionAirlift(w,u,home);}
+  duty.vanPoint={x:u.x,z:u.z};return true;
  }
  if(duty.phase==='return'){
   if(!van||!drive(van)){duty.vanPoint={x:u.x,z:u.z};return true;}

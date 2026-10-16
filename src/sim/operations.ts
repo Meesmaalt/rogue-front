@@ -32,7 +32,7 @@ export class OperationalMap {
       const counts: [number, number] = [0, 0];
       const threat: [number, number] = [0, 0];
       for (const e of this.world.entities) {
-        if (e.dead || e.loadedIntoId != null || Math.hypot(e.x-s.center.x,e.z-s.center.z) > s.radius) continue;
+        if (e.dead || e.constructionCrew || e.constructionFlight || e.loadedIntoId != null || Math.hypot(e.x-s.center.x,e.z-s.center.z) > s.radius) continue;
         if (e.team === 0 || e.team === 1) counts[e.team] += e.def.speed > 0 ? 1 : 0;
         if (e.team === 0 || e.team === 1) threat[e.team] += this.combatValue(e);
       }

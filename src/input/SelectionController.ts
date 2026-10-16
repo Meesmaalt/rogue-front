@@ -1,3 +1,4 @@
+import {constructionHelper} from '../sim/automaticConstruction';
 import type { World } from "../sim/World";
 import type { Entity } from "../sim/types";
 import type { Picker } from "./Picker";
@@ -36,12 +37,12 @@ export class SelectionController {
 
   /** Eemalda surnud üksused valikust. */
   prune(): void {
-    for (const id of this.selected) { const e = this.world.byId.get(id); if (!e || e.dead || e.loadedIntoId!=null || e.team!==this.world.playerTeam) this.selected.delete(id); }
+    for (const id of this.selected) { const e = this.world.byId.get(id); if (!e || constructionHelper(e) || e.dead || e.loadedIntoId!=null || e.team!==this.world.playerTeam) this.selected.delete(id); }
   }
 
   private set(list: Entity[], add: boolean): void {
     if (!add) this.selected.clear();
-    for (const e of list) this.selected.add(e.id);
+    for (const e of list) if(!constructionHelper(e)&&e.kind!=="groundHandler")this.selected.add(e.id);
   }
 
   private onScreen(e: Entity): boolean {

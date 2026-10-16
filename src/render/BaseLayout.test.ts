@@ -13,7 +13,7 @@ it('parked forklifts clear all seats and the driver returns to the drawn seat',(
 });
 it('two engineer squads with the same id parity receive different reachable seats',()=>{
  setMapSize(4096);setBases([{x:0,z:0,r:120},{x:700,z:700,r:120}]);const w=new World(93,false,[],[],[{x:0,z:0,r:120},{x:700,z:700,r:120}],false),hq=w.spawn('hq',0,0,0),a=w.spawn('engineer',0,12,12);w.spawn('inf',0,40,40);const b=w.spawn('engineer',0,14,12);
- w.nav.syncBuildings(w.entities);for(const e of [a,b])e.engineerDuty={homeId:hq.id,phase:'rest',idleFor:5};
+ w.nav.syncBuildings(w.entities);for(const e of [a,b]){e.constructionCrew={homeId:hq.id,slot:e===a?0:1};e.squadMembers=e.squadMaxMembers=3;e.engineerDuty={homeId:hq.id,phase:'rest',idleFor:5};}
  const sa=engineerSeats(w,a,{},.1)!,sb=engineerSeats(w,b,{},.1)!;expect(sa.length).toBeGreaterThan(0);expect(sb.length).toBeGreaterThan(0);
  for(const p of sa)for(const q of sb)expect(Math.hypot(p.x-q.x,p.z-q.z)).toBeGreaterThan(.8);
  for(const p of [...sa,...sb])expect(w.nav.isWalkableWorld(p.x,p.z,.22)).toBe(true);
