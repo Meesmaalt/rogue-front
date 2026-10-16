@@ -25,7 +25,7 @@ import logisticsConfig from "../../data/logistics.json";
 import mobility from "../../data/mobility.json";
 import { heightAt, MAP_SIZE } from "../heightmap";
 import { dist2d, turnToward, wrapAngle } from "../math";
-import { fireProjectile, canEngage, effectiveWeaponRange,selectWeapon,weaponSpec,weaponAmmo,weaponMuzzle,weaponFireBlocker } from "./combat";
+import { fireProjectile, canEngage, effectiveWeaponRange,selectWeapon,weaponSpec,weaponAmmo,weaponMuzzle,weaponFireBlocker,alternateAirWeapon } from "./combat";
 import { coverValueAt,isSpottedBy } from "./sensors";
 import { moraleSpeedMul, moraleAccuracyMul, moraleState } from "./morale";
 import { outOfFuel, outOfAmmo,repairDepotFor } from "./tacticalSupply";
@@ -401,10 +401,11 @@ function moveAirTo(u: Entity, target: Point, dt: number, w: World, cruise=false)
   const runwayReference=w.byId.get(u.airMissionHomeId??-1),landingGround=final&&!helicopter&&u.def.metricScale&&runwayReference?heightAt(runwayReference.x,runwayReference.z):ground;
   const heliAltitude=Math.min(profile.altitude,distance*logisticsConfig.handling.landingGlideSlope);
   const desiredAltitude=helicopter&&final?ground+heliAltitude:landingGround+(final?Math.min(profile.altitude,Math.max(0,(distance-8)*(helicopter?.85:u.def.metricScale?BATTLE_SCALE.aircraft.glideSlope:.24))):u.airState==="returning"?(u.def.metricScale?BATTLE_SCALE.aircraft.approachAltitude:20):profile.altitude+(u.airMission==="cap"&&!helicopter?15:0));
-  const oldY=u.y;
+  const oldY=u.y,oldYBefore=u.y;
   const handling=logisticsConfig.handling;
   const descent=helicopter&&final?Math.min(profile.descentRate,handling.landingDescentRate,Math.max(handling.landingTouchdownRate,(u.y-desiredAltitude)*handling.landingFlareGain)):profile.descentRate;
   u.y+=Math.max(-descent*dt,Math.min(profile.climbRate*dt,desiredAltitude-u.y));
+  if(!helicopter)u.flightClimb=Math.atan2((u.y-oldYBefore)/Math.max(dt,1e-3),Math.max(1,u.motionSpeed??0));
   const runway=w.byId.get(u.airMissionHomeId??-1);
   const aligned=!u.def.metricScale||helicopter||!runway||Math.abs(wrapAngle(u.heading-runway.heading))<BATTLE_SCALE.aircraft.headingTolerance&&Math.abs((u.x-runway.x)*Math.cos(runway.heading)-(u.z-runway.z)*Math.sin(runway.heading))<=BATTLE_SCALE.aircraft.runwayWidth/2;
   if(distance<(helicopter?logisticsConfig.handling.landingCapture:u.def.metricScale?BATTLE_SCALE.aircraft.landingCapture:8)&&aligned&&landing&&u.y-ground<(helicopter?.15:3)&&(!helicopter||(u.motionSpeed??0)<=logisticsConfig.handling.landingSpeed)){if(!u.def.metricScale||helicopter)u.motionSpeed=0;u.flightVx=u.flightVz=0;if(landing)u.y=ground;u.flightBank=(u.flightBank??0)*Math.max(0,1-dt*4);return true;}
@@ -1006,7 +1007,9 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
   // - Hull-aim units (inf, special, apc, artillery, mlrs): must face target; artillery/mlrs should be nearly stopped
   if (target) {
     const absWant = Math.atan2(target.x - u.x, target.z - u.z);
-    if (d.turret) {
+    if (d.category==="air") {
+      u.turretYaw=0;// fixed-wing guns are bore-sighted along the nose
+    } else if (d.turret) {
       if(d.category==="heli"&&!goal&&u.mode!=="move")u.heading=turnHelicopter(u,absWant,dt);
       const relative=wrapAngle(absWant-u.heading),want=d.category==="heli"?Math.max(-mobility.combat.helicopterGunTraverse,Math.min(mobility.combat.helicopterGunTraverse,relative)):relative;
       u.turretYaw=turnToward(u.turretYaw,want,(d.category==="heli"?mobility.combat.helicopterTurretRate:u.kind==="tank"?2.4:3.2)*dt);
@@ -1023,7 +1026,16 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
     if(!target||delta>mobility.combat.airMissileAimTolerance)u.airMissileLock=undefined;
     else if(u.airMissileLock?.targetId!==target.id)u.airMissileLock={targetId:target.id,readyAt:w.time+mobility.combat.airMissileLockSeconds};
   }
-  const weaponIndex=target?selectWeapon(u,target,true):-1;
+  if(target&&d.category==='air'&&!u.flightAttackExit){
+    // Overshoot: target is behind and inside the turn circle -> extend straight, then come back for a new pass.
+    const bearing=Math.abs(wrapAngle(Math.atan2(target.x-u.x,target.z-u.z)-u.heading)),radius=d.speed*d.speed/Math.max(1,aircraftMobility(u).lateralAcceleration);
+    if(bearing>mobility.combat.airBreakBearing&&dist2d(u,target)<radius*mobility.combat.airBreakRadiusFactor){
+      const edge=w.mapSize/2-20,span=radius*mobility.combat.airExtendFactor;
+      u.flightAttackExit={x:Math.max(-edge,Math.min(edge,u.x+Math.sin(u.heading)*span)),z:Math.max(-edge,Math.min(edge,u.z+Math.cos(u.heading)*span))};u.flightAttackExitUntil=w.time+mobility.combat.airExtendTime;
+    }
+  }
+  let weaponIndex=target?selectWeapon(u,target,true):-1;
+  if(target&&d.category==='air'&&weaponIndex>=0&&weaponFireBlocker(w,u,target,weaponIndex)!==null){const alt=alternateAirWeapon(w,u,target,weaponIndex);if(alt>=0)weaponIndex=alt;}
   const spec=weaponIndex>=0?weaponSpec(u,weaponIndex):null;
   if(target&&spec&&weaponFireBlocker(w,u,target,weaponIndex)===null){
     const muzzle=weaponMuzzle(u,spec,weaponIndex);

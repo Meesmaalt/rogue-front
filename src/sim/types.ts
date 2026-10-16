@@ -172,7 +172,7 @@ export interface Entity {
   aiIntent?: "attack" | "defend" | "recon" | "resupply" | "counterbattery" | "retreat" | null;
   gunElevation?:number;weaponCooldowns?:number[];secondaryAmmo?:number[];activeWeapon?:number;
   motionReverse?: boolean; flightVx?: number; flightVz?: number;
-  motionSpeed?: number; flightBank?: number; flightPitch?: number; flightOrbitCenter?: Point; airLandingPhase?: "approach"|"final";
+  motionSpeed?: number; flightBank?: number; flightPitch?: number; flightClimb?: number; flightOrbitCenter?: Point; airLandingPhase?: "approach"|"final";
   airHomeSlot?:number;airTaxiPhase?:"apron"|"lining-up"|"runway";combatPosition?:Point;combatPositionTarget?:number;combatPositionAnchor?:Point;combatPositionRetryAt?:number;taskApproachIndex?:number;
   airportStoresInitialized?:boolean;
   constructionCrew?:{homeId:number;slot:number;workPoint?:Point;retryAt?:number;transportId?:number;blockedFor?:number};

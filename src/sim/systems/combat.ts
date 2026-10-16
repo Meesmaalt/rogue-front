@@ -49,7 +49,7 @@ export function movingFireFactor(def:UnitDef,spec:WeaponSpec):number {
   return stabilizer==="full"?1:stabilizer==="partial"?.72:.45;
 }
 export function weaponMuzzle(u:Entity,spec:WeaponSpec,index:number):{x:number;y:number;z:number} {
-  const a=u.heading+(u.def.turret&&!(u.def.category==="heli"&&spec.weapon==="missile")?u.turretYaw:0),wing=u.def.armor==="air"&&spec.weapon==="missile"?(Math.floor(weaponAmmo(u,index))%2?1:-1)*(spec.muzzleSide??1.4):spec.muzzleSide??0;
+  const a=u.heading+(u.def.turret&&u.def.category!=="air"&&!(u.def.category==="heli"&&spec.weapon==="missile")?u.turretYaw:0),wing=u.def.armor==="air"&&spec.weapon==="missile"?(Math.floor(weaponAmmo(u,index))%2?1:-1)*(spec.muzzleSide??1.4):spec.muzzleSide??0;
   const crew=u.squadMaxMembers&&!u.garrisonId?mobility.infantry.squadLayout[Math.min(index,Math.max(0,(u.squadMembers??1)-1))]:[0,0];
   const scale=u.def.modelScale??1;
   return {x:u.x+(Math.sin(a)*(spec.muzzle+crew[1])+Math.cos(a)*(wing+crew[0]))*scale,y:u.y+spec.muzzleHeight*scale,z:u.z+(Math.cos(a)*(spec.muzzle+crew[1])-Math.sin(a)*(wing+crew[0]))*scale};
@@ -87,6 +87,29 @@ export function selectWeapon(u:Entity,t:Entity,ready=false):number {
   }return best;
 }
 export function canEngage(u:Entity,t:Entity):boolean {return selectWeapon(u,t)>=0;}
+
+/** Fixed-wing weapons point along the nose: no turret traverse, only a narrow firing cone. */
+function airFireEnvelope(u:Entity,t:Entity,spec:WeaponSpec,delta:number):string|null {
+  if(spec.flight==="guided")return null;
+  const c=mobility.combat,bomb=spec.flight==="ballistic"||spec.visual==="bomb",rocket=spec.weapon==="missile";
+  const tolerance=bomb?c.airBombYawTolerance:rocket?c.airRocketYawTolerance:c.airGunYawTolerance;
+  if(delta>tolerance)return bomb?"Pommitaja ootab sihtmärki lennujoonel":"Pöörab lennuki nina sihtmärgile";
+  if(!bomb&&t.def.armor==="air"&&t.def.category!=="heli"){
+    const reach=Math.hypot(t.x-u.x,t.z-u.z)||1,elevation=Math.atan2(t.y+t.def.height*.45-u.y,reach);
+    if(Math.abs(elevation-(u.flightClimb??0))>c.airGunPitchTolerance)return "Sihtmärk väljaspool kahuri vertikaalnurka";
+  }
+  return null;
+}
+/** When the preferred slot cannot fire yet (e.g. missile lock), another ready slot may still have a clean shot. */
+export function alternateAirWeapon(w:World,u:Entity,t:Entity,skip:number):number {
+  let best=-1,score=-Infinity;
+  for(let i=0;i<(u.def.weapons?.length??1);i++){
+    if(i===skip)continue;const spec=weaponSpec(u,i);
+    if(weaponFireBlocker(w,u,t,i)!==null)continue;
+    const value=weaponImpactAgainst(u,spec,t)*spec.accuracy/Math.max(.15,spec.cooldown);
+    if(value>score){score=value;best=i;}
+  }return best;
+}
 /** The actual shot and HUD share these gates; null means this slot may fire. */
 export function weaponFireBlocker(w:World,u:Entity,t:Entity,index:number):string|null {
   if(u.underConstruction)return "Rajatis pole valmis";
@@ -120,6 +143,7 @@ export function weaponFireBlocker(w:World,u:Entity,t:Entity,index:number):string
     const assessing=w.projectiles.some(p=>p.sourceId===u.id&&p.flight==='guided'&&p.target===t&&!p.guidanceLost&&(p.age??0)<mobility.combat.airMissileReengageSeconds);
     if(assessing)return "Jälgib lastud raketi tulemust";
   }
+  if(u.def.category==='air')return airFireEnvelope(u,t,spec,delta);
   if(u.firingArc<Math.PI*2-.01&&delta>u.firingArc*.5)return "Sihtmärk väljaspool laskesektorit";
   if(!(u.def.domain==="sea"&&spec.weapon==="missile")){
     const fixedRack=u.def.category==="heli"&&(spec.weapon==="missile"||!u.def.turret);
@@ -256,6 +280,21 @@ export function shotAccuracy(w:World,u:Entity,t:Entity,spec:WeaponSpec,distance=
   note("Sihtmärgi liikumine");
   if(spec.visual==="sabot"&&(u.motionSpeed??0)<=mobility.combat.weaponMotionThreshold&&w.time>=(u.stationaryFireReadyAt??0)){
     hitChance+=mobility.combat.settledCannonBonus;note("Paigal sihitud kahur");
+  }
+  if(u.def.category==="air"){
+    const maxBank=BATTLE_SCALE.aircraft.maxBank||1.2;
+    hitChance*=1-mobility.combat.airManeuverAccuracyLoss*Math.min(1,Math.abs(u.flightBank??0)/maxBank);
+    note("Lennuki manööver (G-koormus)");
+    if(spec.flight==="direct"&&t.def.speed>0&&(t.motionSpeed??0)>.5){
+      const los=Math.atan2(t.x-u.x,t.z-u.z),vx=t.flightVx??Math.sin(t.heading)*(t.motionSpeed??0),vz=t.flightVz??Math.cos(t.heading)*(t.motionSpeed??0);
+      const cross=Math.abs(vx*Math.cos(los)-vz*Math.sin(los));
+      hitChance*=1-Math.min(mobility.combat.airDeflectionMax,cross/Math.max(1,spec.speed)*mobility.combat.airDeflectionGain);
+      note("Sihtmärgi põiksuunaline liikumine");
+    }
+  }
+  if(spec.flight==="guided"&&t.def.armor==="air"&&t.def.category!=="heli"){
+    hitChance*=1-mobility.combat.airEvasionLoss*Math.min(1,Math.abs(t.flightBank??0)/(BATTLE_SCALE.aircraft.maxBank||1.2));
+    note("Sihtmärgi põiklemine");
   }
   hitChance *= Math.max(0.25, 1 - (u.suppression ?? 0) / 150);
   note("Surve");
