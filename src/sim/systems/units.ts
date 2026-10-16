@@ -1036,6 +1036,7 @@ export function combatStatus(w:World,u:Entity):string {
   if(u.loadedIntoId!=null){const carrier=w.byId.get(u.loadedIntoId);return "Transpordis · "+(carrier?w.unitDisplayName(carrier.kind,carrier.team):"pardal");}
   if(u.mode==="transport-load")return "Kogub jalaväge · kohad broneeritud";
   if(u.mode==="transport-unload")return "Viib väljumiskohta · ootab vaba väljapääsu";
+  if(u.moraleRetreat)return !u.moraleRetreat.point?"Taandumine ootab · puudub läbitav tee baasi":u.dest?"Taandub kogunemiskohta":"Koguneb · taastab moraali";
   if(u.navWaiting)return u.roadPathGoal&&!u.navPath.length?"Marsruut katkenud · ootab läbitavat teed":"Ootab vaba läbipääsu · hoiab üksuste vahet";
   if(u.mode==="move"&&u.fastMove)return "Kiirliikumine · eeldatava sõiduaja järgi";
   if((u.disabledUntil??0)>w.time)return "Relvasüsteem häiritud";

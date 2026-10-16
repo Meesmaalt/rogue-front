@@ -3,81 +3,100 @@ import type { World } from "../World";
 import type { Entity } from "../types";
 import { FACTIONS } from "../factions";
 import mobility from "../../data/mobility.json";
+import policy from "../../data/morale-policy.json";
+import {automaticUnit,constructionHelper} from "../automaticConstruction";
+import {findPath} from "../nav/Pathfinder";
+import {replaceTask} from "./commands";
 
 export type MoraleState = "steady" | "shaken" | "pinned" | "routing";
 
 export function moraleState(u: Entity): MoraleState {
   const m = u.morale ?? 100;
   const s = u.suppression ?? 0;
-  if (m < 18 || s > 85) return "routing";
-  if (m < 40 || s > 60) return "pinned";
-  if (m < 65 || s > 35) return "shaken";
+  if (u.moraleRetreat || m < policy.routingMorale || s > policy.routingSuppression) return "routing";
+  if (m < policy.pinnedMorale || s > policy.pinnedSuppression) return "pinned";
+  if (m < policy.shakenMorale || s > policy.shakenSuppression) return "shaken";
   return "steady";
 }
 
-/**
- * Decay suppression, slowly recover morale when safe / in supply.
- * Routing units seek friendly supply or HQ.
- */
+/** Panic does not replace the facility flight, unloading or construction controllers. */
+function canRetreat(u:Entity):boolean {
+  return u.def.domain!=="air"&&u.def.armor!=="air"&&u.def.domain!=="sea"&&
+    !automaticUnit(u)&&!constructionHelper(u)&&!u.engineerDuty&&!u.groundService&&
+    u.kind!=="groundHandler"&&u.logisticsRoute!=="strategic"&&!u.airdrop;
+}
+
+function rallyNode(w:World,u:Entity,b:Entity):boolean {
+  return !b.dead&&b.team===u.team&&!b.underConstruction&&(b.disabledUntil??0)<=w.time&&
+    ["hq","supply","barracks"].includes(b.kind);
+}
+
+/** Bounded search, only on entry, route failure or loss of the rally facility. */
+function planRetreat(w:World,u:Entity):void {
+  const retreat=u.moraleRetreat!;
+  retreat.retryAt=w.time+policy.routeRetrySeconds;
+  retreat.nodeId=undefined;retreat.point=undefined;
+  const firstAngle=(retreat.attempt??0)%policy.routeAngles.length;
+  retreat.attempt=(retreat.attempt??0)+1;
+  const nodes=w.entities.filter(b=>rallyNode(w,u,b)).sort((a,b)=>
+    Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z)||a.id-b.id);
+  for(const node of nodes.slice(0,policy.routeNodeCandidates)){
+    const angle=Math.atan2(u.x-node.x,u.z-node.z);
+    const gap=node.def.radius+u.def.radius+mobility.combat.retreatRallyGap;
+    for(let i=0;i<policy.routeAngles.length;i++){
+      const offset=policy.routeAngles[(firstAngle+i)%policy.routeAngles.length];
+      const point={x:node.x+Math.sin(angle+offset)*gap,z:node.z+Math.cos(angle+offset)*gap};
+      if(!w.nav.isWalkableWorld(point.x,point.z,u.def.radius))continue;
+      const path=findPath(w.nav,u,point,u.def.radius,undefined,[],policy.routeSearchLimit);
+      // One search per facility; rotate approaches on the next timed retry.
+      if(!path.length&&Math.hypot(u.x-point.x,u.z-point.z)>policy.arrivalDistance)break;
+      retreat.nodeId=node.id;retreat.point=point;
+      u.navPath=path;u.navPathIndex=0;u.roadPathGoal={...point};
+      u.roadPathRetryAt=retreat.retryAt;
+      return;
+    }
+  }
+}
+
+/** Suppression recovery and hysteretic ground retreat, independent of rendering. */
 export function updateMorale(w: World, dt: number): void {
+  let plans=policy.routePlansPerTick;
   for (const u of w.entities) {
     if (u.dead || u.def.speed === 0 || u.loadedIntoId!=null) continue;
-
-    // Suppression decays
     if ((u.suppression ?? 0) > 0) {
-      const decay = (u.def.discipline === "high" ? 18 : u.def.discipline === "low" ? 10 : 14) * dt;
-      u.suppression = Math.max(0, (u.suppression ?? 0) - decay);
+      const decay=policy.suppressionDecay[u.def.discipline==="high"?"high":u.def.discipline==="low"?"low":"normal"]*dt;
+      u.suppression=Math.max(0,(u.suppression??0)-decay);
     }
-
-    // Morale recovery when not suppressed and near supply/HQ
-    const st = moraleState(u);
-    if ((u.suppression ?? 0) < 20 && (u.morale??100)<100) {
-      const fac = u.team === w.playerTeam ? w.playerFaction : w.enemyFaction;
-      let regen = 2.5 * dt * (FACTIONS[fac].bonuses.moraleMul ?? 1);
-      if (u.def.discipline === "high") regen *= 1.3;
-      // Near own supply or HQ
-      for (const b of w.entities) {
-        if (b.dead || b.team !== u.team) continue;
-        if (b.kind === "hq" || b.kind === "supply" || b.kind === "barracks") {
-          if (Math.hypot(b.x - u.x, b.z - u.z) < 40) {
-            regen *= 1.8;
-            break;
-          }
-        }
-      }
-      // Out of tactical supply decays morale slowly
-      if ((u.supply ?? 100) < 15) regen *= 0.25;
-      u.morale = Math.min(100, (u.morale ?? 100) + regen);
+    if ((u.suppression??0)<policy.recoverySuppression&&(u.morale??100)<100) {
+      const fac=u.team===w.playerTeam?w.playerFaction:w.enemyFaction;
+      let regen=policy.recoveryRate*dt*(FACTIONS[fac].bonuses.moraleMul??1);
+      if(u.def.discipline==="high")regen*=policy.highDisciplineRecovery;
+      if(w.entities.some(b=>rallyNode(w,u,b)&&Math.hypot(b.x-u.x,b.z-u.z)<policy.baseRecoveryRadius))regen*=policy.baseRecoveryMultiplier;
+      if((u.supply??100)<policy.lowSupplyThreshold)regen*=policy.lowSupplyRecoveryMultiplier;
+      u.morale=Math.min(100,(u.morale??100)+regen);
     }
-
-    // Routing behaviour: run toward HQ / supply
-    if (st === "routing" && u.mode !== "transport-load" && u.mode !== "build") {
-      const hq = w.hq[u.team];
-      let dest = hq && !hq.dead ? { x: hq.x, z: hq.z } : null;
-      let best = dest ? Math.hypot((hq?.x ?? 0) - u.x, (hq?.z ?? 0) - u.z) : 9999;
-      for (const b of w.entities) {
-        if (b.dead || b.team !== u.team || b.kind !== "supply") continue;
-        const d = Math.hypot(b.x - u.x, b.z - u.z);
-        if (d < best) { best = d; dest = { x: b.x, z: b.z }; }
-      }
-      if (dest) {
-        if(u.def.domain!=="air"&&u.def.domain!=="sea"){
-          const node=w.entities.find(e=>!e.dead&&e.team===u.team&&e.x===dest!.x&&e.z===dest!.z);
-          const angle=Math.atan2(u.x-dest.x,u.z-dest.z),gap=(node?.def.radius??0)+u.def.radius+mobility.combat.retreatRallyGap;
-          dest=w.nav.nearestWalkable({x:dest.x+Math.sin(angle)*gap,z:dest.z+Math.cos(angle)*gap},u.def.radius)??dest;
-        }
-        u.fireMission=null;u.artilleryDisplace=null;u.transportQueue=[];u.transportTargetId=null;u.unloadPoint=null;u.moveQueue=[];u.moveQueueStyles=[];u.garrisonOrderId=undefined;u.fastMove=false;u.moveGroup=undefined;
-        if(u.garrisonId){requestGarrisonExit(w,u,dest);continue;}
-        u.mode = "move";
-        u.dest = dest;
-        u.target = null;
-        u.holdPosition = false;
-      }
-      // Rally if morale recovers
-      if ((u.morale ?? 0) > 35 && (u.suppression ?? 0) < 40) {
-        u.morale = Math.min(55, (u.morale ?? 0) + 5 * dt);
-      }
+    if(!canRetreat(u)){u.moraleRetreat=undefined;continue;}
+    if(u.moraleRetreat&&(u.morale??100)>=policy.rallyMorale&&(u.suppression??0)<policy.rallySuppression){
+      u.moraleRetreat=undefined;u.mode="hold";u.holdPosition=true;u.dest=null;u.target=null;
+      u.navPath=[];u.navPathIndex=0;u.roadPathGoal=undefined;u.navWaiting=false;
+      continue;
     }
+    if(moraleState(u)!=="routing")continue;
+    if(!u.moraleRetreat){
+      replaceTask(w,u);
+      u.moraleRetreat={retryAt:w.time};
+    }
+    const retreat=u.moraleRetreat;
+    const node=retreat.nodeId==null?undefined:w.byId.get(retreat.nodeId);
+    const valid=!!node&&rallyNode(w,u,node)&&!!retreat.point&&w.nav.isWalkableWorld(retreat.point.x,retreat.point.z,u.def.radius);
+    if(!valid){retreat.nodeId=undefined;retreat.point=undefined;}
+    if(plans>0&&w.time>=retreat.retryAt&&(!valid||(u.stuckTime??0)>policy.stuckSeconds)){planRetreat(w,u);plans--;}
+    const current=retreat.nodeId==null?undefined:w.byId.get(retreat.nodeId);
+    const point=current&&rallyNode(w,u,current)&&retreat.point&&w.nav.isWalkableWorld(retreat.point.x,retreat.point.z,u.def.radius)?retreat.point:undefined;
+    u.target=null;u.holdPosition=false;
+    if(u.garrisonId){requestGarrisonExit(w,u,point??{x:u.x,z:u.z});continue;}
+    if(point&&Math.hypot(u.x-point.x,u.z-point.z)>policy.arrivalDistance){u.mode="move";u.dest=point;}
+    else {u.mode="hold";u.holdPosition=true;u.dest=null;}
   }
 }
 

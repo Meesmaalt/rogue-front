@@ -154,6 +154,7 @@ export interface Entity {
   firingRange: number;
   facingLocked: boolean;
   combatWithdrawing?: boolean;
+  moraleRetreat?: {nodeId?:number;point?:Point;retryAt:number;attempt?:number};
   stationaryFireReadyAt?: number;
   smokeCharges?:number;smokeReadyAt?:number;smokeReloadProgress?:number;
   airGunBurst?:{until:number;readyAt:number};

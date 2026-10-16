@@ -18,7 +18,7 @@ it('SPAA automatically acquires a helicopter inside its secondary missile range 
  expect(weaponRange(u,weaponSpec(u,0))).toBeLessThan(80-t.def.radius);expect(effectiveWeaponRange(u)).toBeGreaterThan(80);w.spatial.rebuild(w.entities);
  expect(nearestEnemy(w,u,effectiveWeaponRange(u))).toBe(t);u.mode='hold';u.holdPosition=true;u.heading=Math.PI/2;step(w,1);
  expect(w.projectiles.some(p=>p.sourceId===u.id&&p.weapon==='missile')).toBe(true);
- u.secondaryAmmo![1]=0;expect(effectiveWeaponRange(u)).toBe(weaponRange(u,weaponSpec(u,0)));
+ u.secondaryAmmo!.fill(0);expect(effectiveWeaponRange(u)).toBe(weaponRange(u,weaponSpec(u,0)));
 });
 it('automatic acquisition prefers an open firing lane while explicit attack retains the chosen contact',()=>{
  const w=fixture([{id:'wall',kind:'wall',x:0,z:0,width:3,depth:20,height:9}]),u=w.spawn('tank',0,-25,0),blocked=w.spawn('tank',1,12,0),clear=w.spawn('tank',1,-25,48);

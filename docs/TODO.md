@@ -1,5 +1,15 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+
+## Lahingu töökindlus: paanika ja kogunemine · 16.10.2026
+
+- [x] Paanikas maaväe taandumine on püsiv sim-olek: sama kogunemispunkt, uue käsu/sihtmärgi asemel taastumine 55 moraali ja alla 20 surve juures. Taastunud üksus jääb kaitsepositsioonile; katkestatud rünnakut ei jätkata automaatselt.
+- [x] Valmis ja töötavate HQ/lao/kasarmu seast valitakse läbitava teega väline kogunemiskoht. Lähem läbimatu rajatis jäetakse vahele, rajatise kaotus või kinni jäämine käivitab ajastatud uue otsingu. Tee puudumisel üksus ootab, mitte ei ürita läbi takistuse otse baasi liikuda.
+- [x] Lennu-, ehitus- ja automaatlogistika juhtimist ei kirjutata üle maaväe paanikakäsuga. Ostetud lahinguinsener vabastab katkestatud remondi; relvade laadimine ja juba lennus moon säilivad.
+- [x] Uued ET/EN olekutekstid eristavad taandumist, kogunemist ja puuduva tee ootamist. `morale-policy.json` koondab läved ja ajad; ühe sammu jooksul kuni kaks plaani, ühe rajatise kohta üks piiratud A* otsing, järgmise katse ajal teine lähenemissuund. Sim-olek säilib save/load'is ja replay räsis.
+- [x] 23 sihitud kontrolli (7 taandumise, 15 lahingu ja üks keelekontroll), kliendi ning serveri build. Senine SPAA kontroll tühjendab kõik raketipesad, arvestades juba olemasolevat kolmandat relva.
+- [ ] Tegelik lahingutunnetuse ja WebGL/FPS ülevaatus jääb käsitsi; kohalik 3D-brauser puudub.
+
 ## Kiirliikumine, ligipääsetav algkoosseis ja energiabilanss · 16.10.2026
 
 - [x] Esimene kiirliikumise käsk kasutab õiget režiimi juba marsruudi arvutamisel. Rataste/roomikute päris tee-kiirus ja sama A* kulu, teekeskme eelistus ning maastiku revision'iga uuenev vahemälu. Tee lähijälgimine, haardumisest piiratud kurvikiirus ja möödutud vahepunktide jätkamine hoiavad marsi sujuvama; parkimis-/kogunemiskohtade manööver säilib.

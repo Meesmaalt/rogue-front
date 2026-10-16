@@ -2,6 +2,15 @@
 
 Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 16, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
 
+
+## Püsiv taandumine ja kogunemine · 16.10.2026
+
+`systems/morale` kasutab `Entity.moraleRetreat` olekut (rajatise ID, kogunemispunkt, järgmise otsingu aeg ja lähenemiskatse). Paanika käivituslävi ei ole sama mis taastumislävi: üksus jääb taanduvaks kuni moraal on vähemalt 55 ja surve alla 20. Siis jääb ta `hold` olekusse; vanad tulemissioonid, remondibroneeringud, transpordikogumine ja vahepunktid vabastatakse taandumise alguses ühise `replaceTask` kaudu, ilma relva laadimisaega või lennus mürske muutmata.
+
+Taandumiskandidaadid on sama poole valmis, häirimata HQ/laod/kasarmud. Kogunemiskoht on hoone kehast väljas ja päris nav-ruudustikus läbitav; piiratud A* kinnitab ühenduse. Ühe sim-sammu jooksul planeeritakse kuni kaks üksust, kuni kolm lähimat rajatist ja üks piiratud otsing rajatise kohta. Ebaõnnestunud lähenemisnurka vahetatakse järgmisel ajastatud katsel. Valmis marsruuti ei arvutata igal sammul uuesti. Hävitatud/katkestatud rajatis, blokeeritud punkt või pikem kinni jäämine lubab uue plaani. Ilma teeta üksus ootab; puudub otseliikumise varuvariant läbi tõkete.
+
+Õhu- ja mereüksused, automaatsed ehitajad, laadimispersonal ning ressursikonvoid jätavad liikumise oma kontrollerile. Maaväe paanika ei suuna lennukit HQ maapealsesse keskpunkti ega katkesta kastivedu. `morale-policy.json` hoiab lävesid, taastumist ja otsingueelarvet. Täissalvestus taastab uue oleku ning replay räsi sisaldab seda. HUD kuvab eraldi taandumise, kogunemise ja tee ootamise; ET/EN tõlked on olemas. Sihitud simulatsioonikontrollid ei kinnita WebGL pilti ega lahingu subjektiivset tunnetust.
+
 ## Maanteemarss ja varajane üksusevalik · 16.10.2026
 
 `fast-move` esmane A* otsing saab nüüd kiirrežiimi kulufunktsiooni enne üksuse `fastMove` oleku muutmist. Sama andmepõhine `fastRoadSpeed` kehtib nii kulufunktsioonis kui ka päris liikumises (roomikutel 1,75× ja ratastel 2,15× baaskiirus, tavaline maanteekiirus jääb 1,22×/1,28×). Väljaspool teed uut kiirusboonust ei ole. Teekeskme eelistus vähendab tee serva lõikamist. Kuluvälja võti sisaldab režiimi ja maastiku revision'i; raadamine/põleng/laadimine ei jäta vana liikumiskulu vahemällu.
