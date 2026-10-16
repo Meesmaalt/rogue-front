@@ -1,4 +1,5 @@
-import {createWarehouseCrew} from "./CargoHandlingVisual";
+import {createForklift} from "./CargoHandlingVisual";
+import {engineerSeats,hopTarget,animateEngineerTools,animateBarrow,type LoungeState} from "./EngineerLounge";
 import {createCargoRamp} from "./CargoHandlingVisual";
 import {stepSoldier,soldierOffset,type SoldierPose} from "./SquadMotion";
 import {createParachute} from "./ExpansionModels";
@@ -27,7 +28,7 @@ contactContext.fillStyle = contactGradient; contactContext.fillRect(0,0,64,64);
 const contactGeometry = new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2); contactGeometry.userData.sharedArt = true;
 const contactMaterial = new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(contactCanvas),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1}); contactMaterial.userData.sharedArt = true;
 
-interface View { soldiers:Map<number,SoldierPose>;cargoRamp?:THREE.Group;parachute?:THREE.Group;rotorRpm:number;surface?:THREE.Mesh; resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;suspensionPitch:SuspensionState;suspensionRoll:SuspensionState; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group; lastBuildingLevel?: number; lastAirState?: string }
+interface View extends LoungeState { soldiers:Map<number,SoldierPose>;cargoRamp?:THREE.Group;parachute?:THREE.Group;rotorRpm:number;surface?:THREE.Mesh; resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;suspensionPitch:SuspensionState;suspensionRoll:SuspensionState; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group; lastBuildingLevel?: number; lastAirState?: string }
 const lerpAngle = (a: number, b: number, t: number) => a + wrapAngle(b - a) * t;
 
 
@@ -155,7 +156,7 @@ export class UnitRenderer {
       if (!v) {
         const faction = e.team === world.playerTeam ? world.playerFaction : world.enemyFaction;
         const metricAirfield=e.kind==="airbase"&&!!e.def.metricScale;
-        const visual = e.groundService?.onFoot?{group:createWarehouseCrew(),turret:null}:metricAirfield?{group:createMetricAirfieldStructures(e),turret:null}:createArtModel(e.kind, e.team, faction) ?? createVisualModel(e.kind, e.team, faction);
+        const visual = e.groundService?.onFoot?{group:createForklift(),turret:null}:metricAirfield?{group:createMetricAirfieldStructures(e),turret:null}:createArtModel(e.kind, e.team, faction) ?? createVisualModel(e.kind, e.team, faction);
         visual.group.scale.multiplyScalar(e.def.modelScale??1);
         // Authored GLBs retain the silhouette at tactical camera distance.
         const lod = new THREE.LOD();
@@ -213,22 +214,25 @@ export class UnitRenderer {
       v.group.position.set(x,flying||e.def.domain==="sea"?v.pose.y:e.garrisonId?e.y:ground,z);
       const shadow=v.shadow;
       if(shadow)shadow.position.y=ground-v.group.position.y+.045;
-      if(e.kind==='groundHandler'){const crates=v.group.getObjectByName('HandlingCargo');if(crates)crates.visible=e.cargo>0;if(e.groundService?.onFoot)v.group.traverse(o=>{if(o.name==='PorterLeftLeg'||o.name==='PorterRightLeg')o.rotation.x=Math.sin(world.time*7+(o.name==='PorterLeftLeg'?0:Math.PI))*Math.min(.5,(e.motionSpeed??0)*.17);});}
+      if(e.kind==='groundHandler'){const crates=v.group.getObjectByName('HandlingCargo');if(crates)crates.visible=e.cargo>0;if(e.groundService?.onFoot){const lift=v.group.getObjectByName('ForkCarriage');if(lift)lift.position.y+=((e.cargo>0?.45:0)-lift.position.y)*Math.min(1,frameDt*4);v.group.traverse(o=>{if(o.name==='ForkWheel')o.rotation.x=world.time*(e.motionSpeed??0)*3;});}}
       if(['transport','cargoPlane','airTransport'].includes(e.kind)&&((e.cargoDoor??0)>0||v.cargoRamp)){
         if(!v.cargoRamp){v.cargoRamp=createCargoRamp(e.def.radius,e.def.height);v.group.add(v.cargoRamp);}
         v.cargoRamp.rotation.x=smoothMotion(v.cargoRamp.rotation.x,-Math.PI*.58*(e.cargoDoor??0),5,frameDt);
         v.cargoRamp.visible=(e.cargoDoor??0)>.001||Math.abs(v.cargoRamp.rotation.x)>.02;
       }
       if(v.members.length){
+        const seats=e.kind==="engineer"?engineerSeats(world,e,v,frameDt):null;
         const alive=Math.max(1,e.squadMembers??e.squadMaxMembers!),spread=v.spread=smoothMotion(v.spread,1-Math.min(.45,(e.suppression??0)/220),mobility.presentation.squadSpreadResponse,frameDt),scale=e.def.modelScale??1,updated=new Set<number>(),pace=Math.min(1,v.visualSpeed/Math.max(.1,e.def.speed));
         for(const o of v.members){const index=Number(o.name.slice('SquadMember'.length));o.visible=index<Math.min(alive,e.garrisonId?2:alive);const origin=o.userData.squadPosition as THREE.Vector3;
           const offset=soldierOffset(origin.x*spread,origin.z*spread,index,world.time,pace),localX=offset.x*(e.garrisonId?.2:1)*scale,localZ=offset.z*(e.garrisonId?.2:1)*scale;
-          const target={x:x+Math.cos(h)*localX+Math.sin(h)*localZ,z:z-Math.sin(h)*localX+Math.cos(h)*localZ};
+          let target={x:x+Math.cos(h)*localX+Math.sin(h)*localZ,z:z-Math.sin(h)*localX+Math.cos(h)*localZ};
+          const seat=seats?seats[(index+(e.id%2)*3)%seats.length]:undefined;if(seat)target={x:seat.x,z:seat.z};
           let p=v.soldiers.get(index);if(!p){p={...target,heading:h,stride:index*2.4,speed:0};v.soldiers.set(index,p);}
-          if(!updated.has(index)){const before={x:p.x,z:p.z};stepSoldier(p,target,h,v.visualSpeed,index,frameDt,v.resetPose||!!e.garrisonId||!!e.airdrop);
+          if(!updated.has(index)){const before={x:p.x,z:p.z};stepSoldier(p,e.kind==="engineer"?hopTarget(p,target):target,seat?seat.heading:h,v.visualSpeed,index,frameDt,v.resetPose||!!e.garrisonId||!!e.airdrop);
             if(!e.garrisonId&&!e.airdrop&&!world.nav.isWalkableWorld(p.x,p.z,.2)){p.x=before.x;p.z=before.z;p.speed=0;}updated.add(index);}
           const dx=p.x-x,dz=p.z-z;o.position.x=(Math.cos(h)*dx-Math.sin(h)*dz)/scale;o.position.z=(Math.sin(h)*dx+Math.cos(h)*dz)/scale;
           o.position.y=e.garrisonId||e.airdrop?0:(heightAt(p.x,p.z)-v.group.position.y)/scale+Math.abs(Math.sin(p.stride))*.04*Math.min(1,p.speed/Math.max(.1,e.def.speed));o.rotation.y=wrapAngle(p.heading-h);o.userData.soldierStride=p.stride;o.userData.soldierSpeed=p.speed;
+          if(e.kind==="engineer"){const sat=!!seat&&!v.gearPhase&&Math.hypot(p.x-seat.x,p.z-seat.z)<.25&&p.speed<.3;o.userData.seated=sat;if(sat){o.position.y-=.32;o.rotation.y=wrapAngle(seat.heading-h);}else if((e.mode==="build"||e.mode==="repair")&&e.target)o.rotation.y=wrapAngle(Math.atan2(e.target.x-p.x,e.target.z-p.z)-h);animateEngineerTools(o,e,index,world.time,sat||!!v.toolsAway);}
         }
       }
       if(syncEquipmentVisual(v.group,e))this.shadowDirty=true;
@@ -279,7 +283,8 @@ export class UnitRenderer {
         }
       }
       if (e.def.category === "infantry" || e.kind === "reconInf" || e.kind === "sniper") {
-        for(const o of v.legs){let member=o.parent;while(member&&!member.name.startsWith('SquadMember'))member=member.parent;const stride=Number(member?.userData.soldierStride??v.walkPhase),pace=Math.min(1,Number(member?.userData.soldierSpeed??v.visualSpeed)/Math.max(.1,e.def.speed));o.rotation.x=Number(o.userData.restLegX)+Math.sin(stride+(o.name==='RightLeg'?Math.PI:0))*mobility.presentation.legSwing*pace;}
+        if(e.kind==="engineer")animateBarrow(v.group,v,e,v.walkPhase,v.members[1]??v.members[0],e.kind==="engineer"&&!!v.toolsAway);
+        for(const o of v.legs){let member=o.parent;while(member&&!member.name.startsWith('SquadMember'))member=member.parent;const stride=Number(member?.userData.soldierStride??v.walkPhase),pace=Math.min(1,Number(member?.userData.soldierSpeed??v.visualSpeed)/Math.max(.1,e.def.speed));o.rotation.x=Number(o.userData.restLegX)+Math.sin(stride+(o.name==='RightLeg'?Math.PI:0))*mobility.presentation.legSwing*pace;if(member?.userData.seated)o.rotation.x=-1.3;}
       }
       if(!e.airdrop&&e.def.domain==="land"&&e.def.speed>0&&e.def.category!=="infantry"){
         const pace=Math.min(1,v.visualSpeed/Math.max(.1,e.def.speed));

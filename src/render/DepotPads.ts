@@ -27,18 +27,19 @@ export function createDepotPad(p:DepotPad):THREE.Group {
 /** Local geometry shared by the finished depot and its construction ghost. */
 export function createDepotBase(depot:Pick<Entity,'x'|'y'|'z'|'heading'>,pads:readonly DepotPad[],level=0):THREE.Mesh {
  const r=rules.handling,c=Math.cos(depot.heading),s=Math.sin(depot.heading);
- let left=-r.baseHalfWidth,right=r.baseHalfWidth,start=level>0?-12:-r.baseHalfDepth,end=r.baseHalfDepth;
+ let left=-r.baseHalfWidth,right=r.baseHalfWidth,start=-(r.baseHalfDepth+(level>0?2:0)),end=r.baseHalfDepth;
  for(const p of pads){const dx=p.x-depot.x,dz=p.z-depot.z,x=c*dx-s*dz,z=s*dx+c*dz;left=Math.min(left,x-r.padRadius-1);right=Math.max(right,x+r.padRadius+1);start=Math.min(start,z-r.padRadius-1);end=Math.max(end,z+r.padRadius+1);}
  const base=new THREE.Mesh(groundRectangle(depot,left,right,start,end,0x747b70,.025),baseColors);base.name='DepotSharedFoundation';return base;
 }
 /** Markings use the exact slots leased by the simulation, including additional occupied pads. */
 export class DepotPads {
- readonly group=new THREE.Group();private stamp=-Infinity;private key='';
+ readonly group=new THREE.Group();/** Pads per own depot, refreshed with the markings; BaseLife seats one crew per pad. */readonly padsByDepot=new Map<number,DepotPad[]>();private stamp=-Infinity;private key='';
  constructor(scene:THREE.Scene){this.group.name='DepotLandingPads';scene.add(this.group);}
  sync(w:World):void {
   if(w.time>=this.stamp&&w.time-this.stamp<.5)return;this.stamp=w.time;
   const depots=w.entities.filter(e=>!e.dead&&!e.underConstruction&&e.kind==='supply'&&e.team===w.playerTeam);
   const pads=w.entities.filter(e=>!e.dead&&!e.underConstruction&&e.kind==='supply'&&e.team===w.playerTeam).flatMap(e=>visibleDepotPads(w,e).map(p=>({...p,depotId:e.id})));
+  this.padsByDepot.clear();for(const depot of depots)this.padsByDepot.set(depot.id,pads.filter(p=>p.depotId===depot.id));
   const key=pads.map(p=>`${p.depotId}/${p.slot}/${p.x}/${p.z}/${p.heading}`).join('|')+depots.map(e=>`/${e.id}/${w.supplyDepotLevel(e)}`).join('');if(key===this.key)return;this.key=key;
   this.group.traverse(o=>{if(o instanceof THREE.Mesh)o.geometry.dispose();});this.group.clear();
   for(const depot of depots){

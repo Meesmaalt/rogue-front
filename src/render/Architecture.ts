@@ -2,13 +2,13 @@ import {BATTLE_SCALE} from "../sim/battleScale";
 import {facilityLabel,addFacilityDetails} from "./FacilityDetails";
 import {renderedGroundHeightAt} from "./GroundSurface";
 import type {Entity} from "../sim/types";
-import terrainConfig from "../data/terrain.json";
 import * as THREE from "three";
 import {mergeGeometries} from "three/addons/utils/BufferGeometryUtils.js";
 import type {UnitKind,Team} from "../sim/types";
 import type {MapFeatureDef} from "../sim/mapFeatures";
 import type {FactionId} from "../sim/factions";
 import {mulberry32} from "../sim/rng";
+import {HQ_LOUNGE,DEPOT_LOUNGE,HQ_RACK,hqSeats,depotBays,buildingScale} from "./lounge";
 
 const textures=new Map<string,THREE.CanvasTexture>();
 const materials=new Map<string,THREE.MeshStandardMaterial>();
@@ -149,10 +149,82 @@ function fieldCrates(g:THREE.Group,x:number,z:number,count:number):void {
 function mast(g:THREE.Group,x:number,z:number,h:number,team:Team,steel:THREE.Material):void {
  cylinder(g,.07,h,x,h/2,z,steel);box(g,1.5,.7,.04,x+.75,h-.7,z,material(team===0?0x699fc5:0xac765f));
 }
+
+/** Shared palette keeps each military model within the draw-batch budget (one mesh per material). */
+interface Pal{wall:THREE.Material;dark:THREE.Material;camo:THREE.Material;concrete:THREE.Material;steel:THREE.Material;trim:THREE.Material;accent:THREE.Material;crates:THREE.Material;wood:THREE.Material;yellow:THREE.Material;glass:THREE.Material}
+/** Furniture helpers: built facing +z (back rest at -z); the group heading turns them. */
+function furniture(g:THREE.Group,x:number,z:number,heading:number):THREE.Group {const f=new THREE.Group();f.position.set(x,0,z);f.rotation.y=heading;g.add(f);return f;}
+function sofa(g:THREE.Group,x:number,z:number,heading:number,width:number,fabric:THREE.Material,cushion:THREE.Material,legs:THREE.Material):void {
+ const f=furniture(g,x,z,heading);
+ box(f,width,.28,.95,0,.3,0,fabric);box(f,width,.62,.22,0,.72,-.42,fabric);for(const side of [-1,1])box(f,.2,.5,.95,side*(width/2-.1),.5,0,fabric);
+ const n=Math.max(1,Math.round(width/.9));for(let i=0;i<n;i++)box(f,width/n-.12,.16,.7,-width/2+width/n*(i+.5),.52,.08,cushion);
+ for(const side of [-1,1])for(const t of [-1,1])box(f,.08,.2,.08,side*(width/2-.1),.1,t*.35,legs);
+}
+function coffeeTable(g:THREE.Group,x:number,z:number,p:Pal):void {
+ box(g,1.5,.08,.85,x,.52,z,p.wood);for(const a of [-1,1])for(const b of [-1,1])box(g,.07,.5,.07,x+a*.65,.26,z+b*.34,p.dark);
+ box(g,.14,.14,.14,x-.4,.63,z,p.wall);box(g,.14,.14,.14,x+.3,.63,z+.1,p.accent);
+}
+function parasol(g:THREE.Group,x:number,z:number,radius:number,p:Pal):void {
+ cylinder(g,.05,3,x,1.5,z,p.dark);const top=new THREE.Mesh(new THREE.ConeGeometry(radius,.6,12),p.accent);top.position.set(x,3.1,z);top.castShadow=true;g.add(top);
+}
+function sawhorse(g:THREE.Group,x:number,z:number,heading:number,p:Pal):void {
+ const f=furniture(g,x,z,heading);for(const side of [-1,1]){box(f,.08,.8,.08,side*.6,.4,-.2,p.wood);box(f,.08,.8,.08,side*.6,.4,.2,p.wood);}box(f,1.5,.08,.1,0,.8,0,p.wood);box(f,1.4,.06,.35,0,.86,0,p.crates);
+}
+function hqYard(g:THREE.Group,p:Pal):void {
+ // Lounge: rug, sofa, armchairs, crate stool, table and parasol
+ box(g,5.6,.05,4.2,HQ_LOUNGE.x,.04,HQ_LOUNGE.z,p.dark);
+ const seats=hqSeats();sofa(g,HQ_LOUNGE.x,HQ_LOUNGE.z+1.55,Math.PI,2.6,p.accent,p.trim,p.dark);
+ armchair(g,seats[3],p);armchair(g,seats[4],p);
+ box(g,.7,.5,.7,seats[5].x,.3,seats[5].z,p.crates);coffeeTable(g,HQ_LOUNGE.x,HQ_LOUNGE.z+.1,p);parasol(g,HQ_LOUNGE.x+2.2,HQ_LOUNGE.z-1.4,2.3,p);
+ cylinder(g,.22,.5,HQ_LOUNGE.x-2.4,.3,HQ_LOUNGE.z-1.6,p.steel);box(g,.5,.35,.4,HQ_LOUNGE.x-2.4,.78,HQ_LOUNGE.z-1.6,p.wall);
+ engineerYard(g,p);
+}
+/** Engineering yard shared by the HQ and the Combat Engineer centre: tool rack (tools are added dynamically), workbench, materials, scaffold. */
+function engineerYard(g:THREE.Group,p:Pal):void {
+ box(g,3.4,.06,6.2,HQ_RACK.x-.3,.05,HQ_RACK.z+.6,p.concrete);
+ for(const z of [-1.4,1.4])box(g,.14,2.2,.14,HQ_RACK.x,1.1,HQ_RACK.z+z,p.wood);
+ box(g,.1,1.5,3.1,HQ_RACK.x,1.45,HQ_RACK.z,p.camo);box(g,.14,.16,3.3,HQ_RACK.x,2.28,HQ_RACK.z,p.dark);box(g,.18,.5,1.2,HQ_RACK.x+.1,2.55,HQ_RACK.z,p.yellow);
+ for(let i=0;i<4;i++)box(g,.2,.05,.05,HQ_RACK.x+.12,1.45,HQ_RACK.z-1.05+i*.7,p.steel);
+ box(g,1.0,.08,3.0,HQ_RACK.x+1.1,.9,HQ_RACK.z+2.2,p.wood);for(const z of [-1.2,1.2])for(const x of [-.4,.4])box(g,.08,.88,.08,HQ_RACK.x+1.1+x,.44,HQ_RACK.z+2.2+z,p.dark);
+ for(let i=0;i<6;i++)box(g,2.2,.12,.5,HQ_RACK.x+1.7,.15+i*.13,HQ_RACK.z-2.3,p.wood);
+ for(let i=0;i<8;i++)box(g,.3,.15,.2,HQ_RACK.x+2.7+(i%4)*.34,.22+Math.floor(i/4)*.17,HQ_RACK.z-2.6,p.crates);
+ box(g,1.1,.14,1.1,HQ_RACK.x+2.9,.1,HQ_RACK.z-2.6,p.wood);
+ for(const x of [-.5,.5])for(const z of [-.5,.5])box(g,.07,2.4,.07,HQ_RACK.x+2.2+x,1.3,HQ_RACK.z+3.6+z,p.steel);
+ for(const y of [.9,1.8])box(g,1.2,.06,1.2,HQ_RACK.x+2.2,y,HQ_RACK.z+3.6,p.wood);
+ sawhorse(g,HQ_RACK.x+1.4,HQ_RACK.z+.2,Math.PI/2,p);
+}
+function armchair(g:THREE.Group,seat:{x:number;z:number;heading:number},p:Pal):void {sofa(g,seat.x,seat.z,seat.heading,1.05,p.camo,p.trim,p.dark);}
+function depotYard(g:THREE.Group,p:Pal):void {
+ // Stays inside +-6 m on the pad sides (+/-x, +z); the back (-z) is free for forklift bays.
+ // Warehouse hall with dock doors and a raised central bay with skylights
+ pavilion(g,7.4,8.2,4.2,.4,-2.2,p.camo,p.wall,p.dark,false);
+ box(g,4.4,1.1,5.6,.4,4.9,-2.2,p.camo);for(const z of [-3.9,-2.2,-.5])box(g,4.0,.06,.6,.4,5.5,z,p.glass);
+ for(const z of [-4.6,-2.2,.2]){box(g,.18,2.5,1.9,4.1,1.45,z,p.dark);box(g,.2,.12,2.1,4.1,2.78,z,p.yellow);}
+ // Raised loading dock with canopy, bumpers, pallets and ramp
+ box(g,1.6,.9,8.4,4.9,.45,-2.2,p.concrete);box(g,1.9,.14,8.8,4.9,3.4,-2.2,p.camo);for(const z of [-6.3,1.9])box(g,.14,3,.14,5.7,1.5,z,p.steel);
+ for(const z of [-4.6,-2.2,.2])box(g,.2,.35,.5,5.8,.55,z,p.dark);for(let i=0;i<3;i++){box(g,.9,.14,.9,4.9,1,-5.2+i*2.4,p.wood);box(g,.7,.5,.7,4.9,1.35,-5.2+i*2.4,p.crates);}
+ const ramp=box(g,1.4,.12,1.8,4.9,.4,2.9,p.concrete);ramp.rotation.x=-.25;
+ // Roof plant, antenna and sign
+ box(g,1.4,.9,1.1,-.6,5.9,-4.2,p.steel);box(g,1.0,.7,.8,2.4,5.8,-.6,p.steel);cylinder(g,.06,3.5,-2.4,6.3,-5.6,p.steel);box(g,1.5,.7,.04,-1.6,7.6,-5.6,p.accent);
+ // Outdoor storage on the back-left
+ fieldCrates(g,-5.2,-4.2,6);for(const x of [-4.6,-3.7,-2.8])cylinder(g,.45,1.4,x,.75,-7.2,p.steel);
+ // Crew lounge terrace: lean-to roof, two long sofas facing the TV, vending machine, fridge
+ const lx=DEPOT_LOUNGE.x,lz=DEPOT_LOUNGE.z;
+ box(g,5,.05,4.4,lx,.04,lz+.9,p.dark);
+ for(const z of [lz,lz+1.9])sofa(g,lx,z,Math.PI,3.6,z===lz?p.accent:p.camo,p.trim,p.dark);
+ for(const x of [-2.6,2.6])for(const z of [-1,3])box(g,.12,2.2,.12,lx+x,1.1,lz+z,p.dark);
+ box(g,5.6,.14,5.2,lx,2.3,lz+1,p.camo);box(g,2.2,1.1,.12,lx,1.55,lz-.9,p.dark);box(g,2.4,.8,.4,lx,.4,lz-.9,p.dark);box(g,2.0,.9,.04,lx,1.55,lz-.83,p.glass);
+ box(g,.9,1.9,.8,lx-2.1,.95,lz-.5,p.accent);box(g,.7,.9,.7,lx+2.2,.45,lz-.5,p.wall);
+ // Forklift bays with charging posts and painted outlines (back side)
+ for(const bay of depotBays(4)){
+  for(const side of [-1,1])box(g,.07,.02,2.2,bay.x+side*.8,.08,bay.z,p.yellow);box(g,1.7,.02,.07,bay.x,.08,bay.z-1.1,p.yellow);box(g,.14,1.1,.14,bay.x,.55,bay.z-1.3,p.dark);box(g,.2,.2,.1,bay.x,1.0,bay.z-1.22,p.yellow);
+ }
+}
 const kinds=new Set(["hq","barracks","factory","supply","generator","helipad","airbase","refinery","shipyard","landCommand","airCommand","seaCommand","landStrategy","airStrategy","seaStrategy","combatEngineer","radar"]);
 export function createBuildingModel(kind:UnitKind,team:Team,faction:FactionId):{group:THREE.Group;turret:null}|null {
  if(!kinds.has(kind))return null;
  const g=new THREE.Group(),concrete=material(0x8b8d84,"concrete"),wall=material(faction==="usa"?0xc1c7bd:faction==="russia"?0xa4ae91:0xbab59b,"plaster"),steel=material(0x646f68,"metal",.3),dark=material(0x424a48,"metal",.3),camo=material(faction==="usa"?0xb5d2cd:faction==="russia"?0xa9b69b:0xc1b69c,"camouflage"),trim=material(team===0?0x6995a1:0xa77b64);
+ const pal:Pal={wall,dark,camo,concrete,steel,trim,accent:material(team===0?0x699fc5:0xac765f),crates:material(0x827e5e,"metal"),wood:material(0x7a5d3b),yellow:material(0xe0b53a),glass:material(0x9fc7d6,undefined,.4)};
  if(kind==="airbase"||kind==="helipad"){
   const airbase=kind==="airbase",mark=material(0xd0cbb7);
   box(g,airbase?10:25,.12,airbase?48:18,0,.12,6,material(0x73776e,"asphalt"));
@@ -168,9 +240,7 @@ export function createBuildingModel(kind:UnitKind,team:Team,faction:FactionId):{
    pavilion(g,6,4,3.4,-4,-5,camo,wall,dark,true);fieldCrates(g,2,-5,3);mast(g,7,-4,4,team,steel);
   }
  }else if(kind==="supply"){
-  pavilion(g,7,8,3.7,-1,-1,camo,wall,dark,true);
-  fieldCrates(g,-3,3.5,8);for(const x of [2.5,4])cylinder(g,.55,1.6,x,.85,3.3,steel);mast(g,-4,-4,5,team,steel);
-  const ring=new THREE.Mesh(new THREE.RingGeometry(2.1,2.3,24).rotateX(-Math.PI/2),trim);ring.position.set(-1,.21,-1);g.add(ring);
+  depotYard(g,pal);
  }else if(kind==="generator"){
   box(g,6,1.5,3.6,-.6,.95,0,steel);for(const x of [-2.1,.7]){cylinder(g,.32,3.8,x,2.6,-.7,dark);cylinder(g,.43,.15,x,4.6,-.7,steel);}pavilion(g,2.5,3,2.4,3.5,0,camo,wall,dark);for(let z=-1.3;z<1.6;z+=.5)box(g,6,.08,.1,-.6,1.3,z,dark);
  }else if(kind==="refinery"){
@@ -191,7 +261,7 @@ export function createBuildingModel(kind:UnitKind,team:Team,faction:FactionId):{
    box(g,1.5,2.4,1.6,-3.8,1.35,-3.4,dark);for(let i=0;i<3;i++)box(g,.9,.08,.15,-3.8,1.1+i*.35,-2.55,trim);
   }else{mast(g,3,-3,4,team,steel);for(const x of [-2,0,2])box(g,1.2,.6,1.4,x,.35,-4.1,concrete);}
  }
- if(kind==="hq"){box(g,4.5,2.3,2.7,-2.2,1.3,-4,wall);mast(g,-4,3.5,7.2,team,steel);}
+ if(kind==="hq"){box(g,4.5,2.3,2.7,-2.2,1.3,-4,wall);mast(g,-4,3.5,7.2,team,steel);hqYard(g,pal);}
  if(kind==="airCommand"){
   for(const x of [2,4])box(g,.18,4,.18,x,2,1.5,dark);
   box(g,3,1.8,2.8,3,4.3,1.5,wall);const cap=new THREE.Group();cap.position.y=4.2;pavilion(cap,3.2,2.9,1.2,3,1.5,camo,wall,dark,true);g.add(cap);
@@ -200,9 +270,9 @@ export function createBuildingModel(kind:UnitKind,team:Team,faction:FactionId):{
  if(kind==="landCommand")box(g,4,.25,1.2,-1,.7,3.3,steel);
  if(kind==="seaCommand")for(const z of [-2,0,2])cylinder(g,.7,2.4,-3.8,1.3,z,steel);
  if(kind.includes("Strategy")){box(g,4.5,2.4,2.3,0,1.4,-4,wall);for(const x of [-2,0,2])cylinder(g,.04,5,x,3,-4.2,steel);}
- if(kind==="combatEngineer"){box(g,4,.15,1.5,-1,1,3.5,steel);for(const x of [-2,-.5,1])box(g,.45,.6,.8,x,1.35,3.5,material(0xb0a568,"metal"));}
+ if(kind==="combatEngineer"){engineerYard(g,pal);box(g,4,.15,1.5,-1,1,3.5,steel);for(const x of [-2,-.5,1])box(g,.45,.6,.8,x,1.35,3.5,material(0xb0a568,"metal"));}
  addFacilityDetails(g,kind,steel,kind==='helipad'?material(0xd0cbb7):trim,dark);
- g.scale.setScalar(terrainConfig.render.buildings.militaryScale);
+ g.scale.setScalar(buildingScale(kind));
  g.userData.militarySilhouette=kind;return {group:batch(g),turret:null};
 }
 /** Structured metric airport: free apron at the real parking positions, hangars behind it. */

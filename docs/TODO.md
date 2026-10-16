@@ -2,6 +2,7 @@
 
 ## Õhulahing, moodsad õhutõrjed ja heli · 15.10.2026
 
+- [x] Baasi elu: insenerid (tööriistad, käru, diivan peamaja juures), laiem varustusladu, meeskond+laadur iga kopteriplatsi kohta. Vt BASE-LIFE.md. Brauseris vaatlus pooleli.
 - [x] Kiirem piiratud kaldpööre lahingulennukitel; rasketele lennukitele aeglasem eriprofiil. CAP jälitamisala, kontaktide säilitamine ja tegeliku kiirusega ennak; vastase hävitaja ei sunni maapealse õhutõrje vältimisloogika kaudu koju pöörduma.
 - [x] Hävitaja, püüdur, mitmeotstarbeline lennuk, ründelennuk, raske pommitaja ja SEAD/ECM on eraldi toodetavad klassid. Lahingulennukitel ees paiknev lähimaa õhukahur, eraldi piiratud moon ja suunapiir.
 - [x] SEAD-i radarivastane rakett sihib radareid/radar-SAM-e, ei lukustu passiivsele IR-õhutõrjele; häiritud radar katkestab otsinguluku. ECM mõjutab radar-/käsujuhtimist, mitte IR-jälgimist.

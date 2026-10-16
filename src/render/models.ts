@@ -1,3 +1,4 @@
+import {addEngineerProps,createWheelbarrow} from "./EngineerVisual";
 import {createGroundHandler} from "./CargoHandlingVisual";
 import {createExpansionModel} from "./ExpansionModels";
 import mobility from "../data/mobility.json";
@@ -284,7 +285,7 @@ function mergeHumanParts(parent:THREE.Group,faction:FactionId,uniform:number):vo
 function equipment(parent:THREE.Group,kit:string,faction:FactionId):void {
   const green=faction==="usa"?0x696747:faction==="russia"?0x4d6143:0x63715b;
   const tube=(r:number,length:number,x:number,y:number,z:number,color:number)=>{const m=cyl(r,r,length,color,x,y,z,12);m.rotation.x=Math.PI/2;parent.add(m);};
-  if(kit==="engineer"){detailBox(.045,.06,.7,METAL,.15,1.03,.35,parent);detailBox(.2,.06,.22,METAL,.15,1.03,.71,parent);detailBox(.25,.14,.2,green,-.19,.9,-.23,parent);return;}
+  if(kit==="engineer"){detailBox(.045,.06,.7,METAL,.15,1.03,.35,parent);detailBox(.2,.06,.22,METAL,.15,1.03,.71,parent);detailBox(.25,.14,.2,green,-.19,.9,-.23,parent);detailBox(.46,.4,.12,0xf08a24,0,1.06,.24,parent);detailBox(.32,.38,.1,0xf08a24,0,1.05,-.3,parent);const hat=new THREE.Mesh(new THREE.SphereGeometry(.185,16,8,0,Math.PI*2,0,Math.PI*.58),mat(0xe8c33a));hat.position.y=1.535;parent.add(hat);detailBox(.3,.03,.12,0xe8c33a,0,1.5,.2,parent);return;}
   if(["law","rpg","javelin","manpad"].includes(kit)){
     const r=kit==="javelin"?.1:kit==="manpad"?.055:.075,length=kit==="manpad"?1.35:kit==="rpg"?1.05:1.1;
     tube(r,length,-.27,1.24,.36,green);tube(r*1.12,.08,-.27,1.24,.36-length/2,DARK);tube(r*1.12,.08,-.27,1.24,.36+length/2,DARK);
@@ -336,8 +337,9 @@ function infantryModel(kind:UnitKind,team:Team,faction:FactionId,tactical:boolea
   positions.slice(0,def.squadSize??(kind==="engineer"?4:8)).forEach(([x,z],i)=>{
     const member=new THREE.Group();member.name=`SquadMember${i}`;member.position.set(x,0,z);
     const kit=kind==="engineer"?"engineer":def.weapons?.[i]?.model??(i===0?def.weapons?.[0]?.model:rifle)??rifle;
-    equippedSoldier(member,faction,uniform,kit,team);g.add(member);if(tactical)flattenMember(member,faction);
+    equippedSoldier(member,faction,uniform,kit,team);if(kind==="engineer"&&!tactical)addEngineerProps(member);g.add(member);if(tactical)flattenMember(member,faction);
   });
+  if(kind==="engineer"&&!tactical){const barrow=createWheelbarrow();barrow.position.set(1.7,0,-1.2);barrow.rotation.y=.35;g.add(barrow);}
   infantryCache.set(key,g);return {group:g.clone(true),turret:null};
 }
 

@@ -98,7 +98,7 @@
     "spoolSeconds": 3,
     "padSpacing": 20,
     "padRadius": 8,
-    "padClearance": 12,
+    "padClearance": 16,
     "maxPads": 20,
     "arrival": 2.5,
     "pickupGap": 3,
@@ -116,7 +116,7 @@
     "landingPositionGain": 0.9,
     "porterWaypointArrival": 0.15,
     "porterJamSeconds": 3,
-    "baseHalfWidth": 9,
-    "baseHalfDepth": 10
+    "baseHalfWidth": 12,
+    "baseHalfDepth": 13
   }
 }
