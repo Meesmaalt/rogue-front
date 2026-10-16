@@ -1,3 +1,4 @@
+import {createItalianScenery} from './ItalianScenery';
 import {createCropFields,fieldCrop,cropColors} from "./CropFields";
 import {createRoadSurfaces,roadTexture as asphaltTexture} from "./RoadSurface";
 import {groundLayout,withAirfieldAprons,groundRectangle} from "./GroundSurface";
@@ -37,7 +38,7 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
   else {group.add(createLandscapeBackdrop(features));group.add(createForest(features,forestLayout));}
   if(theme!=="temperate")group.add(createDecals(rnd));
   group.add(batchStaticScene(createMapFeatures(features,theme==="temperate")));
-  group.add(createCropFields(features));
+  group.add(createCropFields(features));group.add(createItalianScenery(features));
   freezeTerrainTransforms(group);
   return group;
 }
@@ -240,9 +241,9 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
   const cropPattern=ctx.createPattern(cropNoise,"repeat")!;
   for(const f of features.filter(f=>f.appearance==="field"))local(f,()=>{
     trace(f);ctx.clip();
-    ctx.fillStyle=`#${cropColors[fieldCrop(f)].toString(16).padStart(6,"0")}`;ctx.fillRect(-f.width/2,-f.depth/2,f.width,f.depth);
+    ctx.fillStyle=`#${(f.landUse?f.color??cropColors[fieldCrop(f)]:cropColors[fieldCrop(f)]).toString(16).padStart(6,"0")}`;ctx.fillRect(-f.width/2,-f.depth/2,f.width,f.depth);
     ctx.globalCompositeOperation="multiply";ctx.fillStyle=cropPattern;ctx.fillRect(-f.width/2,-f.depth/2,f.width,f.depth);ctx.globalCompositeOperation="source-over";
-    if(f.cropPattern==="bare")return;
+    if(f.cropPattern==="bare"||f.landUse==='olive'||f.landUse==='citrus')return;
     ctx.strokeStyle=f.color===0x927b70?"rgba(49,35,29,.23)":"rgba(51,55,32,.35)";ctx.lineWidth=.35;
     ctx.save();ctx.rotate(-(f.cropRotation??0));
     const cropSpan=f.cropRotation!=null?Math.hypot(f.width,f.depth):Math.max(f.width,f.depth);

@@ -1,3 +1,4 @@
+import {enrichItalianLandscape} from './italianLandscape';
 import {naturalHills,naturalForestEdge,naturalWoodlandAt,interiorRidges} from "./naturalLandscape";
 import battleScale from "../data/battle-scale.json";
 import type {MissionDef,MapResourceDef,Point} from "./types";
@@ -30,7 +31,7 @@ function clip(points:Point[],nx:number,nz:number,limit:number):Point[] {
 
 export const GENERATED_MAP_SIZES:readonly number[]=config.largeSizes;
 export const METRIC_MAP_SIZES:readonly number[]=battleScale.mapSizes;
-export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5|6|7|8|9|10|11|12|13=[2560,3072,5120].includes(requestedSize)?11:requestedSize>=4096?10:8,options?:MapOptions):MissionDef {
+export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5|6|7|8|9|10|11|12|13|14=[2560,3072,5120].includes(requestedSize)?11:requestedSize>=4096?10:8,options?:MapOptions):MissionDef {
   // 1280 retains v2 geometry for existing saved matches; v3 sizes are deliberately bounded.
   const legacy=requestedSize===config.size;
   if((requestedSize>=4096&&generationVersion<9)||(!legacy&&![...GENERATED_MAP_SIZES,...METRIC_MAP_SIZES].includes(requestedSize)))throw new Error("Kaardi suurus pole toetatud");
@@ -288,6 +289,7 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
     const ground=polygonFeature("caldera-ground",Array.from({length:64},(_,i)=>{const a=i*Math.PI/32,r=size*.069*(1+.04*Math.sin(a*5+phase));return {x:Math.cos(a)*r,z:Math.sin(a)*r};}),"field",0x82796c);
     ground.cropPattern="bare";ground.label="Kustunud vulkaani kivine kraater";features.push(ground);
   }
+  if(generationVersion>=14)enrichItalianLandscape(seed,features,[...bases,...resources]);
   // Canonical millimetre coordinates keep generated map hashes stable across clients.
   const quantize=(n:number)=>Math.round(n*1000)/1000;
   for(const f of features){for(const key of ["x","z","width","depth","height"] as const)if(f[key]!=null)f[key]=quantize(f[key]!);if(f.rotation!=null)f.rotation=Math.round(f.rotation*1e6)/1e6;if(f.polygon)f.polygon=f.polygon.map(p=>({x:quantize(p.x),z:quantize(p.z)}));}
@@ -296,16 +298,16 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
   for(const f of landforms){f.x=quantize(f.x);f.z=quantize(f.z);f.height=quantize(f.height);}
   const names:Record<MapArchetype,string>={balanced:"Järvemaa",river:"Jõeäär",highlands:"Kõrgustik",urban:"Linnapiirkond",coastal:"Rannikupiirkond",forest:"Metsapiirkond"};
   const id=legacy?`procedural-v${config.version}-${archetype}-${seed}`:`procedural-v${generationVersion}-${archetype}-${size}-${seed}${options?`-o${mapOptionsMask(options)}`:""}`,name=`${italian?(volcanic?"Vulkaani org":"Vahemere "+names[archetype].toLowerCase()):names[archetype]} · ${seed}`;
-  return {id,name,seed,objectives:[],briefing:italian?"Vahemere lahingumaastik: terrakotakatustega asulad, avatud põllud, metsasalud ja kivised kõrgendikud. Mõnel seemnel kerkib keskel kustunud vulkaani kraater. Tellimiseks vali tootmishoone; kaitse varustuslende.":landscape?"Genereeritud lahingumaastik: looklevate tänavatega asulad, seotud mäeharjad, põllud ja metsaalad. Kolm jõesilda ühendavad lahingupiirkondi. Kindlusta asulad, kasuta orgusid ja varjatud lähenemisi ning kaitse ressursivedusid.":"Genereeritud lahingumaastik: tihedad majakvartalid, talud, kolm sillaületust, järv ja põllu-/metsavööndid. Kindlusta asulad, kasuta varjatud lähenemisi ning kaitse füüsilisi ressursivedusid.",map:{id,name,size,theme:"temperate",terrainProfile:generationVersion>=10?"farmland-natural":"farmland",landforms,baseDefenses:false,heightmap:"",maxHeight:italian?120:40,bases,resources,features}};
+  return {id,name,seed,objectives:[],briefing:italian?"Vahemere lahingumaastik: terrakotakatustega asulad, avatud põllud, metsasalud ja kivised kõrgendikud. Viinamarjaistandused, oliivi- ja tsitrusesalud, küpressialleed ning talukohad vahelduvad põldude ja kiviste kõrgendikega. Mõnel seemnel kerkib keskel kustunud vulkaani kraater. Tellimiseks vali tootmishoone; kaitse varustuslende.":landscape?"Genereeritud lahingumaastik: looklevate tänavatega asulad, seotud mäeharjad, põllud ja metsaalad. Kolm jõesilda ühendavad lahingupiirkondi. Kindlusta asulad, kasuta orgusid ja varjatud lähenemisi ning kaitse ressursivedusid.":"Genereeritud lahingumaastik: tihedad majakvartalid, talud, kolm sillaületust, järv ja põllu-/metsavööndid. Kindlusta asulad, kasuta varjatud lähenemisi ning kaitse füüsilisi ressursivedusid.",map:{id,name,size,theme:"temperate",terrainProfile:generationVersion>=10?"farmland-natural":"farmland",landforms,baseDefenses:false,heightmap:"",maxHeight:italian?120:40,bases,resources,features}};
 }
 
 export const FOCUS_MAP=greenValley as unknown as MissionDef;
 export const CURATED_MAPS:readonly MissionDef[]=[];
 export function getPlayableMap(id:string):MissionDef|undefined {
-  const custom=/^(procedural-v13-(?:balanced|river|highlands|urban|coastal|forest)-(?:2048|2560|3072|4096|5120|6144)-(\d+))-o(\d+)$/.exec(id);
-  if(custom){const mask=Number(custom[3]);if(mask>15||String(mask)!==custom[3]||Number(custom[2])>4294967295)return undefined;const parts=custom[1].split('-');return generateProceduralMap(Number(custom[2]),parts[2] as MapArchetype,Number(parts[3]),13,decodeMapOptions(mask));}
-  const current=/^procedural-v(11|12|13)-(balanced|river|highlands|urban|coastal|forest)-(2048|2560|3072|4096|5120|6144)-(\d+)$/.exec(id);
-  if(current)return Number(current[4])<=4294967295?generateProceduralMap(Number(current[4]),current[2] as MapArchetype,Number(current[3]),Number(current[1]) as 11|12|13):undefined;
+  const custom=/^(procedural-v(?:13|14)-(?:balanced|river|highlands|urban|coastal|forest)-(?:2048|2560|3072|4096|5120|6144)-(\d+))-o(\d+)$/.exec(id);
+  if(custom){const mask=Number(custom[3]);if(mask>15||String(mask)!==custom[3]||Number(custom[2])>4294967295)return undefined;const parts=custom[1].split('-');return generateProceduralMap(Number(custom[2]),parts[2] as MapArchetype,Number(parts[3]),Number(parts[1].slice(1)) as 13|14,decodeMapOptions(mask));}
+  const current=/^procedural-v(11|12|13|14)-(balanced|river|highlands|urban|coastal|forest)-(2048|2560|3072|4096|5120|6144)-(\d+)$/.exec(id);
+  if(current)return Number(current[4])<=4294967295?generateProceduralMap(Number(current[4]),current[2] as MapArchetype,Number(current[3]),Number(current[1]) as 11|12|13|14):undefined;
   const metric=/^procedural-v(9|10)-(balanced|river|highlands|urban|coastal|forest)-(4096|6144)-(\d+)$/.exec(id);
   if(metric)return Number(metric[4])<=4294967295?generateProceduralMap(Number(metric[4]),metric[2] as MapArchetype,Number(metric[3]),Number(metric[1]) as 9|10):undefined;
   const regional=/^procedural-v(3|4|5|6|7|8)-(balanced|river|highlands|urban|coastal|forest)-(1536|1792|2048)-(\d+)$/.exec(id);

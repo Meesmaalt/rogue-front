@@ -44,7 +44,7 @@ function material(color:number,kind?:Parameters<typeof surface>[0],metalness=.05
   const key=`${color}/${kind}/${metalness}`;let m=materials.get(key);if(m)return m;
   const map=kind?surface(kind):null;
   m=new THREE.MeshStandardMaterial({color,map,bumpMap:map,bumpScale:kind==="roof"?.07:kind==="brick"?.04:.015,roughness:metalness>.2?.76:.94,metalness});
-  m.userData.sharedArt=true;materials.set(key,m);return m;
+  m.userData.sharedArt=true;m.userData.camouflage=kind==='camouflage';materials.set(key,m);return m;
 }
 function box(g:THREE.Group,w:number,h:number,d:number,x:number,y:number,z:number,m:THREE.Material):THREE.Mesh {const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);mesh.position.set(x,y,z);mesh.castShadow=mesh.receiveShadow=true;g.add(mesh);return mesh;}
 function cylinder(g:THREE.Group,r:number,h:number,x:number,y:number,z:number,m:THREE.Material):THREE.Mesh {const mesh=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,12),m);mesh.position.set(x,y,z);mesh.castShadow=true;g.add(mesh);return mesh;}
@@ -203,14 +203,6 @@ function depotYard(g:THREE.Group,p:Pal):void {
  const bayPaint=material(0xe5e5db);
  for(const bay of depotBays(4)){for(const side of [-1,1])box(g,.06,.025,2.4,bay.x+side*.9,.08,bay.z,bayPaint);box(g,1.8,.025,.06,bay.x,.08,bay.z-1.2,bayPaint);box(g,.14,.9,.14,bay.x,.45,bay.z-1.4,p.dark);}
 
- // Security perimeter leaves broad forklift gates on both sides and a front vehicle entrance.
- for(const fence of baseLayout.depot.fences){
-  const horizontal=fence.width>fence.depth,length=horizontal?fence.width:fence.depth,n=Math.ceil(length/3);
-  for(let i=0;i<=n;i++){const offset=-length/2+i*length/n;box(g,.12,1.45,.12,fence.x+(horizontal?offset:0),.725,fence.z+(horizontal?0:offset),p.steel);}
-  for(const y of [.35,1.35])box(g,fence.width,y===.35?.045:.065,fence.depth,fence.x,y,fence.z,p.steel);
-  for(let i=1;i<n*3;i++){const offset=-length/2+i*length/(n*3);box(g,.025,1,.025,fence.x+(horizontal?offset:0),.85,fence.z+(horizontal?0:offset),p.steel);}
- }
- g.userData.yardGates=['west-loading','east-loading','front-vehicles'];
 
 }
 const kinds=new Set(["hq","barracks","factory","supply","generator","helipad","airbase","refinery","shipyard","landCommand","airCommand","seaCommand","landStrategy","airStrategy","seaStrategy","combatEngineer","radar"]);

@@ -1,5 +1,5 @@
 import {depotPad} from '../sim/depotPads';
-import {createDepotBase,createDepotPad} from './DepotPads';
+import {createDepotBase,createDepotPad,createDepotFence} from './DepotPads';
 import {createMetricRunway} from "./MetricRunway";
 import * as THREE from 'three';
 import {createModel} from './models';
@@ -32,7 +32,7 @@ export class ConstructionPreview {
     // Convert world-space pad markings into the same local frame as the warehouse.
     const markings=createDepotPad(pad),transform=new THREE.Matrix4().compose(new THREE.Vector3(depot.x,depot.y,depot.z),new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),heading),new THREE.Vector3(1,1,1));
     markings.applyMatrix4(transform.invert());
-    const compound=new THREE.Group();compound.add(base,markings);
+    const compound=new THREE.Group();compound.add(base,markings,createDepotFence(1));
     // Architecture carries its own model scale; the foundation uses metres.
     compound.scale.set(1/model.scale.x,1/model.scale.y,1/model.scale.z);model.add(compound);
    }

@@ -1,0 +1,7 @@
+[
+ {"id":"standard","name":"Rahvuse standard","colors":["#7a8868","#47583d","#a4a183"]},
+ {"id":"woodland","name":"Metsacamo","colors":["#65794b","#354b37","#a09567"]},
+ {"id":"desert","name":"Liivacamo","colors":["#c4ae7e","#96794f","#e2d3a5"]},
+ {"id":"urban","name":"Linnacamo","colors":["#89949a","#46535b","#bac1c0"]},
+ {"id":"winter","name":"Talvecamo","colors":["#e5e7dc","#a4afa8","#67766f"]}
+]

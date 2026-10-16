@@ -7,7 +7,7 @@ import {pointInFeature} from './mapFeatures';
 import {basePoint,hqStaffPoint} from './baseLayout';
 import {findPath} from './nav/Pathfinder';
 import {heightAt} from './heightmap';
-import {dist2d} from './math';
+import {dist2d,turnToward,wrapAngle} from './math';
 import {BUILDINGS,isBuildable} from './buildings';
 import type {World} from './World';
 import type {Entity,Point,Team} from './types';
@@ -125,6 +125,7 @@ export function updateConstructionFlight(w:World,u:Entity,dt:number,fly:(p:Point
   u.airState='grounded';u.cargoDoor=1;
   // Ground crew is moved by its normal navigation callback to the aircraft side.
   if(!crew||dist2d(crew,cargoPickupPoint(u))>logisticsRules.handling.porterArrival+1)return true;
+  if(f.boardingAt==null){crew.heading=turnToward(crew.heading,u.heading,config.engineer.vanTurnRate*dt);if(crew.engineerDuty)crew.engineerDuty.vanHeading=crew.heading;if(Math.abs(wrapAngle(crew.heading-u.heading))>.1)return true;}
   f.boardingAt??=w.time;if(w.time-f.boardingAt<cfg.loadingSeconds)return true;
   crew.loadedIntoId=u.id;u.cargoUnitIds=[crew.id];crew.motionSpeed=0;f.phase=f.returnTrip?'returning':'outbound';f.readyAt=w.time+cfg.spoolSeconds;u.cargoDoor=0;u.airSortieTime=0;
  }

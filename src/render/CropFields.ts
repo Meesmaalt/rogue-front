@@ -5,6 +5,7 @@ import {renderedGroundHeightAt} from './GroundSurface';
 import config from '../data/crops.json';
 export type CropKind='wheat'|'rapeseed'|'vegetables'|'soil';
 export function fieldCrop(f:MapFeatureDef):CropKind {
+ if(f.landUse&&f.landUse!=='pasture')return 'soil';
  if(f.cropPattern==='bare')return 'soil';
  let hash=0;for(const c of f.id)hash=(hash*31+c.charCodeAt(0))>>>0;
  return (['wheat','rapeseed','vegetables'] as const)[hash%3];

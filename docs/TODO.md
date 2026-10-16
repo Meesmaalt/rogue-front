@@ -1,5 +1,15 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Pardale sõitev tööauto, arenev laokompleks ja Vahemere v14 · 16.10.2026
+
+- [x] Tööauto mudel 72% senisest, Chinook 124%; avatud tagumine kaubaruum ja püsiv ramp. Auto joondub, sõidab nähtavalt üle rambi pardale ja tagurdab pärast maandumist välja; pardal olev auto jääb kopteri mudelisse nähtava veosena.
+- [x] Lao tasemetel 1/2/3 eraldi L-kujuliselt kasvav aiaga kompleks. Platsid jäävad aia sisse; olemasolev plats ei liigu uuendamisel. Lisanduvad büroo-/laomoodulid, suurem ja kõrgem piire; ühine paigutus navigatsioonis, broneerimises, mudelis ning ehituse eelvaates. HQ säilitab tasemepõhised meeskonna-/parkimismoodulid.
+- [x] Laaduri väiksem maapinda järgiv kontaktvari, juhil ja sõidukil puudub ebastabiilne liikuv varjukaardi vastuvõtt.
+- [x] Uus v14 kaardigeneraator: piirkondlikud viinamarja-, oliivi-, tsitruse- ja karjamaaparcellid, küpressidega taluteed ja talukohad/kabelid, kaldpõldudel kivised terrassiservad. Jagatud instantsgeomeetria, ruumiline kauguse järgi peitmine ja fikseeritud detailieelarve; v13 ja varasemad kaardid taastuvad endiselt sama versiooni järgi.
+- [x] Algusmenüüs standard-, metsa-, liiva-, linna- ja talvecamo koos eelvaatega; valik säilib ja värvib oma tehnika/märgitud hoonepinnad ilma vastase või klaaside materjale muutmata.
+- [x] Lennukikaardid ja valitud lennuki pilt suuremad; joonisel lisatud sobivate tüüpide välised relvakinnitused/raketid.
+
+
 ## Tööalade viimistlus, kaamera, heli ja lao piirid · 16.10.2026
 
 - [x] HQ pingid 2 m majale lähemal, autod samuti lähemal; valged parkimisboksid ja kaitsepostid lisanduvad koos meeskonnakohtadega. Lao parkimismärgistus samuti valge.

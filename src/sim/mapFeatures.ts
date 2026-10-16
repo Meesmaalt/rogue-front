@@ -22,6 +22,7 @@ export interface MapFeatureDef {
   color?: number;
   /** Crop-row direction only; polygon bounds remain axis aligned for spatial queries. */
   cropRotation?:number;
+  landUse?:"vineyard"|"olive"|"citrus"|"pasture";
   /** Bare mineral soil uses the same atlas layer without cultivated rows. */
   cropPattern?:"bare";
   facadeColor?:number;

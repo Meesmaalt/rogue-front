@@ -1,3 +1,4 @@
+import {depotFences,depotCompound,depotLayoutLevel} from '../sim/depotLayout';
 import * as THREE from 'three';
 import {mergeGeometries} from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {visibleDepotPads,type DepotPad} from '../sim/depotPads';
@@ -32,6 +33,19 @@ export function createDepotBase(depot:Pick<Entity,'x'|'y'|'z'|'heading'>,pads:re
  const geometry=mergeGeometries(pieces,false)!;pieces.forEach(g=>g.dispose());
  const base=new THREE.Mesh(geometry,baseColors);base.name='DepotSharedFoundation';base.userData.padCount=pads.length;return base;
 }
+/** Level-specific fence and gate posts; shared collision plan keeps every pad inside. */
+export function createDepotFence(level:number):THREE.Group {
+ const group=new THREE.Group();group.name='DepotCompoundLevel'+level;const height=level===3?1.9:level===2?1.65:1.45;const pieces:THREE.BufferGeometry[]=[];
+ const box=(w:number,h:number,d:number,x:number,y:number,z:number)=>pieces.push(new THREE.BoxGeometry(w,h,d).translate(x,y,z));
+ for(const f of depotFences(level)){const horizontal=f.width>f.depth,length=Math.max(f.width,f.depth),n=Math.ceil(length/3);
+  for(let i=0;i<=n;i++){const t=-length/2+i*length/n;box(.13,height,.13,f.x+(horizontal?t:0),height/2,f.z+(horizontal?0:t));}
+  for(const y of [.35,height-.1])box(f.width,.06,f.depth,f.x,y,f.z);
+  for(let i=1;i<n*2;i++){const t=-length/2+i*length/(n*2);box(.025,height-.4,.025,f.x+(horizontal?t:0),height/2+.1,f.z+(horizontal?0:t));}
+ }
+ const geo=mergeGeometries(pieces,false)!;pieces.forEach(g=>g.dispose());const mesh=new THREE.Mesh(geo,fenceMaterial);mesh.castShadow=false;group.add(mesh);
+ const b=depotCompound(level);group.userData.bounds=b;return group;
+}
+const fenceMaterial=new THREE.MeshStandardMaterial({color:0x65716b,roughness:.9});
 /** Markings use the exact slots leased by the simulation, including additional occupied pads. */
 export class DepotPads {
  readonly group=new THREE.Group();/** Pads per own depot, refreshed with the markings; BaseLife seats one crew per pad. */readonly padsByDepot=new Map<number,DepotPad[]>();private stamp=-Infinity;private key='';
@@ -44,6 +58,7 @@ export class DepotPads {
   const key=pads.map(p=>`${p.depotId}/${p.slot}/${p.x}/${p.z}/${p.heading}`).join('|')+depots.map(e=>`/${e.id}/${w.supplyDepotLevel(e)}`).join('');if(key===this.key)return;this.key=key;
   this.group.traverse(o=>{if(o instanceof THREE.Mesh)o.geometry.dispose();});this.group.clear();
   for(const depot of depots){
+   const fence=createDepotFence(depotLayoutLevel(depot));fence.position.set(depot.x,depot.y+.04,depot.z);fence.rotation.y=depot.heading;this.group.add(fence);
    const base=createDepotBase(depot,pads.filter(p=>p.depotId===depot.id),w.supplyDepotLevel(depot));base.position.set(depot.x,depot.y,depot.z);base.rotation.y=depot.heading;this.group.add(base);
   }
   for(const p of pads)this.group.add(createDepotPad(p));

@@ -1,3 +1,4 @@
+import layout from '../data/base-life.json';
 import * as THREE from 'three';
 const materials=new Map<number,THREE.MeshStandardMaterial>();
 function mat(color:number){let m=materials.get(color);if(!m){m=new THREE.MeshStandardMaterial({color,roughness:.8,metalness:color===0x8d979b?.5:0});m.userData.sharedArt=true;materials.set(color,m);}return m;}
@@ -32,5 +33,5 @@ export function createToolVan():THREE.Group {
  for(const x of [-.65,.65])box(g,.06,1,.06,x,1.35,1.25,0x414b46);
  box(g,1.1,.42,.05,0,1.55,1.3,0x415d65);box(g,.35,.5,.25,.35,1.35,.65,0xed8d30);const head=new THREE.Mesh(new THREE.SphereGeometry(.14,10,8),mat(0xbd9271));head.position.set(.35,1.73,.65);g.add(head);
  for(const x of [-.85,.85])for(const z of [-.95,.95]){const w=new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,.18,12),mat(0x242b28));w.rotation.z=Math.PI/2;w.position.set(x,.3,z);w.name='VanWheel';g.add(w);}
- for(const x of [-.5,0,.5])box(g,.32,.35,.6,x,1.3,-.6,0xc28e36);const shovel=createShovel();shovel.position.set(-.65,1.35,-.7);shovel.rotation.z=Math.PI/2;g.add(shovel);return g;
+ for(const x of [-.5,0,.5])box(g,.32,.35,.6,x,1.3,-.6,0xc28e36);const shovel=createShovel();shovel.position.set(-.65,1.35,-.7);shovel.rotation.z=Math.PI/2;g.add(shovel);g.scale.setScalar(layout.engineer.vanModelScale);return g;
 }

@@ -19,7 +19,7 @@ test('server creates fresh validated maps, stays responsive and shares one map w
   let up=false;for(let i=0;i<100&&!up;i++){try{up=(await fetch(url+'/healthz')).ok;}catch{}if(!up)await new Promise(r=>setTimeout(r,50));}assert.ok(up);
   const pending=request('/api/maps/generate',{archetype:'balanced',size:2048});
   await new Promise(r=>setTimeout(r,100));const start=Date.now();assert.equal((await fetch(url+'/healthz')).status,200);assert.ok(Date.now()-start<1000,'map generation must not block the lockstep server');
-  const first=await pending;assert.ok(isProceduralMapId(first.missionId));assert.match(first.missionId,/^procedural-v13-balanced-2048-/);
+  const first=await pending;assert.ok(isProceduralMapId(first.missionId));assert.match(first.missionId,/^procedural-v14-balanced-2048-/);
   assert.equal(first.mission.id,first.missionId);assert.ok(first.mission.map.features.length>100);
   const host=await request('/api/auth/register',{username:'map_host',password:'test-password',displayName:'Host'});
   const guest=await request('/api/auth/register',{username:'map_guest',password:'test-password',displayName:'Guest'});

@@ -36,48 +36,41 @@
     "walkSpeed": 1.8,
     "boardingSeconds": 1.4,
     "turnRate": 1.5,
-    "fences": [
+    "layouts": [
       {
-        "x": 0.5,
-        "z": -14,
-        "width": 27,
-        "depth": 0.15
+        "left": -13,
+        "right": 14,
+        "back": -14,
+        "front": 34,
+        "officeWidth": 0
       },
       {
-        "x": -13,
-        "z": -10,
-        "width": 0.15,
-        "depth": 8
+        "left": -13,
+        "right": 36,
+        "back": -14,
+        "front": 34,
+        "officeWidth": 4.8
       },
       {
-        "x": 14,
-        "z": -10,
-        "width": 0.15,
-        "depth": 8
+        "left": -13,
+        "right": 36,
+        "back": -16,
+        "front": 36,
+        "officeWidth": 9.6
+      }
+    ],
+    "pads": [
+      {
+        "x": 0,
+        "z": 22
       },
       {
-        "x": -13,
-        "z": 13,
-        "width": 0.15,
-        "depth": 8
+        "x": 22,
+        "z": 22
       },
       {
-        "x": 14,
-        "z": 13,
-        "width": 0.15,
-        "depth": 8
-      },
-      {
-        "x": -9,
-        "z": 17,
-        "width": 8,
-        "depth": 0.15
-      },
-      {
-        "x": 12,
-        "z": 17,
-        "width": 4,
-        "depth": 0.15
+        "x": 22,
+        "z": 0
       }
     ]
   },
@@ -98,7 +91,8 @@
       "x": -3,
       "z": 10,
       "spacing": 4
-    }
+    },
+    "vanModelScale": 0.72
   },
   "camera": {
     "minimumDistance": 18,
@@ -166,6 +160,16 @@
     "fobVan": {
       "x": -14,
       "z": -3
-    }
+    },
+    "rampDriveSeconds": 4,
+    "rampExitSeconds": 4,
+    "cabinOffset": 2.2
+  },
+  "chinook": {
+    "modelScale": 1.24,
+    "cabinWidth": 1.75,
+    "rampLength": 1.5,
+    "rampFloor": 0.5,
+    "rampRear": -3.58
   }
 }

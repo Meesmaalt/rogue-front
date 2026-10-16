@@ -1,3 +1,6 @@
+import {renderedGroundHeightAt} from './GroundSurface';
+import logisticsRules from '../data/logistics.json';
+import {applyUnitCamouflage,selectedCamouflage} from './UnitCamouflage';
 import baseVisuals from '../data/base-life.json';
 import {createToolVan} from './EngineerVisual';
 import {createDepotHandler} from "./CargoHandlingVisual";
@@ -76,7 +79,8 @@ export class UnitRenderer {
     const now=performance.now()*.001;
     const lodDistance=quality==="high"?205:quality==="medium"?160:100;
     for (const e of world.entities) {
-      if (e.dead || e.loadedIntoId !== null) continue;
+      const flightCarrier=e.loadedIntoId!=null?world.byId.get(e.loadedIntoId):undefined,unloading=flightCarrier?.constructionFlight?.phase==='unloading'&&world.time>=flightCarrier.constructionFlight.readyAt-baseVisuals.construction.rampExitSeconds;
+      if (e.dead || e.loadedIntoId !== null&&!unloading) continue;
       seen.add(e.id);
       const spotted=e.team===world.playerTeam||world.isSpottedByTeam(e,world.playerTeam);
       let v = this.views.get(e.id);
@@ -97,12 +101,13 @@ export class UnitRenderer {
         if(far){far.scale.multiplyScalar(e.def.modelScale??1);lod.addLevel(far,lodDistance,.15);}
         const m = { group: lod, turret: visual.turret };
         if(e.constructionCrew)lod.add(createToolVan());
+        if(e.constructionFlight){const van=createToolVan();van.name='CarriedWorkVan';van.position.set(0,baseVisuals.chinook.rampFloor*baseVisuals.chinook.modelScale*(e.def.modelScale??1),-baseVisuals.construction.cabinOffset);van.visible=false;lod.add(van);}
         const rotors: THREE.Object3D[] = [];
         lod.traverse(o => { if (o.name.startsWith("RotorMain") || o.name === "RotorCounter" || o.name === "TailRotor") rotors.push(o); });
         if (rotors.length) this.rotorParts.set(e.id, rotors);
         if (e.def.speed > 0 && !(e.squadMaxMembers ?? 0)) {
-          const shadow = new THREE.Mesh(contactGeometry,contactMaterial); shadow.name = "ContactShadow";
-          const radius = Math.max(1.5,e.def.radius); shadow.scale.set(radius*2.3,1,radius*3.4); shadow.position.y=.045;
+          const shadow = new THREE.Mesh(e.kind==='groundHandler'?contactGeometry.clone():contactGeometry,contactMaterial); shadow.name = "ContactShadow";
+          const radius = e.kind==='groundHandler'? .68:Math.max(1.5,e.def.radius); shadow.scale.set(radius*2.3,1,radius*3.4); shadow.position.y=.045;
           m.group.add(shadow);
         }
         const r = Math.max(e.def.radius, 1.2);
@@ -119,9 +124,10 @@ export class UnitRenderer {
           const mesh = o as THREE.Mesh;
           if (!mesh.isMesh) return;
           mesh.castShadow = staticBuilding;
-          mesh.receiveShadow = true;
+          mesh.receiveShadow = e.kind!=='groundHandler';
         });
         const surface=metricAirfield?createMetricRunway(e):undefined;if(surface)m.group.add(surface);
+        if(e.team===world.playerTeam)applyUnitCamouflage(m.group,selectedCamouflage());
         this.scene.add(m.group);
         const guns:THREE.Object3D[]=[],gears:THREE.Object3D[]=[],turrets:THREE.Group[]=[],legs:THREE.Object3D[]=[],members:THREE.Object3D[]=[];
         lod.traverse(o=>{if(o.name==="Gun"){o.userData.restZ=o.position.z;o.userData.restX=o.rotation.x;guns.push(o);}if(o.name==="LandingGear")gears.push(o);if(o.name==="Turret")turrets.push(o as THREE.Group);if(o.name==="LeftLeg"||o.name==="RightLeg"){o.userData.restLegX=o.rotation.x;o.userData.walkPhase=Math.floor(legs.length/2)*.8;legs.push(o);}if(o.name.startsWith("SquadMember")){o.userData.squadPosition=o.position.clone();members.push(o);}});
@@ -146,7 +152,9 @@ export class UnitRenderer {
       if(e.airdrop&&!v.parachute){v.parachute=createParachute(e.def.radius);v.group.add(v.parachute);}if(v.parachute)v.parachute.visible=!!e.airdrop;
       v.group.position.set(x,flying||e.def.domain==="sea"?v.pose.y:e.garrisonId?e.y:ground,z);
       const shadow=v.shadow;
-      if(shadow)shadow.position.y=ground-v.group.position.y+.045;
+      if(shadow){shadow.position.y=ground-v.group.position.y+.075;
+       if(e.kind==='groundHandler'&&shadow instanceof THREE.Mesh){const p=shadow.geometry.getAttribute('position'),c=Math.cos(h),s=Math.sin(h);for(let i=0;i<p.count;i++){const lx=p.getX(i)*shadow.scale.x,lz=p.getZ(i)*shadow.scale.z;p.setY(i,renderedGroundHeightAt(x+c*lx+s*lz,z-s*lx+c*lz)-ground);}p.needsUpdate=true;}
+      }
       if(e.kind==='groundHandler'){
        const state=e.groundService?.crewState,walking=state==='walking'||state==='returning'||state==='boarding',forklift=v.group.getObjectByName('ServiceForklift'),walker=v.group.getObjectByName('ServiceWalker');
        if(forklift)forklift.visible=!walking;if(walker)walker.visible=walking;if(state==='rest')v.group.visible=false;
@@ -158,8 +166,18 @@ export class UnitRenderer {
         v.cargoRamp.visible=!!v.cargoRamp.userData.integrated||(e.cargoDoor??0)>.001||Math.abs(v.cargoRamp.rotation.x)>.02;
         if(v.cargoRamp.userData.integrated)v.group.traverse(o=>{if(o.name==='CargoRamp'){o.rotation.x=v.cargoRamp!.rotation.x;o.visible=true;}});
       }
+      if(e.constructionFlight){const van=v.group.getObjectByName('CarriedWorkVan'),f=e.constructionFlight;if(van)van.visible=e.cargoUnitIds.length>0&&!(f.phase==='unloading'&&world.time>=f.readyAt-baseVisuals.construction.rampExitSeconds);}
       if(e.kind==='engineer'){
        const van=v.group.getObjectByName('EngineerToolVan'),duty=e.engineerDuty;if(van){van.visible=!!duty?.vanPoint;if(duty?.vanPoint){const dx=duty.vanPoint.x-e.x,dz=duty.vanPoint.z-e.z;van.rotation.y=wrapAngle((duty.vanHeading??e.heading)-e.heading);van.position.set(Math.cos(e.heading)*dx-Math.sin(e.heading)*dz,heightAt(duty.vanPoint.x,duty.vanPoint.z)-e.y,Math.sin(e.heading)*dx+Math.cos(e.heading)*dz);}}
+      }
+      if(e.constructionCrew){
+       const carrier=world.byId.get(e.constructionCrew.transportId??e.loadedIntoId??-1),f=carrier?.constructionFlight,van=v.group.getObjectByName('EngineerToolVan');
+       if(carrier&&f&&van&&(f.phase==='loading'&&f.boardingAt!=null||f.phase==='unloading')){
+        const exiting=f.phase==='unloading',t=exiting?Math.max(0,Math.min(1,1-(f.readyAt-world.time)/baseVisuals.construction.rampExitSeconds)):Math.max(0,Math.min(1,(world.time-f.boardingAt!)/baseVisuals.construction.rampDriveSeconds));
+        const smooth=t*t*(3-2*t),outside=carrier.def.radius+logisticsRules.handling.pickupGap,along=exiting?baseVisuals.construction.cabinOffset+(outside-baseVisuals.construction.cabinOffset)*smooth:outside+(baseVisuals.construction.cabinOffset-outside)*smooth;
+        const wx=carrier.x-Math.sin(carrier.heading)*along,wz=carrier.z-Math.cos(carrier.heading)*along,dx=wx-e.x,dz=wz-e.z,floor=baseVisuals.chinook.rampFloor*baseVisuals.chinook.modelScale*(carrier.def.modelScale??1),rampRun=Math.max(.5,outside-Math.abs(baseVisuals.chinook.rampRear)*baseVisuals.chinook.modelScale*(carrier.def.modelScale??1));
+        van.visible=!exiting||t>0;van.position.set(Math.cos(e.heading)*dx-Math.sin(e.heading)*dz,(carrier.y-e.y)+floor*Math.max(0,Math.min(1,(outside-along)/rampRun)),Math.sin(e.heading)*dx+Math.cos(e.heading)*dz);van.rotation.y=wrapAngle(carrier.heading-e.heading);
+       }
       }
       if(v.members.length){
         const seats=e.kind==="engineer"?engineerSeats(world,e,v,frameDt):null;
