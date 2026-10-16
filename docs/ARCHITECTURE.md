@@ -2,6 +2,16 @@
 
 Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 16, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
 
+## Loetavad lahinguteated · 16.10.2026
+
+`BattleNoticeLog` on ainult UI olek: kuni 24 sündmust, tavavaates neli viimase 14 sim-sekundi teadet. Lugemata kriitilised hoiatused on valmimisteadete ees; avatud ajalugu järjestab teated aja järgi. Sama liigi/asukoha sündmused koonduvad 10 sekundi ja 80 m piires; kaotuste ja valmimiste arv kasvab, pidev kahjustus ei paisuta kunstlikku tabamuste loendurit. Värskendatud sündmus liigub piiratud ajaloo etteotsa. Loetuks märgitud teate uus kahjustus muudab taas lugemata teateks.
+
+`main` annab samad `SimEvent`-id esituslogile enne heli; helitugevus, AudioContext ja kaamera kaugus ei määra hoiatuste olemasolu. Oma elusate üksuste tervise ja ressursipunktide omanike 5 Hz võrdlus lisab tule all / kriitilise HQ ning hõivamise/kaotamise teated. Algolek, laadimine ja poole vahetamine loovad uue võrdlusbaasi, mitte vanu rünnakuhoiatusi. Madala tervisega HQ ei kirjuta enam igal kaadril käsuabi üle. Paneel näitab ka kütusehäda, teeninduse/hoone valmimist, üksuste kaotusi, raketistarti ja tagasilükatud käskude põhjuseid. Tavalised kaubatarned ei täida loendit.
+
+`BattleNoticesView` hoiab nupud ID järgi, et taustavärskendused ei ehitaks kogu DOM-i ümber. Klõps märgib teate loetuks ja hüppab sündmuse asukohta; valik ja üksuste käsud ei muutu. Uus asukohaga teade märgitakse minikaardil ka välja lülitatud heliga. Sim-aeg peatab teate vananemise pausi ajal. Ajalugu on ajutine esitusolek, mitte save/replay osa; sim-käsud, hash ja võrgumängu determinism ei muutu. Mõlema keele tekstid ning viisakas ekraanilugeja teavitus on toetatud.
+
+Vaenlase strateegilise raketi start on globaalne hoiatus, kuid koordinaadid lisatakse ainult nähtava stardipaiga korral. Sama piirang kehtib helisüsteemi noole ja minikaardimärke kohta; oma sündmuste asukohti võib alati näidata.
+
 ## Taktikaline suitsukate ja õhulahingu ühendus · 16.10.2026
 
 Kasutaja `6d1c5a8` õhulahingu muudatused on ühendatud `airGunnery` tööga. Tema `airFireEnvelope` jääb rakettide/pommide ning üldise ninajoondamise väravaks; fikseeritud kahur lisab täpse 3D ettehoiu ja valangupausi. Säilivad manöövri/põiklemise täpsustegurid ja vahetult ülelennatud sihtmärgist eemaldumine. Alternatiivse relva valik kasutab samu firing-gate piiranguid. `flightClimb` ja `airGunBurst` kuuluvad deterministlikku räsisse.

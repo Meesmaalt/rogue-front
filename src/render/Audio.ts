@@ -333,7 +333,7 @@ export class AudioManager {
  events(events:readonly SimEvent[],playerTeam=0):void{
   const ctx=this.ctx;if(!ctx||ctx.state!=='running'||this.settings.masterVolume<=0||this.settings.sfxVolume<=0)return;
   for(const e of events){if('x' in e&&'z' in e&&!this.pointAudible(e.x,e.z)&&e.type!=='air-fuel-warning'&&e.type!=='strategic-launch')continue;const mix='x' in e&&'z' in e?spatialSound(e.x,e.z,this.listener):{gain:1,pan:0};if(mix.gain<.008&&e.type!=='air-fuel-warning'&&e.type!=='strategic-launch')continue;
-   if(e.type==='strategic-launch'){this.ui('siren');this.onCue({kind:'siren',x:e.x,z:e.z});}
+   if(e.type==='strategic-launch'){this.ui('siren');const located=e.team===playerTeam||this.pointAudible(e.x,e.z);this.onCue({kind:'siren',...(located?{x:e.x,z:e.z}:{})});}
    else if(e.type==='air-fuel-warning'&&e.team===playerTeam){this.ui(e.emergency?'siren':'warn');this.onCue({kind:'alert',x:e.x,z:e.z});}
    else if(e.type==='smoke-deployed'){this.noise(.045,1600,.12*mix.gain,mix.pan);this.noise(.9,700,.05*mix.gain,mix.pan,'sfx',.06,.08);}
    else if(e.type==='fire'){

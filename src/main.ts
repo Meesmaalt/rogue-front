@@ -1,3 +1,5 @@
+import { BattleNoticeLog } from "./ui/BattleNotices";
+import { BattleNoticesView } from "./ui/BattleNoticesView";
 import {SmokeScreens} from "./render/SmokeScreens";
 import {smokeReady} from "./sim/battleSmoke";
 import {DepotPads} from "./render/DepotPads";
@@ -8,7 +10,6 @@ import {readPreparedMission} from "./ui/PreparedMission";
 import {setTerrainDetailQuality} from "./render/TerrainDetail";
 import {validateDeck,defaultDeck} from "./sim/deck";
 import {isIndirectUnit} from "./sim/equipment";
-import {maxHitPoints} from "./sim/unitStats";
 import "./style.css";
 import * as THREE from "three";
 import {GpuTimer} from "./render/GpuTimer";
@@ -171,6 +172,8 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const baseLife=new BaseLife(ctx.scene);
   const ranges=new RangeOverlay(ctx.scene);
   const fx = new Fx(ctx.scene,ctx.camera);
+  const battleNotices = new BattleNoticeLog();
+  const battleNoticesView = new BattleNoticesView(battleNotices, (x,z) => { cam.jumpTo(x,z);fx.ping(x,z,0xf2a33a); },document.getElementById("ui")!);
   const resourceSites=new ResourceSites(ctx.scene,world);
   const fog = new FogOfWar(terrainView,world);
   const picker = new Picker(ctx.camera, world);
@@ -182,6 +185,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const overlay = new Overlay(topCanvas,document.getElementById("ui"));
   const minimap = new Minimap(hud.minimapCanvas, world, picker);
   const smokeScreens=new SmokeScreens(ctx.scene,ctx.camera);
+  let lastBattleNoticeId = 0;
   const alerts = new AlertOverlay();
   audio.onCue = cue => {
     if (cue.kind === "impact") { const amount = shakeAmount(cue.intensity ?? 0); if (amount > 0) cam.shake(amount); return; }
@@ -202,7 +206,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
           world.playerFaction = members[team]!.faction;
           world.enemyFaction = members[1-team]!.faction;
           world.setNetworkDecks([members[0]!.deck,members[1]!.deck]);
-          createSkirmish(world); replayRecorder.reset(world); units.reset();ranges.reset();overlay.reset();picker.setUnitMarkers([]);
+          createSkirmish(world); battleNotices.reset(); replayRecorder.reset(world); units.reset();ranges.reset();overlay.reset();picker.setUnitMarkers([]);
           cam.jumpTo(world.bases[team].x,world.bases[team].z);
         }
         if (rules) { world.setMatchRules(rules); fog.setMode(rules.fog || "wargame"); } hud.setNetworkStatus(`1v1 · meeskond ${team + 1}`); },
@@ -290,6 +294,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     try{
       const raw=localStorage.getItem(saveKey);if(!raw){hud.setWarning("Selle lahingu salvestus puudub");return;}
       loadWorld(world,readSessionWorld(raw,sessionContext));
+      battleNotices.reset();
       units.reset();ranges.reset();overlay.reset();picker.setUnitMarkers([]);fx.reset();commands.reset();selection.selected.clear();replayRecorder.reset(world);
       hud.hideScreen();running=world.status==="running";paused=running&&resumePaused;hud.setPaused(paused);setEnabled(running&&!paused);if(running&&!paused){audio.unlock();audio.startMusic();}else{audio.stopMusic();audio.pause();}
       const hq=world.hq[world.playerTeam];if(hq)cam.jumpTo(hq.x,hq.z);
@@ -381,9 +386,10 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       cam.update(frameDt);terrainCulling.sync(ctx.camera);performancePanel.mark("kaamera");
       selection.prune();
       const events = world.drainEvents();
-      for(const event of events)if(event.type==="air-fuel-warning"&&event.team===world.playerTeam)hud.setWarning(`${world.unitDisplayName(world.byId.get(event.unitId)?.kind??"heli",event.team)}: ${event.emergency?"Kütus alla 5% — hädamaandumine!":"Kütusevaru alla 15% — naase baasi."}`);
-      for(const event of events)if(event.type==="unit-serviced"&&event.team===world.playerTeam)hud.setWarning(`${world.unitDisplayName(world.byId.get(event.unitId)?.kind??"tank",event.team)} #${event.unitId}: teenindatud ja valmis`);
-      for(const event of events)if(event.type==="strategic-launch")hud.setWarning(`${event.team===world.playerTeam?"Oma":"Vaenlase"} ${event.payload==='nuclear'?"tuumaraketi":"raketi"} start!`);
+      battleNotices.update(world,events);
+      for(const notice of battleNotices.entries)if(notice.id>lastBattleNoticeId&&notice.x!==undefined&&notice.z!==undefined)minimap.ping(notice.x,notice.z,notice.tone);
+      for(const notice of battleNotices.entries)lastBattleNoticeId=Math.max(lastBattleNoticeId,notice.id);
+      battleNoticesView.sync(world.time,running);
       units.handleEvents(events);commands.handleEvents(events);
       hoverAcc+=frameDt;if(hoverAcc>=.08){hoverAcc%=.08;commands.updateHover();}
       const visualAlpha=paused||!running||world.status!=="running"?1:alpha;
@@ -431,8 +437,6 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
         hud.setSaveAvailability(hasSave(),running&&!multiplayer);
         hud.update(world, selection.selected, running && !paused, skirmish ? [] : (world.missionController?.summary()??[]), skirmish ? (world.matchController?.label()??modeController.label()) : (world.missionController?.messageText??""));
       }
-      const ownHq = world.hq[world.playerTeam];
-      if (ownHq && ownHq.hp < maxHitPoints(ownHq) * .35 && world.status === "running") hud.setWarning("HOIATUS: baas on tugeva tule all");
       const fpsNow=performance.now(),fpsElapsed=fpsNow-fpsStarted;
       if(fpsElapsed>=500){hud.setFps(Math.round(fpsFrames*1000/fpsElapsed));fpsFrames=0;fpsStarted=fpsNow;}
       performancePanel.mark("HUD");

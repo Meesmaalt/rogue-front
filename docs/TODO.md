@@ -1,5 +1,13 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Lahinguinfo ja reageerimine · 16.10.2026
+
+- [x] Kompaktne, klõpsatav lahinguteadete paneel: kütusehäda, oma kaotused koos üksuse tüübiga, baasi ründamine / kriitiline HQ, valminud hooned, teenindus, ressursipunktide kontroll, raketistart ja nurjunud käsu põhjus. Klõps viib sündmuse asukohta üksustele käsku andmata.
+- [x] Kuni 24 ajalookirjet ja neli aktiivset teadet, prioriteedid, lähedaste korduste koondamine ja loetuks märkimine. Tavapärased tarned ei täida loendit. Peamaja seisund ei kirjuta enam igal kaadril muid hoiatusi üle. Kahjustuse kontroll kuni 5 Hz, UI muutub versiooni/sekundi järgi ning säilitab nuppude identiteedi.
+- [x] Teated ja uute sündmuste minikaardimärk töötavad ka välja lülitatud heliga. Paus külmutab aegumise; laadimine/poole vahetus nullib ajaloo ja võrdlusbaasi. Peidetud vaenlase raketi stardikohta ei avalda ka vana helist tulev suunanool/minikaardimärk.
+- [x] ET/EN, klaviatuuriga kasutatavad nupud, ekraanilugeja teavitus ja piiratud suurusega avanev ajalugu. Kahjustuse, kriitilise HQ, nähtavuse, prioriteedi/koondamise, ajaloo piiri, laadimise/poolevahetuse, ressursikontrolli ning tõlgete sihitud kontrollid ja kliendi build.
+- [ ] Tegeliku WebGL mängupildi paneeli paigutuse ja lahingutunnetuse ülevaatus: selles keskkonnas puudub kohalik brauser; varasem pilvebrauser ei pääsenud kohaliku serverini. Sim-/andmekontrollid ei asenda mängus ülevaatust.
+
 ## Ühendatud õhulahing ja taktikaline suitsukate · 16.10.2026
 
 - [x] Võrreldud kasutaja zipi kõik viis faili GitHubi `6d1c5a8` versiooniga: identsed. Säilitatud tema raketi-/pommirelvade laskesektorid, G-koormuse/põiksuunalise liikumise/põiklemise täpsusmõjud, alternatiivse relva valik ja eemaldumine. Need on ühendatud 3D ettehoiu, ninateljel kahuri ja lühivalangutega; `flightClimb` kuulub samuti replay räsisse.
