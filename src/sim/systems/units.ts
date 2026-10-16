@@ -1,3 +1,4 @@
+import {updateVehicleService} from "../vehicleService";
 import {automaticAircraft,updateConstructionFlight,updateConstructionBoarding,constructionReach} from '../automaticConstruction';
 import {updateEngineerDuty} from '../engineerDuty';
 import baseLife from '../../data/base-life.json';
@@ -640,6 +641,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
   if(u.kind==='airTransport'&&['grounded','rearming'].includes(u.airState??'')&&u.mode==='transport-unload'&&u.unloadPoint&&dist2d(u,u.unloadPoint)<expansion.airlift.groundExitRadius){if(releaseAirliftCargo(w,u,true))u.mode='idle';return;}
   if(updateHelicopterEmergency(w,u,dt))return;
   if(u.refit){u.motionSpeed=0;return;}
+  if(updateVehicleService(w,u,dt,p=>moveRoadTruckTo(w,u,p,dt,logisticsConfig.vehicleService.arrival)))return;
   const transporting=d.domain!=="air"&&transportCapacity(u)>0&&prepareTransport(w,u);
   if (u.kind === "cargoPlane") { updateCargoPlane(w, u, dt); return; }
   if (u.kind === "transport"&&u.supplyDepotId!=null) { updateTransport(w, u, dt); return; }

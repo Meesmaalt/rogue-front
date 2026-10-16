@@ -1,3 +1,4 @@
+import {canVehicleService} from '../sim/vehicleService';
 import {automaticAircraft} from '../sim/automaticConstruction';
 import {constructionHubs} from '../sim/automaticConstruction';
 import {isIndirectUnit} from "../sim/equipment";
@@ -106,7 +107,7 @@ export class CommandController {
       if (k === "t"&&!e.ctrlKey&&!e.altKey&&!e.metaKey) { const hasArtillery=this.ids().some(id=>isIndirectUnit(this.world.byId.get(id))); if(hasArtillery){this.armOrder("fire");} }
       if((k==="f"||k==="g")&&!e.ctrlKey&&!e.altKey&&!e.metaKey){e.preventDefault();this.armOrder("fast");this.notify("Kiirliigu mööda teid: klõpsa sihtkohta. Shift lisab vahepunkti; Esc tühistab.");}
       if(k==="u")this.armOrder("unload");
-      if(k==="e"&&!e.ctrlKey&&!e.altKey&&!e.metaKey){const ids=this.ids().filter(id=>{const u=this.world.byId.get(id);return u?.def.armor==="air"||u?.kind==="airbase"||u?.kind==="helipad";});if(ids.length){this.cancelOrders();this.world.issue({type:"air-return",ids});this.notify("EVAC: lennuvägi naaseb baasi");}}
+      if(k==="e"&&!e.ctrlKey&&!e.altKey&&!e.metaKey){const ground=this.ids().filter(id=>{const u=this.world.byId.get(id);return !!u&&canVehicleService(u);});if(ground.length){this.cancelOrders();this.world.issue({type:"vehicle-service",ids:ground});}const ids=this.ids().filter(id=>{const u=this.world.byId.get(id);return u?.def.armor==="air"||u?.kind==="airbase"||u?.kind==="helipad";});if(ids.length){this.cancelOrders();this.world.issue({type:"air-return",ids});this.notify("EVAC: lennuvägi naaseb baasi");}}
       if (k === "l") { const depots=this.selection.selectedIds().filter(id=>this.world.byId.get(id)?.kind==="supply"); if(depots.length) this.world.issue({type:"logistics-route",ids:depots,x:0,z:0,clear:true}); }
       if (this.buildMode && k === "r") { this.buildRotation = (this.buildRotation + Math.PI / 2) % (Math.PI * 2); }
     });

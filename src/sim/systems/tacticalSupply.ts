@@ -125,7 +125,8 @@ export function updateTacticalSupply(w: World, dt: number): void {
     const needsFuel=(e.fuel??0)<(e.maxFuel??0);
     const depot=tacticalSupplyDepot(w,e,depots),portDepot=e.def.domain==="sea"?depot:null;
     if(portDepot&&(portDepot.repairStock??0)>0&&(e.hp<maxHitPoints(e)||Math.max(0,...Object.values(e.components??{}))>0)){const hp=Math.min(Math.max(maxHitPoints(e)-e.hp,Math.max(0,...Object.values(e.components??{}))),logisticsRules.naval.repairPerSecond*eff*dt,(portDepot.repairStock??0)*logisticsRules.naval.repairPerStock);e.hp=Math.min(maxHitPoints(e),e.hp+hp);portDepot.repairStock=(portDepot.repairStock??0)-hp/logisticsRules.naval.repairPerStock;if(e.components)for(const key of ["engine","tracks","turret","weapon","crew","ammo"] as const)e.components[key]=Math.max(0,e.components[key]-hp);}
-    const inRadius=!!depot && (e.def.armor!=="air" || (e.kind==="transport"||e.emergencyLanded) && e.y-depot.y<3 && (e.motionSpeed??0)<.5);
+    const serviceSafe=!e.vehicleService||e.vehicleService.phase==='ready'||e.hp>=e.vehicleService.lastHp-logisticsRules.vehicleService.tolerance&&w.time>=e.vehicleService.safeAfter;
+    const inRadius=serviceSafe&&!!depot && (e.def.armor!=="air" || (e.kind==="transport"||e.emergencyLanded) && e.y-depot.y<3 && (e.motionSpeed??0)<.5);
     const home=w.byId.get(e.airMissionHomeId??-1);
     const groundAirService=e.def.armor==='air'&&['grounded','rearming'].includes(e.airState??'')&&!!home&&!home.dead&&!home.underConstruction&&(home.disabledUntil??0)<=w.time&&w.hasCommandLink(home)&&w.powerStatus(e.team).ratio>=.25&&Math.hypot(e.x-home.x,e.z-home.z)<35&&e.y-heightAt(e.x,e.z)<3;
     const supplied=(inRadius||groundAirService)&&!!depot&&((depot.ammoStock??0)>0||(depot.fuelStock??0)>0);
@@ -151,9 +152,9 @@ export function updateTacticalSupply(w: World, dt: number): void {
       const need=Math.min((e.maxAmmo??0)-(e.ammo??0),(e.def.resupplyRate??1)*4.5*eff*dt);
       const take=Math.min(need,depot.ammoStock??0); depot.ammoStock=(depot.ammoStock??0)-take; e.ammo=(e.ammo??0)+take;
     }
-    if(inRadius&&depot&&e.secondaryAmmo&&e.def.armor!=="air")for(let i=1;i<(e.def.weapons?.length??0);i++){
+    if(inRadius&&depot&&e.def.armor!=="air")for(let i=1;i<(e.def.weapons?.length??0);i++){
       const spec=weaponSpec(e,i),need=Math.max(0,spec.ammoCapacity-weaponAmmo(e,i));
-      const take=Math.min(need,(e.def.resupplyRate??1)*4.5*eff*dt,depot.ammoStock??0);e.secondaryAmmo[i]+=take;depot.ammoStock=(depot.ammoStock??0)-take;
+      const take=Math.min(need,(e.def.resupplyRate??1)*4.5*eff*dt,depot.ammoStock??0);e.secondaryAmmo??=[];e.secondaryAmmo[i]=(e.secondaryAmmo[i]??0)+take;depot.ammoStock=(depot.ammoStock??0)-take;
     }
     // Soft operational degradation instead of an instant out-of-supply switch.
     if (!supplied || !commandLinked) {

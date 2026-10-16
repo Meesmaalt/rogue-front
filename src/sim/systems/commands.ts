@@ -1,3 +1,4 @@
+import {canVehicleService,planVehicleService} from "../vehicleService";
 import {automaticAircraft} from '../automaticConstruction';
 import {constructionHubs,constructionHelper} from '../automaticConstruction';
 import {producerKind as producerFor} from "./production";
@@ -30,6 +31,7 @@ function mobile(w: World, ids: number[], team?: Entity["team"]): Entity[] {
 /** Replace a task without cancelling rounds already in flight or weapon reloads. */
 function replaceTask(w:World,u:Entity):void {
   for(const b of w.entities)if(b.builderIds.includes(u.id))b.builderIds=b.builderIds.filter(id=>id!==u.id);
+  u.vehicleService=undefined;u.roadTripGoal=undefined;
   u.combatWithdrawing=false;u.combatHoldingTarget=undefined;
   u.flightAttackExit=undefined;u.flightAttackExitUntil=undefined;
   u.fireMission=null;u.artilleryDisplace=null;u.artilleryShotsInSalvo=0;
@@ -158,6 +160,16 @@ function apply(w: World, c: Command): void {
         if(!canEngage(u,t)){w.events.push({type:"order-rejected",team:u.team,unitId:u.id,x:t.x,z:t.z,message:`${w.unitDisplayName(u.kind,u.team)}: sihtmärgi jaoks puudub sobiv relv või laskemoon`});continue;}
         replaceTask(w,u);u.garrisonLookPoint=undefined;u.mode = "attack"; u.holdPosition=!!u.garrisonId; u.target = t; u.dest = {x:t.x,z:t.z};
         if(u.def.armor==="air"){u.airMission=t.def.armor==="air"?"cap":"ground";u.priorityFocus=null;u.airMissionPoint={x:t.x,z:t.z};}
+      }
+      break;
+    }
+    case "vehicle-service": {
+      for(const u of mobile(w,c.ids,c.team??w.playerTeam).filter(canVehicleService)) {
+        if(u.vehicleService&&u.vehicleService.phase!=="ready")continue;
+        const plan=planVehicleService(w,u);
+        if(!plan){w.events.push({type:"order-rejected",team:u.team,unitId:u.id,x:u.x,z:u.z,message:"Teenindus: sobiva varuga baasi juurde pole vaba läbitavat kohta"});continue;}
+        replaceTask(w,u);u.vehicleService={...plan,phase:"travel",retryAt:w.time,lastHp:u.hp,safeAfter:w.time};
+        u.mode="move";u.dest={...plan.point};u.target=null;u.holdPosition=false;u.fastMove=true;
       }
       break;
     }

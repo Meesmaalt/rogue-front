@@ -279,6 +279,7 @@ export class UnitRenderer {
       if (e.team === world.playerTeam && e.def.speed > 0) {
         const icons: { name: string; color: number; on: boolean }[] = [
           { name: "StOutSupply", color: 0xe05030, on: (((e.maxAmmo??0)>0 && (e.ammo??0)<(e.maxAmmo??1)*.35) || ((e.maxFuel??0)>0 && (e.fuel??0)<(e.maxFuel??1)*.35) || (e.supply??100)<20) && !isTacticallySupplied(world,e,supplyNodes??=tacticalSupplyNodes(world,world.playerTeam)) },
+          { name: "StService", color: e.vehicleService?.phase==="ready"?0x8ee5ae:e.vehicleService?.phase==="stock"||e.vehicleService?.phase==="blocked"?0xffc45c:0x65c9be, on: !!e.vehicleService },
           { name: "StRouting", color: 0xffcc33, on: (e.morale ?? 100) < 22 || (e.suppression ?? 0) > 80 },
           { name: "StNoAmmo", color: 0xaaaaaa, on: (e.maxAmmo ?? 0) > 0 && (e.ammo ?? 0) <= 0 },
         ];
@@ -288,13 +289,14 @@ export class UnitRenderer {
           if (ic.on) {
             if (!mesh) {
               mesh = new THREE.Mesh(
-                new THREE.SphereGeometry(0.28, 6, 6),
+                ic.name==="StService"?new THREE.OctahedronGeometry(.4):new THREE.SphereGeometry(0.28, 6, 6),
                 new THREE.MeshBasicMaterial({ color: ic.color, depthTest: false }),
               );
               mesh.name = ic.name;v.status.set(ic.name,mesh);
               mesh.renderOrder = 10;
               v.group.add(mesh);
             }
+            (mesh.material as THREE.MeshBasicMaterial).color.setHex(ic.color);
             mesh.visible = true;
             mesh.position.set(-0.7 + slot * 0.55, e.def.height + 1.6, 0);
             slot++;

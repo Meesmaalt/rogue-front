@@ -19,6 +19,7 @@ export function equipmentStatus(w:World,u:Entity,slot:EquipmentSlot,id:string):{
  if(!m||!EQUIPMENT_SLOTS.includes(slot)||(id!=='standard'&&(EQUIPMENT[id].slot!==slot||!EQUIPMENT[id].kinds.includes(u.kind))))return result('Sobimatu komponent');
  if(u.dead||u.underConstruction||u.loadedIntoId!=null||u.logisticsRoute==='strategic'||u.def.speed<=0)return result('Üksus ei saa hooldusse minna');
  if(u.refit)return result('Paigaldamine on pooleli');
+ if(u.vehicleService&&u.vehicleService.phase!=='ready')return result('Teenindamine on pooleli');
  if((u.equipment?.[slot]??'standard')===id)return result('Paigaldatud');
  if(u.garrisonId||u.garrisonOrderId)return result('Välju hoonest enne hooldust');
  if(u.fireMission||u.target||u.dest||(u.motionSpeed??0)>.5)return result('Peata üksus ja lõpeta lahingukäsk');

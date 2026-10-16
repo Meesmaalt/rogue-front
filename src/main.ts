@@ -247,6 +247,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     const port=world.entities.filter(e=>!e.dead&&!e.underConstruction&&e.team===u.team&&e.kind==="shipyard").sort((a,b)=>Math.hypot(a.x-u.x,a.z-u.z)-Math.hypot(b.x-u.x,b.z-u.z))[0];
     const point=port?world.waterNav.nearestWater(port,u.def.radius,64):null;if(point)world.issue({type:"move",ids:[u.id],x:point.x,z:point.z});else hud.setWarning("Puudub ligipääsetav oma sadam");
   }};
+  hud.onVehicleService=ids=>{if(running&&!paused){commands.cancelOrders();world.issue({type:"vehicle-service",ids});}};
   hud.onAirReturn=ids=>{if(running&&!paused){commands.cancelOrders();world.issue({type:"air-return",ids});hud.setWarning("EVAC: lennuvägi naaseb baasi");}};
   hud.onAirMission=(ids,mission)=>{if(running&&!paused){commands.startAirMission(ids,mission);hud.setWarning("Õhuoperatsioon: paremklõps sihtpunktile, Esc tühistab");}};
   hud.onStrategicBuild=(id,payload)=>{if(running&&!paused)world.issue({type:"strategic-build",id,payload});};
@@ -377,6 +378,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       selection.prune();
       const events = world.drainEvents();
       for(const event of events)if(event.type==="air-fuel-warning"&&event.team===world.playerTeam)hud.setWarning(`${world.unitDisplayName(world.byId.get(event.unitId)?.kind??"heli",event.team)}: ${event.emergency?"Kütus alla 5% — hädamaandumine!":"Kütusevaru alla 15% — naase baasi."}`);
+      for(const event of events)if(event.type==="unit-serviced"&&event.team===world.playerTeam)hud.setWarning(`${world.unitDisplayName(world.byId.get(event.unitId)?.kind??"tank",event.team)} #${event.unitId}: teenindatud ja valmis`);
       for(const event of events)if(event.type==="strategic-launch")hud.setWarning(`${event.team===world.playerTeam?"Oma":"Vaenlase"} ${event.payload==='nuclear'?"tuumaraketi":"raketi"} start!`);
       units.handleEvents(events);commands.handleEvents(events);
       hoverAcc+=frameDt;if(hoverAcc>=.08){hoverAcc%=.08;commands.updateHover();}

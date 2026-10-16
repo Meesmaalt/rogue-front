@@ -132,5 +132,21 @@
       3
     ],
     "landingGlideSlope": 0.32
+  },
+  "vehicleService": {
+    "parkingRings": [
+      28,
+      38,
+      48
+    ],
+    "parkingSlots": 16,
+    "parkingClearance": 2,
+    "arrival": 1.5,
+    "retrySeconds": 4,
+    "repairPerSecond": 8,
+    "safeSeconds": 6,
+    "tolerance": 0.01,
+    "pathAttempts": 4,
+    "pathNodeBudget": 6000
   }
 }

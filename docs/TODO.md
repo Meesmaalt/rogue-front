@@ -1,5 +1,12 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Maaväe teeninduskäsk ja lahinguvalmidus · 16.10.2026
+
+- [x] V2/V4 järgmine piiritletud parandus: valitud maaväetehnika „Teenindusse” / E-käsk valib sobiva varuga HQ või lao ning reserveerib igale masinale eraldi läbitava koha, eemal praegustest ja tulevastest lao kopteriplatsidest. Teeotsing on käsu/korduskatse põhine ja piiratud eelarvega.
+- [x] Füüsiline sõit olemasoleva sõidukidünaamikaga; remont kulutab päris remondivaru, kõigi relvade moon ja kütus kasutavad senist laosüsteemi. Tule all teenindus peatub, tarne puudumisel ootab, baasi kaotamisel otsib uue koha. Tühja paagiga masin vajab päris varustusveokit; uut käsku ei blokeerita.
+- [x] Teeninduse valmisolekuriba, selged oote-/ohuteated, rühma kokkuvõte ning värviline tähis kaardil. Valmisolekust teavitus; masin ootab mängija järgmist käsku. Eesti ja inglise tekstid.
+- [x] Täissalvestus ja replay räsi sisaldavad koha broneeringut ja töö olekut. Sihitud teeninduse, varustuse, komponentide ja keele kontrollid ning kliendi build/typecheck läbisid. Tegelik WebGL pilt pole selles tööruumis kontrollitud; varasem brauserivärav jääb avatuks.
+
 ## Laugem maandumine, reserveeritud laoala ja selged ehitusharud · 16.10.2026
 
 - [x] Kopteri maandumise laskumis-/lõppfaasi kiirused umbes 20% lühema kestuse jaoks; laugem kõrgusprofiil ja kõrgusega seotud edasiliikumine väldivad esmalt kohale lendamist ning pikka vertikaalset laskumist.
