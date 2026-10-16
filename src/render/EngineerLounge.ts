@@ -6,9 +6,8 @@ export interface LoungeState{engIdle?:number;seats?:Array<{x:number;z:number;hea
  hq?:{x:number;z:number;heading:number};gearUntil?:number;/** Walking to / standing at the tool rack: members do not sit. */gearPhase?:boolean;/** Hands are empty (tools are on the rack). */toolsAway?:boolean}
 const IDLE_BEFORE_LOUNGE=3,LOUNGE_RANGE=28,GEAR_TIME=2;
 type Spot={x:number;z:number;heading:number};
-function assignedSeats(world:World,e:Entity,home:Entity):Spot[]|null {
- const occupants=world.entities.filter(u=>!u.dead&&!!u.constructionCrew&&u.kind==='engineer'&&u.team===e.team&&(u.engineerDuty?.homeId===home.id||!u.engineerDuty&&Math.hypot(u.x-home.x,u.z-home.z)<LOUNGE_RANGE)).sort((a,b)=>a.id-b.id);
- let offset=0;for(const u of occupants){if(u===e)break;offset+=u.squadMembers??u.squadMaxMembers??1;}
+function assignedSeats(_world:World,e:Entity,home:Entity):Spot[]|null {
+ const offset=(e.constructionCrew?.slot??0)*3;
  const seats=hqSeats().slice(offset,offset+(e.squadMembers??e.squadMaxMembers??1));return seats.length?seats.map(s=>seatWorld(home,buildingScale('hq'),s)):null;
 }
 /**

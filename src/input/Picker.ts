@@ -1,4 +1,3 @@
-import {constructionHelper} from '../sim/automaticConstruction';
 import airport from '../data/airport-support.json';
 import {BATTLE_SCALE} from "../sim/battleScale";
 import * as THREE from "three";
@@ -49,11 +48,11 @@ export class Picker {
       const r=this.markers[i];
       if(mx<r.x||mx>r.x+r.width||my<r.y||my>r.y+r.height)continue;
       const e=this.world.byId.get(r.id);
-      if(e&&!constructionHelper(e)&&e.kind!=="groundHandler"&&!e.dead&&e.loadedIntoId==null&&e.team===team&&(team===this.world.playerTeam||this.world.isSpottedByTeam(e,this.world.playerTeam)))return e;
+      if(e&&!e.constructionCrew&&e.kind!=="groundHandler"&&!e.dead&&e.loadedIntoId==null&&e.team===team&&(team===this.world.playerTeam||this.world.isSpottedByTeam(e,this.world.playerTeam)))return e;
     }
     let best: Entity | null = null, bs = 0;
     for (const e of this.world.entities) {
-      if (constructionHelper(e)||e.kind==="groundHandler"||e.dead || e.loadedIntoId!=null || e.team !== team) continue;
+      if (!!e.constructionCrew||e.kind==="groundHandler"||e.dead || e.loadedIntoId!=null || e.team !== team) continue;
       if (team !== this.world.playerTeam && !this.world.isSpottedByTeam(e, this.world.playerTeam)) continue;
       const pose=this.entityPosition(e),cy=pose.y+e.def.height*.5,p=this.toScreen(pose.x,cy,pose.z);
       if (p.z > 1) continue;

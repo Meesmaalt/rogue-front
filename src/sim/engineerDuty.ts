@@ -1,7 +1,7 @@
 import {turnToward,wrapAngle} from './math';
 import {constructionApproach,constructionReach,startConstructionAirlift} from './automaticConstruction';
 import config from '../data/base-life.json';
-import {basePoint} from './baseLayout';
+import {basePoint,hqStaffPoint} from './baseLayout';
 import type {World} from './World';
 import type {Entity,Point} from './types';
 const cfg=config.engineer;
@@ -17,8 +17,8 @@ export function updateEngineerDuty(w:World,u:Entity,dt:number,move:(p:Point)=>bo
   if(!hq)return false;duty=u.engineerDuty={homeId:hq.id,phase:work?'to-van':'working',idleFor:0};
  }
  const home=w.byId.get(duty.homeId);if(!home||home.dead){u.engineerDuty=undefined;return false;}
- const vanBase=home.kind==='hq'?cfg.van:config.construction.fobVan,restBase=home.kind==='hq'?cfg.rest:config.construction.fobRest;
- const van=w.nav.nearestWalkable(basePoint(home,vanBase.x,vanBase.z+u.constructionCrew.slot*cfg.van.spacing),cfg.vanRadius),rest=w.nav.nearestWalkable(basePoint(home,restBase.x+(u.constructionCrew.slot%2)*cfg.rest.spacing,restBase.z+Math.floor(u.constructionCrew.slot/2)*cfg.rest.spacing),u.def.radius);
+ const slot=u.constructionCrew.slot,vanBase=home.kind==='hq'?hqStaffPoint(slot,'van'):{x:config.construction.fobVan.x,z:config.construction.fobVan.z+slot*cfg.van.spacing},restBase=home.kind==='hq'?hqStaffPoint(slot,'rest'):{x:config.construction.fobRest.x+(slot%2)*cfg.rest.spacing,z:config.construction.fobRest.z+Math.floor(slot/2)*cfg.rest.spacing};
+ const van=w.nav.nearestWalkable(basePoint(home,vanBase.x,vanBase.z),cfg.vanRadius),rest=w.nav.nearestWalkable(basePoint(home,restBase.x,restBase.z),u.def.radius);
  if(work){
   duty.idleFor=0;
   if(duty.phase==='rest'||duty.phase==='return')duty.phase='to-van';

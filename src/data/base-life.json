@@ -46,14 +46,14 @@
     "vanTurnRate": 1.5,
     "workDistance": 13,
     "van": {
-      "x": -16,
-      "z": 8,
-      "spacing": 3.6
+      "x": -3,
+      "z": 20,
+      "spacing": 4
     },
     "rest": {
-      "x": 8.5,
+      "x": -3,
       "z": 12,
-      "spacing": 2.8
+      "spacing": 4
     }
   },
   "camera": {
@@ -102,7 +102,9 @@
     "landingRings": [
       30,
       45,
-      65
+      65,
+      90,
+      120
     ],
     "landingSamples": 16,
     "pathRetry": 4,

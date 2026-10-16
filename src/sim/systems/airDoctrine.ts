@@ -1,3 +1,4 @@
+import {automaticAircraft} from '../automaticConstruction';
 import {BATTLE_SCALE,aircraftMobility} from "../battleScale";
 import type { World } from "../World";
 import mobility from "../../data/mobility.json";
@@ -29,7 +30,7 @@ export function stationAircraft(w:World,u:Entity,pad:Entity,slot=freeAirSlot(w,p
 export function airUnitsForOrder(w:World,ids:number[],team:Team):Entity[] {
   const facilities=new Set(ids.filter(id=>{const e=w.byId.get(id);return e&&e.team===team&&!e.dead&&!e.underConstruction&&["airbase","helipad"].includes(e.kind);}));
   const selected=new Set(ids);
-  return w.entities.filter(e=>!e.dead&&e.team===team&&e.def.armor==="air"&&e.loadedIntoId==null&&e.supplyDepotId==null&&e.kind!=="cargoPlane"&&(selected.has(e.id)||facilities.has(e.airMissionHomeId??-1)));
+  return w.entities.filter(e=>!automaticAircraft(e)&&!e.dead&&e.team===team&&e.def.armor==="air"&&e.loadedIntoId==null&&e.supplyDepotId==null&&e.kind!=="cargoPlane"&&(selected.has(e.id)||facilities.has(e.airMissionHomeId??-1)));
 }
 export function supportsAirMission(u:Entity,mission:AirMission):boolean {
   if(mission==null)return true;

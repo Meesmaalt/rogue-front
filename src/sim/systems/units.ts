@@ -1,4 +1,4 @@
-import {updateConstructionFlight,updateConstructionBoarding,constructionReach} from '../automaticConstruction';
+import {automaticAircraft,updateConstructionFlight,updateConstructionBoarding,constructionReach} from '../automaticConstruction';
 import {updateEngineerDuty} from '../engineerDuty';
 import baseLife from '../../data/base-life.json';
 import {ensureDepotCrews,prepareDepotCrew,handleGroundCargo,logisticsDeparture,logisticsLandingPoint,updateGroundHandler} from "../groundHandling";
@@ -431,7 +431,7 @@ function moveAirTo(u: Entity, target: Point, dt: number, w: World, cruise=false)
   if(helicopter){const component=Math.max(.2,1-(u.components?.engine??0)/160);
     helicopterVelocity(u,Math.sin(travelHeading)*desiredSpeed*component,Math.cos(travelHeading)*desiredSpeed*component,dt);
   }else {u.flightVx=Math.sin(heading)*step/dt;u.flightVz=Math.cos(heading)*step/dt;u.x+=u.flightVx*dt;u.z+=u.flightVz*dt;}
-  const limit=MAP_SIZE/2+(u.def.metricScale?BATTLE_SCALE.airspaceMargin:-8);
+  const limit=MAP_SIZE/2+((u.def.metricScale||automaticAircraft(u))?BATTLE_SCALE.airspaceMargin:-8);
   if(u.logisticsRoute!=="strategic"&&(Math.abs(u.x)>limit||Math.abs(u.z)>limit)){u.heading=turnToward(u.heading,Math.atan2(-u.x,-u.z),turnRate*dt*3);u.x=Math.max(-limit,Math.min(limit,u.x));u.z=Math.max(-limit,Math.min(limit,u.z));}
   void w;
   return false;
@@ -979,7 +979,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       const coast=usesGroundDynamics(u)?dynamics.distance:u.motionSpeed*dt;
       if(!routeBlocked&&(usesGroundDynamics(u)?coast>0:(u.motionSpeed??0)>.25)){const nx=u.x+Math.sin(u.heading)*coast*(u.motionReverse?-1:1),nz=u.z+Math.cos(u.heading)*coast*(u.motionReverse?-1:1);if(w.nav.isWalkableWorld(nx,nz,d.radius)&&bodyClear(w,u,{x:nx,z:nz})){u.x=nx;u.z=nz;}else u.motionSpeed=0;}
     }
-    const limit=MAP_SIZE/2+(isAir&&u.def.metricScale?BATTLE_SCALE.airspaceMargin:-10);u.x=Math.max(-limit,Math.min(limit,u.x));u.z=Math.max(-limit,Math.min(limit,u.z));
+    const limit=MAP_SIZE/2+(isAir&&(u.def.metricScale||automaticAircraft(u))?BATTLE_SCALE.airspaceMargin:-10);u.x=Math.max(-limit,Math.min(limit,u.x));u.z=Math.max(-limit,Math.min(limit,u.z));
     if(!isAir&&d.domain!=="sea"&&!u.garrisonId)u.y=heightAt(u.x,u.z);
     // Sideways avoidance can oscillate without approaching a waypoint. Count
     // actual route progress, not any displacement, before clearing the jam timer.

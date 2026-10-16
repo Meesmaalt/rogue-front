@@ -1,5 +1,12 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## HQ tööala ja automaatsete Chinookide vaatamine · 16.10.2026
+
+- [x] HQ fassaadiga ühendatud avatud töötajate terrass ja kõrval tähistatud tööautode parkla. Tasemed 1/2/3 lisavad ühe pingirea, parkimiskoha ja meeskonna; istujad, autod ja simulatsioon kasutavad sama paigutust.
+- [x] Ehitus-Chinook saabub päriselt kaardi tagant, maandub metsa ja hoonete vahele sobivale vabale alale ning võtab meeskonna pardale. Mitte-meetrilisel kaardil ei suruta automaatset lendu enam kaardi serva sisse.
+- [x] Ressursi- ja ehitus-Chinooke saab klõpsates vaadelda; liikumis-, lahingu-, EVAC-, arendus- ja reisijakäsud ei muuda automaatset tööd. Töölised jäävad automaatseteks ja mittevalitavateks.
+
+
 ## Laaduri suund, püsiluuk ja loetav ehitusprogress · 16.10.2026
 
 - [x] Pargitud õhusõiduki kere osaleb maapealses kokkupõrke- ja teeotsingus. Laadur joondab kahvlid luugi suunda enne kauba võtmist ja tagurdab koormaga esmalt luugist eemale; veos ja raha liiguvad jätkuvalt päris üleandmisel.

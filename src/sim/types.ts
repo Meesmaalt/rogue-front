@@ -175,7 +175,7 @@ export interface Entity {
   airportStoresInitialized?:boolean;
   constructionCrew?:{homeId:number;slot:number;workPoint?:Point;retryAt?:number;transportId?:number;blockedFor?:number};
   constructionDispatchAt?:number;constructionRoster?:number[];constructionReplacementAt?:number[];
-  constructionFlight?:{homeId:number;crewId:number;phase:'pickup'|'loading'|'outbound'|'unloading'|'working'|'returning'|'parked';returnTrip?:boolean;boardingAt?:number;pickup?:Point;home:Point;site:Point;readyAt:number;departed?:boolean};
+  constructionFlight?:{homeId:number;crewId:number;phase:'arriving'|'pickup'|'loading'|'outbound'|'unloading'|'working'|'returning'|'parked';returnTrip?:boolean;boardingAt?:number;pickup?:Point;home:Point;site:Point;readyAt:number;departed?:boolean};
   engineerDuty?:{homeId:number;phase:'rest'|'to-van'|'boarding'|'travel'|'working'|'return';idleFor:number;readyAt?:number;vanPoint?:Point;vanHeading?:number};
   groundService?:{crewIndex?:number;crewState?:'rest'|'walking'|'boarding'|'driving'|'parking'|'returning';stagingPoint?:Point;carrierId:number;depotId:number;phase:"pickup"|"load"|"deliver"|"unload";progress:number;air:boolean;onFoot?:boolean;blockedTime?:number;pickupPoint?:Point;retreatPoint?:Point;dockSlot?:number};
   logisticsManual?:boolean;groundServiceId?:number;groundServiceRetryAt?:number;logisticsPadSlot?:number;cargoDoor?:number;

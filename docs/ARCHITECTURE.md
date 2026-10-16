@@ -643,3 +643,9 @@ HQ baastaseme üks meeskond kasvab tootjatasemega kuni kolmeni. `engineerDuty.va
 Ehitise ekraaniriba kasutab ehitamise ajal `buildingProgress`, mitte püsivat alg-HP-d; valikupaneelil on protsendimõõdik. Kollane maailmaruumis ehitusriba säilib eraldi. Lennuvälja aktiivsed andmed määravad 250 m raja, 8 hävitajakohta ja kitsama perrooni; ajaloolise generaatori reserveeringu mõõte ei muudetud, et kaardiseemned säiliksid.
 
 `aircraft-portraits.json` määrab rollide vaatenurgad. `scripts/art/render-aircraft-cards.py` loeb päris GLB geomeetriat ja fraktsiooni kamuflaaži, kasutab USA transportkopteril sama protseduurset Chinooki ning renderdab 36 väikest WebP-kaarti. Käivitus vajab ainult arenduskeskkonna NumPy/Pillow't ja olemasolevat esbuildi; tootmisbuild serveerib valmis pilte ega käivita renderdust. Arsenali kaamerad kasutavad samu nurki; `unitPicture` kasutab pildikaarte, väikesed klassimärgid säilitavad SVG-sümbolid.
+
+### HQ tööala ja automaatsete õhuvedude vaatamine (16.10.2026)
+
+`baseLayout.hqStaffPoint` määrab iga meeskonna istumiskoha ja parkla keskpunkti maailmameetrites; `HqStaffArea` kasutab sama paigutust mudeli skaalaga. HQ baasmudel sisaldab esimest terrassi/pingirea/parkimiskoha moodulit ning `BuildingUpgrades` lisab järgmised tasemetega 2 ja 3. Istujad on seotud meeskonna püsiva pesaga.
+
+Ehituslennu `arriving` faas algab `externalEntry` punktis väljaspool kaarti ja lõpeb füüsilise maandumisega. Maandumispunkti valik välistab metsa/hekid koos rootorivaru, hooned, kallakud ja hõivatud alad. Meeskond ootab saabumise ajal. `automaticAircraft` eraldab vaadeldavad automaatsed ressursi-/ehitus-Chinookid juhitavatest ostetud transpordikoptereist: Picker lubab vaatamist, käsusüsteem, õhudoktriin, reisijate laadimine ja HUD keelavad juhtimise.

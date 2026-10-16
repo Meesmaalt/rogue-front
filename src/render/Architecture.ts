@@ -1,3 +1,4 @@
+import {addHqStaffStation} from './HqStaffArea';
 import baseLayout from '../data/base-life.json';
 import {BATTLE_SCALE} from "../sim/battleScale";
 import {facilityLabel,addFacilityDetails} from "./FacilityDetails";
@@ -9,7 +10,7 @@ import type {UnitKind,Team} from "../sim/types";
 import type {MapFeatureDef} from "../sim/mapFeatures";
 import type {FactionId} from "../sim/factions";
 import {mulberry32} from "../sim/rng";
-import {HQ_LOUNGE,DEPOT_LOUNGE,HQ_RACK,hqSeats,depotBays,buildingScale} from "./lounge";
+import {HQ_LOUNGE,DEPOT_LOUNGE,HQ_RACK,depotBays,buildingScale} from "./lounge";
 
 const textures=new Map<string,THREE.CanvasTexture>();
 const materials=new Map<string,THREE.MeshStandardMaterial>();
@@ -166,10 +167,9 @@ function sawhorse(g:THREE.Group,x:number,z:number,heading:number,p:Pal):void {
 }
 function hqYard(g:THREE.Group,p:Pal):void {
  // Field work break area: simple timber benches, steel lockers and a water station.
- const seats=hqSeats();
- for(let row=0;row<3;row++){const seat=seats[row*3+1];box(g,2.9,.14,.55,seat.x,.55,seat.z,p.wood);box(g,2.9,.4,.08,seat.x,.92,seat.z+.3,p.wood);for(const side of [-1,1])box(g,.12,.5,.45,seat.x+side*1,.25,seat.z,p.steel);}
- box(g,1.5,1.8,.65,HQ_LOUNGE.x+2.4,.9,HQ_LOUNGE.z+1.8,p.steel);
- box(g,.7,1.1,.7,HQ_LOUNGE.x-2.3,.55,HQ_LOUNGE.z+1.8,p.wall);cylinder(g,.21,.45,HQ_LOUNGE.x-2.3,1.3,HQ_LOUNGE.z+1.8,p.trim);
+ addHqStaffStation(g,0,p.wood,p.steel,p.trim);
+ box(g,1.5,1.8,.65,HQ_LOUNGE.x-2,.9,HQ_LOUNGE.z-1.5,p.steel);
+ box(g,.7,1.1,.7,HQ_LOUNGE.x-2,.55,HQ_LOUNGE.z-3,p.wall);cylinder(g,.21,.45,HQ_LOUNGE.x-2,1.3,HQ_LOUNGE.z-3,p.trim);
  engineerYard(g,p);
 }
 /** Engineering yard shared by the HQ and the Combat Engineer centre: tool rack (tools are added dynamically), workbench, materials, scaffold. */

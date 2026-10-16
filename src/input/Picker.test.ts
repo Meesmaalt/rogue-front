@@ -29,3 +29,10 @@ it('every rotated airport hangar, tower and terminal selects the same airport',(
  }
 });
 import {BATTLE_SCALE} from '../sim/battleScale';
+it('automatic Chinooks can be inspected while construction workers stay unselectable',()=>{
+ vi.stubGlobal('innerWidth',1000);vi.stubGlobal('innerHeight',700);
+ const world=new World(73,false,[],[],[],false),resource=world.spawn('transport',0,0,0),worker=world.spawn('transport',0,50,0),crew=world.spawn('engineer',0,100,0);
+ resource.supplyDepotId=99;worker.constructionFlight={homeId:1,crewId:crew.id,phase:'arriving',home:{x:0,z:0},site:{x:10,z:0},readyAt:0};crew.constructionCrew={homeId:1,slot:0};
+ const picker=new Picker(new PerspectiveCamera(),world);
+ for(const e of [resource,worker,crew]){picker.setUnitMarkers([{id:e.id,x:0,y:0,width:40,height:20}]);expect(picker.pickEntity(20,10,0)?.id).toBe(e===crew?undefined:e.id);}
+});

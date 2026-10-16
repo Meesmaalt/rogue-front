@@ -3,8 +3,8 @@ import mobility from '../data/mobility.json';
 import type {World} from './World';
 import type {Entity,Point} from './types';
 import {heightAt} from './heightmap';
-export function transportCapacity(u:Entity):number {return u.supplyDepotId!=null?0:u.def.transportCapacity??0;}
-export function canLoadPassenger(u:Entity,p:Entity):boolean {return u.kind==='airTransport'?airliftCargo(p):isPassenger(p);}
+export function transportCapacity(u:Entity):number {return u.constructionFlight||u.supplyDepotId!=null?0:u.def.transportCapacity??0;}
+export function canLoadPassenger(u:Entity,p:Entity):boolean {return !u.constructionFlight&&u.supplyDepotId==null&&(u.kind==='airTransport'?airliftCargo(p):isPassenger(p));}
 export function passengerSeats(u:Entity):number {return Math.max(1,u.squadMembers??u.def.squadSize??1);}
 export function isPassenger(u:Entity):boolean {return !u.constructionCrew&&!u.constructionFlight&&u.def.speed>0&&u.def.domain!=='air'&&u.def.domain!=='sea'&&(!!u.squadMaxMembers||u.def.category==='infantry'||['engineer','special'].includes(u.kind));}
 export function occupiedSeats(w:World,u:Entity,reserved=false):number {if(u.kind==='airTransport')return airliftManifest(w,u,reserved).troops;return [...u.cargoUnitIds,...(reserved?u.transportQueue??[]:[])].reduce((n,id)=>{const p=w.byId.get(id);return n+(p&&!p.dead?passengerSeats(p):0);},0);}

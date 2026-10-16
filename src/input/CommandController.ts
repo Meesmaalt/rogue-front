@@ -1,3 +1,4 @@
+import {automaticAircraft} from '../sim/automaticConstruction';
 import {constructionHubs} from '../sim/automaticConstruction';
 import {isIndirectUnit} from "../sim/equipment";
 import {formationPoints} from "../sim/systems/commands";
@@ -251,7 +252,7 @@ export class CommandController {
   private ids(): number[] {
     return [...this.selection.selected].filter((id) => {
       const e = this.world.byId.get(id);
-      return e && !e.dead && e.loadedIntoId==null && e.team === this.world.playerTeam && e.def.speed > 0;
+      return e && !automaticAircraft(e) && !e.dead && e.loadedIntoId==null && e.team === this.world.playerTeam && e.def.speed > 0;
     });
   }
 }

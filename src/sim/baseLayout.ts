@@ -10,6 +10,8 @@ export function depotCrewPoint(e:Pick<Entity,'x'|'z'|'heading'>,index:number,pla
  if(place==='rest')return basePoint(e,data.depot.rest.x+index*data.depot.rest.spacing-.28,data.depot.rest.z+.6);
  const p=data.depot[place];return basePoint(e,p.x+(place==='dock'?Math.floor(index/4)*4:index*p.spacing),p.z+(place==='dock'?(index%4-1.5)*p.spacing:0));
 }
+/** HQ team stations use world metres, shared by navigation, seating and parking geometry. */
+export function hqStaffPoint(slot:number,place:'rest'|'van'):Point {const p=data.engineer[place];return {x:p.x+slot*p.spacing,z:p.z};}
 /** World-metre boxes shared by the warehouse model, nav grid and pedestrian paths. */
 export function buildingSolidBoxes(e:Entity):LocalBox[]|null {
  if(e.kind==='hq'){const scale=terrain.render.buildings.militaryScale*data.hq.scale;return data.hq.solidBoxes.map(b=>({x:b.x*scale,z:b.z*scale,width:b.width*scale,depth:b.depth*scale}));}

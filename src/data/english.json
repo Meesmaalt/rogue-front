@@ -566,5 +566,15 @@
   "Relvastatud pioneerirühm: eesliini toetus ja sõidukite remont": "Armed combat engineers: frontline support and vehicle repairs",
   "Vali asukoht — lähim HQ / FOB saadab ehitusmeeskonna.": "Choose a site — the nearest HQ / FOB dispatches a construction crew.",
   "Ehitusmeeskonnad saadab HQ / FOB automaatselt. Ressursirajatise hõivamiseks ja käivitamiseks kasuta ostetavat lahinguinseneri.": "HQ / FOB dispatches construction crews automatically. Purchase combat engineers to capture and restart resource facilities.",
-  "Ehitus": "Construction"
+  "Ehitus": "Construction",
+  "Saabub kaardi tagant": "Arriving from outside the map",
+  "Lendab meeskonna järele": "Flying to pick up crew",
+  "Meeskond pardale": "Crew boarding",
+  "Teel ehitusplatsile": "En route to construction site",
+  "Meeskond väljub": "Crew unloading",
+  "Ootab ehitusmeeskonda": "Waiting for construction crew",
+  "Tagasilend": "Return flight",
+  "Ootab uut ülesannet": "Waiting for next assignment",
+  "Automaatne lend": "Automatic flight",
+  "ainult vaatamine": "inspection only"
 }

@@ -1,4 +1,3 @@
-import {constructionHelper} from '../sim/automaticConstruction';
 import {MarkerLayout} from "./MarkerLayout";
 import {supplyRadiusFor,tacticalSupplyNodes,tacticalSupplyDepot} from "../sim/systems/tacticalSupply";
 import {logisticsStatus} from "../sim/stockLogistics";
@@ -150,7 +149,7 @@ export class Overlay {
     // Selected labels get first choice of screen space; stable entity order breaks ties.
     const visible=this.visible,ordinary=this.ordinary;visible.length=0;ordinary.length=0;
     for(const u of world.entities){
-      if(constructionHelper(u)||u.dead||u.loadedIntoId!=null||u.team!==world.playerTeam&&!world.isSpottedByTeam(u,world.playerTeam))continue;
+      if(!!u.constructionCrew||u.dead||u.loadedIntoId!=null||u.team!==world.playerTeam&&!world.isSpottedByTeam(u,world.playerTeam))continue;
       (sel.selected.has(u.id)?visible:ordinary).push(u);
     }
     for(const u of ordinary)visible.push(u);

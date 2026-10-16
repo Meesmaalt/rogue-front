@@ -1,3 +1,4 @@
+import {automaticAircraft} from '../automaticConstruction';
 import {constructionHubs,constructionHelper} from '../automaticConstruction';
 import {producerKind as producerFor} from "./production";
 import {beginStrategicBuild,strategicStrike} from "../strategicWeapons";
@@ -21,7 +22,7 @@ function mobile(w: World, ids: number[], team?: Entity["team"]): Entity[] {
   const out: Entity[] = [];
   for (const id of ids) {
     const e = w.byId.get(id);
-    if (e && !e.dead && !constructionHelper(e) && e.def.speed > 0 && e.kind!=="groundHandler" && !e.airdrop && !e.refit && (e.logisticsRoute!=="strategic"||e.kind==="transport") && e.loadedIntoId==null && (team === undefined || e.team === team)) out.push(e);
+    if (e && !e.dead && !constructionHelper(e) && !automaticAircraft(e) && e.def.speed > 0 && e.kind!=="groundHandler" && !e.airdrop && !e.refit && (e.logisticsRoute!=="strategic"||e.kind==="transport") && e.loadedIntoId==null && (team === undefined || e.team === team)) out.push(e);
   }
   return out;
 }
@@ -269,10 +270,10 @@ function apply(w: World, c: Command): void {
     }
     case "configure-unit": {
       const team=c.team??w.playerTeam;
-      for(const id of c.ids){const u=w.byId.get(id);if(u&&u.team===team)beginEquipmentRefit(w,u,c.slot,c.module);}
+      for(const id of c.ids){const u=w.byId.get(id);if(u&&!automaticAircraft(u)&&u.team===team)beginEquipmentRefit(w,u,c.slot,c.module);}
       w.credits=w.teamCredits[w.playerTeam];w.resources=w.teamResources[w.playerTeam];break;
     }
-    case "cancel-refit": {const team=c.team??w.playerTeam;for(const id of c.ids){const u=w.byId.get(id);if(u&&u.team===team)u.refit=undefined;}break;}
+    case "cancel-refit": {const team=c.team??w.playerTeam;for(const id of c.ids){const u=w.byId.get(id);if(u&&!automaticAircraft(u)&&u.team===team)u.refit=undefined;}break;}
     case "load": {
       const selected=mobile(w,c.ids,c.team),target=w.byId.get(c.targetId);
       if(!target)break;

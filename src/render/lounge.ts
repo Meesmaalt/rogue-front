@@ -1,13 +1,14 @@
+import {hqStaffPoint} from '../sim/baseLayout';
 import layout from '../data/base-life.json';
 import terrainConfig from '../data/terrain.json';
 /** Depot geometry uses world metres; other military models keep their authored scale. */
 export function buildingScale(kind:string):number{return kind==='supply'?1:terrainConfig.render.buildings.militaryScale*(kind==='hq'?layout.hq.scale:1);}
 /** Shared layout for static furniture (Architecture.ts) and animated sitters (UnitRenderer/BaseLife). Model-space units, before the building scale. */
 export interface Seat{x:number;z:number;/** Local facing angle, 0 = +z. */heading:number}
-export const HQ_LOUNGE={x:5.8,z:9.6};
+export const HQ_LOUNGE={x:layout.engineer.rest.x/buildingScale('hq'),z:layout.engineer.rest.z/buildingScale('hq')};
 export const DEPOT_LOUNGE={x:layout.depot.rest.x,z:layout.depot.rest.z};
 /** Three practical outdoor benches, one row per construction team. */
-export function hqSeats():Seat[]{return Array.from({length:9},(_,i)=>({x:HQ_LOUNGE.x+(i%3-1)*.75,z:HQ_LOUNGE.z+Math.floor(i/3)*1.9,heading:Math.PI}));}
+export function hqSeats():Seat[]{return Array.from({length:9},(_,i)=>({x:hqStaffPoint(Math.floor(i/3),'rest').x/buildingScale('hq')+(i%3-1)*.75,z:HQ_LOUNGE.z,heading:Math.PI}));}
 /** Bench rows beside the depot office; enough places for two workers per helipad up to the pad cap. */
 export function depotSeats(count:number):Seat[]{
  const seats:Seat[]=[];for(let i=0;i<count;i++)seats.push({x:DEPOT_LOUNGE.x+Math.floor(i/2)*layout.depot.rest.spacing+(i%2===0?-.28:.28),z:DEPOT_LOUNGE.z+.6,heading:Math.PI});

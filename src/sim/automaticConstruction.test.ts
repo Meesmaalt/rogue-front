@@ -57,3 +57,19 @@ it('each HQ level owns exactly one extra crew and a persistent parked van',()=>{
  const w=setup(),hq=w.entities.find(e=>e.kind==='hq')!;
  for(const level of [1,2,3]){hq.buildingLevel=level;w.time+=2;dispatchConstruction(w);const crews=w.entities.filter(e=>!e.dead&&e.constructionCrew?.homeId===hq.id);expect(crews).toHaveLength(level);for(const e of crews)expect(e.engineerDuty?.vanPoint).toBeDefined();}
 });
+
+import {pointInFeature} from './mapFeatures';
+import {airUnitsForOrder} from './systems/airDoctrine';
+it('construction flights enter from off-map and select clear landing zones outside forest footprints',()=>{
+ const forest:MapFeatureDef={id:'woods',kind:'cover',appearance:'forest',x:220,z:-10,width:55,depth:35,height:8};
+ const w=setup([forest]);w.pending.push({type:'build',ids:[],kind:'generator',x:220,z:-40,team:0});applyCommands(w);step(w);
+ const h=w.entities.find(e=>e.constructionFlight)!;expect(h).toBeDefined();expect(h.constructionFlight!.phase).toBe('arriving');expect(Math.max(Math.abs(h.x),Math.abs(h.z))).toBeGreaterThan(w.mapSize/2);
+ for(const p of [h.constructionFlight!.home,h.constructionFlight!.site])expect(pointInFeature(p.x,p.z,forest,9)).toBe(false);
+ expect(w.byId.get(h.constructionFlight!.crewId)?.loadedIntoId).toBeNull();
+});
+it('automatic resource and work Chinooks reject manual commands but a purchased transport remains controllable',()=>{
+ const w=setup(),resource=w.spawn('transport',0,-120,50),worker=w.spawn('transport',0,-120,80),manual=w.spawn('transport',0,-120,110);
+ resource.supplyDepotId=99;worker.constructionFlight={homeId:1,crewId:0,phase:'arriving',home:{x:0,z:0},site:{x:10,z:0},readyAt:0};
+ const ids=[resource.id,worker.id,manual.id];expect(airUnitsForOrder(w,ids,0).map(e=>e.id)).toEqual([manual.id]);
+ for(const type of ['move','amove','stop','hold','air-return'] as const){for(const h of [resource,worker]){h.mode='patrol';h.dest={x:12,z:24};}w.pending.push(type==='move'||type==='amove'?{type,ids,x:150,z:150,team:0}:{type,ids,team:0});applyCommands(w);for(const h of [resource,worker]){expect(h.mode).toBe('patrol');expect(h.dest).toEqual({x:12,z:24});}}
+});
