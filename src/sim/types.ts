@@ -2,7 +2,7 @@ import type { FlowField } from "./nav/FlowField";
 import type { MapFeatureDef } from "./mapFeatures";
 export type Team = 0 | 1;
 export type UnitKind =
-  | "groundHandler" | "airTransport" | "gunTurret" | "flakTurret" | "atTurret" | "missileCommand" | "icbmSilo" | "cruiseLauncher"
+  | "transportVan" | "scoutHeli" | "groundHandler" | "airTransport" | "gunTurret" | "flakTurret" | "atTurret" | "missileCommand" | "icbmSilo" | "cruiseLauncher"
   | "tank" | "apc" | "ifv" | "inf" | "atInf" | "mgInf" | "reconInf" | "sniper" | "mortar" | "manpad" | "atgm" | "reconVehicle" | "lightTank" | "tankDestroyer" | "spaa" | "bunker" | "hq" | "engineer"
   | "heli" | "transport" | "cargoPlane" | "gunship" | "casHeli" | "fighter" | "interceptor" | "bomber" | "ecm" | "multirole" | "attackAircraft"
   | "irSam" | "sam" | "howitzer" | "artillery" | "mlrs" | "logiTruck" | "aa" | "refinery" | "barracks" | "factory" | "helipad" | "airbase"

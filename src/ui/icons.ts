@@ -2,6 +2,8 @@ import {aircraftIcon} from './AircraftIcon';
 import type { UnitKind } from "../sim/types";
 /** Original SVG silhouettes remain legible at command-card size. */
 const paths:Record<string,string>={
+    transportVan:'<path d="M3 11h17l8 6v9H3z"/><path d="M19 13v6h7l-7-6" fill="#25343a"/><circle cx="9" cy="26" r="4"/><circle cx="24" cy="26" r="4"/>',
+    scoutHeli:'<path d="M2 5h28v2H2zM15 7h2v5h-2zM5 15h14l6 5-4 4H7zM7 21H2v-9h2v7h3zM7 27h18v2H7z"/><circle cx="20" cy="12" r="4"/><circle cx="20" cy="12" r="2" fill="#25343a"/>',
     smoke:'<path d="M7 26a6 6 0 0 1-1-12 7 7 0 0 1 12-6 6 6 0 0 1 9 8 5 5 0 0 1-1 10z"/><path d="M7 29h20" fill="none" stroke="currentColor" stroke-width="2"/>',
     upgrade:'<path d="M16 2L4 15h7v10h10V15h7zM5 28h22v3H5z"/>',
     research:'<path d="M11 2h10v3h-2v7l9 15a3 3 0 0 1-3 4H7a3 3 0 0 1-3-4l9-15V5h-2zM11 21l-4 7h18l-4-7z"/>',

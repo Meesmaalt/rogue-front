@@ -45,3 +45,14 @@ it('direct-path shortcut respects static walls and parked bodies',()=>{
  const blocked=new World(77,false,[],[{id:'wall',kind:'wall',x:0,z:0,width:4,depth:40}],bases,false);
  expect(findPath(blocked.nav,{x:-40,z:0},{x:40,z:0},1).length).toBeGreaterThan(2);
 });
+it.each([false,true])('a first fast order chooses a longer road across open ground and actually cruises faster (metric=%s)',metric=>{
+ const bases=[{x:0,z:0,r:240},{x:250,z:250,r:20}];setBases(bases);
+ const span=metric?215:65;
+ const features:MapFeatureDef[]=[{id:'main',kind:'road',x:0,z:18,width:span*2+20,depth:8},{id:'west',kind:'road',x:-span-1,z:9,width:8,depth:26},{id:'east',kind:'road',x:span+1,z:9,width:8,depth:26}];
+ const make=()=>{const w=new World(153,false,[],features,bases,false,metric);w.networkMode=true;const u=w.spawn('apc',0,-span,0);return {w,u};};
+ const a=make(),b=make();a.w.issue({type:'move',ids:[a.u.id],x:span,z:0});b.w.issue({type:'fast-move',ids:[b.u.id],x:span,z:0});applyCommands(a.w);applyCommands(b.w);
+ expect(b.u.fastMove).toBe(true);expect(b.u.navPath.some(p=>p.z>10)).toBe(true);expect(a.u.navPath.every(p=>p.z<5)).toBe(true);
+ let roadSpeed=0,normalSpeed=0,ta=0,tb=0;
+ for(let i=1;i<1800&&(!ta||!tb);i++){step(a.w);step(b.w);if(b.w.terrain.roadAt(b.u.x,b.u.z))roadSpeed=Math.max(roadSpeed,b.u.motionSpeed??0);normalSpeed=Math.max(normalSpeed,a.u.motionSpeed??0);if(!ta&&a.u.mode==='idle')ta=i;if(!tb&&b.u.mode==='idle')tb=i;}
+ expect(roadSpeed).toBeGreaterThan(normalSpeed*1.3);expect(tb).toBeGreaterThan(0);expect(tb).toBeLessThan(ta);
+});

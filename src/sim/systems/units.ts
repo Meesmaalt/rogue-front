@@ -141,6 +141,21 @@ function firingPosition(w:World,u:Entity,target:Entity,range:number):Point|null 
   return null;
 }
 
+/** Follow a nearby point along the saved road route, rather than aiming across a bend at a distant waypoint. */
+function fastMoveSteeringPoint(w:World,u:Entity):Point|null {
+ const index=u.navPathIndex;if(!u.fastMove||u.mode!=="move"||u.def.category==='infantry'||index<1||index>=u.navPath.length)return null;
+ const a=u.navPath[index-1],b=u.navPath[index],dx=b.x-a.x,dz=b.z-a.z,length=Math.hypot(dx,dz);
+ if(length<.01)return null;
+ const t=Math.max(0,Math.min(1,((u.x-a.x)*dx+(u.z-a.z)*dz)/(length*length)));
+ let point={x:a.x+dx*t,z:a.z+dz*t},ahead=Math.max(mobility.navigation.arrival*2,Math.min(mobility.navigation.lookAhead,(u.motionSpeed??0)*mobility.navigation.fastLookAheadSeconds+u.def.radius));
+ for(let i=index;i<Math.min(u.navPath.length,index+3);i++){
+  const next=u.navPath[i],distance=dist2d(point,next);
+  if(distance>=ahead){point={x:point.x+(next.x-point.x)*ahead/Math.max(.01,distance),z:point.z+(next.z-point.z)*ahead/Math.max(.01,distance)};break;}
+  point=next;ahead-=distance;
+ }
+ return w.terrain.roadAt(point.x,point.z)&&dist2d(u,point)>.1&&clearGroundSegment(w,u,point)&&bodyClear(w,u,point)?point:null;
+}
+
 function smoothWaypoint(w:World,u:Entity):void {
   if(u.fastMove&&u.mode==="move"||u.kind==="logiTruck")return; // Weighted A* already smooths without cutting the road itinerary.
   for(let i=u.navPathIndex+1;i<u.navPath.length;i++){
@@ -872,16 +887,20 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       else if(gd>.001&&(isAir||goal===u.dest||gd>=mobility.navigation.arrival)){dx = gx / gd; dz = gz / gd; moving = true;}
     }
     if (moving && !isAir && u.def.domain!=="sea") {
-      let navDx = dx, navDz = dz;
+      let navDx = dx, navDz = dz,steeringDistance=Infinity,fastSteering=false;
       if (u.navPath.length) {
-        while (u.navPathIndex < u.navPath.length && dist2d(u,u.navPath[u.navPathIndex]) < Math.max(mobility.navigation.arrival,w.nav.cellSize*.75)) {
+        while (u.navPathIndex < u.navPath.length) {
+          const point=u.navPath[u.navPathIndex],previous=u.navPath[u.navPathIndex-1],nextPoint=u.navPath[u.navPathIndex+1];
+          const close=dist2d(u,point)<Math.max(mobility.navigation.arrival,w.nav.cellSize*.75);
+          const passed=!!previous&&!!nextPoint&&u.fastMove&&w.terrain.roadAt(point.x,point.z)&&dist2d(u,point)<mobility.navigation.lookAhead&&(u.x-point.x)*(point.x-previous.x)+(u.z-point.z)*(point.z-previous.z)>=0&&clearGroundSegment(w,u,nextPoint);
+          if(!close&&!passed)break;
           const next=u.navPath[u.navPathIndex+1]??goal;
           // A large navigation cell is not permission to cut across a building corner.
           if(next&&!clearGroundSegment(w,u,next)&&dist2d(u,u.navPath[u.navPathIndex])>logisticsConfig.handling.porterWaypointArrival)break;
           u.navPathIndex++;
         }
         smoothWaypoint(w,u);
-        if (u.navPathIndex < u.navPath.length) { const p = u.navPath[u.navPathIndex], m = Math.hypot(p.x-u.x,p.z-u.z)||1; navDx=(p.x-u.x)/m; navDz=(p.z-u.z)/m; }
+        if (u.navPathIndex < u.navPath.length) { const steering=fastMoveSteeringPoint(w,u),p = steering??u.navPath[u.navPathIndex], m = Math.hypot(p.x-u.x,p.z-u.z)||1; navDx=(p.x-u.x)/m; navDz=(p.z-u.z)/m;steeringDistance=m;fastSteering=!!steering; }
       } else if (u.flowField && isAir) {
         const f = u.flowField.directionAt(u, u.def.radius);
         if (f) { navDx=f.x; navDz=f.z; }
@@ -912,14 +931,15 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
         const cornerSpeed=Math.max(mobility.navigation.cornerSpeedFloor,Math.cos(angle*.5));
         cornerFactor=1-(1-cornerSpeed)*Math.max(0,1-distanceToWaypoint/mobility.navigation.cornerLookAhead);
       }
-      if(usesGroundDynamics(u)&&u.navPathIndex+1<u.navPath.length){
+      if((usesGroundDynamics(u)||fastSteering)&&u.navPathIndex+1<u.navPath.length){
         const a=u.navPath[u.navPathIndex],b=u.navPath[u.navPathIndex+1],angle=wrapAngle(Math.atan2(b.x-a.x,b.z-a.z)-Math.atan2(navDx,navDz));
         curveSpeed=cornerApproachSpeed(angle,distanceToWaypoint,forces.lateral,forces.braking);cornerFactor=1;
       }
       // A queued movement order passes through its intermediate destination.
       const through=goal===u.dest&&!!u.moveQueue?.length&&["move","amove"].includes(u.mode)&&!u.target;
       const brakingDistance=through?Infinity:Math.max(0,goal?dist2d(u,goal)-1:0);
-      const desiredSpeed=changingDirection?0:Math.min(curveSpeed,sp*cornerFactor*(reverse?mobility.combat.reverseSpeed:1),Math.sqrt(brakingDistance*2*forces.braking));
+      const steeringLimit=fastSteering&&d.category!=="infantry"&&Math.abs(diff)>mobility.navigation.fastSteeringAngle?Math.sqrt(forces.lateral*steeringDistance/(2*Math.max(.01,Math.abs(Math.sin(diff))))):Infinity;
+      const desiredSpeed=changingDirection?0:Math.min(curveSpeed,steeringLimit,sp*cornerFactor*(reverse?mobility.combat.reverseSpeed:1),Math.sqrt(brakingDistance*2*forces.braking));
       const currentSpeed=u.motionSpeed??0,dynamics=groundSpeedStep(currentSpeed,desiredSpeed,forces,dt);
       u.motionSpeed=usesGroundDynamics(u)?dynamics.speed:currentSpeed+Math.max(-profile.braking*dt,Math.min(profile.acceleration*dt,desiredSpeed-currentSpeed));
       const travel=Math.min(distanceToWaypoint,usesGroundDynamics(u)?dynamics.distance:u.motionSpeed*dt);

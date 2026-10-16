@@ -35,7 +35,9 @@
     "ecm": 190,
     "multirole": 200,
     "interceptor": 230,
-    "attackAircraft": 175
+    "attackAircraft": 175,
+    "transportVan": 15,
+    "scoutHeli": 32
   },
   "opticsMultiplier": 18,
   "dispersionAngle": 0.003,

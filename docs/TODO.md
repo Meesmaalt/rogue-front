@@ -1,5 +1,15 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Kiirliikumine, ligipääsetav algkoosseis ja energiabilanss · 16.10.2026
+
+- [x] Esimene kiirliikumise käsk kasutab õiget režiimi juba marsruudi arvutamisel. Rataste/roomikute päris tee-kiirus ja sama A* kulu, teekeskme eelistus ning maastiku revision'iga uuenev vahemälu. Tee lähijälgimine, haardumisest piiratud kurvikiirus ja möödutud vahepunktide jätkamine hoiavad marsi sujuvama; parkimis-/kogunemiskohtade manööver säilib.
+- [x] Kasarmust eemaldatud lähedase varustuslao nõue ja tootmise peidetud moona/kütuse lisakulu. Rahvuslik hind, juhtimisühendus, elekter ning hoonetase kehtivad.
+- [x] Kasarmu 1. taseme 12 kohaga ostetav relvastamata jalaväekaubik. Kopteribaasi 1. taseme kerge relvastamata luurekopter; tehase 1. taseme luuremasin ja eraldi lubatud ATGM-meeskond kasarmu 2. tasemel kõigil rahvustel (USA TOW-2).
+- [x] Esimese taseme laiem algvalik, paremate üksuste selge 2./3. taseme tabel ja vastavad hoone uuenduse tekstid. Lennujaama 1. tase saab toota põhihävitajat oma baasvarudega; strateegiahoone pole enam iga täiustatud üksuse lisalukk.
+- [x] Hoonete energiatarve +30%, uuendused lisavad 20% baasist taseme kohta. Alguses piisab ühest generaatorist; mitme väeliigi suurem baas vajab lisaenergiat. Uute üksuste mudelid, ikoonid, heli ja ET/EN kirjeldused.
+- [x] 20 sihitud kontrolli: päris kiirmarsi teevalik/kiirus/saabumine mõlemas mõõtkavas, segakolonn, laota tootmine, kaubiku pealevõtt/salvestus/väljumine, luurekopteri tootmine/õhkutõus, USA ATGM, tasemed, energiabilanss ja mudelite partiid. Kliendi ja serveri build ning diff-kontroll.
+- [ ] Tegeliku WebGL mänguvaate ja uute mudelite käsitsi ülevaatus: kohalik 3D-brauser puudub; loogika-/geomeetriakontroll ei kinnita GPU pilti ega subjektiivset mängutunnetust.
+
 ## Masinate tulejuhtimine ja hõivatud lao veoring · 16.10.2026
 
 - [x] Eemaldatud teise oma varustuslao tõttu tekkiv automaatne MTVR ladudevaheline vedu. Üks hõivatud, töötav ressursirajatis korraldab ühe eraldi automaatse veoki HQ juurde, sõltumata ostetud veokitest. Ostetud sõidukile ei määrata omavolilist marsruuti.

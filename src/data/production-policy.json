@@ -1,0 +1,29 @@
+{
+  "level2": [
+    "atgm",
+    "ifv",
+    "artillery",
+    "spaa",
+    "heli",
+    "airTransport",
+    "multirole",
+    "attackAircraft",
+    "frigate"
+  ],
+  "level3": [
+    "sam",
+    "special",
+    "sniper",
+    "tankDestroyer",
+    "mlrs",
+    "gunship",
+    "casHeli",
+    "interceptor",
+    "bomber",
+    "ecm",
+    "destroyer",
+    "submarine"
+  ],
+  "powerUseMultiplier": 1.3,
+  "powerPerUpgrade": 0.2
+}

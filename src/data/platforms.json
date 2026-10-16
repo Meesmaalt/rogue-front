@@ -14,7 +14,10 @@
     "sam",
     "howitzer",
     "cruiseLauncher",
-    "irSam"
+    "irSam",
+    "atgm",
+    "reconVehicle",
+    "transportVan"
   ],
   "air": [
     "heli",
@@ -25,7 +28,8 @@
     "bomber",
     "ecm",
     "multirole",
-    "attackAircraft"
+    "attackAircraft",
+    "scoutHeli"
   ],
   "sea": [
     "frigate",
@@ -37,10 +41,8 @@
     "sniper": "reconInf",
     "atInf": "inf",
     "mgInf": "inf",
-    "atgm": "inf",
     "lightTank": "tank",
     "tankDestroyer": "tank",
-    "reconVehicle": "apc",
     "gunship": "heli",
     "casHeli": "heli",
     "destroyer": "frigate",

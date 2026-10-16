@@ -234,7 +234,7 @@ export class UnitRenderer {
       if (v.recoil <= 0) this.recoilById.delete(e.id); else this.recoilById.set(e.id, v.recoil);
 
       // Liikumine, rootor, vedrustus ja õhuoperatsioonid. Kõik on odav transform-animatsioon.
-      if (["heli", "gunship", "casHeli", "transport"].includes(e.kind)) {
+      if (e.def.category==="heli") {
         const airborne = e.airState !== "grounded" && e.airState !== "rearming";
         v.group.position.y += airborne ? Math.sin(animT * 7) * 0.08 : Math.sin(animT * 2) * 0.015;
         v.rotorRpm=smoothMotion(v.rotorRpm,aircraftEngineProfile(e).rpm,2,frameDt);if(v.rotorRpm<.003)v.rotorRpm=0;

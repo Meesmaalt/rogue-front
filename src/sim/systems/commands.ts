@@ -135,7 +135,7 @@ function apply(w: World, c: Command): void {
           const wet=w.waterNav.nearestWater(point,u.def.radius,18);
           if(!wet){w.events.push({type:"order-rejected",team:u.team,unitId:u.id,x:point.x,z:point.z,message:"Laev saab liikuda ainult läbitaval veel"});return;}point=wet;
         }
-        const path=u.def.domain==="air"?[]:findPath(u.def.domain==="sea"?w.waterNav:w.nav,pathFrom,point,u.def.radius,c.type==="fast-move"&&u.def.domain!=="sea"?travelPathCost(w,u):undefined);
+        const path=u.def.domain==="air"?[]:findPath(u.def.domain==="sea"?w.waterNav:w.nav,pathFrom,point,u.def.radius,c.type==="fast-move"&&u.def.domain!=="sea"?travelPathCost(w,u,true):undefined);
         if(u.def.domain!=="air"&&!path.length){w.events.push({type:"order-rejected",team:u.team,unitId:u.id,x:point.x,z:point.z,message:"Sihtpunktini pole läbitavat teed; kontrolli silda või vali teine kaldapool"});return;}
         if(u.garrisonId&&!leaveGarrison(w,u)){requestGarrisonExit(w,u,point);return;}u.garrisonOrderId=undefined;
         if (append && u.dest && ["move","amove","patrol"].includes(u.mode)) {
@@ -420,7 +420,7 @@ function apply(w: World, c: Command): void {
       const unitLimits: Partial<Record<string, number>> = {
         inf: 40, engineer: 8, special: 4, atInf: 12, mgInf: 10, reconInf: 10, sniper: 6, mortar: 8, manpad: 8, atgm: 8,
         tank: 18, apc: 16, ifv: 14, artillery: 8, mlrs: 6, reconVehicle: 8, lightTank: 8, tankDestroyer: 8, spaa: 8,
-        heli: 6, gunship: 6, transport: 6, casHeli: 6, fighter: 8, interceptor: 6, bomber: 4, ecm: 4, multirole: 6, attackAircraft: 6,
+        transportVan: 12, scoutHeli: 6, heli: 6, gunship: 6, transport: 6, casHeli: 6, fighter: 8, interceptor: 6, bomber: 4, ecm: 4, multirole: 6, attackAircraft: 6,
         destroyer: 4, submarine: 4, landingcraft: 6, frigate: 6, missileBoat: 8,
       };
       const limit = unitLimits[c.kind];
@@ -430,12 +430,6 @@ function apply(w: World, c: Command): void {
         if (air.aircraft + w.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="airbase").reduce((n,e)=>n+e.productionQueue.length,0) >= air.capacity) break;
       }
       if (w.powerStatus(team).ratio < 0.25 && c.kind !== "inf" && c.kind !== "engineer") break;
-      if (["fighter","interceptor","bomber","ecm","multirole","attackAircraft"].includes(c.kind) && !w.hasTech(team, "air")) break;
-      if ((c.kind === "gunship") && w.producerLevel(producer) < 2) break;
-      if ((c.kind === "special") && w.producerLevel(producer) < 2) break;
-      if ((c.kind === "artillery" || c.kind === "mlrs") && w.producerLevel(producer) < 2) break;
-      if ((c.kind === "interceptor" || c.kind === "bomber") && w.producerLevel(producer) < 2) break;
-      if (["destroyer","submarine"].includes(c.kind) && w.producerLevel(producer) < 2) break;
       w.teamCredits[team] -= def.cost; w.teamResources[team] -= def.cost;
       if (team === w.playerTeam) { w.credits = w.teamCredits[team]; w.resources = w.teamResources[team]; }
       producer.productionQueue.push(c.kind);

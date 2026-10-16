@@ -2,6 +2,18 @@
 
 Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 16, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
 
+## Maanteemarss ja varajane üksusevalik · 16.10.2026
+
+`fast-move` esmane A* otsing saab nüüd kiirrežiimi kulufunktsiooni enne üksuse `fastMove` oleku muutmist. Sama andmepõhine `fastRoadSpeed` kehtib nii kulufunktsioonis kui ka päris liikumises (roomikutel 1,75× ja ratastel 2,15× baaskiirus, tavaline maanteekiirus jääb 1,22×/1,28×). Väljaspool teed uut kiirusboonust ei ole. Teekeskme eelistus vähendab tee serva lõikamist. Kuluvälja võti sisaldab režiimi ja maastiku revision'i; raadamine/põleng/laadimine ei jäta vana liikumiskulu vahemällu.
+
+Teel olev maaväemasin juhib kiirmarsi ajal nina lähedale punktile salvestatud rajajoonel. Ta ennetab kurvi, arvestab haardumisest sõltuva külgkiirendusega ning liigub möödutud vahepunktist edasi, selle ümber ringe tegemata. Läbitavus ja kehade kokkupõrge jäävad samaks; asukohta ei muudeta animatsiooniga. Tee lähijälgimine on piiratud päris teel asuva sihtpunktiga, et parkimis-/kogunemiskohtade manööver ei muutuks. Tavalisel ja meetrimõõdus kaardil kontrollitakse päris marsruuti, teekiirust ja saabumisaega; olemasolev 12 segatud üksuse baasivärava/ümberrivistumise kontroll säilib.
+
+Kasarmu tootmine kasutab tellimisel tasutud rahvuslikku eelarvet. Ta ei nõua lähedast ladu ega kuluta täiendavalt lao/HQ moona ja kütust; juhtimisühendus, energia, hind ja hoonetase kehtivad endiselt. Tehase/kopteribaasi/strateegiliste üksuste füüsiline varustamine jääb alles. `production-policy.json` määrab 2./3. taseme üksused; esimene tase annab igale harule kasutatava algvaliku. Strateegiakeskus annab oma tootmis-/arendusboonuse, kuid pole enam iga kõrgema taseme üksuse täiendav peidetud eeldus. Lennujaama põhivarud teenindavad juba 1. taseme hävitajaid, 2./3. tase lisab varumahtu ning paremaid lennukeid.
+
+`atgm` ja `reconVehicle` on eraldi lubatud platvormid, mitte jalaväe/APC peidetud aliased. USA kasarmu 2. tase toodab olemasoleva rahvuspõhise BGM-71 TOW-2 relvastusega meeskonna. `transportVan` on kasarmu 1. taseme relvastamata 12 kohaga jalaväekaubik; `scoutHeli` on kopteribaasi 1. taseme relvastamata pika optikaga kopter; luuremasin tuleb tehase 1. tasemelt. Need on samas käsu-, transpordi-, kütuse-, save/replay- ja tootmistees teiste üksustega. `SupportVehicles` annab kaubikule ja kergele luurekopterile eri siluetid, staatilised materjalipartiid ning päris animeeritud peamise/sabarootori, ilma puuduvate GLB-de päringuteta. Heliklassid ja ET/EN kaardiikoonid toetavad uusi üksusi.
+
+Hoonete energiakasutus on 30% suurem, lisaks 20% baasist iga uuendustaseme kohta. Generaatori toodang ja täiustamise kasu jäävad alles: algbaas töötab ühe generaatoriga, laienev mitme väeliigi baas vajab lisaenergiat. See parameeter on samuti `production-policy.json` all.
+
 ## Hõivatud rajatise veoring, HQ mahalaadimine ja tulejuhtimine · 16.10.2026
 
 Automaatne maanteelogistika ei sõltu enam enda ehitatud varustusladude arvust. `resourceConvoys.ts` määrab igale oma töötavale hõivatud ressursirajatisele ühe kohaliku veoki; 24 s väljasaatmispiir ja piiratud A* kontroll väldivad puuduva tee pidevat otsimist. Veok ilmub rajatise vabale laadimisalale ja sõidab päriselt HQ eraldi laadimiskohta. Ostetud `logiTruck` jääb mängija juhitavaks ega saa esimesel sammul automaatset laoülesannet. Automaatset veokit võib vaadelda, kuid käsutee, HUD ja hiirekäsud ei luba seda ümber suunata.

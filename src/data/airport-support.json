@@ -1,11 +1,11 @@
 {
-  "minimumLevel": 2,
+  "minimumLevel": 1,
   "stocks": {
-    "ammo": 420,
-    "fuel": 1800,
-    "repair": 300
+    "ammo": 220,
+    "fuel": 1000,
+    "repair": 120
   },
-  "levelBonus": 0.5,
+  "levelBonus": 0.65,
   "refillThreshold": 0.25,
   "refillFraction": 0.5,
   "refillCost": 100,

@@ -1,3 +1,4 @@
+import {createSupportVehicle} from './SupportVehicles';
 import {addEngineerProps,createWheelbarrow} from "./EngineerVisual";
 import {createGroundHandler} from "./CargoHandlingVisual";
 import {createExpansionModel} from "./ExpansionModels";
@@ -345,6 +346,7 @@ function infantryModel(kind:UnitKind,team:Team,faction:FactionId,tactical:boolea
 
 /** Detailed procedural military models – readable silhouettes at RTS scale. */
 export function createModel(kind: UnitKind, team: Team, faction: FactionId = team === 0 ? "usa" : "russia",tactical=false): Model {
+  const support=createSupportVehicle(kind,team);if(support)return support;
   if(kind==='groundHandler')return {group:createGroundHandler(),turret:null};
   const expansion=createExpansionModel(kind,team);if(expansion)return expansion;
   if(kind==='airTransport')kind='cargoPlane';

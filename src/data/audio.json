@@ -51,8 +51,8 @@
   "dopplerSpeed": 160,
   "engineKinds": {
     "tracked": ["tank", "lightTank", "tankDestroyer", "artillery", "mlrs", "spaa", "aa", "sam", "irSam", "howitzer"],
-    "wheeled": ["apc", "ifv", "reconVehicle", "logiTruck", "supply", "cruiseLauncher"],
-    "heli": ["heli", "transport", "gunship", "casHeli"],
+    "wheeled": ["apc", "ifv", "reconVehicle", "logiTruck", "supply", "cruiseLauncher", "transportVan"],
+    "heli": ["heli", "transport", "gunship", "casHeli", "scoutHeli"],
     "jet": ["fighter", "interceptor", "bomber", "ecm", "multirole", "attackAircraft", "cargoPlane", "airTransport"],
     "prop": [],
     "ship": ["destroyer", "submarine", "landingcraft", "frigate", "missileBoat"],

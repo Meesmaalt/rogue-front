@@ -15,11 +15,11 @@ export function weaponPenetration(u:Entity,spec:WeaponSpec):number {return spec.
 export function weaponDamage(u:Entity,spec:WeaponSpec):number {return spec.damage*(u.upgrades.has("weapon")?upgrades.weapon.damageMultiplier:1);}
 export function slotRange(u:Entity,spec:Pick<WeaponSpec,"range">):number {return spec.range*(u.upgrades.has("range")?upgrades.range.rangeMultiplier:1);}
 export function groundMobilityClass(u:Entity):"infantry"|"tracked"|"wheeled" {
-  return u.squadMaxMembers||u.def.category==="infantry"?"infantry":["apc","reconVehicle","logiTruck"].includes(u.kind)?"wheeled":"tracked";
+  return u.squadMaxMembers||u.def.category==="infantry"?"infantry":["apc","reconVehicle","logiTruck","transportVan"].includes(u.kind)?"wheeled":"tracked";
 }
 export function mobilityProfile(u:Entity){return mobility[groundMobilityClass(u)];}
-export function groundTerrainFactor(w:World,u:Entity,x=u.x,z=u.z):number {
-  if(w.terrain.roadAt(x,z))return mobilityProfile(u).roadSpeed;
+export function groundTerrainFactor(w:World,u:Entity,x=u.x,z=u.z,fast=u.fastMove&&u.mode==="move"):number {
+  if(w.terrain.roadAt(x,z))return fast?mobilityProfile(u).fastRoadSpeed:mobilityProfile(u).roadSpeed;
   return w.terrain.densityAt(x,z)>0?w.terrain.movementFactor(u,x,z):w.terrain.slowCoverAt(x,z)?mobilityProfile(u).forestSpeed:1;
 }
 export interface PurchaseStatus {allowed:boolean;reason:string;cost:number;depotId?:number}
@@ -54,11 +54,14 @@ export function unitUpgradeStatus(w:World,u:Entity,key:UnitUpgrade):PurchaseStat
   return result("",depot.id);
 }
 
-const travelCosts=new WeakMap<World,Map<string,Float32Array>>();
-export function travelPathCost(w:World,u:Entity):import("./nav/Pathfinder").PathCost {
-  let classes=travelCosts.get(w);if(!classes){classes=new Map();travelCosts.set(w,classes);}
-  const key=groundMobilityClass(u);let cells=classes.get(key);if(!cells){cells=new Float32Array(w.nav.width*w.nav.height);classes.set(key,cells);}
+const travelCosts=new WeakMap<World,{revision:number;classes:Map<string,Float32Array>}>();
+export function travelPathCost(w:World,u:Entity,fast=!!u.fastMove&&u.mode==="move"):import("./nav/Pathfinder").PathCost {
+  let state=travelCosts.get(w);if(!state||state.revision!==w.terrain.revision){state={revision:w.terrain.revision,classes:new Map()};travelCosts.set(w,state);}
+  const key=groundMobilityClass(u)+":"+fast;let cells=state.classes.get(key);if(!cells){cells=new Float32Array(w.nav.width*w.nav.height);state.classes.set(key,cells);}
   const cache=cells;
-  const cell=(x:number,z:number)=>{const id=w.nav.index(x,z);if(!cache[id]){const p=w.nav.cellToWorld(x,z);cache[id]=1/groundTerrainFactor(w,u,p.x,p.z);}return cache[id];};
-  return {minimum:1/(mobilityProfile(u).roadSpeed*1.3),cell,edge:(ax,az,bx,bz)=>{const a=w.nav.cellToWorld(ax,az),b=w.nav.cellToWorld(bx,bz),length=Math.hypot(b.x-a.x,b.z-a.z);const slope=length?(heightAt(b.x,b.z)-heightAt(a.x,a.z))/length:0;return (cell(ax,az)+cell(bx,bz))*.5/Math.min(1.3,Math.max(.35,1-slope*1.2));}};
+  const cell=(x:number,z:number)=>{const id=w.nav.index(x,z);if(!cache[id]){const p=w.nav.cellToWorld(x,z);const road=w.terrain.roadFeatureAt(p.x,p.z),heading=road?.rotation??0,dx=p.x-(road?.x??p.x),dz=p.z-(road?.z??p.z);
+    const across=road?road.width>=road.depth?Math.abs(Math.sin(heading)*dx+Math.cos(heading)*dz)/Math.max(1,road.depth/2):Math.abs(Math.cos(heading)*dx-Math.sin(heading)*dz)/Math.max(1,road.width/2):0;
+    cache[id]=(1+(fast&&road?mobility.navigation.fastRoadEdgeCost*across*across:0))/groundTerrainFactor(w,u,p.x,p.z,fast);}return cache[id];};
+  const roadSpeed=fast?mobilityProfile(u).fastRoadSpeed:mobilityProfile(u).roadSpeed;
+  return {minimum:1/(roadSpeed*1.3),cell,edge:(ax,az,bx,bz)=>{const a=w.nav.cellToWorld(ax,az),b=w.nav.cellToWorld(bx,bz),length=Math.hypot(b.x-a.x,b.z-a.z);const slope=length?(heightAt(b.x,b.z)-heightAt(a.x,a.z))/length:0;return (cell(ax,az)+cell(bx,bz))*.5/Math.min(1.3,Math.max(.35,1-slope*1.2));}};
 }

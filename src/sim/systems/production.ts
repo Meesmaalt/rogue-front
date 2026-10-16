@@ -7,10 +7,11 @@ import { BUILDINGS } from "../buildings";
 
 export function producerKind(kind: UnitKind): "barracks" | "factory" | "helipad" | "airbase" | "shipyard" | "missileCommand" | null {
   if(kind==="cruiseLauncher")return "missileCommand";
+  if(kind==="transportVan")return "barracks";
   if(kind==="airTransport")return "airbase";
   if (["inf","engineer","special","atInf","mgInf","reconInf","sniper","mortar","manpad","atgm"].includes(kind)) return "barracks";
   if (["irSam","sam","howitzer","tank","apc","ifv","artillery","mlrs","reconVehicle","lightTank","tankDestroyer","spaa"].includes(kind)) return "factory";
-  if (["heli","transport","gunship","casHeli"].includes(kind)) return "helipad";
+  if (["heli","transport","scoutHeli","gunship","casHeli"].includes(kind)) return "helipad";
   if (["fighter","interceptor","bomber","ecm","multirole","attackAircraft"].includes(kind)) return "airbase";
   if (["destroyer","submarine","landingcraft","frigate","missileBoat"].includes(kind)) return "shipyard";
   return null;
@@ -130,13 +131,13 @@ export function updateProduction(w: World, dt: number): void {
     if(def.armor==="air"&&freeAirSlot(w,producer)<0)continue;
     const operational = w.productionOperational(producer, kind);
     if (!operational.operational) continue;
+    const infantry=producer.kind==='barracks';
     const depot=producer.kind==='airbase'?producer:w.nearestSupplyDepot(producer.team,producer,true,true);
-    if(!depot)continue;
+    if(!infantry&&!depot)continue;
     const wanted=dt*productionWorkRate(w,producer);
     const materialRate = Math.max(1, def.cost / Math.max(1, def.buildTime) * 0.12);
-    const progress = Math.min(wanted, Math.max(0,def.buildTime-producer.productionProgress), (depot.ammoStock ?? 0) / materialRate, (depot.fuelStock ?? 0) / materialRate);
-    depot.ammoStock = Math.max(0, (depot.ammoStock ?? 0) - progress * materialRate);
-    depot.fuelStock = Math.max(0, (depot.fuelStock ?? 0) - progress * materialRate);
+    const progress = Math.min(wanted, Math.max(0,def.buildTime-producer.productionProgress), infantry?Infinity:(depot!.ammoStock ?? 0) / materialRate, infantry?Infinity:(depot!.fuelStock ?? 0) / materialRate);
+    if(!infantry&&depot){depot.ammoStock = Math.max(0, (depot.ammoStock ?? 0) - progress * materialRate);depot.fuelStock = Math.max(0, (depot.fuelStock ?? 0) - progress * materialRate);}
     producer.productionProgress += progress;
     if (producer.productionProgress < def.buildTime) continue;
     if (!spawnProduced(w, producer, kind)) continue;

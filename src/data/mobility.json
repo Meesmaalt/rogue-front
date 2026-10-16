@@ -39,7 +39,8 @@
     ],
     "roadSpeed": 1.08,
     "lateralAcceleration": 12,
-    "lateralSlip": 1
+    "lateralSlip": 1,
+    "fastRoadSpeed": 1.08
   },
   "tracked": {
     "acceleration": 2.03,
@@ -47,7 +48,8 @@
     "forestSpeed": 0.64,
     "roadSpeed": 1.22,
     "lateralAcceleration": 2.8,
-    "lateralSlip": 0.12
+    "lateralSlip": 0.12,
+    "fastRoadSpeed": 1.75
   },
   "wheeled": {
     "acceleration": 2.8,
@@ -55,7 +57,8 @@
     "forestSpeed": 0.48,
     "roadSpeed": 1.28,
     "lateralAcceleration": 3.6,
-    "lateralSlip": 0.2
+    "lateralSlip": 0.2,
+    "fastRoadSpeed": 2.15
   },
   "helicopter": {
     "altitude": 30,
@@ -154,7 +157,10 @@
     "cornerLookAhead": 12,
     "cornerSpeedFloor": 0.3,
     "queuePassDistance": 2,
-    "firingPositionGap": 2.5
+    "firingPositionGap": 2.5,
+    "fastRoadEdgeCost": 0.24,
+    "fastLookAheadSeconds": 0.6,
+    "fastSteeringAngle": 0.04
   },
   "transport": {
     "pickupTimeout": 60,
