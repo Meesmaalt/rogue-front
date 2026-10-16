@@ -177,10 +177,12 @@ export interface Entity {
   motionSpeed?: number; flightBank?: number; flightPitch?: number; flightClimb?: number; flightOrbitCenter?: Point; airLandingPhase?: "approach"|"final";
   airHomeSlot?:number;airTaxiPhase?:"apron"|"lining-up"|"runway";combatPosition?:Point;combatPositionTarget?:number;combatPositionAnchor?:Point;combatPositionRetryAt?:number;taskApproachIndex?:number;
   airportStoresInitialized?:boolean;
+  resourceConvoy?:{sourceIndex:number;homeId:number;pickup:Point;dock:Point;phase:"to-source"|"loading"|"to-hq"|"unloading"|"retiring"};
+  hqCargo?:{truckId:number;homeId:number;phase:"pickup"|"deliver";pickup:Point;door:Point;readyAt?:number};
   constructionCrew?:{homeId:number;slot:number;workPoint?:Point;retryAt?:number;transportId?:number;blockedFor?:number};
   constructionDispatchAt?:number;constructionRoster?:number[];constructionReplacementAt?:number[];
   constructionFlight?:{homeId:number;crewId:number;phase:'arriving'|'pickup'|'loading'|'outbound'|'unloading'|'working'|'returning'|'parked';returnTrip?:boolean;boardingAt?:number;pickup?:Point;home:Point;site:Point;readyAt:number;departed?:boolean};
-  engineerDuty?:{homeId:number;phase:'rest'|'to-van'|'boarding'|'travel'|'working'|'return';idleFor:number;readyAt?:number;vanPoint?:Point;vanHeading?:number};
+  engineerDuty?:{homeId:number;phase:'rest'|'to-van'|'boarding'|'travel'|'working'|'return'|'cargo';idleFor:number;readyAt?:number;vanPoint?:Point;vanHeading?:number};
   groundService?:{crewIndex?:number;crewState?:'rest'|'walking'|'boarding'|'driving'|'parking'|'returning';stagingPoint?:Point;carrierId:number;depotId:number;phase:"pickup"|"load"|"deliver"|"unload";progress:number;air:boolean;onFoot?:boolean;blockedTime?:number;pickupPoint?:Point;retreatPoint?:Point;dockSlot?:number};
   logisticsManual?:boolean;groundServiceId?:number;groundServiceRetryAt?:number;logisticsPadSlot?:number;cargoDoor?:number;
   airdrop?:{x:number;z:number;descent:number};

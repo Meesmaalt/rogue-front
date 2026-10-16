@@ -96,6 +96,20 @@ export function hasWeaponLineOfSight(w:World,u:Entity,t:Entity):boolean {
 }
 
 
+/** Estimate only friendly guided rounds still capable of arriving soon; never inspect their future hit roll. */
+export function incomingGuidedDamage(w:World,u:Entity,target:Entity):number {
+ let expected=0;
+ for(const p of w.projectiles){
+  if(p.team!==u.team||p.flight!=='guided'||p.guidanceLost||p.target!==target||(p.age??0)>mobility.combat.coordinationSeconds)continue;
+  const eta=Math.hypot(p.x-target.x,p.y-target.y,p.z-target.z)/Math.max(1,p.speed);
+  if(eta>mobility.combat.coordinationSeconds)continue;
+  const face=hitFace(p.x,p.z,target),penetration=penetrationFactor(p.warhead??'he',p.penetration??0,armorValue(target,face),target.def.category==='infantry'||target.def.armor==='air',dist2dForRound(p,target));
+  expected+=(p.impactDamage??p.damage)*(p.hitChance??.5)*penetration;
+ }
+ return expected;
+}
+function dist2dForRound(p:Projectile,t:Entity):number{return Math.hypot(p.x-t.x,p.z-t.z);}
+
 /** Fixed-wing weapons point along the nose: no turret traverse, only a narrow firing cone. */
 function airFireEnvelope(u:Entity,t:Entity,spec:WeaponSpec,delta:number):string|null {
   if(spec.flight==="guided")return null;
@@ -133,6 +147,7 @@ export function weaponFireBlocker(w:World,u:Entity,t:Entity,index:number):string
   if(!weaponCanTarget(spec,t)||spec.damage<=0)return "Sobimatu sihtmärgi liik";
   if(!garrisonWeaponAllowed(u,spec,t))return "Garnisoni relv või laskesektor ei võimalda tuld";
   if(spec.warhead==="kinetic"&&penetrationFactor(spec.warhead,weaponPenetration(u,spec),armorValue(t,hitFace(u.x,u.z,t)),t.def.category==="infantry"||t.def.armor==="air",distance)<=0)return "Soomus peatab selle mürsu";
+  if(spec.flight==='guided'&&incomingGuidedDamage(w,u,t)>=t.hp*mobility.combat.lethalReservationMargin)return "Ootab rühma raketitabamust";
   if(spec.radarTargetsOnly&&(t.disabledUntil??0)>w.time)return "Radar ei kiirga";
   if(spec.ammoCapacity>0&&weaponAmmo(u,index)<spec.ammoUsePerShot)return "Moon otsas · vaja varustust";
   if(distance<spec.minimumRange)return "Sihtmärk liiga lähedal";

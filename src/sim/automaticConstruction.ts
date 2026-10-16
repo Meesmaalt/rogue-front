@@ -1,3 +1,4 @@
+import constructionPolicy from '../data/construction-policy.json';
 import {cargoPickupPoint} from './groundHandling';
 import logisticsRules from '../data/logistics.json';
 import config from '../data/base-life.json';
@@ -15,6 +16,7 @@ const cfg=config.construction;
 export function constructionHubs(w:World,team:Team):Entity[]{return w.entities.filter(e=>!e.dead&&!e.underConstruction&&e.team===team&&(e.kind==='hq'||w.isFOB(e)));}
 export function constructionReach(w:World,building:Entity):number{return Math.max(config.engineer.workDistance,building.def.radius+config.engineer.vanRadius+w.nav.cellSize*2);}
 export function automaticAircraft(e:Entity):boolean{return !!e.constructionFlight||e.kind==='transport'&&e.supplyDepotId!=null;}
+export function automaticUnit(e:Entity):boolean{return automaticAircraft(e)||!!e.resourceConvoy;}
 export function constructionHelper(e:Entity):boolean{return !!(e.constructionCrew||e.constructionFlight);}
 function route(w:World,from:Point,to:Point):Point[]{return findPath(w.nav,from,to,config.engineer.vanRadius,undefined,[],cfg.pathSearchLimit);}
 /** Stable site approaches are planned once, not moved/replanned underneath a turning van every tick. */
@@ -80,10 +82,14 @@ export function dispatchConstruction(w:World):void {
  for(const job of jobs){
   job.builderIds=job.builderIds.filter(id=>{const u=w.byId.get(id);if(u&&!u.constructionCrew&&u.target===job){u.target=null;u.dest=null;u.mode='idle';u.engineerDuty=undefined;}return !!u&&!u.dead&&!!u.constructionCrew&&u.target===job;});
   const home=hubs.filter(h=>h.team===job.team).sort((a,b)=>dist2d(a,job)-dist2d(b,job)||a.id-b.id)[0];if(!home)continue;
-  const desired=Math.min(BUILDINGS[job.kind as keyof typeof BUILDINGS].maxBuilders,job.constructionTime>=10?2:1);
+  const desired=Math.min(BUILDINGS[job.kind as keyof typeof BUILDINGS].maxBuilders,constructionPolicy.crewsPerSite);
+  for(const id of job.builderIds.splice(desired)){
+   const extra=w.byId.get(id);if(extra){extra.target=null;extra.dest=null;extra.mode='idle';if(extra.engineerDuty)extra.engineerDuty.phase='working';}
+  }
   for(const u of w.entities){
    if(job.builderIds.length>=desired)break;
    const crew=u.constructionCrew;
+   if(u.hqCargo&&crew?.homeId===home.id){if(u.cargo>0)continue;u.hqCargo=undefined;if(u.engineerDuty)u.engineerDuty.phase='working';}
    if(u.dead||!crew||w.time<(crew.retryAt??0)||crew.homeId!==home.id||crew.slot>=Math.min(cfg.maxCrews,(home.kind==='hq'?cfg.hqCrews:cfg.fobCrews)+w.producerLevel(home)-1)||u.loadedIntoId!=null||crew.transportId||u.target&&!u.target.dead||!['rest','working'].includes(u.engineerDuty?.phase??''))continue;
    u.target=job;u.mode='build';u.dest={x:job.x,z:job.z};crew.workPoint=undefined;crew.blockedFor=0;clearRoute(u);
    const distance=dist2d(u,job),approach=distance>cfg.remoteDistance?null:constructionApproach(w,u,job),length=approach?.path.reduce((sum,p,i,arr)=>sum+dist2d(i?arr[i-1]:u,p),0)??Infinity;

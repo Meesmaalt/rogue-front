@@ -1,3 +1,4 @@
+import {dispatchResourceConvoys} from './resourceConvoys';
 import {BattleSmoke} from "./battleSmoke";
 import baseLayoutRules from '../data/base-life.json';
 import constructionPolicy from '../data/construction-policy.json';
@@ -12,7 +13,7 @@ import {updateEquipment} from "./equipment";
 import {updateStrategicWeapons} from "./strategicWeapons";
 import {CORE_PLATFORMS} from "./platforms";
 import {dispatchExternalHelicopters,airportDepot,externalEntry} from "./externalSupply";
-import {receiveResourceCargo,stockCapacity,stockTotal,STOCK_KEYS,needsBackhaul} from "./stockLogistics";
+import {receiveResourceCargo,stockCapacity,stockTotal} from "./stockLogistics";
 import {updateGarrisons} from "./garrison";
 import {damage as damageUnit} from "./systems/combat";
 import {freeAirSlot,airFacilityCapacity} from "./systems/airDoctrine";
@@ -23,7 +24,7 @@ import { MAP_SIZE, getBases, heightAt, setTerrainFeatures, setMapSize, ensureHei
 import {WaterNavGrid} from "./nav/WaterNavGrid";
 import {TerrainState} from "./TerrainState";
 import { Rng } from "./rng";
-import { ENEMY_AGGRO, STARTING_CREDITS, STARTING_RESOURCES, RESOURCE_FACILITY_STARTUP, RESOURCE_FACILITY_MAX_STOCK, RESOURCE_FACILITY_PRODUCTION, ROAD_TRUCK_CARGO, ROAD_TRUCK_INTERVAL, ROAD_TRUCK_MAX_PER_DEPOT } from "./constants";
+import { ENEMY_AGGRO, STARTING_CREDITS, STARTING_RESOURCES, RESOURCE_FACILITY_STARTUP, RESOURCE_FACILITY_MAX_STOCK, RESOURCE_FACILITY_PRODUCTION, ROAD_TRUCK_CARGO } from "./constants";
 import { applyCommands } from "./systems/commands";
 import { updateProduction } from "./systems/production";
 import { updateUnits } from "./systems/units";
@@ -38,7 +39,6 @@ import { updateSensors } from "./systems/sensors";
 import { updateMorale } from "./systems/morale";
 import { updateTacticalSupply, isTacticallySupplied, ensureLogisticsPools } from "./systems/tacticalSupply";
 import { pointInFeature,type MapFeatureDef } from "./mapFeatures";
-import {findPath} from "./nav/Pathfinder";
 import { buildFootprint, isBuildable, BUILDINGS, type BuildableKind } from "./buildings";
 import { generateBaseFeatures } from "./baseLayout";
 import { SpatialHash } from "./SpatialHash";
@@ -709,59 +709,13 @@ export class World {
 
   roadLogisticsStatus(team: Team): { trucks: number; cargo: number; delivered: number; lost: number; disconnected: number; ammo: number; fuel: number; repair: number } {
     const trucks = this.entities.filter(e => !e.dead && e.team === team && e.kind === "logiTruck");
-    const cargo = Math.floor(trucks.reduce((n,e)=>n+(e.cargo??0),0) + this.entities.filter(e=>!e.dead&&e.team===team&&(e.kind==="transport"&&e.supplyDepotId!=null||e.kind==="groundHandler")).reduce((n,e)=>n+(e.cargo??0),0));
+    const cargo = Math.floor(trucks.reduce((n,e)=>n+(e.cargo??0),0) + this.entities.filter(e=>!e.dead&&e.team===team&&(e.kind==="transport"&&e.supplyDepotId!=null||e.kind==="groundHandler"||e.hqCargo)).reduce((n,e)=>n+(e.cargo??0),0));
     const disconnected = this.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="supply"&&e !== this.primarySupplyDepot(team) && (e.logisticsStorage??0)>0 && !this.connectedSupplyNodes(team).some(n=>n.id===e.id)).length;
-    const stocks = this.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="supply");
+    const stocks = this.entities.filter(e=>!e.dead&&e.team===team&&(e.kind==="supply"||e.kind==="hq"));
     return { trucks: trucks.length, cargo, delivered: Math.floor(this.roadCargoDelivered[team]), lost: Math.floor(this.roadCargoLost[team]), disconnected, ammo: Math.floor(stocks.reduce((n,e)=>n+(e.ammoStock??0),0)), fuel: Math.floor(stocks.reduce((n,e)=>n+(e.fuelStock??0),0)), repair: Math.floor(stocks.reduce((n,e)=>n+(e.repairStock??0),0)) };
   }
 
-  private convoyExit(depot:Entity,goal:{x:number,z:number}):{x:number,z:number}|null {
-    const angle=Math.atan2(goal.x-depot.x,goal.z-depot.z),radius=depot.def.radius+UNITS.logiTruck.radius+4;
-    for(let i=0;i<16;i++){const a=angle+Math.PI/8*i,p={x:depot.x+Math.sin(a)*radius,z:depot.z+Math.cos(a)*radius};if(this.nav.isWalkableWorld(p.x,p.z,UNITS.logiTruck.radius)&&!this.entities.some(e=>!e.dead&&e.loadedIntoId==null&&e.def.domain==='land'&&e.def.speed>0&&e.def.category!=='infantry'&&Math.hypot(e.x-p.x,e.z-p.z)<e.def.radius+UNITS.logiTruck.radius+1)&&findPath(this.nav,p,goal,UNITS.logiTruck.radius).length)return p;}
-    return null;
-  }
-  private updateRoadConvoys(_dt: number): void {
-    for (const team of [0,1] as const) {
-      const depots=this.entities.filter(e=>!e.dead&&!e.underConstruction&&e.team===team&&e.kind==="supply"&&this.productionOperational(e).operational);
-      const main=this.primarySupplyDepot(team);if(!depots.length||!main)continue;
-      const level=Math.max(...depots.map(e=>this.supplyDepotLevel(e)));
-      const interval=ROAD_TRUCK_INTERVAL/Math.max(1,1+level*.35);
-      if(this.time-this.roadTruckLastSpawn[team]<interval)continue;
-      // One bounded dispatch pass: a failed route cannot consume another route's slot,
-      // and fully blocked sites do not cause A* searches on every simulation tick.
-      this.roadTruckLastSpawn[team]=this.time;
-      const connected=new Set(this.connectedSupplyNodes(team).map(e=>e.id));let dispatched=false;
-      if(this.productionOperational(main).operational)for(const depot of depots){
-        if(depot===main||depot.logisticsPaused||!connected.has(depot.id))continue;
-        if(this.entities.some(t=>!t.dead&&t.team===team&&t.kind==="logiTruck"&&t.supplyDepotId===depot.id&&t.logisticsSourceIndex==null))continue;
-        const cap=stockCapacity(this,depot);
-        if(!needsBackhaul(main,depot)&&!STOCK_KEYS.some(key=>(main[`${key}Stock`]??0)>logisticsConfig.convoyReserve&&(depot[`${key}Stock`]??0)<cap[key]))continue;
-        const exit=this.convoyExit(main,depot);if(!exit)continue;
-        const tr=this.spawn("logiTruck",team,exit.x,exit.z);
-        tr.supplyDepotId=depot.id;tr.logisticsSourceIndex=null;tr.logisticsHome={x:main.x,z:main.z};
-        tr.logisticsTarget={x:depot.x,z:depot.z};tr.logisticsPhase="idle";tr.logisticsCargoCapacity=ROAD_TRUCK_CARGO;
-        tr.mode="move";tr.dest=tr.logisticsHome;dispatched=true;break;
-      }
-      if(dispatched)continue;
-      for(let i=0;i<this.resourcePoints.length&&!dispatched;i++){
-        const rp=this.resourcePoints[i];
-        if(rp.controlledBy!==team||!rp.active||(rp.disabledUntil??0)>this.time||rp.amount<=0)continue;
-        // The closest forward warehouse must not monopolize collection while
-        // the trunk warehouse's production/air service is starved of fuel or ammo.
-        const trunkNeedsCollection=(main.ammoStock??0)<logisticsConfig.convoyReserve||(main.fuelStock??0)<logisticsConfig.convoyReserve;
-        const candidates=depots.filter(e=>!e.logisticsPaused&&(e.preferredResourceIndex==null||e.preferredResourceIndex===i)).sort((a,b)=>(trunkNeedsCollection?Number(b===main)-Number(a===main):0)||Math.hypot(a.x-rp.x,a.z-rp.z)-Math.hypot(b.x-rp.x,b.z-rp.z)||a.id-b.id);
-        for(const depot of candidates){
-          const active=this.entities.filter(t=>!t.dead&&t.team===team&&t.kind==="logiTruck"&&t.supplyDepotId===depot.id&&t.logisticsSourceIndex!=null).length;
-          if(active>=ROAD_TRUCK_MAX_PER_DEPOT+this.supplyDepotLevel(depot))continue;
-          const exit=this.convoyExit(depot,rp);if(!exit)continue;
-          const t=this.spawn("logiTruck",team,exit.x,exit.z);
-          t.supplyDepotId=depot.id;t.logisticsSourceIndex=i;t.logisticsHome={x:depot.x,z:depot.z};t.logisticsTarget={x:rp.x,z:rp.z};
-          t.logisticsPhase="idle";t.logisticsRoute="road";t.logisticsCargoCapacity=ROAD_TRUCK_CARGO+this.supplyDepotLevel(depot)*45+(this.isFOB(depot)?60:0);
-          t.logisticsLoadProgress=0;t.mode="move";t.dest=t.logisticsTarget;t.patrolPoints=(depot.logisticsWaypoints??[]).map(p=>({...p}));t.patrolIndex=0;dispatched=true;break;
-        }
-      }
-    }
-  }
+  private updateRoadConvoys(_dt: number): void {dispatchResourceConvoys(this,this.roadTruckLastSpawn);}
 
   private updateSupplyAirbridge():void {dispatchExternalHelicopters(this);}
 
@@ -890,7 +844,7 @@ export class World {
       if (e.dead) {
         if (e.def.speed > 0 && !e.constructionFlight && e.kind !== "engineer" && e.logisticsRoute !== "strategic") this.battlegroupForTeam(e.team)?.recordLoss(e.kind);
         if ((e.kind === "cargoPlane"||e.kind==="transport"&&e.logisticsRoute==="strategic") && e.cargo > 0) { this.airCargoLost[e.team] += e.cargo; e.cargo = 0; }
-        if (e.kind === "logiTruck" && e.cargo > 0) { this.roadCargoLost[e.team] += e.cargo; e.cargo = 0; }
+        if ((e.kind === "logiTruck" || e.hqCargo) && e.cargo > 0) { this.roadCargoLost[e.team] += e.cargo; e.cargo = 0; }
         if (e.def.speed === 0) removedBuilding = true;
         this.entities.splice(i, 1); this.byId.delete(e.id);
       }

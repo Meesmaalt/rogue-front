@@ -57,6 +57,7 @@ export function collectionSource(w:World,depot:Entity,from:Entity):number|null {
  return best;
 }
 export function logisticsStatus(w:World,u:Entity):string {
+ if(u.kind==='logiTruck'&&!u.resourceConvoy&&u.supplyDepotId==null)return u.dest?'Juhitav varustusveok · liigub':'Juhitav varustusveok · ootab käsku';
  if(u.groundService)return `${u.groundService.onFoot?"Laotöölised":"Kaubamasin"} · ${{pickup:"liigub luugi juurde",load:"võtab veost peale",deliver:"viib veose lattu",unload:"laadib lattu"}[u.groundService.phase]} · koorem ${Math.ceil(u.cargo)}`;
  if(u.logisticsManual)return u.mode==='hold'?'Käsitsi pargitud · automaatveod taastad lao allikavalikust':'Käsitsi ümberpaigutamine';
  if(u.airState==='grounded'&&(u.cargoDoor??0)>0&&u.groundServiceId==null&&u.cargo>0)return 'Ootab ligipääsu luugile · vabasta lao ümbrus';

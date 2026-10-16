@@ -148,5 +148,26 @@
     "tolerance": 0.01,
     "pathAttempts": 4,
     "pathNodeBudget": 6000
+  },
+  "resourceConvoys": {
+    "dispatchInterval": 24,
+    "capacity": 150,
+    "loadSeconds": 4.5,
+    "pickupArrival": 2,
+    "dockArrival": 1.6,
+    "workerBatch": 18,
+    "workerPickupSeconds": 1.2,
+    "workerUnloadSeconds": 1.2,
+    "workerArrival": 0.8,
+    "pathSearchLimit": 6000,
+    "dock": {
+      "x": 13,
+      "z": 26,
+      "spacing": 6
+    },
+    "door": {
+      "x": 0,
+      "z": 8
+    }
   }
 }

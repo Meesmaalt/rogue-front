@@ -224,7 +224,14 @@
     "capCompactPursuitRadius": 1100,
     "airInterceptLeadSeconds": 2.5,
     "airInterceptLookAhead": 1.2,
-    "airPursuitMinimumSpeed": 0.48
+    "airPursuitMinimumSpeed": 0.48,
+    "targetStickiness": 16,
+    "threatPriority": 26,
+    "incomingTargetPenalty": 70,
+    "coordinationSeconds": 6,
+    "lethalReservationMargin": 1.15,
+    "tankTurretRate": 2.4,
+    "vehicleTurretRate": 3.2
   },
   "naval": {
     "acceleration": 1.5,

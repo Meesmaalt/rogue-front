@@ -16,7 +16,7 @@ function assignedSeats(_world:World,e:Entity,home:Entity):Spot[]|null {
  */
 export function engineerSeats(world:World,e:Entity,st:LoungeState,dt:number):Spot[]|null {
  if(!e.constructionCrew)return null;
- if(e.engineerDuty){const home=world.byId.get(e.engineerDuty.homeId);st.gearPhase=e.engineerDuty.phase==='to-van'||e.engineerDuty.phase==='boarding';st.toolsAway=e.engineerDuty.phase==='rest'||!!st.gearPhase;return home?.kind==='hq'&&e.engineerDuty.phase==='rest'?assignedSeats(world,e,home):null;}
+ if(e.engineerDuty){const home=world.byId.get(e.engineerDuty.homeId);st.gearPhase=e.engineerDuty.phase==='to-van'||e.engineerDuty.phase==='boarding';st.toolsAway=e.engineerDuty.phase==='rest'||e.engineerDuty.phase==='cargo'||!!st.gearPhase;return home?.kind==='hq'&&e.engineerDuty.phase==='rest'?assignedSeats(world,e,home):null;}
  const resting=e.mode==='idle'&&!e.dest&&!e.target&&(e.motionSpeed??0)<.1&&!e.garrisonId&&!e.airdrop&&e.loadedIntoId==null;
  st.engIdle=resting?(st.engIdle??0)+dt:0;
  if(st.engIdle>=IDLE_BEFORE_LOUNGE){

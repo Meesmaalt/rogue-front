@@ -659,5 +659,14 @@
   "raketi start": "missile launched",
   "Kontroll kaotatud": "Control lost",
   "Hõivatud": "Captured",
-  "Hävinud": "Destroyed"
+  "Hävinud": "Destroyed",
+  "Laadib hõivatud laos": "Loading at captured facility",
+  "Teel hõivatud lattu": "En route to captured facility",
+  "Toob kauba peamajja": "Delivering cargo to headquarters",
+  "Ootab HQ vabu meeskondi": "Waiting for available HQ crews",
+  "Lõpetab veoringi": "Finishing the delivery route",
+  "Automaatne veoring · ainult vaatamine": "Automatic convoy · view only",
+  "Ootab rühma raketitabamust": "Waiting for friendly missile impact",
+  "Juhitav varustusveok · liigub": "Player-controlled supply truck · moving",
+  "Juhitav varustusveok · ootab käsku": "Player-controlled supply truck · awaiting orders"
 }

@@ -61,5 +61,6 @@
     "baseHeight": 0.18,
     "maxFloors": 3,
     "floorHeight": 3
-  }
+  },
+  "crewsPerSite": 1
 }

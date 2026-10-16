@@ -2,6 +2,18 @@
 
 Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 16, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
 
+## Hõivatud rajatise veoring, HQ mahalaadimine ja tulejuhtimine · 16.10.2026
+
+Automaatne maanteelogistika ei sõltu enam enda ehitatud varustusladude arvust. `resourceConvoys.ts` määrab igale oma töötavale hõivatud ressursirajatisele ühe kohaliku veoki; 24 s väljasaatmispiir ja piiratud A* kontroll väldivad puuduva tee pidevat otsimist. Veok ilmub rajatise vabale laadimisalale ja sõidab päriselt HQ eraldi laadimiskohta. Ostetud `logiTruck` jääb mängija juhitavaks ega saa esimesel sammul automaatset laoülesannet. Automaatset veokit võib vaadelda, kuid käsutee, HUD ja hiirekäsud ei luba seda ümber suunata.
+
+HQ automaatsed ehitusmeeskonnad võtavad mahalaadimise ainult puhkeolekus, kodubaasi juures. Töölised kõnnivad auto küljele, võtavad piiratud partii ja kannavad selle HQ sissepääsuni; kastid on nähtavad. Alles tegelikul üleandmisel kutsub sim välja `receiveSupply` ja arvestab sissetuleku/varud. Täis HQ juures säilib koorem, hõivatud lao kaotamisel lõpetatakse olemasoleva kauba tagasivedu, hõivamata allikale ei hüpata. Ehitustöö tühistab veel tühjade kätega mahalaadijate ülesande; kantav partii viiakse esmalt lõpuni. Üks objekt saab ühe automaatse meeskonna, HQ tase kasvatab paralleelsete objektide arvu. Vana topeltmääramine vabastatakse; vanad kogumisveokid viiakse HQ marsruudile. Vanad ladudevahelised veokid lõpetavad salvestatud koorma üleandmise ja jäävad uue automaatlaadimise asemel seisma.
+
+`Entity.resourceConvoy` ja `hqCargo` on fikseeritud sim-sammu olek ning kuuluvad täissalvestusse ja replay räsisse. Koorem liigub ainult rajatis → veok → töötajad → HQ; vedaja surm registreerib alles oleva kaotuse. HUD-i teel oleva kauba summa sisaldab ka töötajate käes olevaid kaste ja HQ varusid näidatakse logistika kogusummas. `logistics.json.resourceConvoys` määrab koormad, tööajad ja laadimiskohtade paigutuse.
+
+Maa- ja õhumasina päris laskering valib relva kõiki `weaponFireBlocker` tingimusi arvestades. Stabiliseeruv rakett ei blokeeri sobiva, valmis kahuri tööd. Torni suhteline nurk kompenseerib kere pöörde enne piiratud kiirusega uut sihtimist; kopteri kere/gun-traverse ning fikseeritud lennukikahuri ninakoonus jäävad eraldi piiranguteks. Automaatne sihtmärgivalik hindab lähenevaid vasturelvadega ohte ning kontrollib valikut poole sekundi järel koos olemasolevat sihtmärki säilitava eelistusega. Mängija otsest ründekäsku see ümber ei kirjuta.
+
+`incomingGuidedDamage` kasutab vaid oma aktiivsete juhitud rakettide nähtavat hetkeolekut, hinnangulist tabamisvõimet ja soomusmõju. Ta ei vaata juhuarvulist tulevast tabamust. Kui lühikese saabumisajaga eeldatav kahjustus katab sihtmärgi allesjäänud tervise, eelistatakse automaatselt teist sihtmärki ja uut raketti ei raisata; kahur võib jätkata. Juhitavuse kaotanud, liiga kaua lennanud või kauged raketid seda ooteolekut ei loo. Parameetrid on `mobility.json.combat` all.
+
 ## Loetavad lahinguteated · 16.10.2026
 
 `BattleNoticeLog` on ainult UI olek: kuni 24 sündmust, tavavaates neli viimase 14 sim-sekundi teadet. Lugemata kriitilised hoiatused on valmimisteadete ees; avatud ajalugu järjestab teated aja järgi. Sama liigi/asukoha sündmused koonduvad 10 sekundi ja 80 m piires; kaotuste ja valmimiste arv kasvab, pidev kahjustus ei paisuta kunstlikku tabamuste loendurit. Värskendatud sündmus liigub piiratud ajaloo etteotsa. Loetuks märgitud teate uus kahjustus muudab taas lugemata teateks.

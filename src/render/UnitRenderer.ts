@@ -195,6 +195,9 @@ export class UnitRenderer {
             if(!e.garrisonId&&!e.airdrop&&!world.nav.isWalkableWorld(p.x,p.z,.2)){p.x=before.x;p.z=before.z;p.speed=0;}updated.add(index);}
           const dx=p.x-x,dz=p.z-z;o.position.x=(Math.cos(h)*dx-Math.sin(h)*dz)/scale;o.position.z=(Math.sin(h)*dx+Math.cos(h)*dz)/scale;
           o.position.y=e.garrisonId||e.airdrop?0:(heightAt(p.x,p.z)-v.group.position.y)/scale+Math.abs(Math.sin(p.stride))*.04*Math.min(1,p.speed/Math.max(.1,e.def.speed));o.rotation.y=wrapAngle(p.heading-h);o.userData.soldierStride=p.stride;o.userData.soldierSpeed=p.speed;
+          if(e.hqCargo||o.getObjectByName('HqCargoBox')){
+           let box=o.getObjectByName('HqCargoBox');if(!box){const mesh=new THREE.Mesh(new THREE.BoxGeometry(.48,.38,.4),new THREE.MeshStandardMaterial({color:0x907545,roughness:.95}));mesh.name='HqCargoBox';mesh.position.set(0,.8,.38);o.add(mesh);box=mesh;}box.visible=!!e.hqCargo&&e.cargo>0;
+          }
           if(e.kind==="engineer"){const sat=!!seat&&!v.gearPhase&&Math.hypot(p.x-seat.x,p.z-seat.z)<.25&&p.speed<.3;o.userData.seated=sat;if(sat){o.position.y-=.32;o.rotation.y=wrapAngle(seat.heading-h);}else if((e.mode==="build"||e.mode==="repair")&&e.target)o.rotation.y=wrapAngle(Math.atan2(e.target.x-p.x,e.target.z-p.z)-h);animateEngineerTools(o,e,index,world.time,sat||!!v.toolsAway);}
         }
       }

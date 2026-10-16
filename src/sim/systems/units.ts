@@ -1,3 +1,4 @@
+import {updateResourceConvoy,updateHqCargo,adoptLegacyResourceConvoy} from '../resourceConvoys';
 import gunRules from "../../data/air-gunnery.json";
 import {fixedAirGun,airGunSolution} from "../airGunnery";
 import {weaponRange} from "./combat";
@@ -16,8 +17,7 @@ import physics from "../../data/physics.json";
 import {BATTLE_SCALE,aircraftMobility,helicopterMobility} from "../battleScale";
 import {isIndirectUnit} from "../equipment";
 import {airportDepot,externalDepotReady,externalEntry} from "../externalSupply";
-import {ROAD_TRUCK_MAX_PER_DEPOT} from "../constants";
-import {collectionSource,depositPayload,withdrawPayload,serviceFuelAvailable,needsBackhaul} from "../stockLogistics";
+import {collectionSource,depositPayload,serviceFuelAvailable} from "../stockLogistics";
 import {garrisonFaces} from "../garrison";
 import {prepareTransport,transportCapacity} from "../transport";
 import {travelPathCost} from "../unitStats";
@@ -28,7 +28,7 @@ import logisticsConfig from "../../data/logistics.json";
 import mobility from "../../data/mobility.json";
 import { heightAt, MAP_SIZE } from "../heightmap";
 import { dist2d, turnToward, wrapAngle } from "../math";
-import { fireProjectile, canEngage, effectiveWeaponRange,selectWeapon,weaponSpec,weaponAmmo,weaponMuzzle,weaponFireBlocker,hasWeaponLineOfSight,alternateAirWeapon } from "./combat";
+import { fireProjectile, canEngage, effectiveWeaponRange,selectWeapon,weaponSpec,weaponAmmo,weaponMuzzle,weaponFireBlocker,hasWeaponLineOfSight,incomingGuidedDamage } from "./combat";
 import { coverValueAt,isSpottedBy } from "./sensors";
 import { moraleSpeedMul, moraleAccuracyMul, moraleState } from "./morale";
 import { outOfFuel, outOfAmmo,repairDepotFor } from "./tacticalSupply";
@@ -67,6 +67,9 @@ export function nearestEnemy(w: World, u: Entity, range: number): Entity | null 
     if(u.def.armor==="air"&&u.airMission==="cap"&&e.def.armor!=="air")return;
     if ((u.kind === "bunker" || u.kind === "aa" || u.kind === "spaa") && !inFiringArc(u, e)) return;
     let priority = d;
+    if(e===u.target)priority-=mobility.combat.targetStickiness;
+    if(canEngage(e,u)&&d<=effectiveWeaponRange(e,u))priority-=mobility.combat.threatPriority;
+    if(incomingGuidedDamage(w,u,e)>=e.hp*mobility.combat.lethalReservationMargin)priority+=mobility.combat.incomingTargetPenalty;
     if (u.def.weapon === "missile" && e.def.armor === "air") priority -= 22;
     if (u.kind === "artillery" && e.def.speed === 0) priority -= 16;
     if (["heli","gunship","atgm","tankDestroyer"].includes(u.kind)&&e.def.category==="armor")priority-=30;
@@ -243,85 +246,19 @@ function moveRoadTruckTo(w: World, u: Entity, goal: Point, dt: number, arrival=3
 }
 
 function updateRoadTruck(w: World, u: Entity, dt: number): void {
-  let depot = u.supplyDepotId != null ? w.byId.get(u.supplyDepotId) : null;
-  if (!depot || depot.dead) {
-    depot=w.primarySupplyDepot(u.team);if(!depot||depot.dead){u.mode="idle";u.dest=null;return;}
-    u.supplyDepotId=depot.id;u.logisticsHome={x:depot.x,z:depot.z};u.logisticsTarget={x:depot.x,z:depot.z};u.navPath=[];
-    if(u.cargo>0&&u.logisticsSourceIndex!=null)u.logisticsPhase="loading";
+  if(u.logisticsSourceIndex!=null){
+    if(adoptLegacyResourceConvoy(w,u))updateResourceConvoy(w,u,dt,(p,arrival)=>moveRoadTruckTo(w,u,p,dt,arrival));
+    else {u.motionSpeed=0;u.dest=null;}return;
   }
-  // Reassign only empty automatic collectors. Loaded cargo and explicit routes
-  // keep their destination; a depleted trunk must receive the next real loads.
-  const trunk=u.cargo<=0&&u.logisticsSourceIndex!=null?w.primarySupplyDepot(u.team):null;
-  if(u.cargo<=0&&u.logisticsSourceIndex!=null&&trunk&&trunk.kind==='supply'&&trunk!==depot&&!trunk.logisticsPaused&&!depot.logisticsPaused&&depot.preferredResourceIndex==null&&trunk.preferredResourceIndex==null&&!depot.logisticsWaypoints?.length&&!trunk.logisticsWaypoints?.length&&w.entities.filter(t=>!t.dead&&t.kind==='logiTruck'&&t.supplyDepotId===trunk.id&&t.logisticsSourceIndex!=null).length<ROAD_TRUCK_MAX_PER_DEPOT+w.supplyDepotLevel(trunk)&&
-     ((trunk.fuelStock??0)<logisticsConfig.convoyReserve&&(depot.fuelStock??0)>logisticsConfig.convoyReserve||(trunk.ammoStock??0)<logisticsConfig.convoyReserve&&(depot.ammoStock??0)>logisticsConfig.convoyReserve)&&w.connectedSupplyNodes(u.team).some(n=>n.id===depot!.id)){
-    depot=trunk;u.supplyDepotId=trunk.id;u.logisticsHome={x:trunk.x,z:trunk.z};u.navPath=[];u.roadTripGoal=undefined;u.roadPathGoal=undefined;u.roadPathRetryAt=0;
-  }
-  if(depot.logisticsPaused&&u.cargo<=0){u.mode="move";u.dest=u.logisticsHome??depot;moveRoadTruckTo(w,u,u.dest,dt,16);return;}
-  if(u.cargo<=0&&u.logisticsSourceIndex!=null){
-    const current=w.resourcePoints[u.logisticsSourceIndex];
-    const next=depot.preferredResourceIndex??(
-      !current||current.controlledBy!==u.team||!current.active||(current.disabledUntil??0)>w.time||current.amount<1
-        ?collectionSource(w,depot,u):u.logisticsSourceIndex);
-    if(next!=null&&next!==u.logisticsSourceIndex){
-      u.logisticsSourceIndex=next;u.logisticsPhase="idle";u.logisticsLoadProgress=0;
-      u.navPath=[];u.roadTripGoal=undefined;
-    }
-  }
-  const cap = u.logisticsCargoCapacity ?? 150;
-  const source = u.logisticsSourceIndex != null ? w.resourcePoints[u.logisticsSourceIndex] : null;
-  const home = u.logisticsHome ?? {x: depot.x,z: depot.z};
-
-  // Collection truck: resource site -> local depot -> trunk depot/national pool.
-  if (source) {
-    if (u.logisticsPhase === "idle" || u.logisticsPhase === "unloading") {
-      if(source.controlledBy!==u.team||!source.active||(source.disabledUntil??0)>w.time){u.dest={...home};u.mode="move";moveRoadTruckTo(w,u,home,dt,16);return;}
-      u.dest = {x:source.x,z:source.z}; u.mode="move";
-      if (!moveRoadTruckTo(w,u,u.dest,dt,source.radius+4)) return;
-      if (Math.hypot(u.x-source.x,u.z-source.z) <= source.radius+4) {
-        u.logisticsLoadProgress = (u.logisticsLoadProgress ?? 0) + dt;
-        if (u.logisticsLoadProgress >= 4.5) {
-          const loaded = Math.min(cap, Math.floor(source.amount ?? 0));
-          if (loaded > 0) { source.amount = Math.max(0,(source.amount??0)-loaded); u.cargo=loaded; u.logisticsPhase="loading"; u.logisticsLoadProgress=0; u.dest={x:home.x,z:home.z}; }
-        }
-      }
-      return;
-    }
-    if (u.logisticsPhase === "loading") {
-      u.dest={x:home.x,z:home.z}; u.mode="move";
-      if (!moveRoadTruckTo(w,u,u.dest,dt,16)) return;
-      if (Math.hypot(u.x-home.x,u.z-home.z)<=16) {
-        u.logisticsLoadProgress=(u.logisticsLoadProgress??0)+dt;
-        if (u.logisticsLoadProgress>=3) {
-          const amount=w.receiveSupply(depot,u.cargo);
-          w.roadCargoDelivered[u.team]+=amount;
-          if(amount>0)w.events.push({type:"supply-delivered",team:u.team,x:u.x,z:u.z,amount});
-          u.cargo=Math.max(0,u.cargo-amount);if(u.cargo>0)return;u.logisticsPhase="idle"; u.logisticsLoadProgress=0; u.dest={x:source.x,z:source.z};
-        }
-      }
-      return;
-    }
-  }
-
-  // A missing collection site must not turn its truck into a warehouse convoy.
-  if(u.logisticsSourceIndex!=null){u.mode="move";u.dest={...home};moveRoadTruckTo(w,u,home,dt,16);return;}
-
+  if(u.cargo<=0){u.supplyDepotId=undefined;u.logisticsHome=null;u.logisticsTarget=null;u.logisticsPhase='idle';u.logisticsManual=true;u.mode='idle';u.dest=null;u.navPath=[];return;}
+  const depot=u.supplyDepotId!=null?w.byId.get(u.supplyDepotId):null;
+  if(!depot||depot.dead){u.motionSpeed=0;u.dest=null;return;}
+  // Finish a legacy saved payload once; a second built depot cannot start another load.
   // Outbound resupply: finite warehouse stocks -> truck -> forward depot.
   const main=w.primarySupplyDepot(u.team);
   if(!main || main===depot) {
     if(u.cargo>0&&u.logisticsPayload&&moveRoadTruckTo(w,u,depot,dt,16)){const delivered=depositPayload(w,depot,u.logisticsPayload);u.cargo=Math.max(0,u.cargo-delivered);w.roadCargoDelivered[u.team]+=delivered;if(u.cargo<=.001){u.cargo=0;u.logisticsPayload=undefined;}}
     u.mode="idle";u.dest=null;return;
-  }
-  if(u.cargo<=0) {
-    const backhaul=needsBackhaul(main,depot),source=backhaul?depot:main,destination=backhaul?main:depot;
-    u.logisticsPhase=backhaul?'unloading':'idle';u.dest={x:source.x,z:source.z};u.mode="move";
-    if(!moveRoadTruckTo(w,u,u.dest,dt,16))return;
-    if(!w.connectedSupplyNodes(u.team).some(n=>n.id===depot.id))return;
-    u.logisticsLoadProgress=(u.logisticsLoadProgress??0)+dt;
-    if(u.logisticsLoadProgress<3)return;
-    const payload=withdrawPayload(w,source,destination,cap);
-    u.cargo=payload.ammo+payload.fuel+payload.repair;u.logisticsPayload=payload;u.logisticsLoadProgress=0;
-    u.logisticsPhase=backhaul?'unloading':'loading';
-    if(u.cargo<=0){u.mode="idle";return;}
   }
   // Direction is held by the existing saved phase until this finite load is delivered.
   const destination=u.logisticsPhase==='unloading'?main:depot;
@@ -639,10 +576,11 @@ export function updateUnits(w: World, dt: number): void {
 }
 
 function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): void {
-  const d = u.def;u.navWaiting=false;
+  const d = u.def,previousHullHeading=u.heading;u.navWaiting=false;
   if(updateConstructionFlight(w,u,dt,p=>moveAirTo(u,p,dt,w)))return;
   if(updateConstructionBoarding(w,u,p=>movePorterTo(w,u,p,dt)))return;
   if(u.kind==='groundHandler'){updateGroundHandler(w,u,dt,p=>u.groundService?.onFoot?movePorterTo(w,u,p,dt):moveRoadTruckTo(w,u,p,dt,logisticsConfig.handling.arrival));return;}
+  if(updateHqCargo(w,u,dt,p=>{const arrived=dist2d(u,p)<=logisticsConfig.resourceConvoys.workerArrival;if(arrived){u.motionSpeed=0;return true;}return movePorterTo(w,u,p,dt);}))return;
   if(updateEngineerDuty(w,u,dt,p=>movePorterTo(w,u,p,dt)))return;
   if(updateAirdrop(w,u,dt))return;
   if(u.kind==='airTransport'&&u.mode==='transport-load'){updateAirliftLoading(w,u);return;}
@@ -653,7 +591,8 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
   const transporting=d.domain!=="air"&&transportCapacity(u)>0&&prepareTransport(w,u);
   if (u.kind === "cargoPlane") { updateCargoPlane(w, u, dt); return; }
   if (u.kind === "transport"&&u.supplyDepotId!=null) { updateTransport(w, u, dt); return; }
-  if (u.kind === "logiTruck") { updateRoadTruck(w, u, dt); return; }
+  if(updateResourceConvoy(w,u,dt,(p,arrival)=>moveRoadTruckTo(w,u,p,dt,arrival)))return;
+  if (u.kind === "logiTruck"&&u.supplyDepotId!=null) { updateRoadTruck(w, u, dt); return; }
   if (u.kind === "landingcraft") { updateLandingCraft(w, u, dt); return; }
   if (u.kind === "special" && !u.garrisonId && u.standingOrder!=="holdfire" && ["idle","amove","sabotage"].includes(u.mode)) {
     const target = w.entities.find(e=>!e.dead && e.team!==u.team && e.def.building && isSpottedBy(e,u.team,w.time) && Math.hypot(e.x-u.x,e.z-u.z)<7);
@@ -801,7 +740,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
   if (mayAcquire&&u.mode !== "attack") {
     const lim = u.mode === "move" ? effectiveRange : Math.max(effectiveRange, u.aggro);
     const tick = Math.floor(w.time * 30);
-    const reconsider=!!u.target&&(tick+u.id)%mobility.combat.reconsiderTicks===0&&(!canEngage(u,u.target)||(!isIndirectUnit(u)&&!hasWeaponLineOfSight(w,u,u.target)));
+    const reconsider=!!u.target&&(tick+u.id)%mobility.combat.reconsiderTicks===0;
     const needNew = !u.target || u.target.dead || !isSpottedBy(u.target,u.team,w.time) || !canEngage(u,u.target) || dist2d(u, u.target) - u.target.def.radius > lim * 1.15 || reconsider;
     if (needNew) {
       if ((tick + u.id) % 4 === 0 || !u.target || u.target.dead || reconsider) {
@@ -1028,8 +967,9 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       u.turretYaw=0;// fixed-wing guns are bore-sighted along the nose
     } else if (d.turret) {
       if(d.category==="heli"&&!goal&&u.mode!=="move")u.heading=turnHelicopter(u,absWant,dt);
+      u.turretYaw=wrapAngle(u.turretYaw+wrapAngle(previousHullHeading-u.heading));
       const relative=wrapAngle(absWant-u.heading),want=d.category==="heli"?Math.max(-mobility.combat.helicopterGunTraverse,Math.min(mobility.combat.helicopterGunTraverse,relative)):relative;
-      u.turretYaw=turnToward(u.turretYaw,want,(d.category==="heli"?mobility.combat.helicopterTurretRate:u.kind==="tank"?2.4:3.2)*dt);
+      u.turretYaw=turnToward(u.turretYaw,want,(d.category==="heli"?mobility.combat.helicopterTurretRate:u.kind==="tank"?mobility.combat.tankTurretRate:mobility.combat.vehicleTurretRate)*dt);
     } else {
       // Hull must turn toward target (infantry, fixed guns)
       if (!goal && (inRange || u.mode === "attack" || u.mode === "hold")) {
@@ -1051,8 +991,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       u.flightAttackExit={x:Math.max(-edge,Math.min(edge,u.x+Math.sin(u.heading)*span)),z:Math.max(-edge,Math.min(edge,u.z+Math.cos(u.heading)*span))};u.flightAttackExitUntil=w.time+mobility.combat.airExtendTime;
     }
   }
-  let weaponIndex=target?selectWeapon(u,target,true):-1;
-  if(target&&d.category==='air'&&weaponIndex>=0&&weaponFireBlocker(w,u,target,weaponIndex)!==null){const alt=alternateAirWeapon(w,u,target,weaponIndex);if(alt>=0)weaponIndex=alt;}
+  const weaponIndex=target?selectWeapon(u,target,true,w):-1;
   const spec=weaponIndex>=0?weaponSpec(u,weaponIndex):null;
   if(target&&spec&&weaponFireBlocker(w,u,target,weaponIndex)===null){
     const muzzle=weaponMuzzle(u,spec,weaponIndex);
@@ -1101,7 +1040,7 @@ export function combatStatus(w:World,u:Entity):string {
   if(u.combatWithdrawing&&u.target&&!u.holdPosition)return "Taastab laskekaugust · hoiab relva vaenlase suunas";
   if(!u.target)return u.dest?"Liigub · otsib sihtmärki":"Valmis · sihtmärk puudub";
   if(!isSpottedBy(u.target,u.team,w.time))return "Luurekontakt kadunud";
-  const ready=selectWeapon(u,u.target,true),slot=ready>=0?ready:selectWeapon(u,u.target);
+  const ready=selectWeapon(u,u.target,true,w),slot=ready>=0?ready:selectWeapon(u,u.target);
   if(slot<0)return "Puudub sihtmärgile sobiv moonaga relv";
   const blocker=weaponFireBlocker(w,u,u.target,slot);
   if(blocker==="Tulejoon blokeeritud")return u.holdPosition?blocker+" · hoiab positsiooni":blocker+" · otsib positsiooni";

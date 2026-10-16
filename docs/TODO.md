@@ -1,5 +1,14 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Masinate tulejuhtimine ja hõivatud lao veoring · 16.10.2026
+
+- [x] Eemaldatud teise oma varustuslao tõttu tekkiv automaatne MTVR ladudevaheline vedu. Üks hõivatud, töötav ressursirajatis korraldab ühe eraldi automaatse veoki HQ juurde, sõltumata ostetud veokitest. Ostetud sõidukile ei määrata omavolilist marsruuti.
+- [x] HQ laadimiskoht ja päriselt kõndivad vabad ehitusmeeskonnad: piiratud kastipartii liigub veokilt töötajale ning HQ-sse, alles seal varu/sissetulek. Täis laos kauba säilimine, hõivamise kaotamisel tagasivedu, automaatse veoki käsukaitse, vana veoringi üleminek ja save/replay/hash. Töötajatel nähtavad kastid, ET/EN olekutekstid.
+- [x] Üks automaatne ehitusmeeskond objekti kohta; HQ teine tase annab teise paralleelse töövõimaluse. Vana topeltmääramise puhastus, ehituse eelis veel tühjade kätega mahalaadijatele, kantava partii ohutu lõpetamine.
+- [x] Maa- ja õhumasinate alternatiivse valmis relva valik, kere pööramise kompensatsioon torni sihtimisel, stabiilne automaatne ohtliku sihtmärgi eelistus. Lühikese saabumisajaga oma rakettide hinnang vähendab liigseid ühissalvosid; kadunud juhtimine ei jäta relva ootama ja tulevast tabamisjuhuarvu ei loeta.
+- [x] 39 sihitud lahingu-, lennu-, logistika-, tööjaotuse ja füüsilise HQ mahalaadimise kontrolli. Varem muutunud lennujaamasisese hooldusega kooskõlla viidud kaks vana testiseadistust. Kliendi ja serveri build ning diff-kontroll.
+- [ ] Tegeliku WebGL pildi ja mängutunnetuse ülevaatus (sh kastikandjate käed ja HQ laadimisala): kohalik brauser puudub, GPU pilti testid ei kinnita.
+
 ## Lahinguinfo ja reageerimine · 16.10.2026
 
 - [x] Kompaktne, klõpsatav lahinguteadete paneel: kütusehäda, oma kaotused koos üksuse tüübiga, baasi ründamine / kriitiline HQ, valminud hooned, teenindus, ressursipunktide kontroll, raketistart ja nurjunud käsu põhjus. Klõps viib sündmuse asukohta üksustele käsku andmata.
