@@ -27,6 +27,6 @@ export function createMetricRunway(pad:Pick<Entity,"x"|"y"|"z"|"heading">):THREE
  // Separate heavy-cargo stand remains beyond the fighter bays.
  const cargo=BATTLE_SCALE.cargo;rect(cargo.parkingLateral-11,cargo.parkingLateral+11,cargo.parkingForward-14,cargo.parkingForward-13.7,0xd1c795,2);
  // Service lane stays behind the hangars.
- rect(79,81,-74,61,0x626b66,1);
+ rect(73,75,-70,61,0x626b66,1);
  const batches=layers.map(pieces=>mergeGeometries(pieces,false)!);const geometry=mergeGeometries(batches,true)!;layers.flat().forEach(g=>g.dispose());batches.forEach(g=>g.dispose());geometry.computeBoundingSphere();const mesh=new THREE.Mesh(geometry,materials);mesh.name='MetricRunway';mesh.receiveShadow=true;return mesh;
 }

@@ -11,13 +11,15 @@ it('persistent driver gets the forklift before landing, delivers without crossin
  const bases=[{x:0,z:0,r:220},{x:250,z:250,r:20}];setBases(bases);const w=new World(81,false,[],[],bases,false);w.networkMode=true;
  w.spawn('hq',0,-40,0);w.spawn('generator',0,0,-35);const depot=w.spawn('supply',0,0,0);depot.heading=.63;depot.ammoStock=depot.fuelStock=depot.repairStock=0;w.nav.syncBuildings(w.entities);ensureDepotCrews(w);
  const crew=w.entities.find(e=>e.groundService?.crewIndex===0)!;expect(crew.groundService?.crewState).toBe('rest');
- const h=w.spawn('transport',0,-80,-50);h.supplyDepotId=depot.id;h.cargo=180;h.airState='airborne';const pad=logisticsLandingPoint(w,depot,h)!;h.logisticsHome=pad;const id=prepareDepotCrew(w,h,depot)!.id;
- const states=new Set<string>();let violated=false;
+ const h=w.spawn('transport',0,-80,-50);h.supplyDepotId=depot.id;h.cargo=180;h.airState='airborne';const pad=logisticsLandingPoint(w,depot,h)!;h.logisticsHome=pad;const id=prepareDepotCrew(w,h,depot)!.id;h.heading=1.1;
+ const states=new Set<string>();let violated=false,sawLoad=false;const helicopterHull=[] as number[];
  // Freeze the aircraft to isolate the real worker path while it stages, then park it for unloading.
- const step=()=>{w.time+=1/30;w.spatial.rebuild(w.entities);const index=w.entities.indexOf(h);w.entities.splice(index,1);updateUnits(w,1/30);w.entities.splice(index,0,h);if(crew.groundService?.crewState)states.add(crew.groundService.crewState);for(const b of buildingSolidBoxes(depot)!){const dx=crew.x-depot.x,dz=crew.z-depot.z,x=Math.cos(depot.heading)*dx-Math.sin(depot.heading)*dz,z=Math.sin(depot.heading)*dx+Math.cos(depot.heading)*dz;if(Math.abs(x-b.x)<b.width/2&&Math.abs(z-b.z)<b.depth/2)violated=true;}};
+ const step=()=>{const cargo=crew.cargo;w.time+=1/30;w.spatial.rebuild(w.entities);const index=w.entities.indexOf(h);w.entities.splice(index,1);updateUnits(w,1/30);w.entities.splice(index,0,h);if(crew.cargo>cargo){sawLoad=true;const face=Math.atan2(h.x-crew.x,h.z-crew.z);expect(Math.abs(Math.atan2(Math.sin(face-crew.heading),Math.cos(face-crew.heading)))).toBeLessThan(.15);}
+ if(h.airState==='grounded'&&crew.groundService?.crewState==='driving'){const dx=crew.x-h.x,dz=crew.z-h.z,side=Math.cos(h.heading)*dx-Math.sin(h.heading)*dz,along=Math.sin(h.heading)*dx+Math.cos(h.heading)*dz;if(Math.abs(side)<1.4&&Math.abs(along)<3.5)helicopterHull.push(w.time);}
+ if(crew.groundService?.crewState)states.add(crew.groundService.crewState);for(const b of buildingSolidBoxes(depot)!){const dx=crew.x-depot.x,dz=crew.z-depot.z,x=Math.cos(depot.heading)*dx-Math.sin(depot.heading)*dz,z=Math.sin(depot.heading)*dx+Math.cos(depot.heading)*dz;if(Math.abs(x-b.x)<b.width/2&&Math.abs(z-b.z)<b.depth/2)violated=true;}};
  for(let i=0;i<360;i++)step();expect(states).toContain('boarding');expect(states).toContain('driving');expect(h.cargo).toBe(180);
  h.x=pad.x;h.z=pad.z;h.y=heightAt(h.x,h.z);h.airState='grounded';
  for(let i=0;i<6000&&(w.roadCargoDelivered[0]<180||crew.groundService?.crewState!=='rest');i++){handleGroundCargo(w,h,depot,1/30);step();}
- expect(violated).toBe(false);expect(w.roadCargoDelivered[0]).toBeCloseTo(180);expect(crew.id).toBe(id);expect(crew.dead).toBe(false);expect(crew.groundService?.crewState).toBe('rest');expect(states).toContain('parking');expect(states).toContain('returning');
+ expect(violated).toBe(false);expect(sawLoad).toBe(true);expect(helicopterHull).toHaveLength(0);expect(w.roadCargoDelivered[0]).toBeCloseTo(180);expect(crew.id).toBe(id);expect(crew.dead).toBe(false);expect(crew.groundService?.crewState).toBe('rest');expect(states).toContain('parking');expect(states).toContain('returning');
  const copy=new World(81,false,[],[],bases,false);loadWorld(copy,JSON.parse(JSON.stringify(saveWorld(w))));expect(worldHash(copy)).toBe(worldHash(w));
 });

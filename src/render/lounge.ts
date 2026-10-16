@@ -6,9 +6,8 @@ export function buildingScale(kind:string):number{return kind==='supply'?1:terra
 export interface Seat{x:number;z:number;/** Local facing angle, 0 = +z. */heading:number}
 export const HQ_LOUNGE={x:5.8,z:9.6};
 export const DEPOT_LOUNGE={x:layout.depot.rest.x,z:layout.depot.rest.z};
-function around(cx:number,cz:number,points:ReadonlyArray<[number,number]>):Seat[]{return points.map(([dx,dz])=>({x:cx+dx,z:cz+dz,heading:Math.atan2(-dx,-dz)}));}
-/** Three sofa seats, two armchairs and a crate stool around the HQ coffee table. */
-export function hqSeats():Seat[]{return around(HQ_LOUNGE.x,HQ_LOUNGE.z,[[-.8,1.55],[0,1.55],[.8,1.55],[-1.7,-.2],[1.7,-.2],[0,-1.5]]);}
+/** Three practical outdoor benches, one row per construction team. */
+export function hqSeats():Seat[]{return Array.from({length:9},(_,i)=>({x:HQ_LOUNGE.x+(i%3-1)*.75,z:HQ_LOUNGE.z+Math.floor(i/3)*1.9,heading:Math.PI}));}
 /** Bench rows beside the depot office; enough places for two workers per helipad up to the pad cap. */
 export function depotSeats(count:number):Seat[]{
  const seats:Seat[]=[];for(let i=0;i<count;i++)seats.push({x:DEPOT_LOUNGE.x+Math.floor(i/2)*layout.depot.rest.spacing+(i%2===0?-.28:.28),z:DEPOT_LOUNGE.z+.6,heading:Math.PI});

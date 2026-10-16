@@ -1,3 +1,4 @@
+import {turnToward,wrapAngle} from './math';
 import {constructionApproach,constructionReach,startConstructionAirlift} from './automaticConstruction';
 import config from '../data/base-life.json';
 import {basePoint} from './baseLayout';
@@ -27,9 +28,10 @@ export function updateEngineerDuty(w:World,u:Entity,dt:number,move:(p:Point)=>bo
  }
  const drive=(p:Point):boolean=>{const original=u.def;u.def={...original,speed:cfg.vanSpeed,radius:cfg.vanRadius,turnRate:cfg.vanTurnRate};try{return move(p);}finally{u.def=original;}};
  if(duty.phase==='to-van'){
-  if(!van||!move(van))return true;duty.phase='boarding';duty.readyAt=w.time+cfg.boardingSeconds;duty.vanPoint={x:u.x,z:u.z};return true;
+  const door=van&&w.nav.nearestWalkable(basePoint({...home,x:van.x,z:van.z},cfg.vanRadius+.3,0),u.def.radius);
+  if(!door||!move(door))return true;duty.phase='boarding';duty.readyAt=w.time+cfg.boardingSeconds;duty.vanPoint=van??duty.vanPoint;duty.vanHeading=home.heading;return true;
  }
- if(duty.phase==='boarding'){u.motionSpeed=0;if(w.time<(duty.readyAt??0))return true;duty.phase=work?'travel':'return';return true;}
+ if(duty.phase==='boarding'){u.motionSpeed=0;if(w.time<(duty.readyAt??0))return true;if(duty.vanPoint){u.x=duty.vanPoint.x;u.z=duty.vanPoint.z;u.px=u.x;u.pz=u.z;}duty.phase=work?'travel':'return';return true;}
  if(duty.phase==='travel'){
   if(!u.target){duty.phase='return';return true;}
   const distance=Math.hypot(u.target.x-u.x,u.target.z-u.z);
@@ -38,14 +40,14 @@ export function updateEngineerDuty(w:World,u:Entity,dt:number,move:(p:Point)=>bo
   if(!crew.workPoint||!w.nav.isWalkableWorld(crew.workPoint.x,crew.workPoint.z,cfg.vanRadius)){
    if(w.time<(crew.retryAt??0))return true;crew.retryAt=w.time+config.construction.pathRetry;crew.workPoint=constructionApproach(w,u,u.target)?.point;
   }
-  const before={x:u.x,z:u.z};if(crew.workPoint)drive(crew.workPoint);
+  const before={x:u.x,z:u.z};if(crew.workPoint)drive(crew.workPoint);duty.vanHeading=u.heading;
   crew.blockedFor=Math.hypot(u.x-before.x,u.z-before.z)<.01?(crew.blockedFor??0)+dt:0;
   if(crew.blockedFor>config.construction.jamAirliftSeconds){crew.blockedFor=0;crew.workPoint=undefined;startConstructionAirlift(w,u,home);}
   duty.vanPoint={x:u.x,z:u.z};return true;
  }
  if(duty.phase==='return'){
-  if(!van||!drive(van)){duty.vanPoint={x:u.x,z:u.z};return true;}
-  duty.vanPoint={...van};duty.phase='rest';return true;
+  if(!van||!drive(van)){duty.vanHeading=u.heading;duty.vanPoint={x:u.x,z:u.z};return true;}
+  duty.vanPoint={...van};u.motionSpeed=0;u.heading=turnToward(u.heading,home.heading,cfg.vanTurnRate*dt);duty.vanHeading=u.heading;if(Math.abs(wrapAngle(home.heading-u.heading))>.1)return true;duty.phase='rest';return true;
  }
  if(duty.phase==='rest'){
   if(rest&&!move(rest))return true;u.motionSpeed=0;return true;

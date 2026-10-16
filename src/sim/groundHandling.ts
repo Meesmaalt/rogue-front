@@ -1,3 +1,4 @@
+import {turnToward,wrapAngle} from './math';
 import layout from '../data/base-life.json';
 import {depotCrewPoint} from './baseLayout';
 import {availableDepotPads,depotPad} from "./depotPads";
@@ -108,12 +109,14 @@ export function updateGroundHandler(w:World,u:Entity,dt:number,move:(target:Poin
   }else {
    const raw=job.pickupPoint??cargoPickupPoint(carrier),point=w.nav.nearestWalkable(raw,u.def.radius);
    if(!point||Math.hypot(point.x-raw.x,point.z-raw.z)>cfg.pickupGap*2){finishCrewJob(u,carrier);return;}
-   if(!move(point)){if(job.phase==='pickup'){job.progress=(u.motionSpeed??0)<.1?job.progress+dt:0;if(job.progress>5){finishCrewJob(u,carrier);}}return;}if(job.phase!=='load')job.progress=0;job.phase='load';u.motionSpeed=0;
+   if(!move(point)){if(job.phase==='pickup'){job.progress=(u.motionSpeed??0)<.1?job.progress+dt:0;if(job.progress>5){finishCrewJob(u,carrier);}}return;}const facing=Math.atan2(carrier.x-u.x,carrier.z-u.z);u.heading=turnToward(u.heading,facing,u.def.turnRate*dt);u.motionSpeed=0;if(Math.abs(wrapAngle(facing-u.heading))>cfg.loadingHeadingTolerance){job.progress=0;return;}
+   if(job.phase!=='load')job.progress=0;job.phase='load';
    if((carrier.cargoDoor??0)<.95)return;job.progress+=dt;if(job.progress<cfg.loadSeconds)return;
-   const amount=Math.min(job.onFoot?cfg.porterCapacity:cfg.capacity,carrier.cargo);carrier.cargo-=amount;u.cargo+=amount;job.progress=0;job.phase='deliver';
+   const amount=Math.min(job.onFoot?cfg.porterCapacity:cfg.capacity,carrier.cargo);carrier.cargo-=amount;u.cargo+=amount;job.progress=0;job.phase='deliver';const d=Math.hypot(u.x-carrier.x,u.z-carrier.z)||1;job.retreatPoint={x:u.x+(u.x-carrier.x)/d*cfg.reverseDistance,z:u.z+(u.z-carrier.z)/d*cfg.reverseDistance};
   }
  }
  if(job.phase==='deliver'||job.phase==='unload'){
+  if(job.retreatPoint){u.motionReverse=true;if(!move(job.retreatPoint))return;job.retreatPoint=undefined;u.motionReverse=false;u.navPath=[];u.roadPathGoal=undefined;}
   if(!move(dock)){
    job.blockedTime=(u.motionSpeed??0)<.1?(job.blockedTime??0)+dt:0;
    if(job.blockedTime>cfg.porterJamSeconds){const used=new Set(w.entities.filter(e=>e!==u&&!e.dead&&e.groundService?.depotId===depot.id).map(e=>e.groundService?.dockSlot));

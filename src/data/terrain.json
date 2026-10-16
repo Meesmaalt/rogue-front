@@ -116,9 +116,9 @@
     },
     "airfield": {
       "apronLeft": 15,
-      "apronRight": 81,
-      "apronStart": -77,
-      "apronEnd": 105,
+      "apronRight": 75,
+      "apronStart": -73,
+      "apronEnd": 99,
       "surfaceOffset": 0.12
     },
     "roads": {

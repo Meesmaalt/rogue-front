@@ -161,23 +161,15 @@ function sofa(g:THREE.Group,x:number,z:number,heading:number,width:number,fabric
  const n=Math.max(1,Math.round(width/.9));for(let i=0;i<n;i++)box(f,width/n-.12,.16,.7,-width/2+width/n*(i+.5),.52,.08,cushion);
  for(const side of [-1,1])for(const t of [-1,1])box(f,.08,.2,.08,side*(width/2-.1),.1,t*.35,legs);
 }
-function coffeeTable(g:THREE.Group,x:number,z:number,p:Pal):void {
- box(g,1.5,.08,.85,x,.52,z,p.wood);for(const a of [-1,1])for(const b of [-1,1])box(g,.07,.5,.07,x+a*.65,.26,z+b*.34,p.dark);
- box(g,.14,.14,.14,x-.4,.63,z,p.wall);box(g,.14,.14,.14,x+.3,.63,z+.1,p.accent);
-}
-function parasol(g:THREE.Group,x:number,z:number,radius:number,p:Pal):void {
- cylinder(g,.05,3,x,1.5,z,p.dark);const top=new THREE.Mesh(new THREE.ConeGeometry(radius,.6,12),p.accent);top.position.set(x,3.1,z);top.castShadow=true;g.add(top);
-}
 function sawhorse(g:THREE.Group,x:number,z:number,heading:number,p:Pal):void {
  const f=furniture(g,x,z,heading);for(const side of [-1,1]){box(f,.08,.8,.08,side*.6,.4,-.2,p.wood);box(f,.08,.8,.08,side*.6,.4,.2,p.wood);}box(f,1.5,.08,.1,0,.8,0,p.wood);box(f,1.4,.06,.35,0,.86,0,p.crates);
 }
 function hqYard(g:THREE.Group,p:Pal):void {
- // Lounge: rug, sofa, armchairs, crate stool, table and parasol
- box(g,5.6,.05,4.2,HQ_LOUNGE.x,.04,HQ_LOUNGE.z,p.dark);
- const seats=hqSeats();sofa(g,HQ_LOUNGE.x,HQ_LOUNGE.z+1.55,Math.PI,2.6,p.accent,p.trim,p.dark);
- armchair(g,seats[3],p);armchair(g,seats[4],p);
- box(g,.7,.5,.7,seats[5].x,.3,seats[5].z,p.crates);coffeeTable(g,HQ_LOUNGE.x,HQ_LOUNGE.z+.1,p);parasol(g,HQ_LOUNGE.x+3.5,HQ_LOUNGE.z-2,1,p);
- cylinder(g,.22,.5,HQ_LOUNGE.x-2.4,.3,HQ_LOUNGE.z-1.6,p.steel);box(g,.5,.35,.4,HQ_LOUNGE.x-2.4,.78,HQ_LOUNGE.z-1.6,p.wall);
+ // Field work break area: simple timber benches, steel lockers and a water station.
+ const seats=hqSeats();
+ for(let row=0;row<3;row++){const seat=seats[row*3+1];box(g,2.9,.14,.55,seat.x,.55,seat.z,p.wood);box(g,2.9,.4,.08,seat.x,.92,seat.z+.3,p.wood);for(const side of [-1,1])box(g,.12,.5,.45,seat.x+side*1,.25,seat.z,p.steel);}
+ box(g,1.5,1.8,.65,HQ_LOUNGE.x+2.4,.9,HQ_LOUNGE.z+1.8,p.steel);
+ box(g,.7,1.1,.7,HQ_LOUNGE.x-2.3,.55,HQ_LOUNGE.z+1.8,p.wall);cylinder(g,.21,.45,HQ_LOUNGE.x-2.3,1.3,HQ_LOUNGE.z+1.8,p.trim);
  engineerYard(g,p);
 }
 /** Engineering yard shared by the HQ and the Combat Engineer centre: tool rack (tools are added dynamically), workbench, materials, scaffold. */
@@ -194,7 +186,6 @@ function engineerYard(g:THREE.Group,p:Pal):void {
  for(const y of [.9,1.8])box(g,1.2,.06,1.2,HQ_RACK.x+2.2,y,HQ_RACK.z+3.6,p.wood);
  sawhorse(g,HQ_RACK.x+1.4,HQ_RACK.z+.2,Math.PI/2,p);
 }
-function armchair(g:THREE.Group,seat:{x:number;z:number;heading:number},p:Pal):void {sofa(g,seat.x,seat.z,seat.heading,1.05,p.camo,p.trim,p.dark);}
 function depotYard(g:THREE.Group,p:Pal):void {
  const h=baseLayout.depot.hall;
  // Compact low warehouse; its walls match the simulation footprint in metres.

@@ -46,8 +46,8 @@
     "vanTurnRate": 1.5,
     "workDistance": 13,
     "van": {
-      "x": -8,
-      "z": 5,
+      "x": -16,
+      "z": 8,
       "spacing": 3.6
     },
     "rest": {
@@ -86,7 +86,7 @@
     "instantRevealSeconds": 2.5
   },
   "construction": {
-    "hqCrews": 2,
+    "hqCrews": 1,
     "fobCrews": 1,
     "maxCrews": 3,
     "workersPerCrew": 3,

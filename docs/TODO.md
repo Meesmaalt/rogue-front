@@ -1,5 +1,17 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Laaduri suund, püsiluuk ja loetav ehitusprogress · 16.10.2026
+
+- [x] Pargitud õhusõiduki kere osaleb maapealses kokkupõrke- ja teeotsingus. Laadur joondab kahvlid luugi suunda enne kauba võtmist ja tagurdab koormaga esmalt luugist eemale; veos ja raha liiguvad jätkuvalt päris üleandmisel.
+- [x] Chinookil oma püsiv hingedega tagaramp, raam ja kaubaruumi ava. Suletud luuk kuulub kere siluetti ega peideta ära; sama detail- ja kaugmudelis. Ehitusauto pardaleminek/mahatulek toimub tagaluugil, mitte kopteri keskpunktis.
+- [x] HQ meeskondade piir tasemetel 1/2/3 on 1/2/3. Igal meeskonnal on algusest nähtav pargitud tööauto, hoiduv suund ka meeste kõndimise ajal ning joondumine parkimisel. Vana salvestuse üleliigne personal vabastab töö ja eemaldub jõudeolekus.
+- [x] Koduse vaiba, diivani, tugitoolide ja päikesevarju asemel välitööpingid, metallkapid ning veepunkt. Parkimisala hoonest kaugemal; eraldi lähenemine auto uksele, järkjärguline pardaleminek ja stabiilne individuaalne jalgsitee ilma liikuva vahesihtpunktita.
+- [x] Sinine ekraaniriba ja valikupaneeli näidik kuvavad ehitamisel päris ehitusprotsenti. Varem püsis ekraaniriba ehituse ajal 15% elupunktide järgi paigal. Päris 4096 m kaardi HQ + baasimüüride + esimese generaatori käsk lõpetab ehituse.
+- [x] Lennurada 280 → 250 m, kitsam perroon ja väiksemad angaarid; ühised andmed juhivad mudelit, parkimist, valikut ja lende.
+- [x] 36 mudelipõhist WebP lennukipilti kolmele riigile, rollidel eraldi vaatenurgad. Reprodutseeritav GLB/protseduurmudeli CPU-renderdus; sama kaameravalik arsenalis. Uus vahemälutunnus väldib vanade ikoonide püsimist.
+- [x] Viimane sihitud kontroll: 14 testi ja TypeScript/tootmisbuild. Lisaks kontrollitud inseneri- ja mudeliarenduse puudutatud testid ning mudelikaartide pildid. Kogu testipakki ei käivitatud; päris WebGL mängupildi sujuvust pole kinnitatud.
+
+
 ## HQ/FOB automaatne ehitus ja Chinooki töövedu · 16.10.2026
 
 - [x] Ehitustellimus ei vaja valitud/vaba lahinguinseneri. HQ/FOB peab piiratud püsivat töömeeskondade parki, saadab lähimast keskusest töörühmi järjekorras ja suuremale hoonele kuni kaks meeskonda. HQ arendus lisab töövõimsust; kaotatud meeskond taastub viivitusega.

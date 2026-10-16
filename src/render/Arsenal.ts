@@ -1,3 +1,4 @@
+import portraitViews from '../data/aircraft-portraits.json';
 import {installLanguage} from "../ui/Language";
 import {metricUnitDefinition} from "../sim/battleScale";
 import {CORE_PLATFORMS} from "../sim/platforms";
@@ -35,7 +36,7 @@ async function show():Promise<void>{
   if(model){scene.remove(model);model.traverse(o=>{if(o instanceof THREE.Mesh)disposeUnitMesh(o);});}
   model=(createArtModel(kind,0,faction)??createModel(kind,0,faction)).group;model.traverse(o=>{if(o instanceof THREE.Mesh){o.castShadow=true;o.receiveShadow=true;}});scene.add(model);
   controls.minDistance=INFANTRY.includes(kind)?2.5:5;
-  const bounds=new THREE.Box3().setFromObject(model),size=bounds.getSize(new THREE.Vector3());controls.target.copy(bounds.getCenter(new THREE.Vector3()));const extent=Math.max(size.x,size.z,size.y*2);camera.position.copy(controls.target).add(new THREE.Vector3(extent*1.12,extent*.63,extent*1.15));controls.update();
+  const bounds=new THREE.Box3().setFromObject(model),size=bounds.getSize(new THREE.Vector3());controls.target.copy(bounds.getCenter(new THREE.Vector3()));const extent=Math.max(size.x,size.z,size.y*2);const view=(portraitViews as Partial<Record<UnitKind,number[]>>)[kind];if(view){const [az,el]=view.map(a=>a*Math.PI/180);camera.position.copy(controls.target).add(new THREE.Vector3(Math.sin(az)*Math.cos(el),Math.sin(el),Math.cos(az)*Math.cos(el)).multiplyScalar(extent*1.8));}else camera.position.copy(controls.target).add(new THREE.Vector3(extent*1.12,extent*.63,extent*1.15));controls.update();
   document.getElementById("role")!.textContent=`${FACTIONS[faction].short} / ${roles[kind]}`;document.getElementById("platform")!.textContent=factionUnitName(faction,kind,roles[kind]??kind);
   const def=metricUnitDefinition(factionUnitDefinition(kind,faction),kind),enemy=factionUnitDefinition("tank",faction==="usa"?"russia":"usa");
   document.getElementById("description")!.textContent=`${def.ability??FACTIONS[faction].doctrineBlurb} · ${def.squadSize?def.squadSize+" meest · ":""}HP ${def.hp} · Soomus ${def.armorFront}/${def.armorSide}/${def.armorRear} · Optika ${def.optics} ${Math.round(def.opticsRange??0)} m`;

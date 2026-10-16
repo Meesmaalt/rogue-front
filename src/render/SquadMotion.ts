@@ -22,7 +22,8 @@ import type {NavGrid} from '../sim/nav/NavGrid';
 type WalkingPose=SoldierPose&{walkPath?:Array<{x:number;z:number}>;walkGoal?:{x:number;z:number}};
 /** Presentation follows the same wall mask, with a cached detour instead of freezing against a corner. */
 export function stepSoldierNavigated(p:WalkingPose,target:{x:number;z:number},heading:number,speed:number,phase:number,dt:number,nav:NavGrid,reset=false):void {
- if(reset){p.walkPath=undefined;p.walkGoal=undefined;stepSoldier(p,target,heading,speed,phase,dt,true);return;}
+ if(!nav.isWalkableWorld(p.x,p.z,.22)){const free=nav.nearestWalkable(p,.22);if(free){p.x=free.x;p.z=free.z;p.walkPath=undefined;}}
+ if(reset){const safe=nav.isWalkableWorld(target.x,target.z,.22)?target:nav.nearestWalkable(target,.22);if(safe)target=safe;p.walkPath=undefined;p.walkGoal=undefined;stepSoldier(p,target,heading,speed,phase,dt,true);return;}
  const end=nav.isWalkableWorld(target.x,target.z,.22)?target:nav.nearestWalkable(target,.22);if(!end){p.speed=0;return;}
  const clear=(to:{x:number;z:number})=>{const n=Math.max(1,Math.ceil(Math.hypot(to.x-p.x,to.z-p.z)/.5));for(let i=1;i<=n;i++)if(!nav.isWalkableWorld(p.x+(to.x-p.x)*i/n,p.z+(to.z-p.z)*i/n,.22))return false;return true;};
  let goal=end;

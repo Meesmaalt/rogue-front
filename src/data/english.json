@@ -565,5 +565,6 @@
   "Chinook toob ehitusmeeskonda": "Chinook is transporting the construction crew",
   "Relvastatud pioneerirühm: eesliini toetus ja sõidukite remont": "Armed combat engineers: frontline support and vehicle repairs",
   "Vali asukoht — lähim HQ / FOB saadab ehitusmeeskonna.": "Choose a site — the nearest HQ / FOB dispatches a construction crew.",
-  "Ehitusmeeskonnad saadab HQ / FOB automaatselt. Ressursirajatise hõivamiseks ja käivitamiseks kasuta ostetavat lahinguinseneri.": "HQ / FOB dispatches construction crews automatically. Purchase combat engineers to capture and restart resource facilities."
+  "Ehitusmeeskonnad saadab HQ / FOB automaatselt. Ressursirajatise hõivamiseks ja käivitamiseks kasuta ostetavat lahinguinseneri.": "HQ / FOB dispatches construction crews automatically. Purchase combat engineers to capture and restart resource facilities.",
+  "Ehitus": "Construction"
 }

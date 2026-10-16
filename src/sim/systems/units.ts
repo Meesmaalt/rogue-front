@@ -88,12 +88,14 @@ function clearGroundSegment(w:World,u:Entity,p:Point):boolean {
 function onFoot(u:Entity):boolean {
  return u.def.category==='infantry'&&!(u.engineerDuty&&['travel','return'].includes(u.engineerDuty.phase))||u.kind==='groundHandler'&&['walking','returning','boarding','rest'].includes(u.groundService?.crewState??'');
 }
+function parkedAircraft(e:Entity):boolean{return e.def.domain==='air'&&['grounded','rearming','landing'].includes(e.airState??'')&&e.y-heightAt(e.x,e.z)<1;}
+function bodyRadius(e:Entity):number{return e.def.category==='heli'?Math.max(e.def.radius,logisticsConfig.handling.parkedHelicopterRadius*(e.def.modelScale??1)):e.def.radius;}
 function bodyClear(w:World,u:Entity,p:Point):boolean {
   let clear=true;
-  w.spatial.queryRadius(p.x,p.z,u.def.radius+8,o=>{
+  w.spatial.queryRadius(p.x,p.z,u.def.radius+logisticsConfig.handling.aircraftBodySearch,o=>{
     if(onFoot(o)&&(onFoot(u)||!!u.constructionCrew||!!o.constructionCrew))return;
-    if(o===u||o.dead||o.garrisonId||o.loadedIntoId!=null||o.def.speed===0||o.def.domain!=="land")return;
-    const old=dist2d(u,o),next=dist2d(p,o),min=(u.def.radius+o.def.radius)*mobility.navigation.bodyRadiusFactor+mobility.navigation.bodyClearance;
+    if(o===u||o.dead||o.garrisonId||o.loadedIntoId!=null||o.def.speed===0||o.def.domain!=="land"&&!parkedAircraft(o))return;
+    const old=dist2d(u,o),next=dist2d(p,o),min=(u.def.radius+bodyRadius(o))*mobility.navigation.bodyRadiusFactor+mobility.navigation.bodyClearance;
     if(next<min&&next<old-.001)clear=false;
   });return clear;
 }
@@ -146,16 +148,16 @@ function movePorterTo(w:World,u:Entity,goal:Point,dt:number):boolean {
   const changed=!u.roadPathGoal||dist2d(u.roadPathGoal,goal)>.1;
   if(changed||!u.navPath.length||u.navPathIndex>=u.navPath.length){
     if(!changed&&w.time<(u.roadPathRetryAt??0)){u.motionSpeed=0;return false;}
-    const parked=w.entities.filter(e=>e!==u&&!e.dead&&e.def.domain==='land'&&e.def.speed>0&&e.loadedIntoId==null&&!e.groundService&&!(onFoot(e)&&(onFoot(u)||!!u.constructionCrew))&&(e.motionSpeed??0)<.1).map(e=>({x:e.x,z:e.z,radius:e.def.radius}));
+    const parked=w.entities.filter(e=>e!==u&&!e.dead&&(e.def.domain==='land'&&e.def.speed>0||parkedAircraft(e))&&e.loadedIntoId==null&&!e.groundService&&!(onFoot(e)&&(onFoot(u)||!!u.constructionCrew))&&(e.motionSpeed??0)<.1).map(e=>({x:e.x,z:e.z,radius:bodyRadius(e)}));
     u.navPath=findPath(w.nav,u,goal,u.def.radius,undefined,parked);u.navPathIndex=0;u.roadPathGoal={...goal};u.roadPathRetryAt=w.time+.5;
     if(!u.navPath.length){u.motionSpeed=0;return false;}
   }
   if(dist2d(u,goal)<mobility.navigation.lookAhead&&clearGroundSegment(w,u,goal)&&bodyClear(w,u,goal)){u.navPath=[goal];u.navPathIndex=0;}
   while(u.navPathIndex<u.navPath.length-1&&dist2d(u,u.navPath[u.navPathIndex])<cfg.porterWaypointArrival)u.navPathIndex++;
   const p=u.navPathIndex===u.navPath.length-1&&dist2d(u,goal)<mobility.navigation.lookAhead&&clearGroundSegment(w,u,goal)?goal:u.navPath[u.navPathIndex]??goal,dist=dist2d(u,p),dx=(p.x-u.x)/Math.max(.001,dist),dz=(p.z-u.z)/Math.max(.001,dist),want=Math.atan2(dx,dz);
-  u.heading=turnToward(u.heading,want,u.def.turnRate*dt);
+  const facing=want+(u.motionReverse?Math.PI:0);u.heading=turnToward(u.heading,facing,u.def.turnRate*dt);
   const driving=u.groundService?.onFoot&&(!u.groundService.crewState||['driving','parking'].includes(u.groundService.crewState))||u.engineerDuty&&['travel','return'].includes(u.engineerDuty.phase);
-  const desired=driving?Math.min(u.def.speed,Math.sqrt(2*mobility.wheeled.braking*dist))*Math.max(0,Math.cos(wrapAngle(want-u.heading))):u.def.speed;
+  const desired=driving?Math.min(u.def.speed,Math.sqrt(2*mobility.wheeled.braking*dist))*Math.max(0,Math.cos(wrapAngle(facing-u.heading))):u.def.speed;
   const speed=driving?(u.motionSpeed??0)+Math.max(-mobility.wheeled.braking*dt,Math.min(mobility.wheeled.acceleration*dt,desired-(u.motionSpeed??0))):desired;
   const step=Math.min(dist,speed*dt);
   const next={x:u.x+dx*step,z:u.z+dz*step};

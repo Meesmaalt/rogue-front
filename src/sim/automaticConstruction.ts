@@ -1,3 +1,5 @@
+import {cargoPickupPoint} from './groundHandling';
+import logisticsRules from '../data/logistics.json';
 import config from '../data/base-life.json';
 import mobility from '../data/mobility.json';
 import {basePoint} from './baseLayout';
@@ -57,6 +59,7 @@ export function dispatchConstruction(w:World):void {
  for(const home of hubs){
   if(w.time<(home.constructionDispatchAt??0))continue;home.constructionDispatchAt=w.time+cfg.dispatchInterval;
   const count=Math.min(cfg.maxCrews,(home.kind==='hq'?cfg.hqCrews:cfg.fobCrews)+w.producerLevel(home)-1);
+  for(const u of w.entities){if(u.dead||u.constructionCrew?.homeId!==home.id||u.constructionCrew.slot<count||u.loadedIntoId!=null||u.constructionCrew.transportId)continue;u.target=null;u.dest=null;u.mode='idle';if(u.engineerDuty?.phase==='rest'){u.dead=true;if(home.constructionRoster)home.constructionRoster[u.constructionCrew.slot]=0;}}
   for(let slot=0;slot<count;slot++){
    home.constructionRoster??=[];home.constructionReplacementAt??=[];
    const previous=w.byId.get(home.constructionRoster[slot])??w.entities.find(e=>e.constructionCrew?.homeId===home.id&&e.constructionCrew.slot===slot);
@@ -65,7 +68,7 @@ export function dispatchConstruction(w:World):void {
    if(previous)previous.constructionCrew=undefined;
    const rest=home.kind==='hq'?config.engineer.rest:cfg.fobRest;
    const p=w.nav.nearestWalkable(basePoint(home,rest.x+slot*2,rest.z),config.depot.walkRadius);if(!p)continue;
-   const u=w.spawn('engineer',home.team,p.x,p.z);u.constructionCrew={homeId:home.id,slot};u.def={...u.def,name:'Ehitusmeeskond',damage:0,range:0,weapons:[],radius:config.depot.walkRadius,supplyUsePerSec:0,cost:0,producible:false};u.ammo=u.maxAmmo=0;u.squadMembers=u.squadMaxMembers=cfg.workersPerCrew;u.engineerDuty={homeId:home.id,phase:'rest',idleFor:0};home.constructionRoster[slot]=u.id;home.constructionReplacementAt[slot]=0;
+   const u=w.spawn('engineer',home.team,p.x,p.z);u.constructionCrew={homeId:home.id,slot};u.def={...u.def,name:'Ehitusmeeskond',damage:0,range:0,weapons:[],radius:config.depot.walkRadius,supplyUsePerSec:0,cost:0,producible:false};u.ammo=u.maxAmmo=0;u.squadMembers=u.squadMaxMembers=cfg.workersPerCrew;const bay=home.kind==='hq'?config.engineer.van:cfg.fobVan,park=w.nav.nearestWalkable(basePoint(home,bay.x,bay.z+slot*config.engineer.van.spacing),config.engineer.vanRadius);u.engineerDuty={homeId:home.id,phase:'rest',idleFor:0,vanPoint:park??undefined,vanHeading:home.heading};home.constructionRoster[slot]=u.id;home.constructionReplacementAt[slot]=0;
   }
  }
  const jobs=w.entities.filter(e=>!e.dead&&e.underConstruction&&!e.upgrading&&isBuildable(e.kind)).sort((a,b)=>a.id-b.id);
@@ -76,13 +79,13 @@ export function dispatchConstruction(w:World):void {
   for(const u of w.entities){
    if(job.builderIds.length>=desired)break;
    const crew=u.constructionCrew;
-   if(u.dead||!crew||w.time<(crew.retryAt??0)||crew.homeId!==home.id||u.loadedIntoId!=null||crew.transportId||u.target&&!u.target.dead||!['rest','working'].includes(u.engineerDuty?.phase??''))continue;
+   if(u.dead||!crew||w.time<(crew.retryAt??0)||crew.homeId!==home.id||crew.slot>=Math.min(cfg.maxCrews,(home.kind==='hq'?cfg.hqCrews:cfg.fobCrews)+w.producerLevel(home)-1)||u.loadedIntoId!=null||crew.transportId||u.target&&!u.target.dead||!['rest','working'].includes(u.engineerDuty?.phase??''))continue;
    u.target=job;u.mode='build';u.dest={x:job.x,z:job.z};crew.workPoint=undefined;crew.blockedFor=0;clearRoute(u);
    const distance=dist2d(u,job),approach=distance>cfg.remoteDistance?null:constructionApproach(w,u,job),length=approach?.path.reduce((sum,p,i,arr)=>sum+dist2d(i?arr[i-1]:u,p),0)??Infinity;
    const remote=distance>cfg.remoteDistance||!approach||length>Math.max(1,distance)*cfg.detourRatio;
    if(remote){if(!startConstructionAirlift(w,u,home)){crew.retryAt=w.time+cfg.pathRetry;u.target=null;u.dest=null;u.mode='idle';continue;}}
    else crew.workPoint=approach!.point;
-   u.engineerDuty={homeId:home.id,phase:remote?'rest':'to-van',idleFor:0,vanPoint:u.engineerDuty?.vanPoint};job.builderIds.push(u.id);
+   u.engineerDuty={homeId:home.id,phase:remote?'rest':'to-van',idleFor:0,vanPoint:u.engineerDuty?.vanPoint,vanHeading:u.engineerDuty?.vanHeading};job.builderIds.push(u.id);
   }
  }
  for(const u of w.entities){
@@ -113,14 +116,14 @@ export function updateConstructionFlight(w:World,u:Entity,dt:number,fly:(p:Point
  if(f.phase==='loading'){
   u.airState='grounded';u.cargoDoor=1;
   // Ground crew is moved by its normal navigation callback to the aircraft side.
-  if(!crew||dist2d(crew,u)>5)return true;
+  if(!crew||dist2d(crew,cargoPickupPoint(u))>logisticsRules.handling.porterArrival+1)return true;
   f.boardingAt??=w.time;if(w.time-f.boardingAt<cfg.loadingSeconds)return true;
   crew.loadedIntoId=u.id;u.cargoUnitIds=[crew.id];crew.motionSpeed=0;f.phase=f.returnTrip?'returning':'outbound';f.readyAt=w.time+cfg.spoolSeconds;u.cargoDoor=0;u.airSortieTime=0;
  }
  if(f.phase==='unloading'){
   u.airState='grounded';u.cargoDoor=Math.min(1,(u.cargoDoor??0)+dt);u.motionSpeed=0;
   if(w.time<f.readyAt)return true;
-  if(crew&&!crew.dead){crew.loadedIntoId=null;if(f.returnTrip){crew.target=null;crew.dest=null;crew.mode='idle';}crew.x=u.x;crew.z=u.z;crew.y=heightAt(crew.x,crew.z);crew.px=crew.x;crew.pz=crew.z;crew.constructionCrew!.transportId=undefined;crew.constructionCrew!.workPoint=crew.target?constructionApproach(w,crew,crew.target)?.point:undefined;crew.engineerDuty={homeId:f.homeId,phase:f.returnTrip?'return':'travel',idleFor:0,vanPoint:{x:crew.x,z:crew.z}};clearRoute(crew);}
+  if(crew&&!crew.dead){crew.loadedIntoId=null;if(f.returnTrip){crew.target=null;crew.dest=null;crew.mode='idle';}const drop=cargoPickupPoint(u);crew.x=drop.x;crew.z=drop.z;crew.y=heightAt(crew.x,crew.z);crew.px=crew.x;crew.pz=crew.z;crew.constructionCrew!.transportId=undefined;crew.constructionCrew!.workPoint=crew.target?constructionApproach(w,crew,crew.target)?.point:undefined;crew.engineerDuty={homeId:f.homeId,phase:f.returnTrip?'return':'travel',idleFor:0,vanPoint:{x:crew.x,z:crew.z}};clearRoute(crew);}
   u.cargoUnitIds=[];f.phase=f.returnTrip?'parked':'working';u.airState='grounded';u.cargoDoor=0;return true;
  }
  if(!f.departed){u.airState='taxi';u.airSortieTime=(u.airSortieTime??0)+dt;if(w.time<f.readyAt)return true;u.y+=mobility.helicopter.climbRate*dt;if(u.y-heightAt(u.x,u.z)<cfg.aircraftClearance)return true;f.departed=true;}
@@ -137,8 +140,8 @@ export function updateConstructionBoarding(w:World,u:Entity,move:(p:Point)=>bool
  const id=u.constructionCrew?.transportId;if(id==null)return false;const carrier=w.byId.get(id);
  if(carrier?.constructionFlight?.phase==='pickup'){u.motionSpeed=0;return true;}
  if(!carrier||carrier.dead){u.constructionCrew!.transportId=undefined;u.loadedIntoId=null;u.target=null;u.mode='idle';return false;}
- const dx=u.x-carrier.x,dz=u.z-carrier.z,d=Math.hypot(dx,dz)||1;
+ const ramp=cargoPickupPoint(carrier);
  const original=u.def;u.def={...original,speed:config.engineer.vanSpeed,radius:config.engineer.vanRadius,turnRate:config.engineer.vanTurnRate};
- try{move({x:carrier.x+dx/d*3,z:carrier.z+dz/d*3});}finally{u.def=original;}
+ try{move(ramp);}finally{u.def=original;}
  u.engineerDuty={homeId:u.constructionCrew!.homeId,phase:'travel',idleFor:0,vanPoint:{x:u.x,z:u.z}};return true;
 }

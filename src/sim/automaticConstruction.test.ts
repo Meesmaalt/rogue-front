@@ -1,7 +1,7 @@
 import {afterEach,expect,it} from 'vitest';
 import type {MapFeatureDef} from './mapFeatures';
 import {World} from './World';
-import {setBases,resetHeightmap} from './heightmap';
+import {setBases,resetHeightmap,setMapSize} from './heightmap';
 import {applyCommands} from './systems/commands';
 import {updateConstruction} from './systems/construction';
 import {updateUnits} from './systems/units';
@@ -42,4 +42,18 @@ it('an unreachable nearby site uses airlift even below the normal distance thres
  w.pending.push({type:'build',ids:[],kind:'generator',x:70,z:0,team:0});applyCommands(w);const b=w.entities.find(e=>e.kind==='generator')!;
  for(let i=0;i<12000&&b.underConstruction;i++)step(w);
  expect(w.entities.some(e=>!!e.constructionFlight)).toBe(true);expect(b.underConstruction).toBe(false);
+});
+
+import {createSkirmish} from './scenario';
+it('real metric HQ, base walls and parked van start the first blue construction bar',()=>{
+ setMapSize(4096);const bases=[{x:-700,z:700,r:180},{x:700,z:-700,r:180}];setBases(bases);const w=new World(103,false,[],[],bases,true,true);w.networkMode=true;w.externalVictoryMode=true;createSkirmish(w);
+ expect(w.entities.filter(e=>e.team===0&&e.constructionCrew)).toHaveLength(1);
+ w.issue({type:'build',ids:[],kind:'generator',x:-655,z:725,team:0});let b:ReturnType<World['spawn']>|undefined;
+ for(let i=0;i<2700;i++){w.tick(1/30);b=w.entities.find(e=>e.team===0&&e.kind==='generator');if(b&&!b.underConstruction)break;}
+ expect(b).toBeDefined();expect(b?.constructionProgress).toBeGreaterThan(0);expect(b?.underConstruction).toBe(false);
+});
+
+it('each HQ level owns exactly one extra crew and a persistent parked van',()=>{
+ const w=setup(),hq=w.entities.find(e=>e.kind==='hq')!;
+ for(const level of [1,2,3]){hq.buildingLevel=level;w.time+=2;dispatchConstruction(w);const crews=w.entities.filter(e=>!e.dead&&e.constructionCrew?.homeId===hq.id);expect(crews).toHaveLength(level);for(const e of crews)expect(e.engineerDuty?.vanPoint).toBeDefined();}
 });

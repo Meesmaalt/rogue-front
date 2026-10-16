@@ -1,0 +1,14 @@
+{
+  "fighter": [35, 26],
+  "interceptor": [-36, 34],
+  "multirole": [145, 38],
+  "bomber": [28, 52],
+  "attackAircraft": [-54, 22],
+  "ecm": [52, 36],
+  "cargoPlane": [-30, 20],
+  "airTransport": [142, 27],
+  "heli": [42, 20],
+  "transport": [-42, 18],
+  "gunship": [-35, 27],
+  "casHeli": [146, 24]
+}

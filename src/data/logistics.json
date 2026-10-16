@@ -120,6 +120,10 @@
     "baseHalfDepth": 13,
     "landingDescentRate": 2.2,
     "landingFlareGain": 0.7,
-    "landingTouchdownRate": 0.28
+    "landingTouchdownRate": 0.28,
+    "parkedHelicopterRadius": 3.7,
+    "aircraftBodySearch": 22,
+    "loadingHeadingTolerance": 0.12,
+    "reverseDistance": 3
   }
 }
