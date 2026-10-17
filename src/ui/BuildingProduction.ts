@@ -1,7 +1,7 @@
 import type {World} from '../sim/World';
 import type {Entity,UnitKind} from '../sim/types';
 import {MAX_QUEUE} from '../sim/constants';
-import {producerKind} from '../sim/systems/production';
+import {producerKind,orderBlockReason} from '../sim/systems/production';
 const producers=new Set(['missileCommand','barracks','factory','helipad','airbase','shipyard']);
 /** Explicit selection only: never redirect an order to another base building. */
 export function selectedProductionBuilding(world:World,selection:ReadonlySet<number>):Entity|undefined {
@@ -17,6 +17,6 @@ export function buildingOrderState(world:World,producer:Entity|undefined,kind:Un
  else if(producer.productionQueue.length>=MAX_QUEUE)reason='Järjekord täis';
  else if(Math.min(world.resources,world.credits)<cost)reason=`Puudu ${Math.ceil(cost-Math.min(world.resources,world.credits))} krediiti`;
  else if(!world.canProduceAtLevel(producer,kind))reason='Vajab taset '+world.unitRequiredBuildingLevel(kind);
- else {const state=world.productionOperational(producer,kind);if(!state.operational)reason=state.reason;}
+ else {const state=world.productionOperational(producer,kind);if(!state.operational)reason=state.reason;else reason=orderBlockReason(world,producer,kind);}
  return {visible:true,reason};
 }

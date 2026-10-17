@@ -4,6 +4,7 @@ import type { World } from "../World";
 import {freeAirSlot,stationAircraft} from "./airDoctrine";
 import type { Entity, UnitKind } from "../types";
 import { BUILDINGS } from "../buildings";
+import { deckRemaining } from "../deck";
 
 export function producerKind(kind: UnitKind): "barracks" | "factory" | "helipad" | "airbase" | "shipyard" | "missileCommand" | null {
   if(kind==="cruiseLauncher")return "missileCommand";
@@ -15,6 +16,37 @@ export function producerKind(kind: UnitKind): "barracks" | "factory" | "helipad"
   if (["fighter","interceptor","bomber","ecm","multirole","attackAircraft"].includes(kind)) return "airbase";
   if (["destroyer","submarine","landingcraft","frigate","missileBoat"].includes(kind)) return "shipyard";
   return null;
+}
+
+const UNIT_LIMITS: Partial<Record<string, number>> = {
+  inf: 40, engineer: 8, special: 4, atInf: 12, mgInf: 10, reconInf: 10, sniper: 6, mortar: 8, manpad: 8, atgm: 8,
+  tank: 18, apc: 16, ifv: 14, artillery: 8, mlrs: 6, reconVehicle: 8, lightTank: 8, tankDestroyer: 8, spaa: 8,
+  transportVan: 12, scoutHeli: 6, heli: 6, gunship: 6, transport: 6, casHeli: 6, fighter: 8, interceptor: 6, bomber: 4, ecm: 4, multirole: 6, attackAircraft: 6,
+  destroyer: 4, submarine: 4, landingcraft: 6, frigate: 6, missileBoat: 8,
+};
+
+/**
+ * Why a "produce" order would be rejected (empty string = accepted). The command handler and the build
+ * buttons share this, so a button is never enabled for an order the simulation silently drops.
+ */
+export function orderBlockReason(w:World,producer:Entity,kind:UnitKind):string {
+  const team=producer.team,def=w.unitDefinition(kind,team);
+  const deck=w.deckForTeam(team),battlegroup=w.battlegroupForTeam(team);
+  if(deck&&kind!=="engineer"){
+    let queued=0;
+    for(const e of w.entities)if(!e.dead&&e.team===team)queued+=e.productionQueue.filter(k=>k===kind).length;
+    if(deckRemaining(deck,kind,w.producedForTeam(team)[kind]??0)-queued<=0)return "Koosseisu limiit täis";
+    if(battlegroup&&!battlegroup.canDeploy(kind,queued+1))return "Lahingugrupi limiit täis";
+  }
+  const limit=UNIT_LIMITS[kind];
+  if(limit!==undefined&&w.entities.filter(e=>!e.dead&&e.team===team&&e.kind===kind).length+producer.productionQueue.filter(k=>k===kind).length>=limit)return `Üksuse limiit täis (${limit})`;
+  if(def.category==="air"&&producer.kind==="airbase"){
+    const air=w.airbaseStatus(team);
+    const queuedAir=w.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="airbase").reduce((n,e)=>n+e.productionQueue.length,0);
+    if(air.aircraft+queuedAir>=air.capacity)return `Lennuväe limiit täis (${air.aircraft+queuedAir}/${air.capacity}) · uuenda lennujaama`;
+  }
+  if(w.powerStatus(team).ratio<0.25&&kind!=="inf"&&kind!=="engineer")return "Energiapuudus";
+  return "";
 }
 
 function exitPoint(producer: Entity, distance: number): { x: number; z: number } {
@@ -131,8 +163,9 @@ export function updateProduction(w: World, dt: number): void {
     if(def.armor==="air"&&freeAirSlot(w,producer)<0)continue;
     const operational = w.productionOperational(producer, kind);
     if (!operational.operational) continue;
-    const infantry=producer.kind==='barracks';
-    const depot=producer.kind==='airbase'?producer:w.nearestSupplyDepot(producer.team,producer,true,true);
+    // Barracks and helipads produce without a nearby supply depot (no material draw); factories, shipyards and missile commands still need one.
+    const infantry=producer.kind==='barracks'||producer.kind==='helipad';
+    const depot=producer.kind==='airbase'?producer:infantry?null:w.nearestSupplyDepot(producer.team,producer,true,true);
     if(!infantry&&!depot)continue;
     const wanted=dt*productionWorkRate(w,producer);
     const materialRate = Math.max(1, def.cost / Math.max(1, def.buildTime) * 0.12);

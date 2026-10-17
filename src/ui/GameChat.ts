@@ -71,6 +71,8 @@ export class GameChat {
     this.tag.dataset.scope = this.scope;
     if (open) this.input.focus(); else this.input.blur();
     this.fade();
+    // The log is only scrollable while open: jump to the newest message once the layout has switched.
+    if (open) requestAnimationFrame(() => { this.log.scrollTop = this.log.scrollHeight; });
   }
 
   add(entry: ChatEntry, historical = false, localTeam = 0): void {

@@ -2,7 +2,7 @@ import {replaceTask} from "../unitTasks";
 import {canVehicleService,planVehicleService} from "../vehicleService";
 import {automaticUnit} from '../automaticConstruction';
 import {constructionHubs,constructionHelper} from '../automaticConstruction';
-import {producerKind as producerFor} from "./production";
+import {producerKind as producerFor, orderBlockReason} from "./production";
 import {beginStrategicBuild,strategicStrike} from "../strategicWeapons";
 import {isIndirectUnit} from "../equipment";
 import {beginEquipmentRefit} from "../equipment";
@@ -12,7 +12,6 @@ import {travelPathCost} from "../unitStats";
 import {UNIT_UPGRADES,maxHitPoints,researchStatus,unitUpgradeStatus} from "../unitStats";
 import type { World } from "../World";
 import { assignAirMission,airUnitsForOrder,requestAirReturn } from "./airDoctrine";
-import { deckRemaining } from "../deck";
 import type { Command, Entity, Point } from "../types";
 import { MAX_QUEUE } from "../constants";
 import { findPath } from "../nav/Pathfinder";
@@ -380,17 +379,6 @@ function apply(w: World, c: Command): void {
     }
     case "produce": {
       const team=c.team??w.playerTeam,def=w.unitDefinition(c.kind,team),hq=w.hq[team];
-      const deck = w.deckForTeam(team), battlegroup = w.battlegroupForTeam(team);
-      if (deck) {
-        const left = deckRemaining(deck, c.kind, w.producedForTeam(team)[c.kind] ?? 0);
-        // Also count queued
-        let queued = 0;
-        for (const e of w.entities) {
-          if (e.dead || e.team !== team) continue;
-          queued += e.productionQueue.filter(k => k === c.kind).length;
-        }
-        if (c.kind !== "engineer" && (left - queued <= 0 || (battlegroup && !battlegroup.canDeploy(c.kind, queued + 1)))) break;
-      }
       if (!def.producible || !hq || hq.dead || hq.underConstruction || w.teamResources[team] < def.cost || w.teamCredits[team] < def.cost) break;
       const producerKind = producerFor(c.kind);
       if (!producerKind) break;
@@ -404,19 +392,7 @@ function apply(w: World, c: Command): void {
       // production pipeline at all. Temporary outages still stall an existing queue.
       const operational = w.productionOperational(producer, c.kind);
       if (!operational.operational) break;
-      const unitLimits: Partial<Record<string, number>> = {
-        inf: 40, engineer: 8, special: 4, atInf: 12, mgInf: 10, reconInf: 10, sniper: 6, mortar: 8, manpad: 8, atgm: 8,
-        tank: 18, apc: 16, ifv: 14, artillery: 8, mlrs: 6, reconVehicle: 8, lightTank: 8, tankDestroyer: 8, spaa: 8,
-        transportVan: 12, scoutHeli: 6, heli: 6, gunship: 6, transport: 6, casHeli: 6, fighter: 8, interceptor: 6, bomber: 4, ecm: 4, multirole: 6, attackAircraft: 6,
-        destroyer: 4, submarine: 4, landingcraft: 6, frigate: 6, missileBoat: 8,
-      };
-      const limit = unitLimits[c.kind];
-      if (limit !== undefined && w.entities.filter(e => !e.dead && e.team === team && e.kind === c.kind).length + producer.productionQueue.filter(k => k === c.kind).length >= limit) break;
-      if (def.category === "air" && producer.kind === "airbase") {
-        const air = w.airbaseStatus(team);
-        if (air.aircraft + w.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="airbase").reduce((n,e)=>n+e.productionQueue.length,0) >= air.capacity) break;
-      }
-      if (w.powerStatus(team).ratio < 0.25 && c.kind !== "inf" && c.kind !== "engineer") break;
+      if (orderBlockReason(w, producer, c.kind)) break;
       w.teamCredits[team] -= def.cost; w.teamResources[team] -= def.cost;
       if (team === w.playerTeam) { w.credits = w.teamCredits[team]; w.resources = w.teamResources[team]; }
       producer.productionQueue.push(c.kind);

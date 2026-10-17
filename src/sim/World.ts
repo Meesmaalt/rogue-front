@@ -239,7 +239,7 @@ export class World {
     const command = this.hasCommandLink(producer);
     const power = this.powerStatus(producer.team).ratio >= 0.25;
     const depot = this.nearestSupplyDepot(producer.team, { x: producer.x, z: producer.z }, true, true);
-    const logistics = producer.kind==='airbase'?airportHasSupport(this,producer)&&(!producer.airportStoresInitialized||(producer.ammoStock??0)>0&&(producer.fuelStock??0)>0):producer.kind === "factory" || producer.kind === "helipad" || producer.kind === "shipyard" || producer.kind === "missileCommand"
+    const logistics = producer.kind==='airbase'?airportHasSupport(this,producer)&&(!producer.airportStoresInitialized||(producer.ammoStock??0)>0&&(producer.fuelStock??0)>0):producer.kind === "factory" || producer.kind === "shipyard" || producer.kind === "missileCommand"
       ? !!depot && depot.kind === "supply" && Math.hypot(depot.x-producer.x,depot.z-producer.z) <= logisticsConfig.depot.productionRadius && (depot.ammoStock ?? 0) > 0 && (depot.fuelStock ?? 0) > 0
       : true;
     const strategy = true; // Unit unlocks follow the producing building level; strategy buildings give optional bonuses.
