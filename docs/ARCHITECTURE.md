@@ -1,5 +1,13 @@
 # Arhitektuur
 
+## Multiplayeri lobby elutsükkel
+
+`OnlineShell` värskendab ruumi olekut `/api/me` vastusest ühe järjestikuse pollitsükliga. `pollEpoch` välistab lahkumise, navigeerimise või ruumitegevuse eel alustatud vastused. Ruumi serialiseeritud olek on vaate allkiri: muutumatu olek ei kirjuta DOM-i üle. Muutunud oleku korral tõstetakse sama vestluspaneel uude vaatesse ning taastatakse sisendi fookus ja valikuvahemik. Sama vestluspaneel säilib ka teistele menüüvahelehtedele minnes; tagasi pääseb nupust „MINU RUUM”. Lahingu algust jälgitakse ka teisel vahelehel. Chatil on eraldi päringujärjestus ja sõnumite allkiri; varasema vestluse lugemine ei hüppa automaatselt lõppu.
+
+Ruumi tegevused on ükshaaval ning peatavad polli vastuse ootamise ajaks. Fraktsioon ja koosseis liiguvad koos, nende muutmine saadab `ready:false`. Lahingu URL-i avamine on idempotentne ja aktiivne koosseis võetakse serveri kinnitatud liikmeandmetest. Vestluse saatmine keelab ainult saatmisnupu: ebaõnnestumisel jääb tekst alles, kinnitatud sõnum ei kustuta ooteajal muudetud järgmist mustandit. Server jääb liikmesuse, hostiõiguste, ruumiluku ja valmisoleku autoriteediks.
+
+Kutsete loend on nähtav ruumivälises peavaates; vastuvõtmine avab ruumi, keeldumine eemaldab kutse. Server filtreerib suletud/täis ruumide kutsed ja välistab juba vastatud kutse korduskasutuse. `server/lobby.test.js` katab API elutsükli. `scripts/dev/check-lobby.mjs` käivitab eraldi testandmebaasiga serveri, Vite'i ja kaks sõltumatu sessiooniga brauserit; Playwright/Chromiumi asukoha saab anda faili alguses kirjeldatud keskkonnamuutujatega.
+
 ## Piirkondlikud maamärgid ja ühine mudeliviimistlus
 
 `regionalLandmarks.ts` paigutab kuni kaks paaritatud maamärgipaari olemasolevate maanteede kõrvale. Valik kontrollib vee, teede, tööalade, hoonete ja lennuvälja reserve ning reljeefi ühtlust. Juurdepääsutee lõpeb fassaadi ees. `landmarkStructure` on päris `building` jalajäljega mittegarnisoneeritav kaardiobjekt; `LandmarkStructures` annab sellele piirkondliku mudeli sama jalajälje ja kõrguse piires. `CharacterGeometry` koondab värvitud detaili üheks jagatavaks geomeetriaks.

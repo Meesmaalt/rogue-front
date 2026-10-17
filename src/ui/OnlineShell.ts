@@ -23,6 +23,12 @@ export class OnlineShell {
   private selectedFaction: FactionId = "usa";
   private tab: "lobby" | "ranked" | "live" | "friends" | "profile" = "lobby";
   private timer: number | null = null;
+  private pollEpoch = 0;
+  private refreshing = false;
+  private roomActionPending = false;
+  private chatRequest = 0;
+  private launching = false;
+  private readonly roomChats=new Map<string,HTMLElement>();
   private message = "";
   private busy = false;
   private cancelMapPreparation=()=>{};
@@ -155,7 +161,7 @@ export class OnlineShell {
     if (!getAuthToken()) return this.authScreen();
     try {
       const r = await api.me(); this.user = r.user; this.room = r.activeRoom;
-      if (this.room) return this.renderRoom();
+      if (this.room) { this.renderMain(); return this.poll(); }
       this.renderMain(); this.poll();
     } catch { this.authScreen(); }
   }
@@ -187,19 +193,19 @@ export class OnlineShell {
   private renderMain(): void {
     if (!this.user) return this.authScreen();
     const decks = loadAllDecks(); const d = decks[this.selectedFaction];
-    this.root.innerHTML = `<div class="online-app"><header class="online-top"><div class="brand-block"><div class="eyebrow">ONLINE COMMAND</div><h1>ROGUE FRONT</h1></div><nav><button data-tab="lobby" class="active">LOBBY</button><button data-tab="ranked">RANKED</button><button data-tab="live">LIVE</button><button data-tab="friends">SÕBRAD</button><button data-tab="profile">PROFIIL</button></nav><div class="account"><span class="dot online"></span><b>${esc(this.user.displayName)}</b><small>@${esc(this.user.username)}</small><button data-action="logout">Välju</button></div></header><main class="online-main"><section class="online-content" data-view></section><aside class="online-side"><div class="side-title">MINU LAHING</div><div class="side-card"><span>RAHVUS</span><b>${FACTIONS[this.selectedFaction].short}</b><small>${esc(FACTIONS[this.selectedFaction].doctrineBlurb)}</small></div><div class="side-card"><span>DECK</span><b>${esc(d.name)}</b><small>${d.slots.length} kaarti · ${d.slots.reduce((n, x) => n + x.count, 0)} üksust</small></div><div class="side-card stats"><span>RATING</span><b>${this.user.stats.rating ?? 1000}</b><small>Level ${this.user.stats.level ?? 1} · ${this.user.stats.xp ?? 0} XP</small></div><div class="side-card"><span>DECK BUILDER</span><button class="secondary wide" data-action="deck">AVA DECK</button></div></aside></main><div class="toast" data-toast></div></div>`;
-    this.root.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach((b) => b.onclick = () => { this.tab = b.dataset.tab as typeof this.tab; this.root.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("active", x === b)); this.renderView(); });
-    this.root.querySelector<HTMLButtonElement>('[data-action="logout"]')!.onclick = async () => { await api.logout(); this.authScreen(); };
+    this.root.innerHTML = `<div class="online-app"><header class="online-top"><div class="brand-block"><div class="eyebrow">ONLINE COMMAND</div><h1>ROGUE FRONT</h1></div><nav><button data-tab="lobby" class="active">LOBBY</button><button data-tab="ranked">RANKED</button><button data-tab="live">LIVE</button><button data-tab="friends">SÕBRAD</button><button data-tab="profile">PROFIIL</button></nav><div class="account"><span class="dot online"></span><b>${esc(this.user.displayName)}</b><small>@${esc(this.user.username)}</small><button data-action="logout">Välju</button></div></header><div class="lobby-invites" data-invites></div><main class="online-main"><section class="online-content" data-view></section><aside class="online-side"><div class="side-title">MINU LAHING</div><div class="side-card" data-side-faction><span>RAHVUS</span><b>${FACTIONS[this.selectedFaction].short}</b><small>${esc(FACTIONS[this.selectedFaction].doctrineBlurb)}</small></div><div class="side-card" data-side-deck><span>DECK</span><b>${esc(d.name)}</b><small>${d.slots.length} kaarti · ${d.slots.reduce((n, x) => n + x.count, 0)} üksust</small></div><div class="side-card stats"><span>RATING</span><b>${this.user.stats.rating ?? 1000}</b><small>Level ${this.user.stats.level ?? 1} · ${this.user.stats.xp ?? 0} XP</small></div><div class="side-card"><span>DECK BUILDER</span><button class="secondary wide" data-action="deck">AVA DECK</button></div></aside></main><div class="toast" data-toast></div></div>`;
+    this.root.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach((b) => b.onclick = () => { this.tab = b.dataset.tab as typeof this.tab; this.root.querySelectorAll("[data-tab]").forEach(x => x.classList.toggle("active", x === b)); this.stopPoll(); this.renderView(); this.poll(); });
+    this.root.querySelector<HTMLButtonElement>('[data-action="logout"]')!.onclick = async () => { this.stopPoll(); try{await api.logout();}finally{this.room = null; this.roomChats.clear(); this.user = null; this.authScreen();} };
     this.root.querySelector<HTMLButtonElement>('[data-action="deck"]')!.onclick = () => dispatchEvent(new CustomEvent("rogue-front:open-deck",{detail:{faction:this.selectedFaction}}));
-    this.renderView();
+    this.renderView();void this.loadInvites();
   }
 
-  private renderView(): void { if (this.tab === "lobby") void this.renderLobby(); else if (this.tab === "ranked") void this.renderRanked(); else if (this.tab === "live") void this.renderLive(); else if (this.tab === "friends") void this.renderFriends(); else this.renderProfile(); }
+  private renderView(): void { if (this.room&&this.tab==="lobby") return this.renderRoom(); if (this.tab === "lobby") void this.renderLobby(); else if (this.tab === "ranked") void this.renderRanked(); else if (this.tab === "live") void this.renderLive(); else if (this.tab === "friends") void this.renderFriends(); else this.renderProfile(); }
 
   private async renderRanked(): Promise<void> {
     const view = this.root.querySelector<HTMLElement>("[data-view]"); if (!view || !this.user) return;
     const faction = this.selectedFaction; const deck = loadAllDecks()[faction];
-    try { const [board, status] = await Promise.all([api.leaderboard(), api.matchmakingStatus()]);
+    try { const [board, status] = await Promise.all([api.leaderboard(), api.matchmakingStatus()]);if(this.tab!=="ranked"||!view.isConnected)return;
       view.innerHTML = `<div class="view-head"><div><div class="eyebrow">RANKED COMMAND</div><h2>Ranked matchmaking</h2><p>Server leiab sulle võimalikult lähedase ratinguga vastase.</p></div></div><div class="ranked-grid"><section class="room-panel"><div class="panel-title">MATCHMAKING</div><div class="setting-row"><span>MINU RATING</span><b>${this.user.stats.rating ?? 1000}</b></div><div class="setting-row"><span>VALITUD RAHVUS</span><b>${FACTIONS[faction].short}</b></div><div class="setting-row"><span>DECK</span><b>${esc(deck.name)}</b></div><div class="room-actions">${status.queued ? `<button class="secondary" data-rank-action="leave">TÜHISTA OTSING</button><span class="wait-label">OTSIN VASTAST…</span>` : `<button class="primary" data-rank-action="queue">OTSI 1v1 VASTAST</button>`}</div></section><section class="room-panel"><div class="panel-title">TOP 50</div><div class="leaderboard">${board.players.map((p,i)=>`<div class="player-row"><b>#${i+1}</b><div><strong>${esc(p.displayName)}</strong><small>@${esc(p.username)}</small></div><span>${p.stats.rating ?? 1000}</span></div>`).join("")}</div></section></div>`;
       view.querySelector<HTMLButtonElement>('[data-rank-action="queue"]')?.addEventListener("click", async () => { try { await api.matchmaking(faction,deck); await this.renderRanked(); } catch(e){ this.toast(e instanceof Error?e.message:"Matchmaking ebaõnnestus."); } });
       view.querySelector<HTMLButtonElement>('[data-rank-action="leave"]')?.addEventListener("click", async () => { await api.matchmakingLeave(); await this.renderRanked(); });
@@ -208,10 +214,11 @@ export class OnlineShell {
 
   private async renderLobby(): Promise<void> {
     const view = this.root.querySelector<HTMLElement>("[data-view]"); if (!view) return;
-    try { const r = await api.rooms(); if (r.myRoom) { this.room = r.myRoom; return this.renderRoom(); }
+    const search=view.querySelector<HTMLInputElement>("[data-room-search]")?.value??"";
+    try { const r = await api.rooms(); if(!view.isConnected||this.tab!=="lobby"||this.room||view.querySelector("[data-room-search]:focus"))return; if (r.myRoom) { this.room = r.myRoom; return this.renderRoom(); }
       view.innerHTML = `<div class="view-head"><div><div class="eyebrow">PUBLIC MATCHMAKING</div><h2>Mänguruumid</h2><p>Vali olemasolev 1v1 lobby või loo oma lahing.</p></div><button class="primary" data-action="create">+ LOO RUUM</button></div><div class="room-toolbar"><input data-room-search placeholder="Otsi ruumi või kaarti…"><button data-action="refresh">VÄRSKENDA</button><span>${r.rooms.length} avatud ruumi</span></div><div class="room-list" data-rooms></div><div class="section-note">Lobby kasutab serveripoolset staatust. READY, host, reeglid ja mängu käivitamine ei sõltu kliendi UI-st.</div>`;
       const list = view.querySelector<HTMLElement>("[data-rooms]")!; const renderRooms = (filter = "") => { list.innerHTML = r.rooms.filter(x => x.missionId.startsWith("procedural-")).filter(x => `${x.name} ${x.mapId} ${x.missionId}`.toLowerCase().includes(filter.toLowerCase())).map(x => this.roomCard(x)).join("") || `<div class="empty">Ühtegi sobivat lobby't ei ole. Loo uus mänguruum.</div>`; list.querySelectorAll<HTMLButtonElement>("[data-join]").forEach(b => b.onclick = () => void this.join(b.dataset.join!)); };
-      renderRooms(); view.querySelector<HTMLInputElement>("[data-room-search]")!.oninput = (e) => renderRooms((e.target as HTMLInputElement).value); view.querySelector<HTMLButtonElement>('[data-action="refresh"]')!.onclick = () => void this.renderLobby(); view.querySelector<HTMLButtonElement>('[data-action="create"]')!.onclick = () => this.createRoomModal();
+      const searchInput=view.querySelector<HTMLInputElement>("[data-room-search]")!;searchInput.value=search;renderRooms(search); view.querySelector<HTMLInputElement>("[data-room-search]")!.oninput = (e) => renderRooms((e.target as HTMLInputElement).value); view.querySelector<HTMLButtonElement>('[data-action="refresh"]')!.onclick = () => void this.renderLobby(); view.querySelector<HTMLButtonElement>('[data-action="create"]')!.onclick = () => this.createRoomModal();
     } catch (err) { this.toast(err instanceof Error ? err.message : "Lobby laadimine ebaõnnestus."); }
   }
 
@@ -223,9 +230,12 @@ export class OnlineShell {
   private createRoomModal(): void {
     const missions:MissionDef[] = []; const decks = loadAllDecks();
     this.modal(`<div class="modal-head"><div class="eyebrow">CREATE MATCH</div><h2>Uus 1v1 lahing</h2></div><form id="create-room-form"><label>Ruumi nimi<input name="name" value="${esc(this.user?.displayName || "")} vs World" maxlength="28" required></label><label>Kaart<select name="mission">${missions.map(m => `<option value="${esc(m.id)}">${esc(m.name)} — ${esc(m.map.name)}</option>`).join("")}${REGION_IDS.flatMap(region=>METRIC_MAP_SIZES.map(size=>`<option value="__random__:balanced:${size}:${region}">GENERAATOR · ${REGIONS[region].name} · ${size} m</option>`)).join("")}</select></label><label>Paigutus<select name="layout"><option value="auto">Seemne järgi</option></select></label><div class="choice-grid"><label>Rahvus<select name="faction">${FACTION_LIST.map(f => `<option value="${f}" ${f === this.selectedFaction ? "selected" : ""}>${FACTIONS[f].name}</option>`).join("")}</select></label><label>Deck<select name="deck">${FACTION_LIST.map(f => `<option value="${f}">${esc(decks[f].name)}</option>`).join("")}</select></label></div><div class="rule-grid"><label>Sissetulek<select name="income"><option value="standard">Standard</option><option value="high">Kõrge</option><option value="low">Madal</option></select></label><label>Fog of War<select name="fog"><option value="wargame">Wargame</option><option value="reduced">Reduced</option><option value="off">Off</option></select></label><label>Võit<select name="victory"><option value="hq">Hävitada HQ</option><option value="annihilation">Täielik hävitamine</option></select></label></div><div class="modal-actions"><button type="button" data-close>CANCEL</button><button class="primary" type="submit">LOO LOBBY</button></div><div class="form-error" data-modal-error></div></form>`);
-    const form = document.querySelector<HTMLFormElement>("#create-room-form")!; bindOnlineLayout(form); form.onsubmit = async (e) => { e.preventDefault(); const fd = new FormData(form); const faction = String(fd.get("faction")) as FactionId; this.selectedFaction = faction; const deck = decks[faction]; const selectedMap = String(fd.get("mission"));
+    const form = document.querySelector<HTMLFormElement>("#create-room-form")!; bindOnlineLayout(form);
+    const factionSelect=form.elements.namedItem("faction") as HTMLSelectElement,deckSelect=form.elements.namedItem("deck") as HTMLSelectElement;
+    deckSelect.value=factionSelect.value;factionSelect.onchange=()=>{deckSelect.value=factionSelect.value;};deckSelect.onchange=()=>{factionSelect.value=deckSelect.value;};
+    form.onsubmit = async (e) => { e.preventDefault(); if(form.dataset.pending)return;form.dataset.pending="true"; const fd = new FormData(form); const faction = String(fd.get("faction")) as FactionId; this.selectedFaction = faction; const deck = decks[faction]; const selectedMap = String(fd.get("mission"));
       const missionId = generatedSelectionId(selectedMap,String(fd.get("layout")??"auto"));
-      try { const r = await api.createRoom({ name: fd.get("name"), missionId, mapId: missionId, faction, deck, rules: { income: fd.get("income"), fog: fd.get("fog"), victory: fd.get("victory") } }); this.closeModal(); this.room = r.room; this.renderRoom(); } catch (err) { document.querySelector<HTMLElement>("[data-modal-error]")!.textContent = err instanceof Error ? err.message : "Ruumi loomine ebaõnnestus."; }
+      try { const r = await api.createRoom({ name: fd.get("name"), missionId, mapId: missionId, faction, deck, rules: { income: fd.get("income"), fog: fd.get("fog"), victory: fd.get("victory") } }); this.closeModal(); this.room = r.room; this.renderRoom(); } catch (err) { form.querySelector<HTMLElement>("[data-modal-error]")!.textContent = err instanceof Error ? err.message : "Ruumi loomine ebaõnnestus.";delete form.dataset.pending; }
     };
   }
 
@@ -234,27 +244,88 @@ export class OnlineShell {
   }
 
   private renderRoom(): void {
-    this.stopPoll(); if (!this.room || !this.user) return;
+    if (!this.room || !this.user) return;
+    if(this.room.status==="started")return this.launchGame();
+    const view=this.root.querySelector<HTMLElement>("[data-view]");if(!view)return;
+    const signature=JSON.stringify(this.room);
+    this.tab="lobby";
+    this.root.querySelectorAll<HTMLButtonElement>("[data-tab]").forEach(button=>{button.classList.toggle("active",button.dataset.tab==="lobby");if(button.dataset.tab==="lobby")button.textContent="MINU RUUM";});
+    if(view.dataset.roomState===signature&&view.querySelector(".room-view"))return;
+    const focused=document.activeElement instanceof HTMLInputElement&&document.activeElement.closest(".chat-panel")?document.activeElement:null;
+    const selection=focused?[focused.selectionStart,focused.selectionEnd] as const:null;
+    const oldChat=this.roomChats.get(this.room.id)??null;
+    view.dataset.roomState=signature;view.dataset.roomId=this.room.id;
     const room = this.room; const me = room.members.find(m => m.userId === this.user!.id); const opponent = room.members.find(m => m.userId !== this.user!.id); const host = room.hostId === this.user.id;
     const decks = loadAllDecks();
-    this.root.querySelector<HTMLElement>("[data-view]")!.innerHTML = `<div class="room-view"><div class="view-head"><div><div class="eyebrow">MATCH ROOM // ${esc(room.id)}</div><h2>${esc(room.name)}</h2><p>${esc(MISSIONS.find(m => m.id === room.missionId)?.briefing || "")}</p></div><span class="room-status ${room.status}">${room.status === "started" ? "STARTING" : "WAITING"}</span></div><div class="versus"><div class="player-slot ${me?.ready ? "ready" : ""}"><div class="slot-num">TEAM 1</div><h3>${esc(me?.displayName || this.user.displayName)}</h3><span>@${esc(me?.username || this.user.username)}</span><select data-faction>${FACTION_LIST.map(f => `<option value="${f}" ${f === me?.faction ? "selected" : ""}>${FACTIONS[f].name}</option>`).join("")}</select><select data-deck>${FACTION_LIST.map(f => `<option value="${f}" ${f === me?.deck?.faction ? "selected" : ""}>${esc(decks[f].name)}</option>`).join("")}</select><div class="ready-state">${me?.ready ? "READY" : "NOT READY"}</div></div><div class="vs-mark">VS</div><div class="player-slot ${opponent?.ready ? "ready" : "empty"}"><div class="slot-num">TEAM 2</div><h3>${esc(opponent?.displayName || "Ootan vastast")}</h3><span>${opponent ? `@${esc(opponent.username)}` : "Lobby otsib mängijat"}</span><div class="opponent-faction">${opponent ? FACTIONS[opponent.faction as FactionId]?.name || opponent.faction : "—"}</div><div class="ready-state">${opponent ? (opponent.ready ? "READY" : "NOT READY") : "EMPTY"}</div></div></div><div class="room-grid"><section class="room-panel"><div class="panel-title">LAHINGU SEADED ${host ? "· HOST" : "· HOSTI VALIK"}</div><div class="setting-row"><span>KAART</span><b>${esc(MISSIONS.find(m => m.id === room.missionId)?.map.name || room.mapId)}</b></div><div class="setting-row"><span>FOG OF WAR</span><b>${esc(room.rules.fog)}</b></div><div class="setting-row"><span>SISSETULEK</span><b>${esc(room.rules.income)}</b></div><div class="setting-row"><span>VÕIT</span><b>${esc(room.rules.victory)}</b></div>${host ? `<button class="secondary wide" data-action="settings">MUUDA REEGLEID</button>` : ""}</section><section class="room-panel chat-panel"><div class="panel-title">SQUAD CHANNEL</div><div class="chat-log" data-chat><div><b>SERVER</b> Lobby on valmis. Mõlemad mängijad peavad valima deck'i ja vajutama READY.</div></div><form class="chat-form" data-chat-form><input name="message" maxlength="500" placeholder="Kirjuta vastasele…"><button type="submit">SAADA</button></form></section></div><div class="room-actions"><button data-action="leave">LAHKU</button>${host ? `<button class="secondary" data-action="invite">KUTSU SÕBER</button>` : ""}<button class="ready-btn ${me?.ready ? "ready" : ""}" data-action="ready">${me?.ready ? "UNREADY" : "READY"}</button>${host ? `<button class="primary start-btn" data-action="start" ${room.members.length === 2 && room.members.every(m => m.ready) ? "" : "disabled"}>START BATTLE</button>` : `<span class="wait-label">${room.members.length < 2 ? "Ootan teist mängijat…" : room.members.every(m => m.ready) ? "Ootan hosti…" : "Oota vastase READY-d…"}</span>`}</div></div>`;
+    if(me){
+      this.selectedFaction=me.faction as FactionId;
+      const factionInfo=FACTIONS[this.selectedFaction],deck=me.deck??decks[this.selectedFaction];
+      const sideFaction=this.root.querySelector<HTMLElement>('[data-side-faction]'),sideDeck=this.root.querySelector<HTMLElement>('[data-side-deck]');
+      if(sideFaction){sideFaction.querySelector('b')!.textContent=factionInfo.short;sideFaction.querySelector('small')!.textContent=factionInfo.doctrineBlurb;}
+      if(sideDeck){sideDeck.querySelector('b')!.textContent=deck.name;sideDeck.querySelector('small')!.textContent=`${deck.slots.length} kaarti · kinnitatud koosseis`;}
+    }
+    this.root.querySelector<HTMLElement>("[data-view]")!.innerHTML = `<div class="room-view"><div class="view-head"><div><div class="eyebrow">MATCH ROOM // ${esc(room.id)}</div><h2>${esc(room.name)}</h2><p>${esc(MISSIONS.find(m => m.id === room.missionId)?.briefing || "")}</p></div><span class="room-status ${room.status}">${room.status === "started" ? "KÄIVITUB" : "OOTEL"}</span></div><div class="versus"><div class="player-slot ${me?.ready ? "ready" : ""}"><div class="slot-num">MEESKOND ${room.members.findIndex(m=>m.userId===this.user!.id)+1}${host?" · HOST":""}</div><h3>${esc(me?.displayName || this.user.displayName)}</h3><span>@${esc(me?.username || this.user.username)}</span><select data-faction>${FACTION_LIST.map(f => `<option value="${f}" ${f === me?.faction ? "selected" : ""}>${FACTIONS[f].name}</option>`).join("")}</select><select data-deck>${FACTION_LIST.map(f => `<option value="${f}" ${f === me?.deck?.faction ? "selected" : ""}>${esc(decks[f].name)}</option>`).join("")}</select><div class="ready-state">${me?.ready ? "VALMIS" : "POLE VALMIS"}</div></div><div class="vs-mark">VS</div><div class="player-slot ${opponent?.ready ? "ready" : opponent?"":"empty"}"><div class="slot-num">MEESKOND ${host?2:1}${!host?" · HOST":""}</div><h3>${esc(opponent?.displayName || "Ootan vastast")}</h3><span>${opponent ? `@${esc(opponent.username)}` : "Lobby otsib mängijat"}</span><div class="opponent-faction">${opponent ? FACTIONS[opponent.faction as FactionId]?.name || opponent.faction : "—"}</div><div class="ready-state">${opponent ? (opponent.ready ? "VALMIS" : "POLE VALMIS") : "TÜHI"}</div></div></div><div class="room-grid"><section class="room-panel"><div class="panel-title">LAHINGU SEADED ${host ? "· HOST" : "· HOSTI VALIK"}</div><div class="setting-row"><span>KAART</span><b>${esc(onlineMapLabel(room.missionId))}</b></div><div class="setting-row"><span>FOG OF WAR</span><b>${esc(room.rules.fog)}</b></div><div class="setting-row"><span>SISSETULEK</span><b>${esc(({standard:"Tavaline",high:"Kõrge",low:"Madal"} as Record<string,string>)[room.rules.income]??room.rules.income)}</b></div><div class="setting-row"><span>VÕIT</span><b>${esc(room.rules.victory==="hq"?"Peamaja hävitamine":"Täielik hävitamine")}</b></div>${host ? `<button class="secondary wide" data-action="settings">MUUDA REEGLEID</button>` : ""}</section><section class="room-panel chat-panel"><div class="panel-title">RUUMI VESTLUS</div><div class="chat-log" data-chat role="log" aria-live="polite" aria-label="Ruumi vestlus"><div><b>SERVER</b> Lobby on valmis. Mõlemad mängijad peavad valima deck'i ja vajutama READY.</div></div><form class="chat-form" data-chat-form><input name="message" maxlength="500" autocomplete="off" aria-label="Sõnum vastasele" placeholder="Kirjuta vastasele…"><button class="secondary" type="submit">SAADA</button></form></section></div><div class="room-actions"><button data-action="leave">LAHKU</button>${host ? `<button class="secondary" data-action="invite">KUTSU SÕBER</button>` : ""}<button class="ready-btn ${me?.ready ? "ready" : ""}" data-action="ready">${me?.ready ? "TÜHISTA VALMISOLEK" : "OLEN VALMIS"}</button>${host ? `<button class="primary start-btn" data-action="start" ${room.members.length === 2 && room.members.every(m => m.ready) ? "" : "disabled"}>ALUSTA LAHINGUT</button>` : `<span class="wait-label">${room.members.length < 2 ? "Ootan teist mängijat…" : room.members.every(m => m.ready) ? "Ootan hosti…" : "Oota vastase READY-d…"}</span>`}</div></div>`;
+    if(oldChat){view.querySelector(".chat-panel")!.replaceWith(oldChat);if(focused&&selection){focused.focus({preventScroll:true});focused.setSelectionRange(...selection);}}
+    this.roomChats.set(room.id,view.querySelector<HTMLElement>(".chat-panel")!);
     this.bindRoomControls(); this.poll();
   }
 
   private bindRoomControls(): void {
     if (!this.room || !this.user) return; const roomId = this.room.id; const me = this.room.members.find(m => m.userId === this.user!.id);
     const faction = this.root.querySelector<HTMLSelectElement>("[data-faction]")!; const deck = this.root.querySelector<HTMLSelectElement>("[data-deck]")!;
-    const sync = async (ready: boolean) => { const f = faction.value as FactionId; const d = loadAllDecks()[f]; this.selectedFaction = f; sessionStorage.setItem("rogue-front.activeDeck", JSON.stringify(d)); const r = await api.ready(roomId, { ready, faction: f, deck: d }); this.room = r.room; this.renderRoom(); };
-    this.root.querySelector<HTMLButtonElement>('[data-action="ready"]')!.onclick = () => void sync(!me?.ready).catch(err => this.toast(err instanceof Error ? err.message : "READY ebaõnnestus."));
-    faction.onchange = () => { this.selectedFaction = faction.value as FactionId; deck.value = faction.value; };
-    deck.onchange = () => { this.selectedFaction = deck.value as FactionId; };
-    this.root.querySelector<HTMLButtonElement>('[data-action="leave"]')!.onclick = async () => { try { await api.leaveRoom(roomId); this.room = null; this.renderMain(); this.poll(); } catch (err) { this.toast(err instanceof Error ? err.message : "Lahkumine ebaõnnestus."); } };
-    this.root.querySelector<HTMLButtonElement>('[data-action="invite"]')?.addEventListener("click", () => void this.inviteFriendModal());
-    this.root.querySelector<HTMLButtonElement>('[data-action="start"]')?.addEventListener("click", async () => { try { await api.start(roomId); } catch (err) { this.toast(err instanceof Error ? err.message : "Mängu käivitamine ebaõnnestus."); } });
-    this.root.querySelector<HTMLButtonElement>('[data-action="settings"]')?.addEventListener("click", () => this.settingsModal());
-    const chatForm = this.root.querySelector<HTMLFormElement>("[data-chat-form]");
-    chatForm?.addEventListener("submit", async (e) => { e.preventDefault(); const input = chatForm.querySelector<HTMLInputElement>("input[name=message]")!; const message = input.value.trim(); if (!message) return; try { await api.sendChat(roomId, message); input.value = ""; await this.loadChat(roomId); } catch (err) { this.toast(err instanceof Error ? err.message : "Sõnumi saatmine ebaõnnestus."); } });
+    const sync = (ready: boolean) => this.roomAction(async()=>{
+      const f=faction.value as FactionId,d=loadAllDecks()[f];
+      const errors=validateDeck(d);if(errors.length)throw new Error("Koosseis pole valmis: "+errors.join(" · "));
+      const r=await api.ready(roomId,{ready,faction:f,deck:d});this.selectedFaction=f;this.room=r.room;this.renderRoom();
+    });
+    this.root.querySelector<HTMLButtonElement>('[data-action="ready"]')!.onclick=()=>void sync(!me?.ready);
+    faction.onchange=()=>{deck.value=faction.value;void sync(false);};
+    deck.onchange=()=>{faction.value=deck.value;void sync(false);};
+    this.root.querySelector<HTMLButtonElement>('[data-action="leave"]')!.onclick=()=>void this.roomAction(async()=>{
+      await api.leaveRoom(roomId);this.roomChats.delete(roomId);this.room=null;this.closeModal();this.renderMain();
+    });
+    this.root.querySelector<HTMLButtonElement>('[data-action="invite"]')?.addEventListener("click",()=>void this.inviteFriendModal().catch(e=>this.toast(e instanceof Error?e.message:"Kutset ei saanud avada.")));
+    this.root.querySelector<HTMLButtonElement>('[data-action="start"]')?.addEventListener("click",()=>void this.roomAction(async()=>{
+      const r=await api.start(roomId);this.room=r.room;this.launchGame();
+    }));
+    this.root.querySelector<HTMLButtonElement>('[data-action="settings"]')?.addEventListener("click",()=>this.settingsModal());
+    const chatForm=this.root.querySelector<HTMLFormElement>("[data-chat-form]")!;
+    // Preserve this form and its pending submission across room updates.
+    if(!chatForm.dataset.bound){chatForm.dataset.bound="true";
+      chatForm.onsubmit=async e=>{
+        e.preventDefault();const input=chatForm.querySelector<HTMLInputElement>("input")!,button=chatForm.querySelector<HTMLButtonElement>("button")!;
+        const draft=input.value,message=draft.trim();if(!message||button.disabled)return;
+        button.disabled=true;button.textContent="SAADAN…";
+        try{await api.sendChat(roomId,message);if(input.value===draft)input.value="";await this.loadChat(roomId);}
+        catch(err){this.toast(err instanceof Error?err.message:"Sõnumi saatmine ebaõnnestus.");}
+        finally{button.disabled=false;button.textContent="SAADA";}
+      };
+    }
     void this.loadChat(roomId);
+  }
+
+  private async roomAction(action:()=>Promise<void>):Promise<void>{
+    if(this.roomActionPending)return;this.roomActionPending=true;this.stopPoll();
+    const controls=this.root.querySelectorAll<HTMLButtonElement|HTMLSelectElement>('.room-view .room-actions button,.room-view select');
+    controls.forEach(el=>el.disabled=true);
+    try{await action();}catch(err){this.toast(err instanceof Error?err.message:"Toiming ebaõnnestus.");}
+    finally{this.roomActionPending=false;controls.forEach(el=>el.disabled=false);if(this.room){const view=this.root.querySelector<HTMLElement>('[data-view]');if(view)delete view.dataset.roomState;this.renderRoom();}this.poll();}
+  }
+
+  private async loadInvites():Promise<void>{
+    if(this.room)return;const epoch=this.pollEpoch;
+    try{
+      const r=await api.invites();if(epoch!==this.pollEpoch||this.room)return;
+      const el=this.root.querySelector<HTMLElement>('[data-invites]');if(!el)return;
+      const signature=JSON.stringify(r.invites);if(el.dataset.invites===signature)return;el.dataset.invites=signature;
+      el.innerHTML=r.invites.map(i=>`<div class="invite-notice"><span><b>${esc(i.from.displayName)}</b> kutsub sind lahingusse.</span><button data-accept-invite="${esc(i.id)}">LIITU</button><button data-decline-invite="${esc(i.id)}">KEELDU</button></div>`).join('');
+      el.querySelectorAll<HTMLButtonElement>('[data-accept-invite],[data-decline-invite]').forEach(button=>button.onclick=async()=>{
+        button.disabled=true;this.stopPoll();
+        try{const accept=!!button.dataset.acceptInvite;const r=await api.answerInvite(button.dataset.acceptInvite??button.dataset.declineInvite!,accept);if(accept){this.room=r.room;el.innerHTML='';this.renderRoom();}else{delete el.dataset.invites;button.closest('.invite-notice')?.remove();}}
+        catch(err){button.disabled=false;this.toast(err instanceof Error?err.message:"Kutsele vastamine ebaõnnestus.");}
+        finally{this.poll();}
+      });
+    }catch{/* Invitations retry with the regular refresh. */}
   }
 
   private async inviteFriendModal(): Promise<void> {
@@ -264,34 +335,60 @@ export class OnlineShell {
   }
 
   private async loadChat(roomId: string): Promise<void> {
-    try { const r = await api.chat(roomId); const el = this.root.querySelector<HTMLElement>("[data-chat]"); if (!el) return; el.innerHTML = r.messages.map(m => `<div><b>${esc(m.displayName)}</b> ${esc(m.message)}</div>`).join("") || `<div><b>SERVER</b> Chat on tühi.</div>`; el.scrollTop = el.scrollHeight; } catch { /* lobby may be transitioning */ }
+    const request=++this.chatRequest;
+    try {
+      const r=await api.chat(roomId);if(request!==this.chatRequest||this.room?.id!==roomId)return;
+      const el=this.root.querySelector<HTMLElement>("[data-chat]");if(!el)return;
+      const signature=JSON.stringify(r.messages);if(el.dataset.messages===signature)return;
+      const atBottom=el.scrollHeight-el.scrollTop-el.clientHeight<32;
+      el.innerHTML=r.messages.map(m=>`<div><b>${esc(m.displayName)}</b> ${esc(m.message)}</div>`).join("")||'<div><b>SERVER</b> Kirjuta vastasele. Mõlemad mängijad peavad lahinguks valmis olema.</div>';
+      el.dataset.messages=signature;if(atBottom)el.scrollTop=el.scrollHeight;
+    }catch{/* Keep the last messages and draft during a temporary disconnect. */}
   }
 
   private settingsModal(): void {
     if (!this.room) return; const room = this.room; const missions:MissionDef[] = [];
     this.modal(`<div class="modal-head"><div class="eyebrow">HOST CONTROL</div><h2>Lobby reeglid</h2></div><form id="settings-form"><label>Ruumi nimi<input name="name" value="${esc(room.name)}"></label><label>Kaart<select name="mission">${missions.map(m => `<option value="${esc(m.id)}" ${m.id === room.missionId ? "selected" : ""}>${esc(m.name)} — ${esc(m.map.name)}</option>`).join("")}${room.missionId.startsWith("procedural-")?`<option value="${esc(room.missionId)}" selected>Praegune genereeritud kaart</option>`:""}${REGION_IDS.flatMap(region=>METRIC_MAP_SIZES.map(size=>`<option value="__random__:balanced:${size}:${region}">GENERAATOR · ${REGIONS[region].name} · ${size} m</option>`)).join("")}</select></label><label>Paigutus<select name="layout"><option value="auto">Seemne järgi</option></select></label><div class="rule-grid"><label>Sissetulek<select name="income"><option value="standard" ${room.rules.income === "standard" ? "selected" : ""}>Standard</option><option value="high" ${room.rules.income === "high" ? "selected" : ""}>Kõrge</option><option value="low" ${room.rules.income === "low" ? "selected" : ""}>Madal</option></select></label><label>Fog<select name="fog"><option value="wargame" ${room.rules.fog === "wargame" ? "selected" : ""}>Wargame</option><option value="reduced" ${room.rules.fog === "reduced" ? "selected" : ""}>Reduced</option><option value="off" ${room.rules.fog === "off" ? "selected" : ""}>Off</option></select></label><label>Võit<select name="victory"><option value="hq" ${room.rules.victory === "hq" ? "selected" : ""}>HQ</option><option value="annihilation" ${room.rules.victory === "annihilation" ? "selected" : ""}>Annihilation</option></select></label></div><div class="modal-actions"><button type="button" data-close>CANCEL</button><button class="primary" type="submit">SALVESTA</button></div><div class="form-error" data-modal-error></div></form>`);
-    const settingsForm=document.querySelector<HTMLFormElement>("#settings-form")!;bindOnlineLayout(settingsForm);settingsForm.onsubmit = async (e) => { e.preventDefault(); const fd = new FormData(e.currentTarget as HTMLFormElement); try { const selectedMap = String(fd.get("mission")); const missionId = generatedSelectionId(selectedMap,String(fd.get("layout")??"auto")); const r = await api.settings(room.id, { name: fd.get("name"), missionId, mapId: missionId, rules: { income: fd.get("income"), fog: fd.get("fog"), victory: fd.get("victory") } }); this.room = r.room; this.closeModal(); this.renderRoom(); } catch (err) { document.querySelector<HTMLElement>("[data-modal-error]")!.textContent = err instanceof Error ? err.message : "Salvestamine ebaõnnestus."; } };
+    const settingsForm=document.querySelector<HTMLFormElement>("#settings-form")!;bindOnlineLayout(settingsForm);settingsForm.onsubmit = async (e) => { e.preventDefault(); if(settingsForm.dataset.pending)return;settingsForm.dataset.pending="true";this.stopPoll(); const fd = new FormData(settingsForm); try { const selectedMap = String(fd.get("mission")); const missionId = generatedSelectionId(selectedMap,String(fd.get("layout")??"auto")); const r = await api.settings(room.id, { name: fd.get("name"), missionId, mapId: missionId, rules: { income: fd.get("income"), fog: fd.get("fog"), victory: fd.get("victory") } }); this.room = r.room; this.closeModal(); this.renderRoom(); } catch (err) { settingsForm.querySelector<HTMLElement>("[data-modal-error]")!.textContent = err instanceof Error ? err.message : "Salvestamine ebaõnnestus."; } finally {delete settingsForm.dataset.pending;this.poll();} };
   }
 
   private async renderLive(): Promise<void> {
     const view=this.root.querySelector<HTMLElement>("[data-view]"); if(!view) return;
-    try { const r=await api.liveGames(); view.innerHTML=`<div class="view-head"><div><div class="eyebrow">LIVE WAR ROOM</div><h2>Live mängud</h2><p>Vaata käimasolevaid lahinguid pealtvaatajana.</p></div></div><div class="room-list">${r.games.map(g=>`<article class="room-card"><div class="room-main"><div class="room-title"><b>${esc(g.name)}</b><span class="badge">LIVE</span></div><div class="room-meta">${esc(MISSIONS.find(m=>m.id===g.missionId)?.name||g.missionId)} · ${esc(g.mapId)}</div><div class="room-tags"><span>${g.rules.fog}</span><span>${g.ranked?"RANKED":"CUSTOM"}</span></div></div><div class="room-player"><strong>${g.members.map(m=>esc(m.displayName)).join(" vs ")}</strong><small>${g.members.map(m=>esc(FACTIONS[m.faction as FactionId]?.short||m.faction)).join(" / ")}</small></div><button class="join-btn" data-spectate="${esc(g.id)}">VAATA</button></article>`).join("")||`<div class="empty">Praegu ei ole aktiivseid mänge.</div>`}</div>`; view.querySelectorAll<HTMLButtonElement>("[data-spectate]").forEach(b=>b.onclick=async()=>{try{const r=await api.spectate(b.dataset.spectate!);const url=new URL(location.href);url.search="";url.searchParams.set("mission",r.room.missionId);url.searchParams.set("mode","spectator");url.searchParams.set("room",r.room.id);url.searchParams.set("faction","usa");url.searchParams.set("spectateToken",r.token);location.href=url.toString();}catch(e){this.toast(e instanceof Error?e.message:"Pealtvaatamist ei saanud alustada.");}}); } catch(e){this.toast(e instanceof Error?e.message:"Live mängude laadimine ebaõnnestus.");}
+    try { const r=await api.liveGames();if(this.tab!=="live"||!view.isConnected)return; view.innerHTML=`<div class="view-head"><div><div class="eyebrow">LIVE WAR ROOM</div><h2>Live mängud</h2><p>Vaata käimasolevaid lahinguid pealtvaatajana.</p></div></div><div class="room-list">${r.games.map(g=>`<article class="room-card"><div class="room-main"><div class="room-title"><b>${esc(g.name)}</b><span class="badge">LIVE</span></div><div class="room-meta">${esc(MISSIONS.find(m=>m.id===g.missionId)?.name||g.missionId)} · ${esc(g.mapId)}</div><div class="room-tags"><span>${g.rules.fog}</span><span>${g.ranked?"RANKED":"CUSTOM"}</span></div></div><div class="room-player"><strong>${g.members.map(m=>esc(m.displayName)).join(" vs ")}</strong><small>${g.members.map(m=>esc(FACTIONS[m.faction as FactionId]?.short||m.faction)).join(" / ")}</small></div><button class="join-btn" data-spectate="${esc(g.id)}">VAATA</button></article>`).join("")||`<div class="empty">Praegu ei ole aktiivseid mänge.</div>`}</div>`; view.querySelectorAll<HTMLButtonElement>("[data-spectate]").forEach(b=>b.onclick=async()=>{try{const r=await api.spectate(b.dataset.spectate!);const url=new URL(location.href);url.search="";url.searchParams.set("mission",r.room.missionId);url.searchParams.set("mode","spectator");url.searchParams.set("room",r.room.id);url.searchParams.set("faction","usa");url.searchParams.set("spectateToken",r.token);location.href=url.toString();}catch(e){this.toast(e instanceof Error?e.message:"Pealtvaatamist ei saanud alustada.");}}); } catch(e){this.toast(e instanceof Error?e.message:"Live mängude laadimine ebaõnnestus.");}
   }
 
-  private async renderFriends(): Promise<void> { const view = this.root.querySelector<HTMLElement>("[data-view]"); if (!view) return; try { const r = await api.friends(); view.innerHTML = `<div class="view-head"><div><div class="eyebrow">SOCIAL</div><h2>Sõbrad</h2><p>Otsi mängijaid ja lisa nad oma püsivasse sõbralisti.</p></div></div><div class="friend-search"><input data-player-search placeholder="Kasutajanimi või kuvatav nimi…"><button data-action="search">OTSI</button></div><div class="friend-columns"><section><div class="panel-title">MINU SÕBRAD</div><div data-friends>${r.friends.map(p => this.playerRow(p, false)).join("") || `<div class="empty">Sõbralisti pole veel.</div>`}</div></section><section><div class="panel-title">OTSING</div><div data-results><div class="empty">Sisesta nimi ja vajuta OTSI.</div></div></section></div>`; view.querySelector<HTMLButtonElement>('[data-action="search"]')!.onclick = () => void this.searchPlayers(); view.querySelector<HTMLInputElement>("[data-player-search]")!.onkeydown = e => { if (e.key === "Enter") void this.searchPlayers(); }; } catch (err) { this.toast(err instanceof Error ? err.message : "Sõprade laadimine ebaõnnestus."); } }
+  private async renderFriends(): Promise<void> { const view = this.root.querySelector<HTMLElement>("[data-view]"); if (!view) return; try { const r = await api.friends();if(this.tab!=="friends"||!view.isConnected)return; view.innerHTML = `<div class="view-head"><div><div class="eyebrow">SOCIAL</div><h2>Sõbrad</h2><p>Otsi mängijaid ja lisa nad oma püsivasse sõbralisti.</p></div></div><div class="friend-search"><input data-player-search placeholder="Kasutajanimi või kuvatav nimi…"><button data-action="search">OTSI</button></div><div class="friend-columns"><section><div class="panel-title">MINU SÕBRAD</div><div data-friends>${r.friends.map(p => this.playerRow(p, false)).join("") || `<div class="empty">Sõbralisti pole veel.</div>`}</div></section><section><div class="panel-title">OTSING</div><div data-results><div class="empty">Sisesta nimi ja vajuta OTSI.</div></div></section></div>`; view.querySelector<HTMLButtonElement>('[data-action="search"]')!.onclick = () => void this.searchPlayers(); view.querySelector<HTMLInputElement>("[data-player-search]")!.onkeydown = e => { if (e.key === "Enter") void this.searchPlayers(); }; } catch (err) { this.toast(err instanceof Error ? err.message : "Sõprade laadimine ebaõnnestus."); } }
   private playerRow(p: PublicPlayer, add: boolean): string { return `<div class="player-row"><span class="dot ${p.online ? "online" : ""}"></span><div><b>${esc(p.displayName)}</b><small>@${esc(p.username)} · ${p.stats.wins}-${p.stats.losses}</small></div>${add ? `<button data-add-friend="${esc(p.id)}">LISA</button>` : `<span class="online-label">${p.online ? "ONLINE" : "OFFLINE"}</span>`}</div>`; }
-  private async searchPlayers(): Promise<void> { const q = this.root.querySelector<HTMLInputElement>("[data-player-search]")?.value.trim() || ""; if (!q) return; try { const r = await api.players(q); const el = this.root.querySelector<HTMLElement>("[data-results]")!; el.innerHTML = r.players.map(p => this.playerRow(p, true)).join("") || `<div class="empty">Mängijat ei leitud.</div>`; el.querySelectorAll<HTMLButtonElement>("[data-add-friend]").forEach(b => b.onclick = async () => { try { await api.addFriend(b.dataset.addFriend!); b.textContent = "LISATUD"; b.disabled = true; } catch (err) { this.toast(err instanceof Error ? err.message : "Sõbra lisamine ebaõnnestus."); } }); } catch (err) { this.toast(err instanceof Error ? err.message : "Otsing ebaõnnestus."); } }
+  private async searchPlayers(): Promise<void> { const q = this.root.querySelector<HTMLInputElement>("[data-player-search]")?.value.trim() || ""; if (!q) return; try { const r = await api.players(q); const el = this.root.querySelector<HTMLElement>("[data-results]");if(!el)return; el.innerHTML = r.players.map(p => this.playerRow(p, true)).join("") || `<div class="empty">Mängijat ei leitud.</div>`; el.querySelectorAll<HTMLButtonElement>("[data-add-friend]").forEach(b => b.onclick = async () => { try { await api.addFriend(b.dataset.addFriend!); b.textContent = "LISATUD"; b.disabled = true; } catch (err) { this.toast(err instanceof Error ? err.message : "Sõbra lisamine ebaõnnestus."); } }); } catch (err) { this.toast(err instanceof Error ? err.message : "Otsing ebaõnnestus."); } }
 
   private renderProfile(): void { const view = this.root.querySelector<HTMLElement>("[data-view]"); if (!view || !this.user) return; const s = this.user.stats; view.innerHTML = `<div class="view-head"><div><div class="eyebrow">PLAYER RECORD</div><h2>${esc(this.user.displayName)}</h2><p>@${esc(this.user.username)} · ${esc(this.user.country)}</p></div></div><div class="profile-grid"><div class="profile-stat"><span>MÄNGUD</span><b>${s.games}</b></div><div class="profile-stat"><span>VÕIDUD</span><b>${s.wins}</b></div><div class="profile-stat"><span>KAOTUSED</span><b>${s.losses}</b></div><div class="profile-stat"><span>VIIGID</span><b>${s.draws}</b></div><div class="profile-stat"><span>RATING</span><b>${s.rating ?? 1000}</b></div><div class="profile-stat"><span>LEVEL</span><b>${s.level ?? 1}</b></div></div><div class="section-note">Kontoandmed ja mängustatistika asuvad serveris. Brauseri localStorage sisaldab ainult autentimissessiooni ning kohalikku decki mugavuse pärast.</div>`; }
 
-  private poll(): void { this.stopPoll(); this.timer = window.setInterval(() => void this.refresh(), 1500); }
-  private stopPoll(): void { if (this.timer !== null) window.clearInterval(this.timer); this.timer = null; }
-  private async refresh(): Promise<void> { try { const r = await api.me(); this.user = r.user; if (r.activeRoom && !this.room) { this.room = r.activeRoom; this.renderRoom(); return; } if (this.room) { const rr = await api.room(this.room.id); this.room = rr.room; if (this.room.status === "started") return this.launchGame(); this.renderRoom(); } else if (this.tab === "lobby") await this.renderLobby(); else if (this.tab === "ranked") await this.renderRanked(); else if (this.tab === "live") await this.renderLive(); } catch { /* transient poll error */ } }
-  private launchGame(): void { if (!this.room || !this.user) return; this.stopPoll(); const me = this.room.members.find(m => m.userId === this.user!.id); if (!me) return; sessionStorage.setItem("rogue-front.activeDeck", JSON.stringify(loadAllDecks()[me.faction as FactionId])); const url = new URL(location.href); url.search = ""; url.searchParams.set("mission", this.room.missionId); url.searchParams.set("mode", "multiplayer"); url.searchParams.set("room", this.room.id); url.searchParams.set("faction", me.faction); location.href = url.toString(); }
+  private poll(): void { this.stopPoll();if(this.launching)return; this.timer=window.setInterval(()=>void this.refresh(),1500); }
+  private stopPoll(): void { this.pollEpoch++;if(this.timer!==null)window.clearInterval(this.timer);this.timer=null; }
+  private async refresh():Promise<void>{
+    if(this.refreshing||this.roomActionPending)return;
+    this.refreshing=true;const epoch=this.pollEpoch;
+    try{
+      const r=await api.me();if(epoch!==this.pollEpoch)return;this.user=r.user;
+      if(r.activeRoom){this.room=r.activeRoom;if(this.room.status==="started")return this.launchGame();if(this.tab==="lobby"){this.renderRoom();await this.loadChat(r.activeRoom.id);}}
+      else if(this.room){this.room=null;this.renderMain();}
+      else if(this.tab==="lobby"&&!this.root.querySelector('[data-room-search]:focus'))await this.renderLobby();
+      else if(this.tab==="ranked")await this.renderRanked();else if(this.tab==="live")await this.renderLive();
+      if(!this.room)await this.loadInvites();
+    }catch{/* Retry on the next poll without discarding user input. */}
+    finally{this.refreshing=false;}
+  }
+  private launchGame(): void { if (this.launching || !this.room || !this.user) return; this.stopPoll(); const me = this.room.members.find(m => m.userId === this.user!.id); if (!me) return; this.launching=true; sessionStorage.setItem("rogue-front.activeDeck", JSON.stringify(me.deck??loadAllDecks()[me.faction as FactionId])); const url = new URL(location.href); url.search = ""; url.searchParams.set("mission", this.room.missionId); url.searchParams.set("mode", "multiplayer"); url.searchParams.set("room", this.room.id); url.searchParams.set("faction", me.faction); location.href = url.toString(); }
 
   private modal(content: string): void { this.closeModal(); const d = document.createElement("div"); d.className = "modal-backdrop"; d.innerHTML = `<div class="modal-card">${content}</div>`; document.body.appendChild(d); d.querySelectorAll<HTMLElement>("[data-close]").forEach(x => x.onclick = () => d.remove()); }
   private closeModal(): void { document.querySelector(".modal-backdrop")?.remove(); }
   private toast(message: string): void { const t = this.root.querySelector<HTMLElement>("[data-toast]"); if (!t) return; t.textContent = message; t.classList.add("show"); window.setTimeout(() => t.classList.remove("show"), 2600); }
+}
+
+function onlineMapLabel(id:string):string{
+  const match=/^procedural-v\d+-[^-]+-(\d+)-(\d+)(?:-o(\d+))?$/.exec(id);if(!match)return id;
+  const options=decodeMapOptions(Number(match[3]??14));
+  return `${REGIONS[options.region??'italy'].name} · ${match[1]} m · seeme ${match[2]}`;
 }
 
 function esc(value: unknown): string { return String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c)); }
