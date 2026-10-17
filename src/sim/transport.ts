@@ -3,6 +3,7 @@ import mobility from '../data/mobility.json';
 import type {World} from './World';
 import type {Entity,Point} from './types';
 import {heightAt} from './heightmap';
+import {boardingPassageClear,clearPickupQueue,replaceTask} from './unitTasks';
 export function transportCapacity(u:Entity):number {return u.constructionFlight||u.supplyDepotId!=null?0:u.def.transportCapacity??0;}
 export function canLoadPassenger(u:Entity,p:Entity):boolean {return !u.constructionFlight&&u.supplyDepotId==null&&(u.kind==='airTransport'?airliftCargo(p):isPassenger(p));}
 export function passengerSeats(u:Entity):number {return Math.max(1,u.squadMembers??u.def.squadSize??1);}
@@ -10,16 +11,21 @@ export function isPassenger(u:Entity):boolean {return !u.constructionCrew&&!u.co
 export function occupiedSeats(w:World,u:Entity,reserved=false):number {if(u.kind==='airTransport')return airliftManifest(w,u,reserved).troops;return [...u.cargoUnitIds,...(reserved?u.transportQueue??[]:[])].reduce((n,id)=>{const p=w.byId.get(id);return n+(p&&!p.dead?passengerSeats(p):0);},0);}
 export function queuePassenger(w:World,u:Entity,p:Entity):boolean {
  if(u.kind==='airTransport')return queueAirliftCargo(w,u,p);
- if(!transportCapacity(u)||p.garrisonId||!isPassenger(p)||p.dead||p.loadedIntoId!=null||p.team!==u.team||u===p)return false;
- if(w.entities.some(e=>!e.dead&&e.transportQueue?.includes(p.id)))return false;
- if(occupiedSeats(w,u,true)+passengerSeats(p)>transportCapacity(u))return false;
+ let reason='';
+ if(u.dead||!transportCapacity(u)||p.garrisonId||!isPassenger(p)||p.dead||p.loadedIntoId!=null||p.team!==u.team||u===p)reason='Seda üksust ei saa sellesse transporti laadida';
+ else if(u.transportQueue?.includes(p.id))return true;
+ else if(w.entities.some(e=>!e.dead&&e.transportQueue?.includes(p.id)))reason='Üksusel on juba laadimiskäsk';
+ else if(occupiedSeats(w,u,true)+passengerSeats(p)>transportCapacity(u))reason='Transpordis pole tervele rühmale piisavalt vabu kohti';
+ if(reason){w.events.push({type:'order-rejected',team:u.team,unitId:u.id,x:u.x,z:u.z,message:reason});return false;}
+ if(!u.transportQueue?.length)replaceTask(w,u);
+ replaceTask(w,p);
  if(!u.transportQueue?.length){u.transportPickupDeadline=w.time+mobility.transport.pickupTimeout;u.transportPickupPoint=undefined;}
  u.transportQueue??=[];u.transportQueue.push(p.id);u.transportTargetId=u.transportQueue[0];u.mode='transport-load';u.dest={x:p.x,z:p.z};u.target=null;u.moveGroup=undefined;u.navPath=[];
  // A pickup order holds the squad; the carrier approaches it instead of chasing a moving destination.
  p.moveGroup=undefined;p.fastMove=false;p.moveQueue=[];p.moveQueueStyles=[];p.mode='hold';p.dest=null;p.target=null;p.navPath=[];p.motionSpeed=0;p.holdPosition=true;
  return true;
 }
-function idle(u:Entity):void {u.mode='idle';u.dest=null;u.target=null;u.transportTargetId=null;u.transportPickupPoint=undefined;u.unloadPoint=null;u.navPath=[];u.motionSpeed=0;}
+function idle(u:Entity):void {u.mode='idle';u.dest=null;u.target=null;u.transportTargetId=null;u.transportPickupPoint=undefined;u.unloadPoint=null;u.navPath=[];}
 /** Called before movement. Ground carriers use the same acceleration/nav/collision code as other vehicles. */
 export function prepareTransport(w:World,u:Entity):boolean {
  if(!['transport-load','transport-unload'].includes(u.mode))return false;
@@ -27,11 +33,14 @@ export function prepareTransport(w:World,u:Entity):boolean {
  if(u.mode==='transport-unload'){
   if(!u.unloadPoint){idle(u);return true;}
   u.dest=u.unloadPoint;
-  if(Math.hypot(u.x-u.dest.x,u.z-u.dest.z)<=u.def.radius+2&&(u.def.domain!=="air"||u.y-heightAt(u.x,u.z)<mobility.transport.landingHeight))disembark(w,u);
+  if(Math.hypot(u.x-u.dest.x,u.z-u.dest.z)<=u.def.radius+2&&(u.def.domain!=="air"||u.y-heightAt(u.x,u.z)<mobility.transport.landingHeight)){
+   u.dest=null;
+   if(u.def.domain==='air'||Math.abs(u.motionSpeed??0)<=mobility.transport.boardingSpeed)disembark(w,u);
+  }
   return true;
  }
  u.transportQueue??=u.transportTargetId?[u.transportTargetId]:[];
- if(w.time>(u.transportPickupDeadline??Infinity)){u.transportQueue=[];idle(u);return true;}
+ if(w.time>(u.transportPickupDeadline??Infinity)){clearPickupQueue(w,u);idle(u);w.events.push({type:'order-rejected',team:u.team,unitId:u.id,x:u.x,z:u.z,message:'Laadimine katkestati · üksus ei jõudnud transpordini'});return true;}
  while(u.transportQueue.length){const p=w.byId.get(u.transportQueue[0]);if(p&&!p.dead&&p.loadedIntoId==null&&p.team===u.team&&occupiedSeats(w,u)+passengerSeats(p)<=transportCapacity(u))break;u.transportQueue.shift();}
  const p=w.byId.get(u.transportQueue[0]);if(!p){idle(u);return true;}
  u.transportTargetId=p.id;
@@ -41,7 +50,9 @@ export function prepareTransport(w:World,u:Entity):boolean {
   const point=u.transportPickupPoint;
   if(Math.hypot(point.x-p.x,point.z-p.z)>reach-2){p.mode='move';p.holdPosition=false;p.dest={...point};}
  }
- if(Math.hypot(u.x-p.x,u.z-p.z)<=reach&&(u.def.domain!=='air'||u.y-heightAt(u.x,u.z)<mobility.transport.landingHeight)){
+ if(Math.hypot(u.x-p.x,u.z-p.z)<=reach&&boardingPassageClear(w,u,p,p.def.radius)&&(u.def.domain!=='air'||u.y-heightAt(u.x,u.z)<mobility.transport.landingHeight)){
+  u.dest=null;
+  if(u.def.domain!=='air'&&Math.abs(u.motionSpeed??0)>mobility.transport.boardingSpeed)return true;
   p.loadedIntoId=u.id;p.mode='idle';p.dest=null;p.target=null;p.moveQueue=[];p.navPath=[];p.holdPosition=false;p.motionSpeed=0;u.cargoUnitIds.push(p.id);u.transportQueue.shift();u.transportPickupPoint=undefined;u.transportPickupDeadline=w.time+mobility.transport.pickupTimeout;u.navPath=[];
   if(!u.transportQueue.length)idle(u);
  }else {

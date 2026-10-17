@@ -10,8 +10,8 @@ import {createSkirmish} from './scenario';
 import {producerKind} from './systems/production';
 afterEach(resetHeightmap);
 function fixture(){const bases=[{x:0,z:0,r:250},{x:300,z:300,r:40}];setBases(bases);const w=new World(81,false,[],[],bases,false);w.networkMode=true;const plane=w.spawn('airTransport',0,0,0);plane.airState='grounded';return {w,plane};}
-it('normal skirmish starts with only HQ and engineers; demo is opt-in',()=>{
- const {w}=fixture();w.entities.length=0;w.byId.clear();createSkirmish(w);for(const team of [0,1])expect(w.entities.filter(e=>e.team===team).map(e=>e.kind)).toEqual(['hq','engineer','engineer']);
+it('normal skirmish starts with HQ and one automatic crew; demo is opt-in',()=>{
+ const {w}=fixture();w.entities.length=0;w.byId.clear();createSkirmish(w);for(const team of [0,1])expect(w.entities.filter(e=>e.team===team).map(e=>e.kind)).toEqual(['hq','engineer']);
  const demo=fixture().w;createSkirmish(demo,true);expect(demo.entities.some(e=>e.kind==='tank')).toBe(true);expect(producerKind('airTransport')).toBe('airbase');
 });
 it('reserves one tank OR two APCs, plus actual squad members, including APC passengers',()=>{

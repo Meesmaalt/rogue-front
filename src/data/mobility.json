@@ -171,7 +171,8 @@
     "exitSpacing": 2,
     "exitRetry": 0.5,
     "landingMargin": 3,
-    "pickupSearch": 30
+    "pickupSearch": 30,
+    "boardingSpeed": 0.5
   },
   "combat": {
     "clearShotPreference": 36,

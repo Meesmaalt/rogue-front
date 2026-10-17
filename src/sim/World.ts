@@ -1,3 +1,4 @@
+import {clearPickupQueue} from "./unitTasks";
 import productionPolicy from '../data/production-policy.json';
 import {dispatchResourceConvoys} from './resourceConvoys';
 import {BattleSmoke} from "./battleSmoke";
@@ -840,6 +841,7 @@ export class World {
     for (let i = this.entities.length - 1; i >= 0; i--) {
       const e = this.entities[i];
       if (e.dead) {
+        clearPickupQueue(this,e);
         if (e.def.speed > 0 && !e.constructionFlight && e.kind !== "engineer" && e.logisticsRoute !== "strategic") this.battlegroupForTeam(e.team)?.recordLoss(e.kind);
         if ((e.kind === "cargoPlane"||e.kind==="transport"&&e.logisticsRoute==="strategic") && e.cargo > 0) { this.airCargoLost[e.team] += e.cargo; e.cargo = 0; }
         if ((e.kind === "logiTruck" || e.hqCargo) && e.cargo > 0) { this.roadCargoLost[e.team] += e.cargo; e.cargo = 0; }

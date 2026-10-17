@@ -1,7 +1,7 @@
 import {it,expect,afterEach} from 'vitest';
 import {World} from './World';
 import {setBases,resetHeightmap} from './heightmap';
-import {occupiedSeats,transportCapacity} from './transport';
+import {occupiedSeats,transportCapacity,queuePassenger,prepareTransport} from './transport';
 import {applyCommands} from './systems/commands';
 import {updateUnits} from './systems/units';
 import {saveWorld,loadWorld} from './SaveState';
@@ -28,4 +28,29 @@ it('airborne helicopter must land before unloading; active orders resume with id
  const copy=world();loadWorld(copy,JSON.parse(JSON.stringify(saveWorld(w))));expect(worldHash(copy)).toBe(worldHash(w));
  for(let i=0;i<450;i++){steps(w,1);steps(copy,1);}expect(worldHash(copy)).toBe(worldHash(w));expect(p.loadedIntoId).toBeNull();
  w.issue({type:'fast-move',ids:[carrier.id],x:65,z:0});w.issue({type:'amove',ids:[carrier.id],x:85,z:0,append:true});applyCommands(w);steps(w,450);expect(carrier.dest).toBeNull();expect(carrier.mode).toBe('idle');
+});
+
+it('does not board a squad across a wall even when it lies inside pickup range',()=>{
+ const w=world([{id:'wall',kind:'wall',x:0,z:0,width:1,depth:100,height:6}]);
+ const carrier=w.spawn('apc',0,-3,0),p=w.spawn('inf',0,3,0);
+ expect(queuePassenger(w,carrier,p)).toBe(true);prepareTransport(w,carrier);
+ expect(p.loadedIntoId).toBeNull();expect(carrier.cargoUnitIds).toEqual([]);
+});
+
+it('brakes before boarding and unloading rather than putting troops into a moving vehicle',()=>{
+ const w=world(),carrier=w.spawn('transportVan',0,0,0),p=w.spawn('inf',0,3,0);
+ queuePassenger(w,carrier,p);carrier.motionSpeed=5;prepareTransport(w,carrier);
+ expect(p.loadedIntoId).toBeNull();expect(carrier.dest).toBeNull();expect(carrier.motionSpeed).toBe(5);
+ carrier.motionSpeed=0;prepareTransport(w,carrier);expect(p.loadedIntoId).toBe(carrier.id);
+ carrier.mode='transport-unload';carrier.unloadPoint={x:carrier.x,z:carrier.z};carrier.motionSpeed=5;
+ prepareTransport(w,carrier);expect(p.loadedIntoId).toBe(carrier.id);expect(carrier.motionSpeed).toBe(5);
+ carrier.motionSpeed=0;prepareTransport(w,carrier);expect(p.loadedIntoId).toBeNull();
+});
+
+it('reports a full transport and cancels expired pickup without leaving a passenger walking to it',()=>{
+ const w=world(),carrier=w.spawn('transportVan',0,0,0),a=w.spawn('atgm',0,30,0),b=w.spawn('manpad',0,30,15),c=w.spawn('inf',0,30,30);
+ expect(queuePassenger(w,carrier,a)).toBe(true);expect(queuePassenger(w,carrier,b)).toBe(true);expect(queuePassenger(w,carrier,c)).toBe(false);
+ expect(w.events.some(e=>e.type==='order-rejected'&&e.message.includes('piisavalt vabu kohti'))).toBe(true);
+ a.mode='move';a.dest={x:10,z:0};w.time=carrier.transportPickupDeadline!+1;prepareTransport(w,carrier);
+ expect(carrier.transportQueue).toEqual([]);expect(a.dest).toBeNull();expect(a.holdPosition).toBe(true);
 });

@@ -1034,8 +1034,8 @@ export function combatStatus(w:World,u:Entity):string {
   if(u.garrisonId&&!u.target)return u.mode==="leave-building"?"Garnison · ootab vaba väljapääsu":"Garnison · piiratud laskesektor";
   if(u.garrisonOrderId)return "Läheneb hoone sissepääsule";
   if(u.loadedIntoId!=null){const carrier=w.byId.get(u.loadedIntoId);return "Transpordis · "+(carrier?w.unitDisplayName(carrier.kind,carrier.team):"pardal");}
-  if(u.mode==="transport-load")return "Kogub jalaväge · kohad broneeritud";
-  if(u.mode==="transport-unload")return "Viib väljumiskohta · ootab vaba väljapääsu";
+  if(u.mode==="transport-load")return !u.dest&&Math.abs(u.motionSpeed??0)>mobility.transport.boardingSpeed?"Peatub pardaleminekuks":"Kogub jalaväge · kohad broneeritud";
+  if(u.mode==="transport-unload")return !u.dest?(Math.abs(u.motionSpeed??0)>mobility.transport.boardingSpeed?"Peatub väljumiseks":"Väljumine ootab · vaja vaba läbipääsu"):"Viib väljumiskohta · ootab vaba väljapääsu";
   if(u.moraleRetreat)return !u.moraleRetreat.point?"Taandumine ootab · puudub läbitav tee baasi":u.dest?"Taandub kogunemiskohta":"Koguneb · taastab moraali";
   if(u.navWaiting)return u.roadPathGoal&&!u.navPath.length?"Marsruut katkenud · ootab läbitavat teed":"Ootab vaba läbipääsu · hoiab üksuste vahet";
   if(u.mode==="move"&&u.fastMove)return "Kiirliikumine · eeldatava sõiduaja järgi";

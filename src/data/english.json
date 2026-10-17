@@ -693,5 +693,11 @@
   "IFV, suurtükid ja liikuv õhutõrje": "IFVs, artillery and mobile air defence",
   "Taandumine ootab · puudub läbitav tee baasi": "Retreat waiting · no reachable rally point",
   "Taandub kogunemiskohta": "Retreating to rally point",
-  "Koguneb · taastab moraali": "Rallying · recovering morale"
+  "Koguneb · taastab moraali": "Rallying · recovering morale",
+  "Seda üksust ei saa sellesse transporti laadida": "This unit cannot board this transport",
+  "Transpordis pole tervele rühmale piisavalt vabu kohti": "Not enough free seats for the whole squad",
+  "Laadimine katkestati · üksus ei jõudnud transpordini": "Pickup cancelled · unit could not reach the transport",
+  "Peatub pardaleminekuks": "Stopping for boarding",
+  "Peatub väljumiseks": "Stopping for disembarkation",
+  "Väljumine ootab · vaja vaba läbipääsu": "Disembarkation waiting · clear exit required"
 }

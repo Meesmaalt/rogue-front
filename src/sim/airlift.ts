@@ -2,6 +2,7 @@ import type {Entity,Point} from './types';
 import type {World} from './World';
 import {heightAt} from './heightmap';
 import data from '../data/expansion.json';
+import {boardingPassageClear,clearPickupQueue,replaceTask} from './unitTasks';
 const cfg=data.airlift;
 export function airliftInfantry(p:Entity):boolean {return !p.constructionCrew&&!p.constructionFlight&&p.def.speed>0&&p.def.domain==='land'&&(p.def.category==='infantry'||!!p.squadMaxMembers||p.kind==='engineer');}
 export function airliftCargo(p:Entity):boolean {return p.kind==='tank'||p.kind==='apc'||airliftInfantry(p);}
@@ -24,18 +25,20 @@ export function airliftLoadReason(w:World,plane:Entity,p:Entity):string {
 }
 export function queueAirliftCargo(w:World,plane:Entity,p:Entity):boolean {
  const reason=airliftLoadReason(w,plane,p);if(reason){w.events.push({type:'order-rejected',team:plane.team,unitId:plane.id,x:plane.x,z:plane.z,message:reason});return false;}
+ if(!plane.transportQueue?.length)replaceTask(w,plane);
+ replaceTask(w,p);
  plane.transportQueue??=[];plane.transportQueue.push(p.id);plane.transportPickupDeadline=w.time+cfg.loadTimeout;plane.mode='transport-load';plane.dest=null;plane.target=null;
  p.dest=null;p.mode='hold';p.target=null;p.navPath=[];p.moveQueue=[];p.holdPosition=false;return true;
 }
 /** Vehicle/squad approaches the parked aircraft; the aircraft never chases its cargo. */
 export function updateAirliftLoading(w:World,plane:Entity):void {
- if(!['grounded','rearming'].includes(plane.airState??'')){plane.mode='idle';plane.transportQueue=[];return;}
+ if(!['grounded','rearming'].includes(plane.airState??'')){clearPickupQueue(w,plane);plane.mode='idle';return;}
  plane.motionSpeed=0;plane.dest=null;
- if(w.time>(plane.transportPickupDeadline??Infinity)){plane.transportQueue=[];plane.mode='idle';return;}
+ if(w.time>(plane.transportPickupDeadline??Infinity)){clearPickupQueue(w,plane);plane.mode='idle';return;}
  while(plane.transportQueue?.length){
   const p=w.byId.get(plane.transportQueue[0]);if(!p||p.dead||p.loadedIntoId!=null){plane.transportQueue.shift();continue;}
   const goal=w.nav.nearestWalkable(plane,p.def.radius);if(!goal){plane.transportQueue.shift();continue;}
-  if(Math.hypot(p.x-plane.x,p.z-plane.z)<=cfg.loadRange+p.def.radius&&p.y-heightAt(p.x,p.z)<2){
+  if(Math.hypot(p.x-plane.x,p.z-plane.z)<=cfg.loadRange+p.def.radius&&p.y-heightAt(p.x,p.z)<2&&boardingPassageClear(w,p,plane,p.def.radius)){
    p.loadedIntoId=plane.id;p.mode='idle';p.dest=null;p.target=null;p.navPath=[];p.moveQueue=[];p.motionSpeed=0;p.holdPosition=false;plane.cargoUnitIds.push(p.id);plane.transportQueue.shift();
   }else {p.mode='move';p.holdPosition=false;p.dest={...goal};break;}
  }

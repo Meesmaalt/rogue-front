@@ -1,3 +1,4 @@
+import {replaceTask} from "../unitTasks";
 import {canVehicleService,planVehicleService} from "../vehicleService";
 import {automaticUnit} from '../automaticConstruction';
 import {constructionHubs,constructionHelper} from '../automaticConstruction';
@@ -26,20 +27,6 @@ function mobile(w: World, ids: number[], team?: Entity["team"]): Entity[] {
     if (e && !e.dead && !constructionHelper(e) && !automaticUnit(e) && e.def.speed > 0 && e.kind!=="groundHandler" && !e.airdrop && !e.refit && (e.logisticsRoute!=="strategic"||e.kind==="transport") && e.loadedIntoId==null && (team === undefined || e.team === team)) out.push(e);
   }
   return out;
-}
-
-/** Replace a task without cancelling rounds already in flight or weapon reloads. */
-export function replaceTask(w:World,u:Entity):void {
-  for(const b of w.entities)if(b.builderIds.includes(u.id))b.builderIds=b.builderIds.filter(id=>id!==u.id);
-  u.vehicleService=undefined;u.roadTripGoal=undefined;
-  u.combatWithdrawing=false;u.combatHoldingTarget=undefined;
-  u.flightAttackExit=undefined;u.flightAttackExitUntil=undefined;
-  u.fireMission=null;u.artilleryDisplace=null;u.artilleryShotsInSalvo=0;
-  u.transportQueue=[];u.transportTargetId=null;u.transportPickupPoint=undefined;u.unloadPoint=null;
-  u.garrisonOrderId=undefined;u.garrisonEntryPoint=undefined;
-  u.combatPosition=undefined;u.combatPositionTarget=undefined;u.combatPositionAnchor=undefined;u.combatPositionRetryAt=undefined;
-  u.moveFacing=undefined;u.moveQueue=[];u.moveQueueStyles=[];u.moveGroup=undefined;u.fastMove=false;u.patrolPoints=[];
-  u.navPath=[];u.navPathIndex=0;u.roadPathGoal=undefined;u.roadPathRetryAt=undefined;u.taskApproachIndex=0;u.flowField=null;u.avoidanceSide=undefined;u.avoidanceUntil=undefined;u.navWaiting=false;
 }
 
 /** Formation layouts: box (default), line, wedge, column. */

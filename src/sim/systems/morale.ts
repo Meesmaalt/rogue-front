@@ -6,7 +6,7 @@ import mobility from "../../data/mobility.json";
 import policy from "../../data/morale-policy.json";
 import {automaticUnit,constructionHelper} from "../automaticConstruction";
 import {findPath} from "../nav/Pathfinder";
-import {replaceTask} from "./commands";
+import {replaceTask} from "../unitTasks";
 
 export type MoraleState = "steady" | "shaken" | "pinned" | "routing";
 

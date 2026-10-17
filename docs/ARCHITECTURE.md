@@ -3,6 +3,15 @@
 Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 16, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
 
 
+
+## Transpordikäsu elutsükkel ja füüsiline pardaleminek · 17.10.2026
+
+`unitTasks.replaceTask` on ühine sim-käsu üleminek käsutöötlusele, paanikale ning transpordi/kaubalennuki laadimisele. See vabastab ehitaja/remondi broneeringud ja katkestatud eriülesanded, kuid säilitab relva laadimise ning pardal olevad üksused. Reisija uus käsk eemaldab tema ID eelmise vedaja järjekorrast; esimese reisija eemaldamisel nullitakse vana lähenemine ja järgmiseks valitakse järgmine broneering. Vedaja käsu tühistamisel, pealevõtu aegumisel või `World` surmapuhastusel vabastab `clearPickupQueue` ainult ootel reisijad, peatades laadimisest jäänud lähenemise. Pardal olevad sõdurid ei ilmu käsu tühistamisel maapinnale.
+
+`boardingPassageClear` kontrollib maapealse ülemineku lõiku reisija keharaadiusega. Nii APC/kaubiku/kopteri kui ka suure transpordilennuki laadimine nõuab takistuseta läbipääsu; geomeetriline lähedus läbi müüri ei piisa. Maavedaja läheneb tavapärase navigatsiooniga ja seab peatumiskohas sihi tühjaks, et tavaline liikumismootor saaks pidurdada. Pardaleminek ja väljumine lubatakse alles `mobility.transport.boardingSpeed` all; kiirust ei nullita laadimise animatsiooni pärast. Kopteril kehtib endiselt maandumiskõrguse nõue. HUD eristab pidurdamist ja blokeeritud väljapääsu ning täis transpordi/aegunud pealevõtu põhjused lähevad olemasolevasse teadete süsteemi mõlemas keeles.
+
+Uusi püsivälju ei lisandu: olemasolev transpordijärjekord ja laadimisolek jäävad täissalvestuse/replay osaks. Kontrollid katavad tegeliku liikumisega APC/kopteri/kaubalennuki teed ning salvestusjärjepidevuse; need ei tõesta WebGL pildi sujuvust ega FPS-i.
+
 ## Püsiv taandumine ja kogunemine · 16.10.2026
 
 `systems/morale` kasutab `Entity.moraleRetreat` olekut (rajatise ID, kogunemispunkt, järgmise otsingu aeg ja lähenemiskatse). Paanika käivituslävi ei ole sama mis taastumislävi: üksus jääb taanduvaks kuni moraal on vähemalt 55 ja surve alla 20. Siis jääb ta `hold` olekusse; vanad tulemissioonid, remondibroneeringud, transpordikogumine ja vahepunktid vabastatakse taandumise alguses ühise `replaceTask` kaudu, ilma relva laadimisaega või lennus mürske muutmata.

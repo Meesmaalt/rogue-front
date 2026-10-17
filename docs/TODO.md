@@ -1,6 +1,16 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
 
+
+## Usaldusväärne jalaväe pealevõtt ja tühistatavad transpordikäsud · 17.10.2026
+
+- [x] Maapealne transport pidurdab enne pardaleminekut ja väljumist; kiirusepiir on `mobility.transport.boardingSpeed`. Pealevõtt kontrollib päris maapealset läbipääsu, ka kaubalennukisse laadimisel: vahemaa üksi ei luba läbi müüri pardale ilmuda.
+- [x] Üksusele antud uus käsk vabastab tema koha eelmise vedaja järjekorras; järgmise rühma pealevõtt jätkub. Vedaja käsu vahetamine, ajalimiit või hävimine vabastab ootel reisijad ja peatab pooleli jäänud lähenemise. Pardal olevad üksused jäävad pardale.
+- [x] Laadimine asendab varasema tulemissiooni/remondi/liikumise ühise `unitTasks.replaceTask` kaudu. Relva laadimisaega ja juba lennus moona ei tühistata. Uus moodul on esitusest sõltumatu ühine käsuüleminek, oma testidega.
+- [x] Täis transpordi ja aegunud pealevõtu ET/EN teated; valiku olek eristab peatamist ning blokeeritud väljumist. Senised istmekohad, transporditüübid ja salvestusvorming säilivad.
+- [x] 32 sihitud kontrolli: pealevõtt/tühistamine/takistus/pidurdamine, helikopteri laadimine ja väljumine, kaubalennuki last ja langevarjud, save/hash, algkoosseis ning eelmise etapi taandumine ja keelekontroll. Kliendi/serveri build. Vanem näidismängu kontroll viidud vastavusse juba kehtiva ühe algse HQ ehitusmeeskonnaga.
+- [ ] Tegeliku WebGL transpordiliikumise ja mängutunnetuse ülevaatus jääb käsitsi; siin puudub kohalik 3D-brauser.
+
 ## Lahingu töökindlus: paanika ja kogunemine · 16.10.2026
 
 - [x] Paanikas maaväe taandumine on püsiv sim-olek: sama kogunemispunkt, uue käsu/sihtmärgi asemel taastumine 55 moraali ja alla 20 surve juures. Taastunud üksus jääb kaitsepositsioonile; katkestatud rünnakut ei jätkata automaatselt.
