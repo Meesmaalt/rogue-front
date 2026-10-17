@@ -174,8 +174,8 @@ export function factionSeaUnits(_faction: FactionId): UnitKind[] {
 }
 
 export function factionForTeam(
-  w: { playerTeam: 0 | 1; playerFaction: FactionId; enemyFaction: FactionId },
-  team: 0 | 1,
+  w: { playerTeam: import("./types").Team; factionForTeam?:(team:import("./types").Team)=>FactionId; playerFaction: FactionId; enemyFaction: FactionId },
+  team: import("./types").Team,
 ): FactionId {
-  return team === w.playerTeam ? w.playerFaction : w.enemyFaction;
+  return w.factionForTeam?.(team)??(team === w.playerTeam ? w.playerFaction : w.enemyFaction);
 }

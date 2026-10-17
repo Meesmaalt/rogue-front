@@ -118,7 +118,9 @@ async function createRoom(hostUser, input) {
   if (!id || rooms.has(id)) return null;
   const requestedId=String(input.missionId||"").slice(0,80);
   if(requestedId&&!isProceduralMapId(requestedId))return null;
-  const missionId=await generateServerMap(input.mapOptions??mapOptions(requestedId));
+  const format=['duel','teams','ffa'].includes(input.format)?input.format:'duel';
+  const capacity=format==='duel'?2:4;const mapInput=input.mapOptions??mapOptions(requestedId);
+  const missionId=await generateServerMap({...mapInput,options:{...mapInput.options,players:capacity}});
   if(rooms.has(id)||findRoomForUser(hostUser.id))return null;
   const name = displayName(input.name) || `${hostUser.displayName} lobby`;
   const room = {
@@ -127,7 +129,7 @@ async function createRoom(hostUser, input) {
     missionId,
     mapId: missionId,
     rules: sanitizeRules(input.rules),
-    hostId: hostUser.id,
+    format,capacity,hostId: hostUser.id,
     status: "waiting",
     createdAt: now(),
     startedAt: null,
@@ -143,7 +145,7 @@ async function createRoom(hostUser, input) {
     resultByUser: new Map(),
     reconnect: new Map(),
   };
-  room.members.set(hostUser.id, makeMember(hostUser, input.faction, input.deck, true));
+  room.members.set(hostUser.id, {...makeMember(hostUser, input.faction, input.deck, true),alliance:0});
   rooms.set(id, room);
   return room;
 }
@@ -158,9 +160,11 @@ function sanitizeRules(rules) {
 function makeMember(user, faction = "usa", deck = null, ready = false) {
   return { userId: user.id, username: user.username, displayName: user.displayName, faction: ["usa", "russia", "china"].includes(faction) ? faction : "usa", deck: deck && typeof deck === "object" ? deck : null, ready: !!ready, joinedAt: now() };
 }
+function joinMember(room,user,faction,deck){const used=[...room.members.values()];let alliance=[0,1,2,3].find(a=>!used.some(m=>m.alliance===a))??0;if(room.format==='teams')alliance=[0,1].sort((a,b)=>used.filter(m=>m.alliance===a).length-used.filter(m=>m.alliance===b).length||a-b)[0];return {...makeMember(user,faction,deck,false),alliance};}
+function humanMembers(room){return [...room.members.values()].filter(m=>!m.bot);}
 function roomView(room) {
   return {
-    id: room.id,
+    format:room.format,capacity:room.capacity,id: room.id,
     name: room.name,
     missionId: room.missionId,
     mapId: room.mapId,
@@ -189,11 +193,11 @@ function leaveRoom(room, userId) {
   room.members.delete(userId);
   room.reconnect?.delete(userId);
   if (room.hostId === userId) {
-    const next = room.members.values().next().value;
+    const next = humanMembers(room)[0];
     room.hostId = next?.userId || null;
     if (next) next.ready = false;
   }
-  if (!room.members.size) rooms.delete(room.id);
+  if (!humanMembers(room).length) rooms.delete(room.id);
   else broadcastRoom(room, { type: "room", room: roomView(room) });
 }
 
@@ -216,7 +220,7 @@ async function tryMatchmake() {
     finally{a.generating=false;best.generating=false;}
     if (!room) continue;
     if(matchmaking.get(ua.id)!==a||matchmaking.get(ub.id)!==best||findRoomForUser(ub.id)){rooms.delete(room.id);continue;}
-    room.members.set(ub.id, makeMember(ub,best.faction,best.deck,false)); room.ranked=true; room.ratings={ [ua.id]:a.rating ?? 1000, [ub.id]:best.rating ?? 1000 };
+    room.members.set(ub.id, joinMember(room,ub,best.faction,best.deck)); room.ranked=true; room.ratings={ [ua.id]:a.rating ?? 1000, [ub.id]:best.rating ?? 1000 };
     matchmaking.delete(ua.id); matchmaking.delete(ub.id);
     broadcastRoom(room,{type:"match-found",room:roomView(room)});
   }
@@ -294,7 +298,7 @@ const httpServer = http.createServer(async (req, res) => {
       const q = matchmaking.get(user.id); return response(res, 200, { queued: !!q, room: q?.roomId ? roomView(rooms.get(q.roomId)) : null });
     }
     if (path === "/api/invites" && req.method === "GET") {
-      const list = [...invites.values()].filter((i) => i.toUserId === user.id && i.status === "pending" && rooms.get(i.roomId)?.status === "waiting" && rooms.get(i.roomId)?.members.size < 2).map((i) => ({ ...i, from: publicPlayer(userById(i.fromUserId)) }));
+      const list = [...invites.values()].filter((i) => i.toUserId === user.id && i.status === "pending" && rooms.get(i.roomId)?.status === "waiting" && rooms.get(i.roomId)?.members.size < rooms.get(i.roomId)?.capacity).map((i) => ({ ...i, from: publicPlayer(userById(i.fromUserId)) }));
       return response(res, 200, { invites: list });
     }
     if (path === "/api/invites" && req.method === "POST") {
@@ -306,9 +310,9 @@ const httpServer = http.createServer(async (req, res) => {
     if (path.startsWith("/api/invites/") && req.method === "POST") {
       const id = path.split("/").pop(); const invite = invites.get(id); if (!invite || invite.toUserId !== user.id || invite.status !== "pending") return response(res, 404, { error: "Kutset ei leitud." });
       const b = await body(req); if(invite.status!=="pending")return response(res,409,{error:"Kutsele on juba vastatud."}); if (b.accept === false) { invite.status = "declined"; return response(res, 200, { ok: true }); }
-      const room = rooms.get(invite.roomId); if (!room || room.status !== "waiting" || room.members.size >= 2) return response(res, 409, { error: "Mänguruum pole enam saadaval." });
+      const room = rooms.get(invite.roomId); if (!room || room.status !== "waiting" || room.members.size >= room.capacity) return response(res, 409, { error: "Mänguruum pole enam saadaval." });
       const existing = findRoomForUser(user.id); if (existing) return response(res, 409, { error: "Oled juba mänguruumis." });
-      const member = makeMember(user, b.faction || "usa", b.deck || user.decks?.[b.faction || "usa"] || null, false); room.members.set(user.id, member); invite.status = "accepted"; broadcastRoom(room, { type: "room", room: roomView(room) }); return response(res, 200, { room: roomView(room) });
+      const member = joinMember(room,user,b.faction||"usa",b.deck||user.decks?.[b.faction||"usa"]||null); room.members.set(user.id, member); invite.status = "accepted"; broadcastRoom(room, { type: "room", room: roomView(room) }); return response(res, 200, { room: roomView(room) });
     }
 
     if (path === "/api/players" && req.method === "GET") {
@@ -329,7 +333,7 @@ const httpServer = http.createServer(async (req, res) => {
     }
 
     if (path === "/api/rooms" && req.method === "GET") {
-      return response(res, 200, { rooms: [...rooms.values()].filter((r) => r.status === "waiting" && r.members.size < 2).map(roomView), myRoom: findRoomForUser(user.id) ? roomView(findRoomForUser(user.id)) : null });
+      return response(res, 200, { rooms: [...rooms.values()].filter((r) => r.status === "waiting" && r.members.size < r.capacity).map(roomView), myRoom: findRoomForUser(user.id) ? roomView(findRoomForUser(user.id)) : null });
     }
     if (path === "/api/rooms" && req.method === "POST") {
       const existing = findRoomForUser(user.id); if (existing) return response(res, 409, { error: "Sa oled juba mänguruumis." });
@@ -349,9 +353,9 @@ const httpServer = http.createServer(async (req, res) => {
       if (req.method === "GET" && !action) return response(res, 200, { room: roomView(room) });
       if (req.method === "POST" && action === "join") {
         const b = await body(req);
-        if (rooms.get(id)!==room || room.status !== "waiting" || room.members.size >= 2) return response(res, 409, { error: "Mänguruum on täis või juba alanud." });
+        if (rooms.get(id)!==room || room.status !== "waiting" || room.members.size >= room.capacity) return response(res, 409, { error: "Mänguruum on täis või juba alanud." });
         const existing = findRoomForUser(user.id); if (existing && existing.id !== room.id) return response(res, 409, { error: "Sa oled juba teises mänguruumis." });
-        room.members.set(user.id, makeMember(user, b.faction, b.deck, false));
+        room.members.set(user.id, joinMember(room,user,b.faction,b.deck));
         broadcastRoom(room, { type: "room", room: roomView(room) }); return response(res, 200, { room: roomView(room) });
       }
       if (req.method === "POST" && action === "leave") {
@@ -365,9 +369,26 @@ const httpServer = http.createServer(async (req, res) => {
         if (room.status !== "waiting" || room.generating) return response(res, 409, { error: "Lobby on lukus. Oota kaardi valmimist." });
         const faction=["usa","russia","china"].includes(b.faction)?b.faction:member.faction;
         if(b.deck&&b.deck.faction!==faction)return response(res,400,{error:"Koosseis peab kuuluma valitud fraktsioonile."});
+        if(room.format==='teams'&&b.alliance!=null){
+          if(![0,1].includes(b.alliance)||[...room.members.values()].filter(m=>m.userId!==user.id&&m.alliance===b.alliance).length>=2)return response(res,409,{error:'Selles tiimis on juba kaks mängijat.'});
+          if(member.alliance!==b.alliance){member.alliance=b.alliance;for(const m of room.members.values())if(!m.bot)m.ready=false;}
+        }
         member.ready = !!b.ready; if (["usa", "russia", "china"].includes(b.faction)) member.faction = b.faction;
         if (b.deck && typeof b.deck === "object") member.deck = b.deck;
         broadcastRoom(room, { type: "room", room: roomView(room) }); return response(res, 200, { room: roomView(room) });
+      }
+      if(req.method==='POST'&&action==='bot'){
+        const b=await body(req);if(!ensureRoomCanEdit(room,user.id))return response(res,403,{error:'Ainult host saab AI kohti muuta.'});
+        if(b.remove){const member=room.members.get(b.remove);if(!member?.bot)return response(res,400,{error:'Vali AI mängija.'});room.members.delete(b.remove);}
+        else{
+          if(room.members.size>=room.capacity)return response(res,409,{error:'Kõik mängijakohad on täis.'});
+          const aiUser={id:'bot-'+randomUUID(),username:'AI',displayName:'AI '+(room.members.size+1)};
+          const member=joinMember(room,aiUser,b.faction,null);member.bot=true;member.ready=true;member.difficulty=['easy','normal','hard'].includes(b.difficulty)?b.difficulty:'normal';
+          if(room.format==='teams'&&b.alliance!=null){if(![0,1].includes(b.alliance)||[...room.members.values()].filter(m=>m.alliance===b.alliance).length>=2)return response(res,409,{error:'Valitud tiim on täis.'});member.alliance=b.alliance;}
+          room.members.set(member.userId,member);
+        }
+        for(const m of room.members.values())if(!m.bot)m.ready=false;
+        broadcastRoom(room,{type:'room',room:roomView(room)});return response(res,200,{room:roomView(room)});
       }
       if (req.method === "POST" && action === "settings") {
         const b = await body(req);
@@ -375,11 +396,11 @@ const httpServer = http.createServer(async (req, res) => {
         if(!isProceduralMapId(String(b.missionId??room.missionId)))return response(res,400,{error:"Vali protseduurkaart."});
         room.generating=true;
         try{
-          const nextId=(b.missionId&&b.missionId!==room.missionId||b.mapOptions)?await generateServerMap(b.mapOptions??mapOptions(b.missionId)):room.missionId;
+          const nextId=(b.missionId&&b.missionId!==room.missionId||b.mapOptions)?await generateServerMap((()=>{const input=b.mapOptions??mapOptions(b.missionId);return {...input,options:{...input.options,players:room.capacity}};})()):room.missionId;
           if(rooms.get(room.id)!==room||room.status!=="waiting"||room.hostId!==user.id)return response(res,409,{error:"Mänguruumi olek muutus. Ava seaded uuesti."});
           if(b.name!=null)room.name=displayName(b.name)||room.name;
           room.missionId=nextId;room.mapId=nextId;room.rules=sanitizeRules(b.rules);
-          for(const m of room.members.values())m.ready=false;
+          for(const m of room.members.values())m.ready=!!m.bot;
         }finally{room.generating=false;}
         broadcastRoom(room, { type: "room", room: roomView(room) }); return response(res, 200, { room: roomView(room) });
       }
@@ -398,8 +419,10 @@ const httpServer = http.createServer(async (req, res) => {
       }
       if (req.method === "POST" && action === "start") {
         if (!ensureRoomCanEdit(room, user.id)) return response(res, 403, { error: "Ainult host saab mängu alustada." });
-        if (room.members.size !== 2) return response(res, 409, { error: "Mängu alustamiseks on vaja kahte mängijat." });
-        if (![...room.members.values()].every((m) => m.ready)) return response(res, 409, { error: "Mõlemad mängijad peavad olema READY." });
+        if(room.members.size!==room.capacity)return response(res,409,{error:`Täida kõik ${room.capacity} kohta mängija või AI-ga.`});
+        if(room.format==='teams'&&![0,1].every(a=>[...room.members.values()].filter(m=>m.alliance===a).length===2))return response(res,409,{error:'Mõlemas tiimis peab olema kaks mängijat.'});
+        if (![...room.members.values()].every((m) => m.ready)) return response(res, 409, { error: "Kõik inimmängijad peavad olema valmis." });
+        if(room.format==='teams'){const sides=[0,1].map(a=>[...room.members.entries()].filter(([,m])=>m.alliance===a));room.members=new Map([sides[0][0],sides[1][0],sides[0][1],sides[1][1]]);}
         room.status = "started"; room.startedAt = now();
         broadcastRoom(room, { type: "started", room: roomView(room) }); return response(res, 200, { room: roomView(room) });
       }
@@ -411,7 +434,7 @@ const httpServer = http.createServer(async (req, res) => {
       if (room.resultByUser.has(user.id)) return response(res,200,{stats:user.stats,duplicate:true});
       const opponent=[...room.members.values()].find(m=>m.userId!==user.id); const opponentUser=opponent?db.users[Object.values(db.users).find(u=>u.id===opponent.userId)?.username || ""]:null;
       addProgress(user,result,opponentUser?.stats?.rating ?? 1000); room.resultByUser.set(user.id,result);
-      if (room.resultByUser.size >= room.members.size) { room.status="finished"; room.finishedAt=now(); broadcastRoom(room,{type:"finished",room:roomView(room)}); }
+      if (room.resultByUser.size >= humanMembers(room).length) { room.status="finished"; room.finishedAt=now(); broadcastRoom(room,{type:"finished",room:roomView(room)}); }
       saveDb(); return response(res,200,{stats:user.stats});
     }
 
@@ -439,7 +462,7 @@ wss.on("connection", (ws) => {
       const member = room.members.get(user.id);
       const lastAppliedTick = Number(m.lastAppliedTick ?? 0);
       if (!Number.isInteger(lastAppliedTick) || lastAppliedTick < 0 || lastAppliedTick > room.tick || lastAppliedTick < room.tick - 1800) return send(ws,{type:"error",message:"Taastatava mängu olek on liiga vana. Alusta uut lahingut."});
-      const members = [...room.members.values()].map(p => ({faction:p.faction,deck:p.deck}));
+      const members = [...room.members.values()].map(p => ({faction:p.faction,deck:p.deck,alliance:p.alliance,bot:!!p.bot,difficulty:p.difficulty}));
       if (m.spectate) {
         const grant = spectators.get(String(m.spectatorToken || ""));
         if (!grant || grant.userId !== user.id || grant.roomId !== room.id) return send(ws,{type:"error",message:"Pealtvaataja token ei kehti."});
@@ -482,11 +505,11 @@ wss.on("connection", (ws) => {
 
 function advance(room) {
   if(room.desynced) return;
-  const playerStates = [...room.members.keys()].map(id => ({id,ws:room.reconnect.get(id)?.ws}));
-  if (playerStates.length !== 2 || !playerStates.every(p => p.ws?.readyState === 1 && room.wsState.get(p.id)?.tick === room.tick + 1)) return;
+  const playerStates = humanMembers(room).map(m => ({id:m.userId,ws:room.reconnect.get(m.userId)?.ws}));
+  if (!playerStates.length || !playerStates.every(p => p.ws?.readyState === 1 && room.wsState.get(p.id)?.tick === room.tick + 1)) return;
   const hashes = Object.fromEntries(playerStates.map(p => [p.id,room.wsState.get(p.id).hash]));
   const values = Object.values(hashes);
-  if(values.every(Boolean) && values[0] !== values[1]) {
+  if(values.every(Boolean) && new Set(values).size>1) {
     room.desynced = true;
     for(const p of playerStates) send(p.ws,{type:"desync",tick:room.tick,hashes});
     return;

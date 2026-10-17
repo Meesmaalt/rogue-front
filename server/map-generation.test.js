@@ -48,6 +48,6 @@ test('v18 room regeneration retains explicit layouts and bounds new bits',()=>{
  const options=mapOptions('procedural-v18-balanced-2048-43-o430');
  assert.equal(options.region,'siberia');assert.equal(options.options.layout,2);
  assert.equal(isProceduralMapId('procedural-v18-balanced-2048-43-o511'),true);
- assert.equal(isProceduralMapId('procedural-v18-balanced-2048-43-o512'),false);
+ assert.equal(isProceduralMapId('procedural-v18-balanced-2048-43-o1024'),false);
  assert.equal(isProceduralMapId('procedural-v17-balanced-2048-43-o128'),false);
 });

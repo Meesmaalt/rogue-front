@@ -9,7 +9,8 @@ import { MinimapFog } from "./MinimapFog";
 
 const S = 176;
 
-function unitColor(u: Entity, playerTeam: 0 | 1): string {
+function unitColor(u: Entity, playerTeam: import("../sim/types").Team,world:World): string {
+  if(u.team!==playerTeam&&world.areAllies(u.team,playerTeam))return "#52d4ef";
   if (u.team !== playerTeam) {
     // Enemy: role-tinted reds
     if (u.kind === "supply" || u.kind === "generator") return "#f0a050";
@@ -129,13 +130,13 @@ export class Minimap {
     // Units – role colors; enemy only if spotted or vision
     for (const u of this.world.entities) {
       if (u.dead) continue;
-      if (u.team !== this.world.playerTeam) {
+      if (!this.world.areAllies(u.team,this.world.playerTeam)) {
         const spotted = this.world.isSpottedByTeam(u, this.world.playerTeam);
         if (!spotted) continue;
       }
       const [mx, my] = this.w2m(u.x, u.z);
       const s = unitSize(u);
-      c.fillStyle = unitColor(u, this.world.playerTeam);
+      c.fillStyle = unitColor(u, this.world.playerTeam,this.world);
       if (u.def.speed === 0) {
         // Buildings as diamonds / squares
         c.fillRect(mx - s / 2, my - s / 2, s, s);

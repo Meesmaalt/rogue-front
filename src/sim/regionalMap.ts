@@ -21,6 +21,7 @@ export function generateRegionalMap(seed:number,archetype:MapArchetype,size:numb
  const region:RegionId=input?.region??'italy',p=REGIONS[region],options={...regionDefaults(region),...input},rng=new Rng(seed),random=(a:number,b:number)=>a+(b-a)*rng.next();
  const features:MapFeatureDef[]=[],forms:RegionalLandform[]=[],half=size/2;
  const bases:MissionDef['map']['bases']=[{x:-size*.37,z:size*.35,r:48},{x:size*.37,z:-size*.35,r:48}];
+ if(options.players===4)bases.push({x:-size*.37,z:-size*.35,r:48},{x:size*.37,z:size*.35,r:48});
  const bend=random(.028,.048)*size,phase=random(-.4,.4),lane=size*random(.22,.26);
  // Three crossings, a valley and two feeder roads form the master plan. Cosmetic asymmetry comes later.
  const riverX=(z:number)=>Math.sin(z/size*Math.PI*2)*bend+Math.sin(z/size*Math.PI*6)*bend*.18;
@@ -31,7 +32,7 @@ export function generateRegionalMap(seed:number,archetype:MapArchetype,size:numb
  };
  const route=(id:string,points:Point[],width=7)=>{for(let i=1;i<points.length;i++)road(`${id}-${i}`,points[i-1],points[i],width);};
  for(const [team,b] of bases.entries()){
-  const sign=team===0?1:-1,a=team===0?Math.PI*.75:-Math.PI/4,mid=(battle.generationAirfield.runwayStart+battle.generationAirfield.runwayEnd)/2;
+  const sign=b.x<0?1:-1,a=bases.length===4?Math.atan2(-b.x,-b.z):team===0?Math.PI*.75:-Math.PI/4,mid=(battle.generationAirfield.runwayStart+battle.generationAirfield.runwayEnd)/2;
   features.push({id:`base-airfield-yard-${team}`,kind:'cover',appearance:'yard',x:b.x+battle.readyAirfield.x*sign+Math.sin(a)*mid,z:b.z+battle.readyAirfield.z*sign+Math.cos(a)*mid,width:battle.generationAirfield.runwayWidth+55,depth:battle.generationAirfield.runwayEnd-battle.generationAirfield.runwayStart+40,rotation:a,blocksMovement:false});
  }
  if(plan)addPlanInfrastructure(plan,size,options.river,features);
@@ -57,6 +58,7 @@ export function generateRegionalMap(seed:number,archetype:MapArchetype,size:numb
   }
  }
  }
+ for(const [i,b] of bases.entries())if(i>=2){const roads=features.filter(f=>f.kind==='road');let best:Point|undefined,distanceBest=Infinity;for(const f of roads){const a=f.rotation??0,t=Math.max(-f.depth/2,Math.min(f.depth/2,(b.x-f.x)*Math.sin(a)+(b.z-f.z)*Math.cos(a))),q={x:f.x+Math.sin(a)*t,z:f.z+Math.cos(a)*t};if(distance(b,q)<distanceBest){best=q;distanceBest=distance(b,q);}}if(best)road(`extra-base-link-${i}`,b,best);}
  if(options.sea)for(const side of [-1,1])features.push({id:`region-sea-${side}`,kind:'water',waterBody:'sea',x:0,z:side*(half-30),width:size+10,depth:60,surfaceHeight:-.8,label:'Meri'});
  // Resource loading areas are reserved along the transport network before settlement growth.
  const plannedSites=plan?planResourceSites(plan,size,features):undefined;
@@ -164,7 +166,7 @@ export function generateRegionalMap(seed:number,archetype:MapArchetype,size:numb
  if(!options.forest)for(let i=features.length-1;i>=0;i--)if(features[i].appearance==='forest')features.splice(i,1);
  refineRoadConnections(features);
  // Encode both region and exact overrides. Old generation versions retain their own defaults and IDs.
- const regionIndex=['italy','siberia','canyon','desert'].indexOf(region),mask=Number(options.sea)|Number(options.mountains)<<1|Number(options.forest)<<2|Number(options.river)<<3|Number(options.lakes===false)<<4|regionIndex<<5|(plan&&input?.layout!=null?(input.layout+1)<<7:0);
+ const regionIndex=['italy','siberia','canyon','desert'].indexOf(region),mask=Number(options.sea)|Number(options.mountains)<<1|Number(options.forest)<<2|Number(options.river)<<3|Number(options.lakes===false)<<4|regionIndex<<5|(plan&&input?.layout!=null?(input.layout+1)<<7:0)|(options.players===4?512:0);
  const id=`procedural-v${plan?18:17}-${archetype}-${size}-${seed>>>0}-o${mask}`,name=`${p.name}${plan?' · '+plan.name:''} · ${seed>>>0}`;
  const quantize=(n:number)=>Math.round(n*1000)/1000;
  for(const f of features){for(const key of ['x','z','width','depth','height'] as const)if(f[key]!=null)f[key]=quantize(f[key]!);if(f.rotation!=null)f.rotation=Math.round(f.rotation*1e6)/1e6;if(f.polygon)f.polygon=f.polygon.map(p=>({x:quantize(p.x),z:quantize(p.z)}));}

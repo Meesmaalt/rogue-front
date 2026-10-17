@@ -1,5 +1,15 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Nelja mängija mitmikmäng ja AI tiimikaaslased · 17.10.2026
+
+- [x] 1v1, 2v2 ja 1v1v1v1 ruumid; neli eraldi omanikku, majandust ja fraktsiooni.
+- [x] Hosti lisatavad/eemaldatavad eri raskuse ja fraktsiooniga AI-kohad, tiimi valimine ning serveri mahu-/valmisoleku-/tiimikontrollid.
+- [x] Liitlaste ühine nähtavus ja luure, ründamise keeld ning tiimi võit alles viimase vastasliidu kadumisel.
+- [x] Neli kaitstud stardiala ja ühenduste/lennuradade kontroll; mängijate arv taastatakse kaardi ID-st.
+- [x] Deterministlikud AI kontrollerid kõigil klientidel, ainult inimeste lockstep-kinnitused ning kõigi klientide räside võrdlus. Salvestamine ja taastamine hõlmab kõiki osapooli ja AI olekuid.
+- [x] Typecheck/build; 12 serveritesti; 15 sihtkontrolli (liidud, AI, salvestamine, sihtimine); nelja piirkonna stardialad ja taastamine. Päris 2v2 kliendi käivitus ning 4 brauserikliendi FFA: 180 sammu sama räsiga. Käivitus ühendub alles graafika valmimise järel.
+- [x] Täissarja võrdlus: 615 läbinud / 23 ebaõnnestunud; neist 21 on samad varasemad vead. Uue `pickEnemy` testimokk ning v18 valikumaski vana 512 piir uuendatud ja eraldi üle kontrollitud. Uue funktsiooni kontrollid läbivad; kogu projekti testisari pole varasemate 21 vea tõttu roheline.
+
 ## Maastiku sujuvus ja objektide mitmekesisus · 17.10.2026
 
 - [x] Piiratud sujuv harjaümbris planeerimises ja kõrgusväljas; tihedam proovistus ning seemnest sõltuv aeglaselt muutuv harja mõõt/kõrgus. Tuletise, maksimumi, järjestussõltumatuse ja tegeliku kõrguse kokkulangevuse kontrollid.

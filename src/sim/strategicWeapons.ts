@@ -65,7 +65,7 @@ export function strategicStrike(w:World,ids:number[],payload:StrategicPayload,x:
 /** Strategic warheads use one geometric blast with friendly fire for nuclear payloads. */
 export function strategicImpact(w:World,p:Projectile):void {
  const payload=p.strategicPayload;if(!payload)return;const item=cfg.payloads[payload];
- for(const e of [...w.entities]){if(e.dead||e.loadedIntoId!=null||payload!=='nuclear'&&e.team===p.team)continue;
+ for(const e of [...w.entities]){if(e.dead||e.loadedIntoId!=null||payload!=='nuclear'&&w.areAllies(e.team,p.team))continue;
   const distance=Math.hypot(e.x-p.x,e.y-p.y,e.z-p.z);if(distance>item.radius+e.def.radius)continue;
   damage(w,e,item.damage*Math.max(.05,1-distance/(item.radius+e.def.radius)),{weapon:'missile',fromX:p.launchX,fromZ:p.launchZ,sourceId:p.sourceId,penetration:100,suppressionPower:10});
  }

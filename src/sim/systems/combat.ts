@@ -66,7 +66,7 @@ export function weaponCanTarget(spec:WeaponSpec,t:Pick<Entity,"def">&Partial<Pic
   return spec.targets==="naval"?t.def.domain==="sea":spec.targets==="air"?air:spec.targets==="armor"?!air&&t.def.speed>0&&t.def.category!=="infantry"&&t.def.domain!=="sea":spec.targets==="all"?true:!air||!!spec.targetHelicopters&&t.def.category==="heli";
 }
 export function selectWeapon(u:Entity,t:Entity,ready=false,world?:World):number {
-  if(t.dead||t.loadedIntoId!=null||t.team===u.team)return -1;
+  if(t.dead||t.loadedIntoId!=null||(world?world.areAllies(t.team,u.team):t.team===u.team))return -1;
   let best=-1,score=-Infinity,bestReach=-Infinity,bestInRange=false;const distance=Math.hypot(t.x-u.x,t.z-u.z);
   for(let i=0;i<(u.def.weapons?.length??1);i++){
     const spec=weaponSpec(u,i);if(!weaponCanTarget(spec,t)||!garrisonWeaponAllowed(u,spec,t,ready)||spec.damage<=0)continue;
@@ -140,7 +140,7 @@ export function weaponFireBlocker(w:World,u:Entity,t:Entity,index:number):string
   if(isBuildable(u.kind)&&BUILDINGS[u.kind].role==='defense'&&(!w.hasCommandLink(u)||w.powerStatus(u.team).ratio<.25))return "Kaitsetorn vajab energiat ja juhtimisühendust";
   if(u.airdrop)return "Langevarjudessant · oota maandumist";
   const spec=weaponSpec(u,index),distance=Math.hypot(t.x-u.x,t.z-u.z);
-  if(t.dead||t.loadedIntoId!=null||t.team===u.team)return "Sihtmärk pole rünnatav";
+  if(t.dead||t.loadedIntoId!=null||w.areAllies(t.team,u.team))return "Sihtmärk pole rünnatav";
   if(!isSpottedBy(t,u.team,w.time))return "Luurekontakt kadunud";
   if(u.standingOrder==="holdfire")return "Tuli keelatud";
   if((u.disabledUntil??0)>w.time)return "Relvasüsteem häiritud";

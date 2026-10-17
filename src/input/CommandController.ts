@@ -150,7 +150,7 @@ export class CommandController {
       if(this.garrisonFaceMode){const p=this.picker.groundAt(e.clientX,e.clientY);this.world.issue({type:"face-building",ids:this.ids(),x:p.x,z:p.z});this.cancelOrders();return;}
       if(this.fastMoveMode){const p=this.picker.groundAt(e.clientX,e.clientY);this.moveTo(p.x,p.z,e.shiftKey);return;}
       if(this.unloadMode){const p=this.picker.groundAt(e.clientX,e.clientY);this.exitAt(p.x,p.z);this.cancelOrders();this.ack(p.x,p.z,0x55b7ff);this.notify("Väljumiskäsk antud");return;}
-      const visibleEnemy=this.picker.pickEntity(e.clientX,e.clientY,this.world.playerTeam===0?1:0);
+      const visibleEnemy=this.picker.pickEnemy(e.clientX,e.clientY);
       if(visibleEnemy){this.world.issue({type:"attack",ids:this.ids(),targetId:visibleEnemy.id});this.ack(visibleEnemy.x,visibleEnemy.z,0xe0553f);this.notify(`Ründa: ${this.world.unitDisplayName(visibleEnemy.kind,visibleEnemy.team)}`);this.cancelOrders();return;}
       const friendly = this.picker.pickEntity(e.clientX, e.clientY, this.world.playerTeam);
       const selectedTransports = this.selection.selectedIds().filter(id => { const u=this.world.byId.get(id); return !!u && !u.dead && u.team===this.world.playerTeam && (transportCapacity(u)>0||u.kind==="landingcraft"); });
@@ -166,7 +166,7 @@ export class CommandController {
         this.ack(friendly.x, friendly.z, 0x66d9a0,friendly.underConstruction?"JÄTKA EHITUST":undefined);
         return;
       }
-      const enemy = this.picker.pickEntity(e.clientX, e.clientY, this.world.playerTeam === 0 ? 1 : 0);
+      const enemy = this.picker.pickEnemy(e.clientX,e.clientY);
       const rallyBuildings = this.selection.selectedIds().filter(id => {
         const b = this.world.byId.get(id);
         return !!b && !b.dead && !b.underConstruction && b.team === this.world.playerTeam &&
@@ -200,7 +200,7 @@ export class CommandController {
 
   updateHover():void {
     this.hoverHint="";if(!this.enabled||!this.pointer||this.targeting||!this.selection.selected.size)return;
-    const {x,y}=this.pointer,enemy=this.picker.pickEntity(x,y,this.world.playerTeam===0?1:0);
+    const {x,y}=this.pointer,enemy=this.picker.pickEnemy(x,y);
     if(enemy){this.hoverHint=`Parem klõps: ründa ${this.world.unitDisplayName(enemy.kind,enemy.team)}`;return;}
     const own=this.picker.pickEntity(x,y,this.world.playerTeam),ids=this.ids();
     if(own&&transportCapacity(own)>0&&ids.some(id=>canLoadPassenger(own!,this.world.byId.get(id)!))){this.hoverHint="Parem klõps: sisene transporti";return;}

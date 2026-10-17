@@ -115,13 +115,13 @@ export function ensureLogisticsPools(e: Entity): void {
  */
 export function updateTacticalSupply(w: World, dt: number): void {
   const depots=w.entities.filter(n=>!n.dead&&!n.underConstruction&&(n.disabledUntil??0)<=w.time&&["hq","supply"].includes(n.kind));
-  const fuelConvoys:[Entity[],Entity[]]=[[],[]];
+  const fuelConvoys:Entity[][]=w.teams.map(()=>[]);
   for(const n of w.entities)if(!n.dead&&n.kind==="logiTruck")fuelConvoys[n.team].push(n);
-  const commands=[w.commandNodes(0),w.commandNodes(1)];
+  const commands=w.teams.map(t=>w.commandNodes(t));
   for (const e of w.entities) {
     if (e.dead || e.loadedIntoId != null) continue;
     if((e.maxAmmo??0)===0&&(e.maxFuel??0)===0) ensureLogisticsPools(e);
-    const fac = e.team === w.playerTeam ? w.playerFaction : w.enemyFaction;
+    const fac = w.factionForTeam(e.team);
     const eff = FACTIONS[fac].bonuses.supplyEfficiency ?? 1;
     const needsFuel=(e.fuel??0)<(e.maxFuel??0);
     const depot=tacticalSupplyDepot(w,e,depots),portDepot=e.def.domain==="sea"?depot:null;

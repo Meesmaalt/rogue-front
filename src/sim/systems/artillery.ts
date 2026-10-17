@@ -26,7 +26,7 @@ export function updateArtillery(w: World, _dt: number): void {
 
     // Counter-battery warning: a battery that has fired recently becomes a detectable signature.
     if (w.time < (u.artillerySignatureUntil ?? 0)) {
-      const enemyBattery = w.entities.some(e => !e.dead && e.team !== u.team && isBattery(e) &&
+      const enemyBattery = w.entities.some(e => !e.dead && !w.areAllies(e.team,u.team) && isBattery(e) &&
         Math.hypot(e.x-u.x,e.z-u.z) <= weaponRange(e,weaponSpec(e)) * 1.15 &&
         ((u.artilleryLastFire ?? -999) > w.time - 18));
       if (enemyBattery && u.artilleryDisplace == null && (u.artilleryShotsInSalvo ?? 0) >= SALVO_SIZE[u.kind==="inf"?"mortar":u.kind]) {
@@ -70,7 +70,7 @@ export function updateArtillery(w: World, _dt: number): void {
     u.cooldown = (SALVO_INTERVAL[u.kind==="inf"?"mortar":u.kind] ?? 1)*(equipmentModule(u,"weapon")?.cooldownMultiplier??1);
     u.lastCombatTime = w.time;
     u.artilleryLastFire = w.time;
-    const enemy=u.team===0?1:0;
+    for(const enemy of w.teams.filter(t=>!w.areAllies(t,u.team)))
     if(w.entities.some(e=>!e.dead&&e.team===enemy&&isBattery(e)&&Math.hypot(e.x-u.x,e.z-u.z)<=weaponRange(e,weaponSpec(e))))w.intel[enemy].set(u.id,{entityId:u.id,team:u.team,kind:u.kind,x:u.x,z:u.z,lastSeen:w.time,shared:true});
     u.artillerySignatureUntil = w.time + (u.kind === "mlrs" ? 22 : 16);
     u.artilleryShotsInSalvo = shots + 1;
@@ -82,7 +82,7 @@ export function updateArtillery(w: World, _dt: number): void {
       // MLRS and high-level artillery are especially vulnerable after a salvo.
       const counterBatteryChance = u.kind === "mlrs" ? 0.72 : u.kind === "artillery" ? 0.48 : 0.30;
       if (w.rng() < counterBatteryChance) {
-        const enemyHasCounterBattery = w.entities.some(e => !e.dead && e.team !== u.team &&
+        const enemyHasCounterBattery = w.entities.some(e => !e.dead && !w.areAllies(e.team,u.team) &&
           isBattery(e) && Math.hypot(e.x-u.x,e.z-u.z) < weaponRange(e,weaponSpec(e)) * 1.25);
         if (enemyHasCounterBattery) {
           const ang = w.rng() * Math.PI * 2;

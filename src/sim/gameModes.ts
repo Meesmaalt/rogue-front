@@ -11,14 +11,14 @@ export const MODE_RULES: Record<MatchMode, ModeRules> = {
   assault: { mode:"assault", targetScore:0, timeLimit:900, description:"Sina ründad: hävita vastase HQ 15 minutiga. Kaitsja võidab ajapiiril." },
   skirmish: { mode:"skirmish", targetScore:0, timeLimit:0, description:"Ehita baas, varusta väed ja hävita vastase HQ." },
 };
-export interface MatchModeState { score: [number,number]; hold: [number,number]; losses: [number,number]; }
+export interface MatchModeState { score: number[]; hold: number[]; losses: number[]; }
 
 /** Victory is simulation state, independent of rendering and event draining. */
 export class MatchModeController {
   readonly rules: ModeRules;
-  private score: [number,number] = [0,0];
-  private hold: [number,number] = [0,0];
-  private baseline: [number,number];
+  private score: number[] = [0,0];
+  private hold: number[] = [0,0];
+  private baseline: number[];
   private targets: [Point,Point];
   constructor(private readonly world: World, mode: MatchMode, mission?: MissionDef) {
     this.rules = MODE_RULES[mode] ?? MODE_RULES.skirmish;
@@ -27,8 +27,8 @@ export class MatchModeController {
     this.baseline = [...world.lossValue];
   }
   get mode(): MatchMode { return this.rules.mode; }
-  get scores(): [number,number] { return [...this.score]; }
-  get damageScores(): [number,number] { return this.scores; }
+  get scores(): number[] { return [...this.score]; }
+  get damageScores(): number[] { return this.scores; }
   private result(winner: Team): void { this.world.status = winner === this.world.playerTeam ? "won" : "lost"; }
   tick(dt: number): void {
     if (this.world.status !== "running") return;

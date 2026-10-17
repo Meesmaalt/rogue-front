@@ -149,7 +149,7 @@ export class Overlay {
     // Selected labels get first choice of screen space; stable entity order breaks ties.
     const visible=this.visible,ordinary=this.ordinary;visible.length=0;ordinary.length=0;
     for(const u of world.entities){
-      if(!!u.constructionCrew||u.dead||u.loadedIntoId!=null||u.team!==world.playerTeam&&!world.isSpottedByTeam(u,world.playerTeam))continue;
+      if(!!u.constructionCrew||u.dead||u.loadedIntoId!=null||!world.areAllies(u.team,world.playerTeam)&&!world.isSpottedByTeam(u,world.playerTeam))continue;
       (sel.selected.has(u.id)?visible:ordinary).push(u);
     }
     for(const u of ordinary)visible.push(u);
@@ -162,7 +162,7 @@ export class Overlay {
       const bw = Math.max(26, u.def.radius * scale * 1.6);
       c.fillStyle = "rgba(8,10,11,.85)";
       c.fillRect(p.x - bw / 2 - 1, p.y - 1, bw + 2, 6);
-      c.fillStyle = u.team !== world.playerTeam ? "#e0553f" : "#73bfe3";
+      c.fillStyle = u.team===world.playerTeam?"#73bfe3":world.areAllies(u.team,world.playerTeam)?"#52d4ef":"#e0553f";
       c.fillRect(p.x - bw / 2, p.y, bw * (u.underConstruction?world.buildingProgress(u):Math.min(1,Math.max(0,u.hp/maxHitPoints(u)))), 4);
       if(distant||selectedUnit||u.team!==world.playerTeam){
         const name=u.underConstruction?`${world.unitDisplayName(u.kind,u.team)} · ${Math.round(world.buildingProgress(u)*100)}%`:u.groundService?.onFoot?"Laotöölised":world.unitDisplayName(u.kind,u.team);

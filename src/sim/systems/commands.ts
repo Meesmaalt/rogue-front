@@ -149,7 +149,7 @@ function apply(w: World, c: Command): void {
     case "attack": {
       const t = w.byId.get(c.targetId);
       if (!t || t.dead || !w.isSpottedByTeam(t,c.team??w.playerTeam)) break;
-      for (const u of mobile(w, c.ids, c.team)) if (u.team !== t.team) {
+      for (const u of mobile(w, c.ids, c.team)) if (!w.areAllies(u.team,t.team)) {
         if(!canEngage(u,t)){w.events.push({type:"order-rejected",team:u.team,unitId:u.id,x:t.x,z:t.z,message:`${w.unitDisplayName(u.kind,u.team)}: sihtmärgi jaoks puudub sobiv relv või laskemoon`});continue;}
         replaceTask(w,u);u.garrisonLookPoint=undefined;u.mode = "attack"; u.holdPosition=!!u.garrisonId; u.target = t; u.dest = {x:t.x,z:t.z};
         if(u.def.armor==="air"){u.airMission=t.def.armor==="air"?"cap":"ground";u.priorityFocus=null;u.airMissionPoint={x:t.x,z:t.z};}

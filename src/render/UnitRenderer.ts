@@ -86,14 +86,14 @@ export class UnitRenderer {
       const flightCarrier=e.loadedIntoId!=null?world.byId.get(e.loadedIntoId):undefined,unloading=flightCarrier?.constructionFlight?.phase==='unloading'&&world.time>=flightCarrier.constructionFlight.readyAt-baseVisuals.construction.rampExitSeconds;
       if (e.dead || e.loadedIntoId !== null&&!unloading) continue;
       seen.add(e.id);
-      const spotted=e.team===world.playerTeam||world.isSpottedByTeam(e,world.playerTeam);
+      const spotted=world.areAllies(e.team,world.playerTeam)||world.isSpottedByTeam(e,world.playerTeam);
       let v = this.views.get(e.id);
       if(!spotted){if(v){v.group.visible=false;v.resetPose=true;}continue;}
       this.bounds.center.set(e.x,e.y+e.def.height*.5,e.z);this.bounds.radius=Math.max(e.kind==="airbase"&&e.def.metricScale?240:10,e.def.radius*2,e.def.height);
       const onScreen=this.frustum.intersectsSphere(this.bounds);
       if(!v&&!onScreen&&e.def.speed>0)continue;
       if (!v) {
-        const faction = e.constructionFlight?"usa":e.team === world.playerTeam ? world.playerFaction : world.enemyFaction;
+        const faction = e.constructionFlight?"usa":world.factionForTeam(e.team);
         const metricAirfield=e.kind==="airbase"&&!!e.def.metricScale;
         const visualKind=e.kind==='engineer'&&!e.constructionCrew?'inf':e.kind;
         const visual = e.groundService?.onFoot?{group:createDepotHandler(),turret:null}:metricAirfield?{group:createMetricAirfieldStructures(e),turret:null}:createArtModel(visualKind, e.team, faction) ?? createVisualModel(visualKind, e.team, faction);
