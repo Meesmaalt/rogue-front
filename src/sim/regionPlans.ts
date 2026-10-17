@@ -1,4 +1,5 @@
 import definitions from '../data/region-plans.json';
+import character from '../data/region-character.json';
 import {Rng} from './rng';
 import type {Point} from './types';
 import {REGION_IDS,type RegionId,type ReliefShape} from './regions';
@@ -50,8 +51,10 @@ export function createRegionalPlan(region:RegionId,seed:number,size:number,expli
  // A second paired base exit avoids a single approach becoming the whole battle.
  const alternate=nearest(nodes[0],townIndices.filter(i=>i!==home&&i!==(home%2===0?home+1:home-1)));
  edge(0,alternate);edge(1,alternate%2===0?alternate+1:alternate-1);
+ const variation=new Rng(seed^0x185abc),curveScale=character.variation.roadCurve[0]+variation.next()*(character.variation.roadCurve[1]-character.variation.roadCurve[0]),riverBend=(variation.next()*2-1)*character.variation.riverBend*size;
+ const warpRiver=(p:Point):Point=>({x:p.x+Math.sin(p.z/size*Math.PI*2)*riverBend,z:p.z});
  const roads:PlanRoad[]=edges.map(([from,to],i)=>{
-  const a=nodes[from],b=nodes[to],d=length(a,b),bend=definition.curve*size;
+  const a=nodes[from],b=nodes[to],d=length(a,b),bend=definition.curve*size*curveScale;
   // The curve sign is invariant under a 180-degree paired edge transformation.
   const sign=(a.x*b.z-a.z*b.x)>=0?1:-1,dx=(b.z-a.z)/d,dz=-(b.x-a.x)/d;
   const segments=Math.max(3,Math.ceil(d/45));
@@ -60,9 +63,9 @@ export function createRegionalPlan(region:RegionId,seed:number,size:number,expli
    return {x:a.x+(b.x-a.x)*t+dx*bulge,z:a.z+(b.z-a.z)*t+dz*bulge};
   })};
  });
- const river=smoothLine(definition.river.map(([x,z])=>({x:x*size,z:z*size}))),rivers=[river];
+ const river=smoothLine(definition.river.map(([x,z])=>warpRiver({x:x*size,z:z*size}))),rivers=[river];
  if(definition.id==='branching-valley'){
-  const branch=[{x:-size*.22,z:-size*.52},{x:-size*.14,z:-size*.32},{x:-size*.07,z:-size*.16},{x:0,z:0}];rivers.push(smoothLine(branch),smoothLine([...branch].reverse().map(mirror)));
+  const branch=[{x:-size*.22,z:-size*.52},{x:-size*.14,z:-size*.32},{x:-size*.07,z:-size*.16},{x:0,z:0}];rivers.push(smoothLine(branch.map(warpRiver)),smoothLine([...branch].reverse().map(mirror).map(warpRiver)));
  }
  // Ridge axes are the dual of each layout: ring interiors, spokes or long valley walls.
  const ridgePaths:Point[][]=[];

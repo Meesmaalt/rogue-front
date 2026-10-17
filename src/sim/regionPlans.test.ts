@@ -16,3 +16,11 @@ it('automatic selection covers every layout and is repeatable independently of m
   const p=createRegionalPlan(region,seed,2048);seen.add(p.index);expect(createRegionalPlan(region,seed,6144).id).toBe(p.id);expect(createRegionalPlan(region,seed,2048)).toEqual(p);
  }expect(seen.size).toBe(3);}
 });
+
+it.each(REGION_IDS)('%s seeds change river bends and road curvature while retaining the selected graph',region=>{
+ const plans=[43,91,201].map(seed=>createRegionalPlan(region,seed,2048,1));
+ expect(new Set(plans.map(p=>JSON.stringify(p.rivers))).size).toBe(3);
+ const curves=plans.map(p=>p.roads.map(r=>{const a=r.points[0],b=r.points.at(-1)!,mid=r.points[Math.floor(r.points.length/2)];return Math.abs((b.z-a.z)*(mid.x-a.x)-(b.x-a.x)*(mid.z-a.z))/Math.hypot(b.x-a.x,b.z-a.z);}));
+ expect(new Set(curves.map(v=>v.map(n=>n.toFixed(2)).join('/'))).size).toBe(3);
+ for(const p of plans){expect(p.id).toBe(plans[0].id);expect(p.topology).toBe(plans[0].topology);expect(p.roads.length).toBe(plans[0].roads.length);expect(planTravelDistances(p,0).every(Number.isFinite)).toBe(true);}
+});

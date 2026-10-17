@@ -17,7 +17,7 @@ Ringpaigutused kasutavad ümber keskala kulgevaid teid; läbipääsupaigutustel 
 
 Jõed silutakse kontrollpunktide vahel. `regionInfrastructure.ts` leiab silla asukoha tee ja jõe päris keskjoonte ristumisest, määrab selle suuna tee järgi ning arvestab teki pikkuses ristumisnurka. Asfalt lõigatakse silla alt välja; sama sild on päris navigeerimis- ja kõrgusvälja objekt. Teed ei lõpe lihtsalt veepiiril.
 
-Ühe kõrgendikuvööndi osad moodustavad ühise maksimaalse kõrgusümbrise. Sellega välditakse järjestikuste künkakernelite kõrguste liitmisest tekkivat helmelaadset ahelikku. Planeerimine ja päris kõrgusväli kasutavad sama reeglit; kõrguspuhvri koostamisel kasutatakse ette valmistatud rühmaindekseid ja korduvkasutatavat arvupuhvrit.
+Ühe kõrgendikuvööndi osad moodustavad ühise sujuva kaalutud kõrgusümbrise `sum(h⁴) / sum(h³)`, mis jääb komponentide maksimumi piiresse. Tihedam proovistus vähendab järjestikuste künkakeskmete nähtavat rütmi. Sellega välditakse järjestikuste künkakernelite kõrguste liitmisest tekkivat helmelaadset ahelikku. Planeerimine ja päris kõrgusväli kasutavad sama reeglit; kõrguspuhvri koostamisel kasutatakse ette valmistatud rühmaindekseid ja korduvkasutatavat arvupuhvrit.
 
 Ühe põllu lõikamisest tekkinud tükid kannavad ühist `parcelId` väärtust. Põllukultuur, istanduse tüüp ja värv säilivad kõigil tükkidel, nii et tee või järve ümber ei teki eri värvi kolmnurkade lehvikut.
 
