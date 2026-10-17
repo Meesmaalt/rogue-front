@@ -1,6 +1,6 @@
 import type { FlowField } from "./nav/FlowField";
 import type { MapFeatureDef } from "./mapFeatures";
-export type Team = 0 | 1;
+export type Team = 0 | 1 | 2 | 3;
 export type UnitKind =
   | "transportVan" | "scoutHeli" | "groundHandler" | "airTransport" | "gunTurret" | "flakTurret" | "atTurret" | "missileCommand" | "icbmSilo" | "cruiseLauncher"
   | "tank" | "apc" | "ifv" | "inf" | "atInf" | "mgInf" | "reconInf" | "sniper" | "mortar" | "manpad" | "atgm" | "reconVehicle" | "lightTank" | "tankDestroyer" | "spaa" | "bunker" | "hq" | "engineer"
@@ -114,7 +114,7 @@ export interface Entity {
   preferredResourceIndex?: number | null; logisticsPaused?: boolean; routeWaypointIndex?: number; routeLeg?: string;
   xp: number; veteran: number;
   /** Game-time until which each team has this unit spotted (Wargame contact). */
-  spottedUntil: [number, number];
+  spottedUntil: number[];
   suppression?: number;
   squadMembers?: number; squadMaxMembers?: number; squadFirepower?: number;
   squadRole?: "rifle" | "at" | "mg" | "recon" | "sniper" | "manpad" | "engineer";
@@ -285,7 +285,7 @@ export interface MissionMapDef {
   heightmap: string;
   maxHeight: number;
   resources: MapResourceDef[];
-  bases: [Point & { r: number }, Point & { r: number }];
+  bases: (Point & { r: number })[];
   objects?: Array<{ kind: UnitKind; team: Team; x: number; z: number; count?: number; dx?: number; dz?: number }>;
   features?: MapFeatureDef[];
 }

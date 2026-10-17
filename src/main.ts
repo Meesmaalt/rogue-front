@@ -107,7 +107,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const multiplayer = !!multiplayerRoom && !skirmish;
   const net = multiplayer ? new LockstepClient() : null;
   const networkPackets: Array<{ tick: number; commands: import("./sim/types").Command[] }> = [];
-  let localTeam: 0 | 1 = 0;
+  let localTeam: import("./sim/types").Team = 0;
   let applyingNetwork = false;
   const replayRecorder = new ReplayRecorder(mission.seed);
   const audio = new AudioManager();
@@ -120,8 +120,8 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   let paused = false;
   const originalIssue = world.issue.bind(world);
   world.issue = (command) => {
-    if (multiplayer && !applyingNetwork) { net!.submit(command); return; }
-    if(multiplayer||command.team===undefined||command.team===world.playerTeam)replayRecorder.record({...command,team:command.team??world.playerTeam}); originalIssue(command);
+    if (multiplayer && !applyingNetwork && !world.issuingAI) { net!.submit(command); return; }
+    if(!world.issuingAI&&(multiplayer||command.team===undefined||command.team===world.playerTeam))replayRecorder.record({...command,team:command.team??world.playerTeam}); originalIssue(command);
   };
   hud.selectedFaction=faction;
   world.playerFaction = faction;
@@ -178,7 +178,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const resourceSites=new ResourceSites(ctx.scene,world);
   const fog = new FogOfWar(terrainView,world);
   const picker = new Picker(ctx.camera, world);
-  audio.setAudibility(e=>e.team===world.playerTeam||world.isSpottedByTeam(e,world.playerTeam),(x,z)=>world.vision.isVisible(world.playerTeam,x,z));
+  audio.setAudibility(e=>world.areAllies(e.team,world.playerTeam)||world.isSpottedByTeam(e,world.playerTeam),(x,z)=>world.vision.isVisible(world.playerTeam,x,z));
   picker.setPresentation(id=>units.positionFor(id));
   const selection = new SelectionController(topCanvas, world, picker);
   const commands = new CommandController(topCanvas, world, picker, selection);
@@ -198,19 +198,19 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   if (net) {
     net.setCallbacks({
       status: (status, text) => {
-        hud.setNetworkStatus(status === "running" ? `1v1 · ${localTeam + 1}` : text);
+        hud.setNetworkStatus(status === "running" ? `${world.teams.length===4?(new Set(world.alliances).size===2?"2v2":"1v1v1v1"):"1v1"} · mängija ${localTeam + 1}` : text);
         if(status === "error" || status === "reconnecting") { paused = true; setEnabled(false); }
       },
       assigned: (team, _playerCount, rules, members) => {
         localTeam = team; world.setNetworkMode(team);
-        if (!world.entities.length && members?.length === 2) {
+        if (!world.entities.length && members && [2,4].includes(members.length)) {
           world.playerFaction = members[team]!.faction;
-          world.enemyFaction = members[1-team]!.faction;
-          world.setNetworkDecks([members[0]!.deck,members[1]!.deck]);
+          world.configureParticipants(members.map((m,i)=>({...m,alliance:m.alliance??i})));
+          world.enemyFaction = members[world.enemyTeam(team)]!.faction;
           createSkirmish(world); battleNotices.reset(); replayRecorder.reset(world); units.reset();ranges.reset();overlay.reset();picker.setUnitMarkers([]);
           cam.jumpTo(world.bases[team].x,world.bases[team].z);
         }
-        if (rules) { world.setMatchRules(rules); fog.setMode(rules.fog || "wargame"); } hud.setNetworkStatus(`1v1 · meeskond ${team + 1}`); },
+        if (rules) { world.setMatchRules(rules); fog.setMode(rules.fog || "wargame"); } hud.setNetworkStatus(`${members?.length===4?(new Set(members.map(m=>m.alliance)).size===2?"2v2":"1v1v1v1"):"1v1"} · mängija ${team + 1}`); },
       started: (_seed, tick) => {
         networkPackets.length = 0; running = true; paused = false;
         if(net.appliedTick===0) replayRecorder.reset(world);
@@ -220,7 +220,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       tick: (packet) => { paused = false; hud.setPaused(false); networkPackets.push(packet); },
       desync: (tick) => { paused = true; setEnabled(false); hud.setPaused(true); hud.setWarning(`DESYNC tuvastatud tick ${tick} — mäng peatatud`); },
     });
-    net.connect(multiplayerRoom!, mission.id, undefined, getAuthToken(), spectator, spectatorToken);
+
   }
 
   minimap.onJump = (x, z) => cam.jumpTo(x, z);
@@ -334,7 +334,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   for(const texture of terrainTextures)ctx.renderer.initTexture(texture);
   warmTerrainBuffers(ctx.renderer,ctx.scene,ctx.camera,terrainView);
   await ctx.renderer.compileAsync(ctx.scene,ctx.camera);
-  hud.showBriefing(skirmish ? { ...mission, name: "Skirmish — " + mission.map.name, briefing: (mission.id === "roheorg"||mission.id.startsWith("procedural-")) ? mission.briefing + "\n\n" + modeController.label() + "\n\n" + (queryParams.get("deployment")!=="ready" ? "Ehita generaator → varustusladu → maaväe juhtimiskeskus → tehas. Saada insener ressursipunkti." : "Baas, lennuväli ja lahingugrupp on valmis. F3 valib lennuväe: üks hävitaja ning üks pommikoormaga mitmeotstarbeline lennuk. Saada luure ette; tugevda koosseisu valitud kasarmu, tehase või lennuvälja tootmispaneelist. Insener käivitab koduse ressursipunkti kogumise.") + "\n\nF1: vali soomus · Fookus: kaamera valikule\nRündeliiku + parem klõps: liigu ja võitle\nInsener / juhtimishoone → Ehita: baas ja FOB\nMoon, kütus ja remont vajavad tegelikku varustust." : modeController.label() + "\n\nREAL WAR baas:\n1) Generaator → varustusladu → maaväe juhtimiskeskus → tehas\n2) Saada teine insener ressursipunkti; ta käivitab kogumise\n3) Veokid toovad raha ja ammo/kütusevaru. Katkenud tarne peatab tootmise\n\nWARGAME lahing:\n• Optika/recon — kes näeb, tulistab\n• Supply raadius — ammo/kütus; forward ladu risk\n• Flank ja moraal loevad\n• Õhk: CAP / Strike / SEAD; ilma AA-ta kaotad\n\nDoktriin: " + facBlur + "\n\nKlahvid: F1 soomus F2 jala F3 õhk F4 toetus · Ctrl+1-9 grupid" } : mission, () => { if(multiplayer)return; running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); }, hasSave(), () => loadGame());
+  if(!multiplayer)hud.showBriefing(skirmish ? { ...mission, name: "Skirmish — " + mission.map.name, briefing: (mission.id === "roheorg"||mission.id.startsWith("procedural-")) ? mission.briefing + "\n\n" + modeController.label() + "\n\n" + (queryParams.get("deployment")!=="ready" ? "Ehita generaator → varustusladu → maaväe juhtimiskeskus → tehas. Saada insener ressursipunkti." : "Baas, lennuväli ja lahingugrupp on valmis. F3 valib lennuväe: üks hävitaja ning üks pommikoormaga mitmeotstarbeline lennuk. Saada luure ette; tugevda koosseisu valitud kasarmu, tehase või lennuvälja tootmispaneelist. Insener käivitab koduse ressursipunkti kogumise.") + "\n\nF1: vali soomus · Fookus: kaamera valikule\nRündeliiku + parem klõps: liigu ja võitle\nInsener / juhtimishoone → Ehita: baas ja FOB\nMoon, kütus ja remont vajavad tegelikku varustust." : modeController.label() + "\n\nREAL WAR baas:\n1) Generaator → varustusladu → maaväe juhtimiskeskus → tehas\n2) Saada teine insener ressursipunkti; ta käivitab kogumise\n3) Veokid toovad raha ja ammo/kütusevaru. Katkenud tarne peatab tootmise\n\nWARGAME lahing:\n• Optika/recon — kes näeb, tulistab\n• Supply raadius — ammo/kütus; forward ladu risk\n• Flank ja moraal loevad\n• Õhk: CAP / Strike / SEAD; ilma AA-ta kaotad\n\nDoktriin: " + facBlur + "\n\nKlahvid: F1 soomus F2 jala F3 õhk F4 toetus · Ctrl+1-9 grupid" } : mission, () => { if(multiplayer)return; running = true; paused = false; hud.setPaused(false); setEnabled(true); audio.unlock(); audio.startMusic(); }, hasSave(), () => loadGame());
 
   addEventListener("keydown", (e) => {
     if(settingsPanel.isOpen||e.repeat||(e.target instanceof Element&&e.target.closest("input,textarea,select,[contenteditable=true]")))return;
@@ -451,6 +451,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     else hud.setWarning("Salvestuse kaart või režiim on muutunud; vali sobiv lahing või alusta uut");
   }
   loop.start();
+  if(net)net.connect(multiplayerRoom!,mission.id,undefined,getAuthToken(),spectator,spectatorToken);
 }
 
 const queryMode = queryParams.get("mode");

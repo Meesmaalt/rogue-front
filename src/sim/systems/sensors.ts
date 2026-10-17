@@ -108,7 +108,7 @@ export function updateSensors(w: World): void {
     const range = observer.kind==="radar" ? Math.max(observer.def.opticsRange??40,110*(1+((observer.buildingLevel??1)-1)*.175))*1.35 : (observer.def.opticsRange??40)*(OPTICS_MUL[observer.def.optics??"normal"]??1)*1.35;
 
     w.spatial.queryRadius(observer.x, observer.z, range, (target) => {
-      if (target.dead || target.loadedIntoId!=null || target.team === team) return;
+      if (target.dead || target.loadedIntoId!=null || w.areAllies(target.team,team)) return;
       if (!w.vision.hasLineOfSight(observer,target,target.def.armor==='air'&&(observer.kind==='radar'||!!observer.def.weapons?.some(s=>s.guidance==='radar')))) return;
       const forest=w.vision.forestDepth(observer,target);
       const cover=coverValueAt(w,target.x,target.z)+forest*.35+garrisonConcealment(w,target);
@@ -117,7 +117,7 @@ export function updateSensors(w: World): void {
       const radarLevel = observer.kind === "radar" ? (observer.buildingLevel ?? 1) : 1;
       const dur = observer.kind === "radar" ? SPOT_DURATION_RADAR * (radarLevel >= 3 ? 1.45 : radarLevel >= 2 ? 1.2 : 1) : SPOT_DURATION;
       const until = now + dur;
-      if (until > target.spottedUntil[team]) target.spottedUntil[team] = until;
+      for(const ally of w.teams)if(w.areAllies(ally,team)&&until>(target.spottedUntil[ally]??0))target.spottedUntil[ally]=until;
 
       // Refresh intel contact
       w.intel[team].set(target.id, {
@@ -133,7 +133,7 @@ export function updateSensors(w: World): void {
   }
 
   // Expire old intel
-  for (const team of [0, 1] as const) {
+  for (const team of w.teams) {
     for (const [id, c] of w.intel[team]) {
       if (now - c.lastSeen > 90) w.intel[team].delete(id);
     }

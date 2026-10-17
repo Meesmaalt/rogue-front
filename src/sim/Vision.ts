@@ -19,7 +19,7 @@ export class Vision {
   readonly cellSize:number;
   readonly width:number;
   readonly height:number;
-  private readonly states:[Uint8Array,Uint8Array];
+  private readonly states:Uint8Array[];
   constructor(metric=MAP_SIZE>=4096) {
     this.metric=metric;this.cellSize=metric?MAP_SIZE/battleScale.visionCells:VISION_CELL_SIZE;
     this.width=Math.ceil(MAP_SIZE/this.cellSize);this.height=this.width;
@@ -34,7 +34,7 @@ export class Vision {
   private buildings: Entity[] = [];
   private tickCounter = 0;
   private revealCursor=0;
-  private readonly visibleUntil:[Uint32Array,Uint32Array];
+  private readonly visibleUntil:Uint32Array[];
   private revealExpiry=0;
   // Derived broad phase; exact rotated footprint tests still decide occlusion.
   private readonly blockerBins = new Map<string, MapFeatureDef[]>();
@@ -61,21 +61,16 @@ export class Vision {
     if(destination.length!==this.states[team].length)throw new Error("Visibility buffer size mismatch");
     destination.set(this.states[team]);
   }
-  snapshot(): { states: [number[],number[]]; tickCounter: number; revealCursor:number; visibleUntil:[number[],number[]] } {
-    return {states:[Array.from(this.states[0]),Array.from(this.states[1])],tickCounter:this.tickCounter,revealCursor:this.revealCursor,visibleUntil:[Array.from(this.visibleUntil[0]),Array.from(this.visibleUntil[1])]};
-  }
-  restore(s: ReturnType<Vision["snapshot"]>, entities: readonly Entity[]): void {
+  alliances:number[]=[0,1];
+  configure(alliances:readonly number[]):void {this.alliances=[...alliances];while(this.states.length<alliances.length){this.states.push(new Uint8Array(this.width*this.height));this.visibleUntil.push(new Uint32Array(this.metric?this.width*this.height:0));}}
+  snapshot(){return {states:this.states.map(s=>Array.from(s)),tickCounter:this.tickCounter,revealCursor:this.revealCursor,visibleUntil:this.visibleUntil.map(s=>Array.from(s))};}
+  restore(s:ReturnType<Vision['snapshot']>,entities:readonly Entity[]):void {
     if(s.states[0].length!==this.states[0].length){this.reset();this.tickCounter=0;this.update(entities);return;}
-    this.revision++;
-    this.revealCursor=s.revealCursor??0;for(const t of [0,1] as const)this.visibleUntil[t].set(s.visibleUntil?.[t]??new Uint32Array(this.visibleUntil[t].length));
-    this.states[0].set(s.states[0]); this.states[1].set(s.states[1]); this.tickCounter=s.tickCounter;
+    this.revision++;this.tickCounter=s.tickCounter;this.revealCursor=s.revealCursor??0;
+    s.states.forEach((a,i)=>{this.states[i].set(a);this.visibleUntil[i].set(s.visibleUntil?.[i]??new Uint32Array(this.visibleUntil[i].length));});
     this.buildings=entities.filter(e=>!e.dead&&e.def.speed===0);
   }
-  reset(): void {
-    this.revision++;
-    this.states[0].fill(0);
-    this.states[1].fill(0);this.visibleUntil[0].fill(0);this.visibleUntil[1].fill(0);this.revealCursor=0;
-  }
+  reset():void {this.revision++;this.states.forEach(s=>s.fill(0));this.visibleUntil.forEach(s=>s.fill(0));this.revealCursor=0;}
   index(ix: number, iz: number): number {
     return iz * this.width + ix;
   }
@@ -177,7 +172,7 @@ export class Vision {
     this.tickCounter++;
     if (this.tickCounter > 1 && this.tickCounter % 3 !== 0) return;
     this.revision++;
-    for (const team of [0, 1] as const) {
+    for (let team=0;team<this.states.length;team++) {
       const c = this.states[team];
       for (let i = 0; i < c.length; i++) if (c[i] === 2 && (!this.metric||this.visibleUntil[team][i]<=this.tickCounter)) c[i] = 1;
     }
@@ -195,7 +190,7 @@ export class Vision {
       const u=observers[(this.revealCursor+i)%observers.length];
       if (u.dead || u.loadedIntoId!=null || u.underConstruction) continue;
       const radius = this.getVisionRadius(u);
-      this.reveal(u.team, u.x, u.z, radius, u);
+      for(let team=0;team<this.alliances.length;team++)if(this.alliances[team]===this.alliances[u.team])this.reveal(team as Team,u.x,u.z,radius,u);
     }
     if(this.metric&&observers.length)this.revealCursor=(this.revealCursor+count)%observers.length;
   }
@@ -224,7 +219,7 @@ export class Vision {
     let best: Entity | null = null;
     let bestD = Infinity;
     for (const u of entities) {
-      if (u.dead || u.loadedIntoId!=null || u.team !== team) continue;
+      if (u.dead || u.loadedIntoId!=null || this.alliances[u.team] !== this.alliances[team]) continue;
       const d = Math.hypot(u.x - x, u.z - z);
       if (d > this.getVisionRadius(u) + this.cellSize) continue;
       if (d < bestD) {

@@ -11,17 +11,11 @@ import type { World } from "./World";
  * and rely on logistics helicopters for the bulk of income.
  */
 export function createSkirmish(w: World, ready = false, generated = false): void {
-  const [P, E] = w.bases;
-
-  // Player
-  w.spawn("hq", 0, P.x, P.z);
-
-  // Enemy (same constraints – fair start)
-  w.spawn("hq", 1, E.x, E.z);
+  for(const team of w.teams){const b=w.bases[team];w.spawn("hq",team,b.x,b.z);}
   dispatchConstruction(w);
   if (ready) {
-    for (const team of [0,1] as const) {
-      const b=w.bases[team], sign=team===0?1:-1;
+    for (const team of w.teams) {
+      const b=w.bases[team], sign=b.x<0?1:-1;
       for (const [kind,dx,dz] of [["generator",-20,-18],["supply",0,-25],["landCommand",-22,4],["barracks",20,18],["factory",0,28],["airCommand",25,-20],["helipad",25,0]] as const) w.spawn(kind,team,b.x+(w.metricBattle&&kind==="supply"?BATTLE_SCALE.readyAirfield.supplyX:dx)*sign,b.z+(w.metricBattle&&kind==="supply"?BATTLE_SCALE.readyAirfield.supplyZ:dz)*sign);
       const pad=w.entities.find(e=>e.team===team&&e.kind==="helipad")!;
       const helicopter=w.spawn("heli",team,pad.x,pad.z);stationAircraft(w,helicopter,pad);

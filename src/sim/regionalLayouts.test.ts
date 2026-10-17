@@ -17,7 +17,7 @@ it.each(REGION_IDS)('%s layouts have real connected navigation, paired resources
 it('v18 preserves explicit layouts with every optional terrain layer disabled and bounds new mask bits',()=>{
  const m=generateProceduralMap(0,'balanced',2048,18,{...regionDefaults('canyon'),layout:2,mountains:false,forest:false,river:false,lakes:false,sea:false});
  expect(m.map.layout!.id).toBe('branching-valley');expect(m.map.landforms).toHaveLength(0);expect(m.map.features!.some(f=>f.kind==='water'||f.appearance==='forest')).toBe(false);expect(getPlayableMap(m.id)).toEqual(m);
- for(const suffix of ['512','01','NaN'])expect(getPlayableMap(`procedural-v18-balanced-2048-43-o${suffix}`)).toBeUndefined();
+ for(const suffix of ['1024','01','NaN'])expect(getPlayableMap(`procedural-v18-balanced-2048-43-o${suffix}`)).toBeUndefined();
  expect(getPlayableMap('procedural-v17-balanced-2048-43-o128')).toBeUndefined();
 });
 

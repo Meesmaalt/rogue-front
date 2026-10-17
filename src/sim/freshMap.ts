@@ -17,7 +17,7 @@ export function validateFreshMap(mission:MissionDef,onFailure?:(reason:string)=>
   setMapSize(size);setBases(map.bases);setProceduralSeed(mission.seed);setTerrainProfile(map.terrainProfile,map.landforms);setTerrainFeatures(features);
   // Aircraft parking and the entire runway must fit on dry, unobstructed land.
   for(const [team,b] of map.bases.entries()){
-   const sign=team===0?1:-1,angle=team===0?Math.PI*.75:-Math.PI/4;
+   const sign=b.x<0?1:-1,angle=map.bases.length===4?Math.atan2(-b.x,-b.z):team===0?Math.PI*.75:-Math.PI/4;
    for(let along=battleScale.aircraft.runwayStart;along<=battleScale.aircraft.runwayEnd;along+=10)for(const across of [-25,0,25]){
     const x=b.x+battleScale.readyAirfield.x*sign+Math.sin(angle)*along+Math.cos(angle)*across;
     const z=b.z+battleScale.readyAirfield.z*sign+Math.cos(angle)*along-Math.sin(angle)*across;
@@ -40,7 +40,7 @@ export function validateFreshMap(mission:MissionDef,onFailure?:(reason:string)=>
    for(let z=c.z-r;z<=c.z+r;z++)for(let x=c.x-r;x<=c.x+r;x++)if(grid.inBounds(x,z)&&visited[grid.index(x,z)]&&Math.hypot(x-c.x,z-c.z)*grid.cellSize<=radius)return true;
    return false;
   };
-  if(!reachable(map.bases[1],2))return fail("Baaside vahel puudub maapealne läbipääs");
+  if(map.bases.some(b=>!reachable(b,2)))return fail("Baaside vahel puudub maapealne läbipääs");
   if(map.resources.length!==9)return fail("Kõiki ressursirajatisi ei õnnestunud paigutada");
   if(map.resources.some(p=>!reachable(p,p.radius)))return fail("Ressursirajatisele puudub maapealne ligipääs");
   return true;

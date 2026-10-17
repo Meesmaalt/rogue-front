@@ -9,8 +9,8 @@ function headquarters(w:World,team:Entity['team']):Entity|undefined{return w.ent
 function clearRoute(u:Entity):void{u.navPath=[];u.navPathIndex=0;u.roadTripGoal=undefined;u.roadPathGoal=undefined;u.roadPathRetryAt=0;u.stuckTime=0;}
 
 /** One facility-owned truck per working captured site. Building another supply depot never creates a convoy. */
-export function dispatchResourceConvoys(w:World,lastSpawn:[number,number]):void {
- for(const team of [0,1] as const){
+export function dispatchResourceConvoys(w:World,lastSpawn:number[]):void {
+ for(const team of w.teams){
   if(w.time-lastSpawn[team]<cfg.dispatchInterval)continue;
   lastSpawn[team]=w.time;
   const hq=headquarters(w,team);if(!hq)continue;

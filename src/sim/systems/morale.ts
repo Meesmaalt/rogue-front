@@ -68,7 +68,7 @@ export function updateMorale(w: World, dt: number): void {
       u.suppression=Math.max(0,(u.suppression??0)-decay);
     }
     if ((u.suppression??0)<policy.recoverySuppression&&(u.morale??100)<100) {
-      const fac=u.team===w.playerTeam?w.playerFaction:w.enemyFaction;
+      const fac=w.factionForTeam(u.team);
       let regen=policy.recoveryRate*dt*(FACTIONS[fac].bonuses.moraleMul??1);
       if(u.def.discipline==="high")regen*=policy.highDisciplineRecovery;
       if(w.entities.some(b=>rallyNode(w,u,b)&&Math.hypot(b.x-u.x,b.z-u.z)<policy.baseRecoveryRadius))regen*=policy.baseRecoveryMultiplier;

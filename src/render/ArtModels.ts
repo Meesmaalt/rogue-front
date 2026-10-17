@@ -79,7 +79,7 @@ export function createArtModel(kind: UnitKind, team: Team, faction: FactionId, t
     const material = o.material;
     if (material instanceof THREE.MeshStandardMaterial && material.name === "marking") {
       const key=`${material.uuid}/${team}`;let marking=teamMarkings.get(key);
-      if(!marking){marking=material.clone();marking.userData.sharedArt=true;marking.color.set(team===0?0x70caff:0xf36c48);teamMarkings.set(key,marking);}
+      if(!marking){marking=material.clone();marking.userData.sharedArt=true;marking.color.set([0x70caff,0xf36c48,0x62dc9b,0xddb45e][team]);teamMarkings.set(key,marking);}
       o.material=marking;
     }
   });

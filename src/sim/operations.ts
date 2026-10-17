@@ -6,7 +6,7 @@ import type { Entity, Point, Team } from "./types";
 export type SectorState = "friendly" | "contested" | "enemy" | "neutral";
 export interface OperationalSector {
   id: string; center: Point; radius: number; state: SectorState;
-  value: number; supplyAccess: number; threat: [number, number]; control: [number, number];
+  value: number; supplyAccess: number; threat: number[]; control: number[];
 }
 export interface OperationalPlan {
   team: Team; objective: "secure" | "attack" | "defend" | "raid" | "withdraw";
@@ -24,19 +24,19 @@ export class OperationalMap {
     const bases = world.bases.flatMap((b, i) => [{ id: `base-${i}`, center: { x: b.x, z: b.z }, radius: Math.max(34, b.r * 1.4), value: 2.2 }]);
     const mid = { x: (world.bases[0].x + world.bases[1].x) / 2, z: (world.bases[0].z + world.bases[1].z) / 2 };
     this.sectors = [...bases, ...resources, { id: "center", center: mid, radius: 42, value: 1.5 }].map(s => ({
-      ...s, state: "neutral" as SectorState, supplyAccess: 0, threat: [0, 0] as [number, number], control: [0, 0] as [number, number],
+      ...s, state: "neutral" as SectorState, supplyAccess: 0, threat: [0, 0] as number[], control: [0, 0] as number[],
     }));
   }
   tick(): void {
     for (const s of this.sectors) {
-      const counts: [number, number] = [0, 0];
-      const threat: [number, number] = [0, 0];
+      const counts: number[] = this.world.teams.map(()=>0);
+      const threat: number[] = this.world.teams.map(()=>0);
       for (const e of this.world.entities) {
         if (e.dead || e.constructionCrew || e.constructionFlight || e.loadedIntoId != null || Math.hypot(e.x-s.center.x,e.z-s.center.z) > s.radius) continue;
-        if (e.team === 0 || e.team === 1) counts[e.team] += e.def.speed > 0 ? 1 : 0;
-        if (e.team === 0 || e.team === 1) threat[e.team] += this.combatValue(e);
+        counts[e.team] += e.def.speed > 0 ? 1 : 0;
+        threat[e.team] += this.combatValue(e);
       }
-      s.control[0] = counts[0]; s.control[1] = counts[1]; s.threat[0] = threat[0]; s.threat[1] = threat[1];
+      s.control=counts;s.threat=threat;
       if (counts[0] && !counts[1]) s.state = "friendly"; else if (counts[1] && !counts[0]) s.state = "enemy"; else if (counts[0] && counts[1]) s.state = "contested"; else s.state = "neutral";
       s.supplyAccess = Math.max(this.supplyReach(0, s.center), this.supplyReach(1, s.center));
     }
@@ -48,13 +48,13 @@ export class OperationalMap {
   }
   objectiveSecured(team:Team,s:OperationalSector):boolean {
     if(!s.id.startsWith('resource-'))return false;
-    return this.world.resourcePoints[Number(s.id.slice(9))]?.controlledBy===team;
+    const owner=this.world.resourcePoints[Number(s.id.slice(9))]?.controlledBy;return owner!=null&&this.world.areAllies(owner,team);
   }
   nearestObjective(team: Team, preferredId?:string|null): OperationalSector | null {
     const contacts=knownContacts(this.world,team),base=this.world.bases[team];
     const mode=this.world.matchController?.mode;
     if(mode==='breakthrough')return this.sectors.find(s=>s.id===`base-${team===0?1:0}`)??null;
-    const candidates=this.sectors.filter(s=>s.id!==`base-${team}`&&
+    const candidates=this.sectors.filter(s=>!this.world.teams.some(t=>this.world.areAllies(t,team)&&s.id===`base-${t}`)&&
       (mode!=='conquest'||s.id.startsWith('resource-'))&&!this.objectiveSecured(team,s));
     const score=(s:OperationalSector)=>s.value-Math.hypot(s.center.x-base.x,s.center.z-base.z)/AI_RULES.objectiveDistanceScale+
       (s.id===preferredId?AI_RULES.objectiveContinuityBonus:0)+contacts.filter(c=>Math.hypot(c.x-s.center.x,c.z-s.center.z)<s.radius).length*.2;
@@ -72,13 +72,15 @@ export class OperationalMap {
 
 /** Phase 84: operational AI. It commands groups by objective instead of individual random attacks. */
 export class OperationalCommander {
-  readonly plans: [OperationalPlan, OperationalPlan] = [
+  readonly plans: OperationalPlan[] = [
     {team:0, objective:"defend", sectorId:null, reserveRatio:AI_RULES.reserveRatio, committed:0, lastDecision:-99},
     {team:1, objective:"secure", sectorId:null, reserveRatio:AI_RULES.reserveRatio, committed:0, lastDecision:-99},
   ];
   constructor(readonly map: OperationalMap, private readonly world: World) {}
+  configure():void{for(const team of this.world.teams)this.plans[team]??={team,objective:"secure",sectorId:null,reserveRatio:AI_RULES.reserveRatio,committed:0,lastDecision:-99};}
   tick(dt: number): void {
-    if (this.world.networkMode || dt <= 0 || this.world.time < AI_RULES.operationalInterval) return;
+    if(this.world.networkMode){if(dt>0){this.map.tick();this.world.issuingAI=true;try{for(const ai of this.world.botControllers)if(!this.world.hq[ai.team]?.dead)this.commandTeam(ai.team);}finally{this.world.issuingAI=false;}}return;}
+    if (dt <= 0 || this.world.time < AI_RULES.operationalInterval) return;
     const team=this.world.playerTeam===0?1:0;
     if(this.world.time-this.plans[team].lastDecision<AI_RULES.operationalInterval)return;
     this.map.tick();

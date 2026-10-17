@@ -89,7 +89,7 @@ export function airMissionAllowsTarget(u:Entity,t:Entity):boolean {
 export function aaThreatAt(w: World, team: Team, x: number, z: number): number {
   let threat = 0;
   for (const e of w.entities) {
-    if (e.dead || e.def.armor==="air" || e.team === team || e.underConstruction || !w.isSpottedByTeam(e,team)) continue;
+    if (e.dead || e.def.armor==="air" || w.areAllies(e.team,team) || e.underConstruction || !w.isSpottedByTeam(e,team)) continue;
     const r = aaThreatRadius(e);
     if (r <= 0) continue;
     const d = Math.hypot(e.x - x, e.z - z);
@@ -162,7 +162,7 @@ export function updateAirDoctrine(w: World, u: Entity, dt: number): void {
     let best: Entity | null = null;
     let bestD = 1e9;
     for (const e of w.entities) {
-      if (e.dead || e.team === u.team || !isRadarEmitter(e)||(e.disabledUntil??0)>w.time||!w.isSpottedByTeam(e,u.team) || !airMissionAllowsTarget(u,e)||!canEngage(u,e)) continue;
+      if (e.dead || w.areAllies(e.team,u.team) || !isRadarEmitter(e)||(e.disabledUntil??0)>w.time||!w.isSpottedByTeam(e,u.team) || !airMissionAllowsTarget(u,e)||!canEngage(u,e)) continue;
       const d = Math.hypot(e.x - u.x, e.z - u.z);
       if (d < bestD) { bestD = d; best = e; }
     }
@@ -179,7 +179,7 @@ export function updateAirDoctrine(w: World, u: Entity, dt: number): void {
     let best: Entity | null = null;
     let bestScore = 1e9;
     for (const e of w.entities) {
-      if (e.dead || e.team === u.team || !w.isSpottedByTeam(e,u.team) || !airMissionAllowsTarget(u,e)||e.def.speed > 0||!canEngage(u,e)) continue;
+      if (e.dead || w.areAllies(e.team,u.team) || !w.isSpottedByTeam(e,u.team) || !airMissionAllowsTarget(u,e)||e.def.speed > 0||!canEngage(u,e)) continue;
       const pi = prio.indexOf(e.kind);
       if (pi < 0) continue;
       const d = Math.hypot(e.x - u.x, e.z - u.z);
@@ -202,7 +202,7 @@ export function updateAirDoctrine(w: World, u: Entity, dt: number): void {
       let best: Entity | null = null;
       let bestD = 1e9;
       for (const e of w.entities) {
-        if (e.dead || e.team === u.team || !w.isSpottedByTeam(e,u.team)||!airMissionAllowsTarget(u,e)) continue;
+        if (e.dead || w.areAllies(e.team,u.team) || !w.isSpottedByTeam(e,u.team)||!airMissionAllowsTarget(u,e)) continue;
         if (e.def.armor !== "air" && e.def.category !== "heli" || !canEngage(u,e)) continue;
         const d = Math.hypot(e.x - u.x, e.z - u.z);
         if (d < Math.max(u.aggro, u.def.range + 20) && d < bestD) {
@@ -222,7 +222,7 @@ export function updateAirDoctrine(w: World, u: Entity, dt: number): void {
   if(mission!=="sead"&&u.def.category==="heli"&&threat>mobility.combat.helicopterAvoidThreat){
     let nx=0,nz=0;
     for(const e of w.entities){
-      if(e.dead||e.team===u.team||e.underConstruction||!w.isSpottedByTeam(e,u.team))continue;
+      if(e.dead||w.areAllies(e.team,u.team)||e.underConstruction||!w.isSpottedByTeam(e,u.team))continue;
       const r=aaThreatRadius(e),d=Math.hypot(e.x-u.x,e.z-u.z)||1;
       if(r>0&&d<r){nx+=(u.x-e.x)/d;nz+=(u.z-e.z)/d;}
     }

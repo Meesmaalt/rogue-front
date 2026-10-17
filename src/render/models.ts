@@ -11,7 +11,7 @@ import type { Team, UnitKind } from "../sim/types";
 import type { FactionId } from "../sim/factions";
 import { vehiclePlatform } from "../data/vehicleRoster";
 
-const BODY = [0x6a7348, 0x5a4538], ACC = [0x5ec4f0, 0xf06040], DARK = 0x2a2e32;
+const BODY = [0x6a7348, 0x5a4538,0x596953,0x74634a], ACC = [0x5ec4f0, 0xf06040,0x62dc9b,0xddb45e], DARK = 0x2a2e32;
 const SAND = 0x9a8f70, CONCRETE = 0x7a7a6e, METAL = 0x555850, SKIN = 0xb09070;
 const mat = (c: number, r = 0.75, m = 0.25) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
 

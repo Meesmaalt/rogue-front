@@ -33,3 +33,11 @@ it('compact metric maps use the same bounded incremental visibility budget as la
 it('new intermediate sizes default to a reconstructible generator version',()=>{
  for(const size of [2560,3072,5120]){const m=generateProceduralMap(42,'balanced',size);expect(m.id).toContain('procedural-v11-');expect(getPlayableMap(m.id)).toEqual(m);}
 });
+it('four-player regions reconstruct their four protected and connected starting areas',()=>{
+ for(const region of ['italy','siberia','canyon','desert'] as const){
+  const map=generateFreshMap(43,'balanced',2048,{players:4,region,sea:false,mountains:true,forest:true,river:true});
+  expect(map.map.bases).toHaveLength(4);expect(getPlayableMap(map.id)).toEqual(map);
+  const blocked=structuredClone(map),b=blocked.map.bases[3];blocked.map.features!.push({id:'blocked-fourth-base',kind:'building',x:b.x,z:b.z,width:50,depth:50});
+  expect(validateFreshMap(blocked)).toBe(false);
+ }
+},180000);

@@ -4,7 +4,7 @@ import type { Command, Team } from "../sim/types";
 
 export type NetStatus = "connecting" | "lobby" | "running" | "reconnecting" | "disconnected" | "error";
 export interface NetworkTick { tick: number; commands: Command[]; hash?: string; }
-export interface NetworkMember { faction: FactionId; deck: FactionDeck | null; }
+export interface NetworkMember { faction: FactionId; deck: FactionDeck | null; alliance?:number;bot?:boolean;difficulty?:"easy"|"normal"|"hard"; }
 export interface LockstepCallbacks {
   status?: (status: NetStatus, text: string) => void;
   assigned?: (team: Team, playerCount: number, rules?: { income?: "standard" | "high" | "low"; fog?: "wargame" | "reduced" | "off"; victory?: "hq" | "annihilation" }, members?: NetworkMember[]) => void;
@@ -53,7 +53,7 @@ export class LockstepClient {
     this.ws = ws;
     ws.onopen = () => {
       this.send({ type: "join", room: this.room, missionId: this.missionId, token: this.authToken, reconnectToken: this.token || undefined, lastAppliedTick: this.lastAppliedTick, spectate: this.spectator, spectatorToken: this.spectatorToken || undefined });
-      this.callbacks.status?.("lobby", "Ootan teist mängijat…");
+      this.callbacks.status?.("lobby", "Ootan mängijate ühendusi…");
     };
     ws.onmessage = (e) => { try { this.message(JSON.parse(String(e.data)) as ServerMessage); } catch { this.callbacks.status?.("error", "Vigane serveri sõnum"); this.close(); } };
     ws.onerror = () => this.callbacks.status?.("error", "Multiplayer ühenduse viga");
@@ -71,7 +71,7 @@ export class LockstepClient {
       this.token = m.reconnectToken;
       this.callbacks.assigned?.(m.team, m.playerCount, m.rules, m.members);
     } else if (m.type === "lobby") {
-      this.callbacks.status?.("lobby", `Lobby: ${m.playerCount}/2 mängijat`);
+      this.callbacks.status?.("lobby", `Lobby: ${m.playerCount} mängijat`);
     } else if (m.type === "start") {
       this.currentTick = m.tick;
       this.callbacks.status?.("running", "Mäng algas");
@@ -83,7 +83,7 @@ export class LockstepClient {
       if (this.callbacks.tick) this.callbacks.tick(packet);
       else this.pending.push(packet);
     } else if (m.type === "peer-left") {
-      this.callbacks.status?.("reconnecting", "Teine mängija lahkus — ootan taasühendust…");
+      this.callbacks.status?.("reconnecting", "Mängija lahkus — ootan taasühendust…");
     } else if (m.type === "error") {
       this.callbacks.status?.("error", m.message);
       this.close();

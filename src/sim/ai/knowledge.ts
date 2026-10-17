@@ -7,10 +7,10 @@ export const AI_RULES=rules;
 /** Hidden live entities never update a remembered contact. Map bases are public locations, not live HQ references. */
 export function knownContacts(w:World,team:Team):IntelContact[] {
  const result=new Map(w.getFreshIntel(team,rules.contactAge).map(c=>[c.entityId,{...c}]));
- for(const e of w.entities)if(e.team!==team&&!e.dead&&e.loadedIntoId==null&&w.isSpottedByTeam(e,team))result.set(e.id,{entityId:e.id,team:e.team,kind:e.kind,x:e.x,z:e.z,lastSeen:w.time,shared:false});
+ for(const e of w.entities)if(!w.areAllies(e.team,team)&&!e.dead&&e.loadedIntoId==null&&w.isSpottedByTeam(e,team))result.set(e.id,{entityId:e.id,team:e.team,kind:e.kind,x:e.x,z:e.z,lastSeen:w.time,shared:false});
  return [...result.values()].sort((a,b)=>b.lastSeen-a.lastSeen||a.entityId-b.entityId);
 }
-export function visibleEnemies(w:World,team:Team):Entity[] {return w.entities.filter(e=>!e.dead&&e.team!==team&&e.loadedIntoId==null&&w.isSpottedByTeam(e,team));}
+export function visibleEnemies(w:World,team:Team):Entity[] {return w.entities.filter(e=>!e.dead&&!w.areAllies(e.team,team)&&e.loadedIntoId==null&&w.isSpottedByTeam(e,team));}
 export function fieldCombat(e:Entity):boolean {return !e.dead&&!e.underConstruction&&e.loadedIntoId==null&&e.def.speed>0&&e.def.damage>0&&!['engineer','logiTruck','cargoPlane','transport'].includes(e.kind);}
 export function availableCombat(e:Entity):boolean {return fieldCombat(e)&&!e.refit&&!e.garrisonId&&!e.garrisonOrderId&&!['resupply','retreat','recon'].includes(e.aiIntent??'');}
 export function ammunitionFraction(u:Entity):number {

@@ -22,7 +22,7 @@ export function segmentBodyEntry(ax:number,ay:number,az:number,bx:number,by:numb
 function blocked(w:World,obstacles:readonly Entity[],p:Projectile,x:number,y:number,z:number):boolean {
   if(y<=heightAt(x,z)+.12)return true;
   for(const f of w.terrain.coverFeaturesAt(x,z))if(f.kind!=="water"&&featureBlocksMovement(f)&&pointInFeature(x,z,f)&&y<heightAt(x,z)+(f.kind==="building"&&(w.infrastructureDamage.get(f.id)??0)>=1?GARRISON_RULES.rubbleHeight:f.height??3))return true;
-  for(const e of obstacles)if(!(w.platformRosterOnly&&e.team!==p.team)&&!e.dead&&e.def.speed===0&&e.id!==p.sourceId&&e!==p.target&&Math.hypot(e.x-x,e.z-z)<e.def.radius&&y<e.y+e.def.height)return true;
+  for(const e of obstacles)if(!(w.platformRosterOnly&&!w.areAllies(e.team,p.team))&&!e.dead&&e.def.speed===0&&e.id!==p.sourceId&&e!==p.target&&Math.hypot(e.x-x,e.z-z)<e.def.radius&&y<e.y+e.def.height)return true;
   return false;
 }
 function penetrationMultiplier(p:Projectile,e:Entity):number {
@@ -48,7 +48,7 @@ function impact(w:World,p:Projectile,terrain:boolean):void {
   if(p.warhead==="he")w.terrain.ignite(p.x,p.z,p.y,p.damage,splash);
   if(splash>0){
     w.spatial.queryRadius(p.x,p.z,splash+6,e=>{
-      if(e.dead||e===hit||e.team===p.team||e.loadedIntoId!=null)return;
+      if(e.dead||e===hit||w.areAllies(e.team,p.team)||e.loadedIntoId!=null)return;
       const dy=Math.abs(e.y+e.def.height*.45-p.y),d=Math.hypot(e.x-p.x,e.z-p.z);
       if(d> splash+e.def.radius*.4||dy>Math.max(4,splash))return;
       // High explosions do not magically damage ground troops below aircraft.
@@ -58,7 +58,7 @@ function impact(w:World,p:Projectile,terrain:boolean):void {
   }
   // Near misses suppress without inventing a penetration or HP hit.
   w.spatial.queryRadius(p.x,p.z,Math.max(2,splash+3),e=>{
-    if(e.dead||e===hit||e.team===p.team||e.loadedIntoId!=null||Math.abs(e.y-p.y)>Math.max(4,splash))return;
+    if(e.dead||e===hit||w.areAllies(e.team,p.team)||e.loadedIntoId!=null||Math.abs(e.y-p.y)>Math.max(4,splash))return;
     e.suppression=Math.min(100,(e.suppression??0)+(p.weapon==="bullet"?1.4:4)*(p.suppressionPower??1));
   });
   w.events.push({type:"impact",x:p.x,y:p.y,z:p.z,weapon:p.weapon??"cannon",visual:p.visual,result,size:splash});
@@ -111,7 +111,7 @@ export function updateProjectiles(w:World,dt:number):void {
     if(w.platformRosterOnly){
       const dx=nx-p.px,dy=ny-p.py,dz=nz-p.pz;let first=terrainT,victim:Entity|null=null;
       w.spatial.queryRadius((nx+p.px)/2,(nz+p.pz)/2,Math.hypot(dx,dz)/2+physics.collisionSearchPadding,e=>{
-        if(e.dead||e.team===p.team||e.loadedIntoId!=null||e.id===p.sourceId)return;
+        if(e.dead||w.areAllies(e.team,p.team)||e.loadedIntoId!=null||e.id===p.sourceId)return;
         const t=segmentBodyEntry(p.px!,p.py!,p.pz!,nx,ny,nz,e.x,e.y+e.def.height*.45,e.z,Math.max(.5,e.def.radius),Math.max(2,e.def.height*.6));
         if(t<first){first=t;victim=e;}
       });

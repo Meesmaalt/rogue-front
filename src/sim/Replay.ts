@@ -29,9 +29,9 @@ export function replay(world: World, file: ReplayFile, steps = file.totalTicks):
 
 export function worldHash(world: World): string {
   const q=(n:number|undefined)=>Number((n??0).toFixed(6));
-  const winner=world.status==="running"?null:world.status==="won"?world.playerTeam:1-world.playerTeam;
+  const winner=world.networkMode?world.winningAlliance:world.status==="running"?null:world.status==="won"?world.playerTeam:1-world.playerTeam;
   const snapshot = {
-    time:q(world.time), wallets:[world.teamCredits.map(q),world.teamResources.map(q)], winner, rng:world.getRandomState(),
+    alliances:world.alliances,bots:world.botControllers.map(ai=>ai.snapshot()),time:q(world.time), wallets:[world.teamCredits.map(q),world.teamResources.map(q)], winner, rng:world.getRandomState(),
     networkDecks:world.networkDecks,networkCounts:world.networkProducedCounts,networkGroups:world.networkBattlegroups.map(b=>b?.snapshot()??null),formations:world.teamFormations,losses:world.lossValue,
     techs:world.teamTechs.map(s=>[...s].sort()),priorities:world.logisticsPriority,
     resources:world.resourcePoints, infrastructure:[...world.infrastructureDamage],mapSize:world.mapSize,terrain:world.terrain.snapshot(),smoke:world.smoke.snapshot(),

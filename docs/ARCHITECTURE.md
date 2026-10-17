@@ -835,3 +835,15 @@ Ehituslennu `arriving` faas algab `externalEntry` punktis väljaspool kaarti ja 
 `construction-policy.json` on ühine HQ/harude ehituspuu nii Worldile kui HUD-ile. Mängija ehituskäsk võib sisaldada `sourceId`, mida simulatsioon kontrollib valitud haru ja omandi järgi; automaatsed ehitusmeeskonnad jäävad HQ/FOB poolt korraldatuks. Kasarmu ostetav lahinguinsener on ressursirajatiste hõivaja/käivitaja, mitte automaatse ehituse eeltingimus.
 
 Lao nähtavate platside arv tuleneb tasemest; `availableDepotPads` kontrollib eraldi tegelikku läbitavust/reserveerimist. Vana lao uuendusmeetod invalideerib nüüd navigatsiooni nagu tavaline tasemeuuendus. `DepotPads` animatsioon kallutab vana aia paneele, hajutab need ja kasvatab uue piirde; helikutse on ainult esituses. Kopteri maandumine seob lubatud edasikiiruse allesjäänud kõrguse ja laskumiskiirusega, nii et lähenemine laskub edasi liikudes ning sujuv lõppfaas lõpetab maandumise.
+
+### Nelja osapoole võrgumäng ja liidud (17.10.2026)
+
+`Team` tähistab üksuse omanikku (0–3); `World.alliances` määrab liidud. `matchSetup.ts` kirjeldab osapoolte fraktsiooni, koosseisu ja AI raskust. 1v1 kasutab kahte kohta, 2v2 ja vabavõitlus nelja. Omandikontroll jääb mängijapõhiseks; vaenulikkus ning ühine nähtavus/luure kasutavad liitu. Igal osapoolel on oma peamaja, raha, tootmislimiidid ja tehnoloogiad. Võrgumäng lõpeb viimase elus liidu võiduga.
+
+Server kontrollib tiimide suurust ja täidetud/valmis kohti, külmutab alustamisel osapoolte järjekorra ning paigutab 2v2 liitlased samale kaardipoolele. Hosti AI-kohad ei loo võrgukliente. Igal päris kliendil jooksevad samas järjekorras samad omanikuga `WaveAI` kontrollerid ning operatiiv-/taktikalised käsud; neid ei saadeta uuesti serverisse. Lockstep ootab kõigi inimeste kinnitusi ja võrdleb kõiki räsisid. AI olek, liidud ja kõigi nelja omaniku andmed salvestatakse ja taastatakse.
+
+V18 kaardi valikumaski bitt 512 reserveerib neli baasi enne maastiku, asulate ja objektide loomist. Lennurajad ja maapealne ühendus kontrollitakse kõigil stardialadel. Kaardi ID säilitab mängijate arvu koos piirkonna ja paigutusega. Üksuste mudelid kasutavad nelja omaniku märgistusi; liitlase minikaardi-/üksusemärgis on türkiissinine.
+
+Võrguühendus avatakse `main.ts`-is pärast staatiliste materjalide kompileerimist ja mängutsükli loomist. Nii ei saa varane START shaderite ootamise ajal alustamisakent uuesti lahti jätta; mitmikmäng ei kasuta üksikmängu alustamisakent. AI loeb liitlase hõivatud majanduspunkti kindlustatuks ja väldib selle ümberhõivamist oma koduse majanduse asemel.
+
+Kontrollid: `npm run typecheck`, `npm run build`, `npm run test:server` ning `scripts/dev/check-multiplayer.mjs` (valikuline `PLAYWRIGHT_MODULE`, `CHROMIUM_PATH`, `QA_OUTPUT_DIR`). Brauseri kontroll kasutab üht päris 3D-klienti ja üht sama simulatsiooniga teist inimklienti 2v2 käivituseks; nelja kliendi FFA kontrollib 180 kinnitatud sammu ja identseid lõpuräsisid. Kohaliku Chromiumi puhul antakse ainult testikontekstidele kohaliku võrgu luba.

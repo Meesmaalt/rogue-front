@@ -43,6 +43,10 @@ export class Picker {
     return innerHeight / (2 * d * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)));
   }
 
+  pickEnemy(mx:number,my:number):Entity|null {
+    for(const team of this.world.teams)if(!this.world.areAllies(team,this.world.playerTeam)){const e=this.pickEntity(mx,my,team);if(e)return e;}return null;
+  }
+
   pickEntity(mx: number, my: number, team: Team): Entity | null {
     for(let i=this.markers.length-1;i>=0;i--){
       const r=this.markers[i];

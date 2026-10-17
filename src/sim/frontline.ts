@@ -8,17 +8,17 @@ export interface FrontlineSector {
   center: Point;
   width: number;
   control: number;
-  pressure: [number, number];
-  posture: [FrontlinePosture, FrontlinePosture];
-  friendlyStrength: [number, number];
-  enemyStrength: [number, number];
-  supply: [number, number];
+  pressure: number[];
+  posture: FrontlinePosture[];
+  friendlyStrength: number[];
+  enemyStrength: number[];
+  supply: number[];
 }
 
 /** Phase 86: dynamic frontline derived from the operational map. */
 export class FrontlineController {
   readonly sectors: FrontlineSector[];
-  readonly deploymentPoints: [Point[], Point[]] = [[], []];
+  readonly deploymentPoints: Point[][] = [[], []];
 
   constructor(private readonly world: World) {
     const a = world.bases[0], b = world.bases[1];
@@ -31,20 +31,19 @@ export class FrontlineController {
         center: { x: a.x + dx * t, z: a.z + dz * t },
         width: 42,
         control: 0,
-        pressure: [0, 0] as [number, number],
-        posture: ["hold", "hold"] as [FrontlinePosture, FrontlinePosture],
-        friendlyStrength: [0, 0] as [number, number],
-        enemyStrength: [0, 0] as [number, number],
-        supply: [0, 0] as [number, number],
+        pressure: [0, 0] as number[],
+        posture: ["hold", "hold"] as FrontlinePosture[],
+        friendlyStrength: [0, 0] as number[],
+        enemyStrength: [0, 0] as number[],
+        supply: [0, 0] as number[],
       };
     });
-    for (const team of [0, 1] as const) {
-      const base = world.bases[team];
-      const enemy = world.bases[team === 0 ? 1 : 0];
-      const vx = enemy.x - base.x, vz = enemy.z - base.z;
-      const l = Math.hypot(vx, vz) || 1;
-      const gate = { x: base.x + vx / l * Math.min(60, base.r), z: base.z + vz / l * Math.min(60, base.r) };
-      this.deploymentPoints[team].push(gate);
+    this.configure();
+  }
+  configure():void {
+    for(const team of this.world.teams){
+      const base=this.world.bases[team],enemy=this.world.bases[this.world.enemyTeam(team)],vx=enemy.x-base.x,vz=enemy.z-base.z,l=Math.hypot(vx,vz)||1;
+      this.deploymentPoints[team]=[{x:base.x+vx/l*Math.min(60,base.r),z:base.z+vz/l*Math.min(60,base.r)}];
     }
   }
 
@@ -68,7 +67,7 @@ export class FrontlineController {
   }
 
   private measure(s: FrontlineSector): void {
-    const own: [number, number] = [0, 0], strength: [number, number] = [0, 0];
+    const own: number[] = this.world.teams.map(()=>0), strength: number[] = this.world.teams.map(()=>0);
     for (const e of this.world.entities) {
       if (e.dead || e.loadedIntoId != null) continue;
       const d = Math.hypot(e.x - s.center.x, e.z - s.center.z);
@@ -80,17 +79,16 @@ export class FrontlineController {
     }
     s.friendlyStrength = own;
     s.enemyStrength = strength;
-    s.pressure = [strength[0] / Math.max(1, strength[1]), strength[1] / Math.max(1, strength[0])];
-    const depot = ([0, 1] as const).map(t => this.world.nearestSupplyDepot(t, s.center, true));
+    s.pressure=this.world.teams.map(t=>strength.filter((_,i)=>this.world.areAllies(i as Team,t)).reduce((a,b)=>a+b,0)/Math.max(1,strength.filter((_,i)=>!this.world.areAllies(i as Team,t)).reduce((a,b)=>a+b,0)));
+    const depot = this.world.teams.map(t => this.world.nearestSupplyDepot(t, s.center, true));
     s.supply = [0, 0];
-    for (const t of [0, 1] as const) if (depot[t]) s.supply[t] = Math.max(0, 1 - Math.hypot(depot[t]!.x-s.center.x, depot[t]!.z-s.center.z) / 220);
+    for (const t of this.world.teams) if (depot[t]) s.supply[t] = Math.max(0, 1 - Math.hypot(depot[t]!.x-s.center.x, depot[t]!.z-s.center.z) / 220);
     s.control = Math.max(-1, Math.min(1, (strength[0] - strength[1]) / Math.max(1, strength[0] + strength[1])));
   }
 
   private updatePostures(): void {
-    for (const s of this.sectors) for (const team of [0, 1] as const) {
-      const enemy = team === 0 ? 1 : 0;
-      const ratio = s.enemyStrength[team] / Math.max(1, s.enemyStrength[enemy]);
+    for (const s of this.sectors) for (const team of this.world.teams) {
+      const ratio=s.pressure[team];
       const supply = s.supply[team];
       if (ratio > 1.45 && supply > 0.35) s.posture[team] = "advance";
       else if (ratio < 0.72 || supply < 0.12) s.posture[team] = "fallback";

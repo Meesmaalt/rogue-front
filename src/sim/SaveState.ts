@@ -13,22 +13,22 @@ export interface WorldSave {
   projectiles?: Array<Omit<Projectile,"target"> & {targetId:number|null}>;
   pending?: Command[];
   events?: SimEvent[];
-  hqIds?: [number|null,number|null];
+  hqIds?: (number|null)[];
   time: number;
   credits: number;
   resources: number;
-  teamCredits?: [number, number];
-  teamResources?: [number, number];
-  teamPower?: [number, number];
-  teamPowerUse?: [number, number];
-  teamMorale?: [number, number];
-  areaControl?: [number, number];
-  supplyUpgrade?: [number, number];
-  airCargoPool?: [number, number];
-  airCargoDelivered?: [number, number];
-  airCargoLost?: [number, number];
-  roadCargoDelivered?: [number, number];
-  roadCargoLost?: [number, number];
+  teamCredits?: number[];
+  teamResources?: number[];
+  teamPower?: number[];
+  teamPowerUse?: number[];
+  teamMorale?: number[];
+  areaControl?: number[];
+  supplyUpgrade?: number[];
+  airCargoPool?: number[];
+  airCargoDelivered?: number[];
+  airCargoLost?: number[];
+  roadCargoDelivered?: number[];
+  roadCargoLost?: number[];
   infrastructureDamage?: Array<[string, number]>;
   status: GameStatus;
   nextId: number;
@@ -36,12 +36,12 @@ export interface WorldSave {
   queue: UnitKind[];
   queueProgress: number;
   techs: string[];
-  teamTechs?: [string[], string[]];
-  resourcePoints: Array<{ x: number; z: number; amount: number; radius: number; controlledBy?: 0|1|null; controlProgress?: number; facility?: import("./types").ResourceFacilityKind; level?: number; active?: boolean; startupProgress?: number; maxStock?: number; productionRate?: number; disabledUntil?: number }>;
-  intel?: [Array<import("./types").IntelContact>, Array<import("./types").IntelContact>];
+  teamTechs?: string[][];
+  resourcePoints: Array<{ x: number; z: number; amount: number; radius: number; controlledBy?: import("./types").Team|null; controlProgress?: number; facility?: import("./types").ResourceFacilityKind; level?: number; active?: boolean; startupProgress?: number; maxStock?: number; productionRate?: number; disabledUntil?: number }>;
+  intel?: Array<import("./types").IntelContact>[];
   battlegroup?: ReturnType<import("./battlegroup").BattleGroupController["snapshot"]>;
   entities: Array<{
-    id: number; kind: UnitKind; team: 0 | 1; x: number; y: number; z: number;
+    id: number; kind: UnitKind; team: import("./types").Team; x: number; y: number; z: number;
     heading: number; turretYaw: number; px: number; pz: number; pHeading: number; pTurretYaw: number;
     hp: number; cooldown: number; supply?: number; maxSupply?: number; role?: Entity["role"]; mode: Mode; dest: Point | null; targetId: number | null;
     aggro: number; dead: boolean; xp: number; veteran: number; holdPosition: boolean;
@@ -60,12 +60,12 @@ export function saveWorld(world: World): WorldSave {
     }),
     projectiles: world.projectiles.map(p=>{const {target,...rest}=p;return {...rest,targetId:target?.id??null};}),
     pending: structuredClone(world.pending), events: structuredClone(world.events),
-    hqIds: [world.hq[0]?.id??null,world.hq[1]?.id??null],
+    hqIds: world.hq.map(h=>h?.id??null),
     time: world.time, credits: world.credits, resources: world.resources, teamCredits: [...world.teamCredits] as [number,number], teamResources: [...world.teamResources] as [number,number], teamPower: [...world.teamPower] as [number,number], teamPowerUse: [...world.teamPowerUse] as [number,number], teamMorale: [...world.teamMorale] as [number,number], areaControl: [...world.areaControl] as [number,number], supplyUpgrade: [...world.supplyUpgrade] as [number,number], airCargoPool: [...world.airCargoPool] as [number,number], airCargoDelivered: [...world.airCargoDelivered] as [number,number], airCargoLost: [...world.airCargoLost] as [number,number], roadCargoDelivered: [...world.roadCargoDelivered] as [number,number], roadCargoLost: [...world.roadCargoLost] as [number,number], infrastructureDamage: [...world.infrastructureDamage.entries()],
     status: world.status, nextId: world.nextId, rngState: world.getRandomState(),
-    queue: [...world.queue], queueProgress: world.queueProgress, techs: [...world.techs], teamTechs: [ [...world.teamTechs[0]], [...world.teamTechs[1]] ],
+    queue: [...world.queue], queueProgress: world.queueProgress, techs: [...world.techs], teamTechs:world.teamTechs.map(t=>[...t]),
     resourcePoints: world.resourcePoints.map((r) => ({ ...r })),
-    intel: [world.getIntel(0, false), world.getIntel(1, false)],
+    intel:world.teams.map(t=>world.getIntel(t,false)),
     battlegroup: world.activeBattlegroup?.snapshot(),
     entities: world.entities.map((e) => ({
       id: e.id, kind: e.kind, team: e.team, x: e.x, y: e.y, z: e.z, heading: e.heading,
@@ -89,7 +89,7 @@ export function loadWorld(world:World,state:WorldSave):void {
   if(!state||typeof state!=="object"||!Number.isInteger(state.version)||state.version<1||state.version>20)throw new Error("Tundmatu või vigane salvestuse versioon");
   if(state.version===20&&((state.mapSignature!==saveMapSignature(world)&&state.mapSignature!==saveMapSignature(world,false))||state.ruleset!==SAVE_RULESET))throw new Error("Salvestus kuulub teisele kaardiversioonile või mängureeglitele");
   if(![state.time,state.credits,state.resources,state.rngState].every(Number.isFinite)||!["running","won","lost"].includes(state.status)||state.time<0||!Number.isFinite(state.rngState)||!Number.isInteger(state.nextId)||!Array.isArray(state.entities)||!Array.isArray(state.resourcePoints))throw new Error("Salvestuse põhiandmed on vigased");
-  for(const key of ["teamCredits","teamResources","teamPower","teamPowerUse","teamMorale","areaControl"] as const)if(state[key]&&(!Array.isArray(state[key])||state[key]!.length!==2||!state[key]!.every(Number.isFinite)))throw new Error("Salvestuse majandusandmed on vigased");
+  for(const key of ["teamCredits","teamResources","teamPower","teamPowerUse","teamMorale","areaControl"] as const)if(state[key]&&(!Array.isArray(state[key])||![2,4].includes(state[key]!.length)||!state[key]!.every(Number.isFinite)))throw new Error("Salvestuse majandusandmed on vigased");
   if(state.runtime?.mapSize!=null&&state.runtime.mapSize!==world.mapSize)throw new Error("Salvestuse kaardi suurus ei vasta avatud kaardile");
   if(state.version>=19){
     if(!state.runtime||!Array.isArray(state.fullEntities))throw new Error("Salvestuse simulatsiooniseisund puudub");
@@ -111,7 +111,8 @@ function restoreWorld(world: World, state: WorldSave): void {
     for (const saved of state.fullEntities) {
       const e=world.byId.get(saved.id)!; e.target=saved.targetId==null?null:world.byId.get(saved.targetId)??null;
     }
-    world.hq[0]=world.byId.get(state.hqIds?.[0]??-1)??null; world.hq[1]=world.byId.get(state.hqIds?.[1]??-1)??null;
+    if(state.runtime?.participants?.length)world.configureParticipants(state.runtime.participants);
+    (state.hqIds??[null,null]).forEach((id,t)=>world.hq[t]=world.byId.get(id??-1)??null);
     world.time=state.time; world.status=state.status; world.nextId=state.nextId; world.setRandomState(state.rngState);
     world.teamCredits=[...(state.teamCredits??[state.credits,state.credits])]; world.teamResources=[...(state.teamResources??[state.resources,state.resources])];
     for (const key of ["teamPower","teamPowerUse","teamMorale","areaControl","supplyUpgrade","airCargoPool","airCargoDelivered","airCargoLost","roadCargoDelivered","roadCargoLost"] as const) {
@@ -120,7 +121,7 @@ function restoreWorld(world: World, state: WorldSave): void {
     world.credits=state.credits;world.resources=state.resources;world.queue=[...state.queue];world.queueProgress=state.queueProgress;
     world.resourcePoints.splice(0,world.resourcePoints.length,...structuredClone(state.resourcePoints));
     world.infrastructureDamage.clear();state.infrastructureDamage?.forEach(([id,value])=>world.infrastructureDamage.set(id,value));
-    for(const team of [0,1] as const) {world.intel[team].clear();state.intel?.[team].forEach(c=>world.intel[team].set(c.entityId,{...c}));world.teamTechs[team].clear();state.teamTechs?.[team].forEach(t=>world.teamTechs[team].add(t));}
+    for(const team of world.teams) {world.intel[team].clear();state.intel?.[team].forEach(c=>world.intel[team].set(c.entityId,{...c}));world.teamTechs[team].clear();state.teamTechs?.[team].forEach(t=>world.teamTechs[team].add(t));}
     world.restoreRuntime(state.runtime);
     for(const e of world.entities)if(e.def.transportCapacity==null){const capacity=world.unitDefinition(e.kind,e.team).transportCapacity;if(capacity!=null)e.def.transportCapacity=capacity;}
     if(state.battlegroup)world.activeBattlegroup?.restore(state.battlegroup);

@@ -1,3 +1,4 @@
+import {participantTeams,type MatchParticipant} from './matchSetup';
 import {clearPickupQueue} from "./unitTasks";
 import productionPolicy from '../data/production-policy.json';
 import {dispatchResourceConvoys} from './resourceConvoys';
@@ -60,7 +61,7 @@ export class World {
   readonly rng: () => number;
   readonly rngState: Rng;
   readonly ai = new WaveAI();
-  readonly intel: [Map<number, IntelContact>, Map<number, IntelContact>] = [new Map(), new Map()];
+  readonly intel: Map<number, IntelContact>[] = [new Map(), new Map()];
   nav: NavGrid;
   waterNav:WaterNavGrid;
   vision: Vision;
@@ -72,9 +73,9 @@ export class World {
   playerFaction: FactionId = "usa";
   enemyFaction: FactionId = "russia";
   /** Optional Wargame deck limits production counts. */
-  networkDecks: [import("./deck").FactionDeck | null, import("./deck").FactionDeck | null] = [null, null];
-  networkBattlegroups: [BattleGroupController | null, BattleGroupController | null] = [null, null];
-  networkProducedCounts: [Partial<Record<UnitKind, number>>, Partial<Record<UnitKind, number>>] = [{}, {}];
+  networkDecks: (import("./deck").FactionDeck | null)[] = [null, null];
+  networkBattlegroups: (BattleGroupController | null)[] = [null, null];
+  networkProducedCounts: Partial<Record<UnitKind, number>>[] = [{}, {}];
   activeDeck: import("./deck").FactionDeck | null = null;
   activeBattlegroup: BattleGroupController | null = null;
   /** Phase 83-85: operational sectors, commander and forward staging. */
@@ -89,38 +90,38 @@ export class World {
   compactBattle = false;
   matchController: import("./gameModes").MatchModeController | null = null;
   missionController: import("./Mission").MissionController | null = null;
-  teamFormations: ["box"|"line"|"wedge"|"column", "box"|"line"|"wedge"|"column"] = ["box","box"];
-  lossValue: [number,number] = [0,0];
+  teamFormations: ("box"|"line"|"wedge"|"column")[] = ["box","box"];
+  lossValue: number[] = [0,0];
   producedCounts: Partial<Record<import("./types").UnitKind, number>> = {};
   private navDirty = false;
   events: SimEvent[] = [];
   pending: Command[] = [];
   credits = STARTING_CREDITS;
   resources = STARTING_RESOURCES;
-  teamCredits: [number, number] = [STARTING_CREDITS, STARTING_CREDITS];
-  teamResources: [number, number] = [STARTING_RESOURCES, STARTING_RESOURCES];
-  teamPower: [number, number] = [100, 100];
-  teamPowerUse: [number, number] = [0, 0];
-  teamMorale: [number, number] = [100, 100];
-  areaControl: [number, number] = [0, 0];
-  supplyUpgrade: [number, number] = [0, 0];
+  teamCredits: number[] = [STARTING_CREDITS, STARTING_CREDITS];
+  teamResources: number[] = [STARTING_RESOURCES, STARTING_RESOURCES];
+  teamPower: number[] = [100, 100];
+  teamPowerUse: number[] = [0, 0];
+  teamMorale: number[] = [100, 100];
+  areaControl: number[] = [0, 0];
+  supplyUpgrade: number[] = [0, 0];
   /** Phase 60: strategic resources waiting at the national airlift network. */
-  airCargoPool: [number, number] = [0, 0];
-  airCargoDelivered: [number, number] = [0, 0];
-  airCargoLost: [number, number] = [0, 0];
-  private airCargoLastSpawn: [number, number] = [-999, -999];
+  airCargoPool: number[] = [0, 0];
+  airCargoDelivered: number[] = [0, 0];
+  airCargoLost: number[] = [0, 0];
+  private airCargoLastSpawn: number[] = [-999, -999];
   /** Phase 62: physical road logistics counters. */
-  roadCargoDelivered: [number, number] = [0, 0];
-  roadCargoLost: [number, number] = [0, 0];
-  private roadTruckLastSpawn: [number, number] = [-999, -999];
+  roadCargoDelivered: number[] = [0, 0];
+  roadCargoLost: number[] = [0, 0];
+  private roadTruckLastSpawn: number[] = [-999, -999];
   /** Phase 64: infrastructure integrity and operational logistics network. */
   readonly infrastructureDamage = new Map<string, number>();
-  readonly logisticsPriority: ["ammo" | "fuel" | "repair" | "balanced", "ammo" | "fuel" | "repair" | "balanced"] = ["balanced", "balanced"];
+  readonly logisticsPriority: ("ammo" | "fuel" | "repair" | "balanced")[] = ["balanced", "balanced"];
   /** Phase 65: command network / FOB state. */
-  readonly commandNetworkLevel: [number, number] = [1, 1];
+  readonly commandNetworkLevel: number[] = [1, 1];
   readonly bases: readonly BaseDef[];
   readonly resourcePoints: MapResourceDef[];
-  readonly teamTechs: [Set<string>, Set<string>] = [new Set(["engineering"]), new Set(["engineering"])];
+  readonly teamTechs: Set<string>[] = [new Set(["engineering"]), new Set(["engineering"])];
   get techs(): Set<string> { return this.teamTechs[this.playerTeam]; }
   hasTech(team: Team, tech: string): boolean {
     if (this.teamTechs[team].has(tech)) return true;
@@ -131,7 +132,7 @@ export class World {
     return false;
   }
   private powerCacheTime = -1;
-  private powerCache: [{ supply: number; use: number; ratio: number }, { supply: number; use: number; ratio: number }] | null = null;
+  private powerCache: { supply: number; use: number; ratio: number }[] | null = null;
 
   powerStatus(team: Team): { supply: number; use: number; ratio: number } {
     // Cache for the duration of the current sim tick
@@ -154,7 +155,7 @@ export class World {
       this.teamPower[t] = supply; this.teamPowerUse[t] = use;
       return { supply, use, ratio };
     };
-    this.powerCache = [compute(0), compute(1)];
+    this.powerCache = this.teams.map(compute);
     this.powerCacheTime = this.time;
     return this.powerCache[team];
   }
@@ -305,19 +306,19 @@ export class World {
     this.frontline = new FrontlineController(this);
   }
 
-  unitDefinition(kind:UnitKind,team:Team=this.playerTeam){const base=factionUnitDefinition(kind,team===this.playerTeam?this.playerFaction:this.enemyFaction);return this.metricBattle?metricUnitDefinition(base,kind,this.compactBattle):base;}
+  unitDefinition(kind:UnitKind,team:Team=this.playerTeam){const base=factionUnitDefinition(kind,this.factionForTeam(team));return this.metricBattle?metricUnitDefinition(base,kind,this.compactBattle):base;}
 
   spawn(kind: UnitKind, team: Team, x: number, z: number): Entity {
     const resolved=this.unitDefinition(kind,team);
     const def={...resolved,weapons:resolved.weapons?.map(w=>({...w}))};
-    const y = def.domain==="sea"?this.waterNav.surfaceAt(x,z)+.15:heightAt(x, z), heading = team ? -Math.PI / 4 : Math.PI * 0.75;
+    const y = def.domain==="sea"?this.waterNav.surfaceAt(x,z)+.15:heightAt(x, z), heading = this.teams.length===4?Math.atan2(-this.bases[team].x,-this.bases[team].z):team ? -Math.PI / 4 : Math.PI * 0.75;
     const e: Entity = {
       id: this.nextId++, kind, team, def, x, y, z, heading, turretYaw: 0,
       px: x, pz: z, pHeading: heading, pTurretYaw: 0,
       weaponCooldowns:def.weapons?.map(()=>0),secondaryAmmo:def.weapons?.map((w,i)=>i?w.ammoCapacity:0),activeWeapon:0,
       hp: def.hp, cooldown: this.rng() * 0.5, mode: "idle", dest: null, target: null,
       aggro: team === 1 && def.speed > 0 ? ENEMY_AGGRO : def.range, dead: false,
-      xp: 0, veteran: 0, spottedUntil: [0, 0], suppression: 0, supply: 100, maxSupply: 100, role: (["artillery","mortar"].includes(kind)) ? "siege" : ["aa","manpad","spaa"].includes(kind) ? "support" : kind === "fighter" ? "air-superiority" : kind === "gunship" ? "air-ground" : kind === "transport" || kind === "cargoPlane" ? "logistics" : "line", fuel: def.fuelCapacity ?? 0, maxFuel: def.fuelCapacity ?? 0, ammo: def.ammoCapacity ?? 0, maxAmmo: def.ammoCapacity ?? 0, fireMission: null, holdPosition: false, patrolPoints: [], patrolIndex: 0, upgrades: new Set<string>(), cargo: 0, logisticsTarget: null, logisticsHome: null, logisticsPhase: "idle", productionQueue: [], productionProgress: 0, rallyPoint: null, constructionProgress: 1, constructionTime: 0, upgrading: false, upgradeProgress: 0, upgradeTime: 0, upgradeKind: undefined, logisticsRoute: kind === "logiTruck" ? "road" : kind === "transport" ? "air" : kind === "cargoPlane" ? "strategic" : undefined, logisticsCargoCapacity: kind === "logiTruck" ? ROAD_TRUCK_CARGO : undefined, logisticsDistance: 0, logisticsStorage: 0, logisticsMaxStorage: 0, firingArc: (kind === "bunker" ? Math.PI * 0.62 : kind === "aa" ? Math.PI * 0.9 : kind === "artillery" ? Math.PI * 0.98 : Math.PI * 2), firingRange: def.range, facingLocked: kind === "bunker" || kind === "aa", lastCombatTime: 0, morale: 100, disabledUntil: 0, builderIds: [], underConstruction: false, cargoUnitIds: [], loadedIntoId: null, transportTargetId: null, unloadPoint: null,
+      xp: 0, veteran: 0, spottedUntil: this.teams.map(()=>0), suppression: 0, supply: 100, maxSupply: 100, role: (["artillery","mortar"].includes(kind)) ? "siege" : ["aa","manpad","spaa"].includes(kind) ? "support" : kind === "fighter" ? "air-superiority" : kind === "gunship" ? "air-ground" : kind === "transport" || kind === "cargoPlane" ? "logistics" : "line", fuel: def.fuelCapacity ?? 0, maxFuel: def.fuelCapacity ?? 0, ammo: def.ammoCapacity ?? 0, maxAmmo: def.ammoCapacity ?? 0, fireMission: null, holdPosition: false, patrolPoints: [], patrolIndex: 0, upgrades: new Set<string>(), cargo: 0, logisticsTarget: null, logisticsHome: null, logisticsPhase: "idle", productionQueue: [], productionProgress: 0, rallyPoint: null, constructionProgress: 1, constructionTime: 0, upgrading: false, upgradeProgress: 0, upgradeTime: 0, upgradeKind: undefined, logisticsRoute: kind === "logiTruck" ? "road" : kind === "transport" ? "air" : kind === "cargoPlane" ? "strategic" : undefined, logisticsCargoCapacity: kind === "logiTruck" ? ROAD_TRUCK_CARGO : undefined, logisticsDistance: 0, logisticsStorage: 0, logisticsMaxStorage: 0, firingArc: (kind === "bunker" ? Math.PI * 0.62 : kind === "aa" ? Math.PI * 0.9 : kind === "artillery" ? Math.PI * 0.98 : Math.PI * 2), firingRange: def.range, facingLocked: kind === "bunker" || kind === "aa", lastCombatTime: 0, morale: 100, disabledUntil: 0, builderIds: [], underConstruction: false, cargoUnitIds: [], loadedIntoId: null, transportTargetId: null, unloadPoint: null,
       navPath: [], navPathIndex: 0, flowField: null, stuckTime: 0, stuckX: x, stuckZ: z,
     };
     const squadDefs: Record<string, { max: number; role: NonNullable<Entity["squadRole"]> }> = {
@@ -341,13 +342,18 @@ export class World {
   }
 
   private updateResourceControl(dt: number): void {
-    let scores: [number, number] = [0, 0];
+    const scores: number[] = this.teams.map(()=>0);
     for (const rp of this.resourcePoints) {
-      const nearby = ([0, 1] as const).map(team => this.entities.filter(e => !e.dead && !e.constructionCrew && !e.constructionFlight && e.team === team && e.def.speed > 0 && e.def.armor !== "air" && e.def.domain !== "sea" && !["logiTruck","cargoPlane","transport"].includes(e.kind) && e.loadedIntoId === null && Math.hypot(e.x-rp.x,e.z-rp.z) <= rp.radius + 10));
+      const nearby = this.teams.map(team => this.entities.filter(e => !e.dead && !e.constructionCrew && !e.constructionFlight && e.team === team && e.def.speed > 0 && e.def.armor !== "air" && e.def.domain !== "sea" && !["logiTruck","cargoPlane","transport"].includes(e.kind) && e.loadedIntoId === null && Math.hypot(e.x-rp.x,e.z-rp.z) <= rp.radius + 10));
       const a = nearby[0].length, b = nearby[1].length,previousOwner=rp.controlledBy;
-      if (a > 0 && b === 0) { rp.controlProgress = Math.min(1, (rp.controlProgress ?? 0.5) + dt * 0.22 * Math.min(2, a)); if (rp.controlProgress >= 1) rp.controlledBy = 0; }
-      else if (b > 0 && a === 0) { rp.controlProgress = Math.max(0, (rp.controlProgress ?? 0.5) - dt * 0.22 * Math.min(2, b)); if (rp.controlProgress <= 0) rp.controlledBy = 1; }
-      else if (a > 0 && b > 0) rp.controlProgress = Math.max(0, Math.min(1, rp.controlProgress ?? (rp.controlledBy === 0 ? 1 : 0)));
+      const present=this.teams.filter(t=>nearby[t].length>0),contested=present.some(t=>!this.areAllies(t,present[0]));
+      if(this.teams.length===2){
+        if(a>0&&b===0){rp.controlProgress=Math.min(1,(rp.controlProgress??.5)+dt*.22*Math.min(2,a));if(rp.controlProgress>=1)rp.controlledBy=0;}
+        else if(b>0&&a===0){rp.controlProgress=Math.max(0,(rp.controlProgress??.5)-dt*.22*Math.min(2,b));if(rp.controlProgress<=0)rp.controlledBy=1;}
+      }else if(present.length&&!contested){
+        const capturing=rp.controlledBy!=null&&present.some(t=>this.areAllies(t,rp.controlledBy!))?rp.controlledBy:present.slice().sort((a,b)=>nearby[b].length-nearby[a].length||a-b)[0];
+        if(rp.controlledBy!==capturing){rp.controlProgress=(rp.controlProgress??0)+dt*.22*Math.min(2,nearby[capturing].length);if(rp.controlProgress>=1){rp.controlledBy=capturing;rp.controlProgress=0;}}
+      }
       if(previousOwner!==rp.controlledBy){rp.active=false;rp.startupProgress=0;rp.productionRate=0;}
       if (rp.controlledBy !== undefined && rp.controlledBy !== null) { scores[rp.controlledBy] += 1; }
       // A captured industrial point has to be restarted before it produces anything.
@@ -355,8 +361,8 @@ export class World {
         const owner = rp.controlledBy;
         const startupCrew = nearby[owner].some(e => e.kind === "engineer");
         if (!rp.active && startupCrew) { rp.startupProgress = (rp.startupProgress ?? 0) + dt; if ((rp.startupProgress ?? 0) >= RESOURCE_FACILITY_STARTUP) rp.active = true; }
-        if (a>0&&b>0)rp.productionRate=0;
-        if (rp.active && !(a>0&&b>0) && (rp.amount ?? 0) < (rp.maxStock ?? RESOURCE_FACILITY_MAX_STOCK)) {
+        if (contested)rp.productionRate=0;
+        if (rp.active && !(contested) && (rp.amount ?? 0) < (rp.maxStock ?? RESOURCE_FACILITY_MAX_STOCK)) {
           const kind = rp.facility ?? "mine";
           const base = RESOURCE_FACILITY_PRODUCTION[kind];
           const refineryLevel=this.entities.filter(e=>!e.dead&&!e.underConstruction&&e.kind==="refinery"&&e.team===owner&&(e.disabledUntil??0)<=this.time&&Math.hypot(e.x-rp.x,e.z-rp.z)<=rp.radius+e.def.radius+5&&this.productionOperational(e).operational)
@@ -366,10 +372,10 @@ export class World {
         } else rp.productionRate=0;
       }
       if (rp.controlledBy == null || (rp.disabledUntil ?? 0) > this.time) { rp.active = false; rp.startupProgress = 0; rp.productionRate = 0; }
-      if (a > 0 && b > 0) { this.teamMorale[0] = Math.max(0, this.teamMorale[0] - 0.02 * dt); this.teamMorale[1] = Math.max(0, this.teamMorale[1] - 0.02 * dt); }
+      if(contested)for(const team of present)this.teamMorale[team]=Math.max(0,this.teamMorale[team]-.02*dt);
     }
     this.areaControl = scores;
-    for (const team of [0,1] as const) this.teamMorale[team] = Math.min(100, this.teamMorale[team] + dt * (scores[team] * 0.035));
+    for (const team of this.teams) this.teamMorale[team] = Math.min(100, this.teamMorale[team] + dt * (scores[team] * 0.035));
     this.credits = this.teamCredits[this.playerTeam];
   }
 
@@ -381,15 +387,15 @@ export class World {
   }
 
   getIntel(team: Team, sharedOnly = true): IntelContact[] {
-    return [...this.intel[team].values()].filter(c => !sharedOnly || c.shared).map(c => ({ ...c }));
+    return this.teams.filter(t=>this.areAllies(t,team)).flatMap(t=>[...this.intel[t].values()]).filter(c => !sharedOnly || c.shared).map(c => ({ ...c }));
   }
 
   getFreshIntel(team: Team, maxAge = 25): IntelContact[] {
     return this.getIntel(team, true).filter(c => this.time - c.lastSeen <= maxAge);
   }
 
-  isSpottedByTeam(entity: { spottedUntil: [number, number] }, team: Team): boolean {
-    return (entity.spottedUntil[team] ?? 0) > this.time;
+  isSpottedByTeam(entity: { spottedUntil: number[] }, team: Team): boolean {
+    return this.teams.some(t=>this.areAllies(t,team)&&(entity.spottedUntil[t]??0)>this.time);
   }
 
   nearestSupplyDepot(team: Team, p: {x:number;z:number}, connectedOnly = false, productionStock = false): Entity | null {
@@ -547,7 +553,7 @@ export class World {
 
   baseGate(team: Team): { x: number; z: number } {
     const base = this.bases[team];
-    const enemy = this.bases[team === 0 ? 1 : 0];
+    const enemy = this.bases[this.enemyTeam(team)];
     const dx = enemy.x - base.x, dz = enemy.z - base.z;
     const len = Math.hypot(dx, dz) || 1;
     const distance = Math.max(20, Math.min(28, base.r * 0.82));
@@ -585,7 +591,7 @@ export class World {
   }
 
   unitDisplayName(kind: UnitKind, team?: Team): string {
-    const faction = (team ?? this.playerTeam) === this.playerTeam ? this.playerFaction : this.enemyFaction;
+    const faction = this.factionForTeam(team??this.playerTeam);
     return factionUnitName(faction, kind, UNITS[kind].name);
   }
 
@@ -604,6 +610,30 @@ export class World {
   getRandomState(): number { return this.rngState.getState(); }
 
   setRandomState(state: number): void { this.rngState.setState(state); }
+
+  teams:Team[]=[0,1];
+  participants:MatchParticipant[]=[];
+  alliances:number[]=[0,1];
+  botControllers:WaveAI[]=[];
+  issuingAI=false;
+  winningAlliance:number|null=null;
+  areAllies(a:Team,b:Team):boolean{return this.alliances[a]===this.alliances[b];}
+  enemyTeam(team:Team):Team{return this.teams.filter(t=>!this.areAllies(t,team)).sort((a,b)=>Number(!!this.hq[a]?.dead)-Number(!!this.hq[b]?.dead)||Math.hypot(this.bases[a].x-this.bases[team].x,this.bases[a].z-this.bases[team].z)-Math.hypot(this.bases[b].x-this.bases[team].x,this.bases[b].z-this.bases[team].z))[0]??team;}
+  factionForTeam(team:Team):FactionId{return this.participants[team]?.faction??(team===this.playerTeam?this.playerFaction:this.enemyFaction);}
+  configureParticipants(participants:MatchParticipant[]):void {
+    this.teams=participantTeams(participants.length);
+    if(this.bases.length<participants.length)throw new Error('Kaardil pole piisavalt stardialasid');
+    this.participants=structuredClone(participants);this.alliances=participants.map(p=>p.alliance);
+    for(const key of ['teamCredits','teamResources','teamPower','teamPowerUse','teamMorale','areaControl','supplyUpgrade','airCargoPool','airCargoDelivered','airCargoLost','airCargoLastSpawn','roadCargoDelivered','roadCargoLost','roadTruckLastSpawn','commandNetworkLevel','lossValue'] as const){
+      const initial=key==='teamCredits'?STARTING_CREDITS:key==='teamResources'?STARTING_RESOURCES:key==='teamPower'||key==='teamMorale'?100:key==='commandNetworkLevel'?1:key.endsWith('LastSpawn')?-999:0;
+      while(this[key].length<participants.length)this[key].push(initial);
+    }
+    for(const team of this.teams){this.hq[team]??=null;this.intel[team]??=new Map();this.teamTechs[team]??=new Set(['engineering']);this.networkProducedCounts[team]??={};this.teamFormations[team]??='box';this.logisticsPriority[team]??='balanced';}
+    this.setNetworkDecks(participants.map(p=>p.deck));this.vision.configure(this.alliances);
+    this.operationalCommander.configure();this.frontline.configure();
+    this.botControllers=this.teams.filter(t=>participants[t].bot).map(t=>{const ai=new WaveAI(t);ai.setProfile('aggressive',participants[t].difficulty??'normal');return ai;});
+    this.credits=this.teamCredits[this.playerTeam];this.resources=this.teamResources[this.playerTeam];this.powerCache=null;
+  }
 
   setNetworkMode(team: Team): void { if(team!==this.playerTeam)[this.playerFaction,this.enemyFaction]=[this.enemyFaction,this.playerFaction];this.networkMode = true; this.playerTeam = team; this.credits = this.teamCredits[team]; this.resources = this.teamResources[team]; }
 
@@ -672,7 +702,7 @@ export class World {
 
   private updateStrategicAirlift(dt:number):void {
     const config=logisticsConfig.external;
-    for(const team of [0,1] as const){
+    for(const team of this.teams){
       const base=this.entities.find(e=>e.kind==="airbase"&&e.team===team&&airportDepot(this,e));
       if(!base)continue;const depot=airportDepot(this,base)!;
       const level=Math.max(this.producerLevel(base)-1,this.supplyDepotLevel(depot));
@@ -741,14 +771,15 @@ export class World {
 
   captureRuntime() {
     return {
+      participants:structuredClone(this.participants),winningAlliance:this.winningAlliance,bots:this.botControllers.map(ai=>ai.snapshot()),
       mapSize:this.mapSize,terrain:this.terrain.snapshot(),smoke:this.smoke.snapshot() as ReturnType<BattleSmoke["snapshot"]>|undefined,
       playerTeam: this.playerTeam, playerFaction: this.playerFaction, enemyFaction: this.enemyFaction,
       metricBattle:this.metricBattle,compactBattle:this.compactBattle,platformRosterOnly:this.platformRosterOnly, networkMode: this.networkMode, incomeMultiplier: this.incomeMultiplier, victoryMode: this.victoryMode,
       objectiveDriven: this.objectiveDriven, externalVictoryMode: this.externalVictoryMode,
-      airCargoLastSpawn: [...this.airCargoLastSpawn] as [number,number],
-      roadTruckLastSpawn: [...this.roadTruckLastSpawn] as [number,number],
+      airCargoLastSpawn: [...this.airCargoLastSpawn] as number[],
+      roadTruckLastSpawn: [...this.roadTruckLastSpawn] as number[],
       logisticsPriority: [...this.logisticsPriority] as typeof this.logisticsPriority,
-      commandNetworkLevel: [...this.commandNetworkLevel], lossValue: [...this.lossValue] as [number,number],
+      commandNetworkLevel: [...this.commandNetworkLevel], lossValue: [...this.lossValue] as number[],
       teamFormations: [...this.teamFormations] as typeof this.teamFormations,
       producedCounts: { ...this.producedCounts }, activeDeck: this.activeDeck,
       networkDecks: this.networkDecks, networkProducedCounts: structuredClone(this.networkProducedCounts),
@@ -766,13 +797,14 @@ export class World {
   restoreRuntime(s: ReturnType<World["captureRuntime"]>): void {
     setTerrainFeatures(this.mapFeatures.filter(f=>f.kind!=="bridge"||(this.infrastructureDamage.get(f.id)??0)<1));ensureHeightCache();
     if((s.mapSize??this.mapSize)!==this.mapSize||(s.metricBattle??false)!==this.metricBattle){setMapSize(s.mapSize??this.mapSize);ensureHeightCache();this.nav=new NavGrid(this.entities,this.mapFeatures);this.waterNav=new WaterNavGrid(this.mapFeatures);this.spatial=new SpatialHash(16);this.spatial.rebuild(this.entities);this.vision=new Vision((s.metricBattle??false)||MAP_SIZE>=4096);this.vision.structureDamage=this.infrastructureDamage;this.vision.setFeatures(this.mapFeatures);this.vision.forestObscuration=(a,b)=>this.terrain.obscuration(a,b);this.vision.smokeBlocks=(a,b)=>this.smoke.blocks(a,b);}
+    if(s.participants?.length)this.configureParticipants(s.participants);this.winningAlliance=s.winningAlliance??null;s.bots?.forEach((b,i)=>this.botControllers[i]?.restore(b));
     this.terrain.restore(s.terrain);this.smoke.restore(s.smoke);
     this.playerTeam=s.playerTeam; this.playerFaction=s.playerFaction; this.enemyFaction=s.enemyFaction;
     this.compactBattle=s.compactBattle??false;this.metricBattle=s.metricBattle??false;this.platformRosterOnly=s.platformRosterOnly??false;this.networkMode=s.networkMode; this.incomeMultiplier=s.incomeMultiplier; this.victoryMode=s.victoryMode;
     this.objectiveDriven=s.objectiveDriven; this.externalVictoryMode=s.externalVictoryMode;
     this.airCargoLastSpawn=[...s.airCargoLastSpawn]; this.roadTruckLastSpawn=[...s.roadTruckLastSpawn];
-    this.logisticsPriority[0]=s.logisticsPriority[0]; this.logisticsPriority[1]=s.logisticsPriority[1];
-    this.commandNetworkLevel[0]=s.commandNetworkLevel[0]; this.commandNetworkLevel[1]=s.commandNetworkLevel[1];
+    this.logisticsPriority.splice(0,this.logisticsPriority.length,...s.logisticsPriority);
+    this.commandNetworkLevel.splice(0,this.commandNetworkLevel.length,...s.commandNetworkLevel);
     this.teamFormations=[...(s.teamFormations??["box","box"])];
     this.lossValue=[...s.lossValue]; this.producedCounts={...s.producedCounts};
     this.setActiveDeck(s.activeDeck);
@@ -803,7 +835,7 @@ export class World {
     this.logisticsPriority[0] = this.logisticsPriority[0] || "balanced";
     this.logisticsPriority[1] = this.logisticsPriority[1] || "balanced";
     this.updateSupply(dt);
-    this.powerStatus(0); this.powerStatus(1);
+    for(const team of this.teams)this.powerStatus(team);
     this.updateRoadConvoys(dt);
     this.updateSupplyAirbridge();
     this.updateStrategicAirlift(dt);
@@ -827,6 +859,7 @@ export class World {
       this.ai.update(this, dt);
       if (Math.floor(this.time * 10) % 5 === 0) updateTacticalAI(this, this.playerTeam === 0 ? 1 : 0, dt);
     }
+    if(this.networkMode&&!preparing){this.issuingAI=true;try{for(const ai of this.botControllers){if(this.hq[ai.team]?.dead)continue;ai.update(this,dt);if(Math.floor(this.time*10)%5===0)updateTacticalAI(this,ai.team,dt);}}finally{this.issuingAI=false;}}
     // Spatial hash once per tick – powers nearestEnemy + separation
     this.spatial.rebuild(this.entities);
     this.updateIntel();
@@ -853,14 +886,16 @@ export class World {
     this.matchController?.tick(dt);
     this.missionController?.tick(dt);
     if (this.status !== "running" || this.externalVictoryMode) return;
-    if (this.victoryMode === "annihilation") {
-      const enemyAlive = this.entities.some(e => !e.dead && e.team !== this.playerTeam);
-      const ownAlive = this.entities.some(e => !e.dead && e.team === this.playerTeam);
+    if(this.networkMode){
+      if(this.victoryMode!=="annihilation"&&!this.teams.every(t=>this.hq[t]))return;
+      const alive=this.teams.filter(t=>this.victoryMode==='annihilation'?this.entities.some(e=>!e.dead&&e.team===t):this.hq[t]&&!this.hq[t]!.dead);
+      const surviving=new Set(alive.map(t=>this.alliances[t]));
+      if(surviving.size<=1){this.winningAlliance=surviving.values().next().value??-1;this.status=this.winningAlliance===this.alliances[this.playerTeam]?'won':'lost';}
+    }else if (this.victoryMode === "annihilation") {
+      const enemyAlive = this.entities.some(e => !e.dead && !this.areAllies(e.team,this.playerTeam));
+      const ownAlive = this.entities.some(e => !e.dead && this.areAllies(e.team,this.playerTeam));
       if (!enemyAlive) this.status = "won";
       else if (!ownAlive) this.status = "lost";
-    } else if (this.networkMode) {
-      if(this.hq[0]?.dead)this.status=this.playerTeam===1?"won":"lost";
-      else if(this.hq[1]?.dead)this.status=this.playerTeam===0?"won":"lost";
     } else if (!this.objectiveDriven && this.hq[1] && this.hq[1]!.dead) this.status = "won";
     else if (this.hq[0] && this.hq[0]!.dead) this.status = "lost";
   }

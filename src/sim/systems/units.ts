@@ -52,7 +52,7 @@ export function nearestEnemy(w: World, u: Entity, range: number): Entity | null 
   const searchR = range + 14;
   w.spatial.queryRadius(u.x, u.z, searchR, (e) => {
     if (!garrisonFaces(u,e)||u.def.armor==="air"&&!airMissionAllowsTarget(u,e))return;
-    if (e.dead || e.team === u.team || e.underConstruction || e === u) return;
+    if (e.dead || w.areAllies(e.team,u.team) || e.underConstruction || e === u) return;
     // Auto-acquire only spotted contacts (Wargame); keeps recon valuable
     if (!isSpottedBy(e, u.team, w.time)) return;
     const dx = e.x - u.x, dz = e.z - u.z;
@@ -610,7 +610,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
   if (u.kind === "logiTruck"&&u.supplyDepotId!=null) { updateRoadTruck(w, u, dt); return; }
   if (u.kind === "landingcraft") { updateLandingCraft(w, u, dt); return; }
   if (u.kind === "special" && !u.garrisonId && u.standingOrder!=="holdfire" && ["idle","amove","sabotage"].includes(u.mode)) {
-    const target = w.entities.find(e=>!e.dead && e.team!==u.team && e.def.building && isSpottedBy(e,u.team,w.time) && Math.hypot(e.x-u.x,e.z-u.z)<7);
+    const target = w.entities.find(e=>!e.dead && !w.areAllies(e.team,u.team) && e.def.building && isSpottedBy(e,u.team,w.time) && Math.hypot(e.x-u.x,e.z-u.z)<7);
     if (target) { target.hp = Math.max(0,target.hp-18*dt); w.sabotageBuilding(target, 25); u.mode="sabotage"; u.target=target; if(target.hp<=0) { target.dead=true; w.lossValue[target.team] += target.def.cost; } return; }
   }
   const disabled = (u.disabledUntil ?? 0) > w.time;

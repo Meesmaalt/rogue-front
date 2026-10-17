@@ -1,8 +1,8 @@
 export interface UserStats { games: number; wins: number; losses: number; draws: number; rating: number; xp: number; level: number; streak: number; }
 export interface User { id: string; username: string; displayName: string; country: string; createdAt: number; lastSeen: number; friends: string[]; stats: UserStats; decks: Record<string, unknown>; }
 export interface PublicPlayer { id: string; username: string; displayName: string; country: string; online: boolean; stats: UserStats; }
-export interface RoomMember { userId: string; username: string; displayName: string; faction: string; deck: { name: string; faction: string; slots: unknown[] } | null; ready: boolean; online: boolean; joinedAt: number; }
-export interface Room { ranked?: boolean; id: string; name: string; missionId: string; mapId: string; rules: { income: string; fog: string; victory: string }; hostId: string; status: "waiting" | "started" | "finished"; createdAt: number; startedAt: number | null; members: RoomMember[]; }
+export interface RoomMember { alliance?:number;bot?:boolean;difficulty?:"easy"|"normal"|"hard"; userId: string; username: string; displayName: string; faction: string; deck: { name: string; faction: string; slots: unknown[] } | null; ready: boolean; online: boolean; joinedAt: number; }
+export interface Room { format?:"duel"|"teams"|"ffa";capacity?:number; ranked?: boolean; id: string; name: string; missionId: string; mapId: string; rules: { income: string; fog: string; victory: string }; hostId: string; status: "waiting" | "started" | "finished"; createdAt: number; startedAt: number | null; members: RoomMember[]; }
 
 let token = localStorage.getItem("rogue-front.authToken") || "";
 
@@ -35,6 +35,7 @@ export const api = {
   leaveRoom: (id: string) => request(`/api/rooms/${encodeURIComponent(id)}/leave`, { method: "POST" }),
   ready: (id: string, payload: object) => request<{ room: Room }>(`/api/rooms/${encodeURIComponent(id)}/ready`, { method: "POST", body: JSON.stringify(payload) }),
   settings: (id: string, payload: object) => request<{ room: Room }>(`/api/rooms/${encodeURIComponent(id)}/settings`, { method: "POST", body: JSON.stringify(payload) }),
+  bot: (id:string,payload:object)=>request<{room:Room}>(`/api/rooms/${encodeURIComponent(id)}/bot`,{method:"POST",body:JSON.stringify(payload)}),
   start: (id: string) => request<{ room: Room }>(`/api/rooms/${encodeURIComponent(id)}/start`, { method: "POST" }),
   chat: (id: string) => request<{ messages: Array<{ id: string; userId: string; displayName: string; message: string; createdAt: number }> }>(`/api/rooms/${encodeURIComponent(id)}/chat`),
   sendChat: (id: string, message: string) => request<{ messages: Array<{ id: string; userId: string; displayName: string; message: string; createdAt: number }> }>(`/api/rooms/${encodeURIComponent(id)}/chat`, { method: "POST", body: JSON.stringify({ message }) }),

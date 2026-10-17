@@ -13,9 +13,9 @@ import {buildOrganicTown,buildMountainRanges,ridgeReliefAt,subtractParcel,parcel
 import {buildVariedSettlement,buildIndustrialClusters} from "./settlements";
 import greenValley from "../data/maps/green-valley.json";
 
-export interface MapOptions {sea:boolean;mountains:boolean;forest:boolean;river:boolean;lakes?:boolean;region?:RegionId;layout?:RegionLayoutIndex}
-export function mapOptionsMask(o:MapOptions):number {return Number(o.sea)|Number(o.mountains)<<1|Number(o.forest)<<2|Number(o.river)<<3|Number(o.lakes===false)<<4|(o.region?REGION_IDS.indexOf(o.region)<<5:0)|(o.layout!=null?(o.layout+1)<<7:0);}
-export function decodeMapOptions(n:number):MapOptions {return {sea:!!(n&1),mountains:!!(n&2),forest:!!(n&4),river:!!(n&8),...(n&16?{lakes:false}:{}),...(n>=32?{region:REGION_IDS[(n>>5)&3]}:{}),...(n>=128?{layout:((n>>7)-1) as RegionLayoutIndex}:{})};}
+export interface MapOptions {sea:boolean;mountains:boolean;forest:boolean;river:boolean;lakes?:boolean;region?:RegionId;layout?:RegionLayoutIndex;players?:2|4}
+export function mapOptionsMask(o:MapOptions):number {return Number(o.sea)|Number(o.mountains)<<1|Number(o.forest)<<2|Number(o.river)<<3|Number(o.lakes===false)<<4|(o.region?REGION_IDS.indexOf(o.region)<<5:0)|(o.layout!=null?(o.layout+1)<<7:0)|(o.players===4?512:0);}
+export function decodeMapOptions(n:number):MapOptions {return {sea:!!(n&1),mountains:!!(n&2),forest:!!(n&4),river:!!(n&8),...(n&16?{lakes:false}:{}),...(n>=32?{region:REGION_IDS[(n>>5)&3]}:{}),...((n&384)?{layout:(((n>>7)&3)-1) as RegionLayoutIndex}:{}),...(n&512?{players:4 as const}:{})};}
 export type MapArchetype="balanced"|"river"|"highlands"|"urban"|"coastal"|"forest";
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
 function polygonFeature(id:string,points:Point[],appearance:"field"|"forest",color?:number):MapFeatureDef {
@@ -343,7 +343,7 @@ export const FOCUS_MAP=greenValley as unknown as MissionDef;
 export const CURATED_MAPS:readonly MissionDef[]=[];
 export function getPlayableMap(id:string):MissionDef|undefined {
   const biome=/^procedural-v(17|18)-(balanced|river|highlands|urban|coastal|forest)-(2048|2560|3072|4096|5120|6144)-(0|[1-9]\d*)(?:-o(0|[1-9]\d*))?$/.exec(id);
-  if(biome){const version=Number(biome[1]) as 17|18,mask=Number(biome[5]??14);if(Number(biome[4])>4294967295||mask>(version===18?511:127))return undefined;const m=generateProceduralMap(Number(biome[4]),biome[2] as MapArchetype,Number(biome[3]),version,biome[5]!=null?decodeMapOptions(mask):undefined);return biome[5]!=null?m:{...m,id,map:{...m.map,id}};}
+  if(biome){const version=Number(biome[1]) as 17|18,mask=Number(biome[5]??14);if(Number(biome[4])>4294967295||mask>(version===18?1023:127))return undefined;const m=generateProceduralMap(Number(biome[4]),biome[2] as MapArchetype,Number(biome[3]),version,biome[5]!=null?decodeMapOptions(mask):undefined);return biome[5]!=null?m:{...m,id,map:{...m.map,id}};}
 
   const custom=/^(procedural-v(?:13|14|15|16)-(?:balanced|river|highlands|urban|coastal|forest)-(?:2048|2560|3072|4096|5120|6144)-(\d+))-o(\d+)$/.exec(id);
   if(custom){const mask=Number(custom[3]);if(mask>(/^procedural-v(?:15|16)-/.test(custom[1])?31:15)||String(mask)!==custom[3]||Number(custom[2])>4294967295)return undefined;const parts=custom[1].split('-');return generateProceduralMap(Number(custom[2]),parts[2] as MapArchetype,Number(parts[3]),Number(parts[1].slice(1)) as 13|14|15|16,decodeMapOptions(mask));}

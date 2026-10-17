@@ -6,11 +6,12 @@ import {World} from '../sim/World';
 import {resetHeightmap} from '../sim/heightmap';
 class Surface extends EventTarget {style={cursor:''};closest(){return null;}}
 function event(type:string,props:Record<string,unknown>){return Object.assign(new Event(type,{cancelable:true}),props);}
-function fixture(){
+function fixture(four=false){
  const root=new EventTarget(),el=new Surface();vi.stubGlobal('Element',Surface);vi.stubGlobal('addEventListener',root.addEventListener.bind(root));vi.stubGlobal('innerWidth',800);vi.stubGlobal('innerHeight',600);
- const w=new World(21,false,[],[],[{x:0,z:0,r:180},{x:250,z:250,r:20}],false);w.networkMode=true;const a=w.spawn('inf',0,-30,0),b=w.spawn('inf',0,-20,0);
+ const bases=[{x:0,z:0,r:180},{x:250,z:250,r:20},...(four?[{x:-200,z:200,r:20},{x:200,z:-200,r:20}]:[])];
+ const w=new World(21,false,[],[],bases,false);w.networkMode=true;if(four)w.configureParticipants([0,1,2,3].map(t=>({faction:"usa",deck:null,alliance:t%2})));const a=w.spawn('inf',0,-30,0),b=w.spawn('inf',0,-20,0);
  let picked=a;
- const picker={groundAt:()=>({x:60,z:45}),pickEntity:(_x:number,_y:number,team:number)=>team===0?picked:null,pickGarrisonBuilding:()=>null,toScreen:()=>({x:100,y:100,z:0}),entityScreen:()=>({x:100,y:100,z:0})} as unknown as Picker;
+ const picker={groundAt:()=>({x:60,z:45}),pickEntity:(_x:number,_y:number,team:number)=>team===0?picked:null,pickEnemy:()=>!w.areAllies(picked.team,w.playerTeam)?picked:null,pickGarrisonBuilding:()=>null,toScreen:()=>({x:100,y:100,z:0}),entityScreen:()=>({x:100,y:100,z:0})} as unknown as Picker;
  const proxy={selected:new Set<number>(),selectedIds(){return [...this.selected];}};
  const commands=new CommandController(el as unknown as HTMLElement,w,picker,proxy as unknown as SelectionController);commands.enabled=true;
  const selection=new SelectionController(el as unknown as HTMLElement,w,picker);selection.enabled=true;selection.selected.add(a.id);proxy.selected=selection.selected;
@@ -63,4 +64,9 @@ it('F queues road waypoints with Shift, Escape cancels, and artillery fire remai
  f.root.dispatchEvent(event('keydown',{key:'Escape',repeat:false}));expect(f.commands.targeting).toBe(false);
  f.root.dispatchEvent(event('keydown',{key:'t',repeat:false}));expect(f.commands.fireMissionMode).toBe(true);f.right();
  expect(f.w.pending.at(-1)).toMatchObject({type:'fire-mission',ids:[gun.id]});
+});
+
+it('four-player targeting can attack owner 3 and treats allied owner 2 as a movement destination',()=>{
+ const f=fixture(true),enemy=f.w.spawn('tank',3,60,45),ally=f.w.spawn('tank',2,60,45);f.pick(enemy);f.commands.armOrder('attack');f.right();
+ expect(f.w.pending.at(-1)).toMatchObject({type:'attack',targetId:enemy.id});f.pick(ally);f.right();expect(f.w.pending.at(-1)).toMatchObject({type:'move',x:60,z:45});
 });
