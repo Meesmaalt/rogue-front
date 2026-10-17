@@ -1,5 +1,13 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Multiplayeri lobby töökindlus ja viimistlus · 17.10.2026
+
+- [x] Muutumatu ruumi DOM säilib; muutunud ruum kasutab sama vestlusvormi, mustandit, fookust, kursorit ja kerimiskohta ka menüüvahelehtede vahel. Saatmise ooteolek, topeltsaatmise tõke, vea järel uuesti proovimine ja järgmise mustandi säilimine.
+- [x] Olemasolevasse ruumi naasmine, aegunud pollivastuste välistamine, üks päringutsükkel korraga, fraktsiooni/koosseisu kohene kinnitamine ja READY tühistamine. Lahing kasutab serveris kinnitatud koosseisu; käivitamine toimub ühe korra.
+- [x] Kutsete vastuvõtmine/keeldumine, aegunud kutsete peitmine, hosti üleminek ja lukustatud ruumi tegevuste selged serverivead. Reeglite muutmine tühistab mõlema valmisoleku; kaardi genereerimine lukustab READY.
+- [x] Õiged meeskonnanumbrid, loetav piirkonna/suuruse/seemne kirjeldus, tegeliku fraktsiooni ja koosseisuga külgpaan ning korrastatud vestlusvorm. Vastase kohalolekut ei märgita ekslikult tühjaks kohaks.
+- [x] TypeScript ja tootmisbuild läbisid. Täiskomplektis 601 läbis, samad 21 baasversiooni tõrget; uusi tõrkeid ei lisandunud. 11 serveritesti läbisid, hilinenud READY lukukontrolli kordus läbis. Lisatud korratav kahe brauseri regressioon `scripts/dev/check-lobby.mjs`; kontrollib chatti, mustandit/fookust, aeglast saatmist, valikuid, reegleid, lahkumist, hosti üleminekut, kutset ja mõlema mängija lahingu-URL-i.
+
 ## Maamärgid ja kogu mängu visuaalse iseloomu jätk · 17.10.2026
 
 - [x] Kuni kaks vastaspaaritatud piirkondlikku maamärgipaari: maakabel, metsavahitorn, veetorn või karavanitee vahitorn; päris nav-jalajälg, kuiva ligipääsu ja ühtlase aluspinna kontroll. Baasid ja tootmisalad jäävad vabaks.

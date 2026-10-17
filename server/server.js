@@ -294,7 +294,7 @@ const httpServer = http.createServer(async (req, res) => {
       const q = matchmaking.get(user.id); return response(res, 200, { queued: !!q, room: q?.roomId ? roomView(rooms.get(q.roomId)) : null });
     }
     if (path === "/api/invites" && req.method === "GET") {
-      const list = [...invites.values()].filter((i) => i.toUserId === user.id && i.status === "pending").map((i) => ({ ...i, from: publicPlayer(userById(i.fromUserId)) }));
+      const list = [...invites.values()].filter((i) => i.toUserId === user.id && i.status === "pending" && rooms.get(i.roomId)?.status === "waiting" && rooms.get(i.roomId)?.members.size < 2).map((i) => ({ ...i, from: publicPlayer(userById(i.fromUserId)) }));
       return response(res, 200, { invites: list });
     }
     if (path === "/api/invites" && req.method === "POST") {
@@ -304,9 +304,9 @@ const httpServer = http.createServer(async (req, res) => {
       return response(res, 201, { invite });
     }
     if (path.startsWith("/api/invites/") && req.method === "POST") {
-      const id = path.split("/").pop(); const invite = invites.get(id); if (!invite || invite.toUserId !== user.id) return response(res, 404, { error: "Kutset ei leitud." });
-      const b = await body(req); const room = rooms.get(invite.roomId); if (!room || room.status !== "waiting" || room.members.size >= 2) return response(res, 409, { error: "Mänguruum pole enam saadaval." });
-      if (b.accept === false) { invite.status = "declined"; return response(res, 200, { ok: true }); }
+      const id = path.split("/").pop(); const invite = invites.get(id); if (!invite || invite.toUserId !== user.id || invite.status !== "pending") return response(res, 404, { error: "Kutset ei leitud." });
+      const b = await body(req); if(invite.status!=="pending")return response(res,409,{error:"Kutsele on juba vastatud."}); if (b.accept === false) { invite.status = "declined"; return response(res, 200, { ok: true }); }
+      const room = rooms.get(invite.roomId); if (!room || room.status !== "waiting" || room.members.size >= 2) return response(res, 409, { error: "Mänguruum pole enam saadaval." });
       const existing = findRoomForUser(user.id); if (existing) return response(res, 409, { error: "Oled juba mänguruumis." });
       const member = makeMember(user, b.faction || "usa", b.deck || user.decks?.[b.faction || "usa"] || null, false); room.members.set(user.id, member); invite.status = "accepted"; broadcastRoom(room, { type: "room", room: roomView(room) }); return response(res, 200, { room: roomView(room) });
     }
@@ -348,29 +348,35 @@ const httpServer = http.createServer(async (req, res) => {
       if (!room) return response(res, 404, { error: "Mänguruumi ei leitud." });
       if (req.method === "GET" && !action) return response(res, 200, { room: roomView(room) });
       if (req.method === "POST" && action === "join") {
-        if (room.status !== "waiting" || room.members.size >= 2) return response(res, 409, { error: "Mänguruum on täis või juba alanud." });
+        const b = await body(req);
+        if (rooms.get(id)!==room || room.status !== "waiting" || room.members.size >= 2) return response(res, 409, { error: "Mänguruum on täis või juba alanud." });
         const existing = findRoomForUser(user.id); if (existing && existing.id !== room.id) return response(res, 409, { error: "Sa oled juba teises mänguruumis." });
-        const b = await body(req); room.members.set(user.id, makeMember(user, b.faction, b.deck, false));
+        room.members.set(user.id, makeMember(user, b.faction, b.deck, false));
         broadcastRoom(room, { type: "room", room: roomView(room) }); return response(res, 200, { room: roomView(room) });
       }
       if (req.method === "POST" && action === "leave") {
         if (!room.members.has(user.id)) return response(res, 403, { error: "Sa ei ole selles ruumis." });
+        if(room.status!=="waiting")return response(res,409,{error:"Lahing on juba alanud."});
         leaveRoom(room, user.id); return response(res, 200, { ok: true });
       }
       if (req.method === "POST" && action === "ready") {
+        const b = await body(req);
         const member = isMember(room, user.id); if (!member) return response(res, 403, { error: "Sa ei ole selles ruumis." });
-        if (room.status !== "waiting") return response(res, 409, { error: "Lobby on lukus." });
-        const b = await body(req); member.ready = !!b.ready; if (["usa", "russia", "china"].includes(b.faction)) member.faction = b.faction;
+        if (room.status !== "waiting" || room.generating) return response(res, 409, { error: "Lobby on lukus. Oota kaardi valmimist." });
+        const faction=["usa","russia","china"].includes(b.faction)?b.faction:member.faction;
+        if(b.deck&&b.deck.faction!==faction)return response(res,400,{error:"Koosseis peab kuuluma valitud fraktsioonile."});
+        member.ready = !!b.ready; if (["usa", "russia", "china"].includes(b.faction)) member.faction = b.faction;
         if (b.deck && typeof b.deck === "object") member.deck = b.deck;
         broadcastRoom(room, { type: "room", room: roomView(room) }); return response(res, 200, { room: roomView(room) });
       }
       if (req.method === "POST" && action === "settings") {
-        if (!ensureRoomCanEdit(room, user.id)) return response(res, 403, { error: "Ainult host saab lobby seadeid muuta." });
         const b = await body(req);
+        if (!ensureRoomCanEdit(room, user.id)) return response(res, 403, { error: "Ainult host saab lobby seadeid muuta." });
         if(!isProceduralMapId(String(b.missionId??room.missionId)))return response(res,400,{error:"Vali protseduurkaart."});
         room.generating=true;
         try{
           const nextId=(b.missionId&&b.missionId!==room.missionId||b.mapOptions)?await generateServerMap(b.mapOptions??mapOptions(b.missionId)):room.missionId;
+          if(rooms.get(room.id)!==room||room.status!=="waiting"||room.hostId!==user.id)return response(res,409,{error:"Mänguruumi olek muutus. Ava seaded uuesti."});
           if(b.name!=null)room.name=displayName(b.name)||room.name;
           room.missionId=nextId;room.mapId=nextId;room.rules=sanitizeRules(b.rules);
           for(const m of room.members.values())m.ready=false;
@@ -382,8 +388,9 @@ const httpServer = http.createServer(async (req, res) => {
         return response(res, 200, { messages: room.chat.slice(-60) });
       }
       if (req.method === "POST" && action === "chat") {
+        const b = await body(req);
         if (!room.members.has(user.id)) return response(res, 403, { error: "Sa ei ole selles ruumis." });
-        const b = await body(req); const message = String(b.message || "").trim().slice(0, 500);
+        const message = String(b.message || "").trim().slice(0, 500);
         if (!message) return response(res, 400, { error: "Sõnum on tühi." });
         room.chat.push({ id: randomUUID(), userId: user.id, displayName: user.displayName, message, createdAt: now() });
         room.chat = room.chat.slice(-60); broadcastRoom(room, { type: "chat", roomId: room.id, message: room.chat.at(-1) });
