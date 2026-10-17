@@ -1,0 +1,13 @@
+.game-chat{position:absolute;left:12px;bottom:var(--chat-bottom,clamp(190px,28vh,270px));width:min(380px,44vw);pointer-events:none;color:var(--text,#dfe6e6);font:12px/1.4 var(--body,system-ui,sans-serif);z-index:6}
+.game-chat-log{display:flex;flex-direction:column;gap:2px;max-height:150px;overflow:hidden;padding:4px 6px;text-shadow:0 1px 2px #000}
+.game-chat.open .game-chat-log{overflow-y:auto;background:rgba(19,24,26,.72);pointer-events:auto;scrollbar-width:thin}
+.game-chat-line{overflow-wrap:anywhere;transition:opacity .6s}
+.game-chat-line.old{opacity:0;height:0;overflow:hidden}
+.game-chat-line.system{color:#9aa59f;font-style:italic}
+.game-chat-scope{color:#7fcf6b;font-weight:700}
+.game-chat-warn{padding:3px 6px;margin-bottom:2px;color:#f2a33a;font-weight:600;text-shadow:0 1px 2px #000}
+.game-chat-form{display:flex;gap:6px;align-items:stretch;margin-top:4px;pointer-events:auto}
+.game-chat-form[hidden],.game-chat-warn[hidden]{display:none}
+.game-chat-tag{flex:none;padding:6px 8px;background:#2b373b;border:1px solid var(--line,#344247);font-weight:700;font-size:11px;letter-spacing:.06em}
+.game-chat-tag[data-scope="team"]{color:#7fcf6b}
+.game-chat-form input{flex:1;min-width:0;background:rgba(19,24,26,.92);color:inherit;border:1px solid var(--line,#344247);padding:6px 8px;font:inherit}

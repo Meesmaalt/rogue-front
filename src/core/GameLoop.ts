@@ -15,6 +15,14 @@ export class GameLoop {
   private raf = 0;
   private suspended = false;
   private suspendedElapsed = 0;
+  /**
+   * Multiplayer: how many authoritative server ticks are waiting to be simulated. When a client is behind the
+   * server clock it fast-forwards through them (bounded per frame) instead of slowing the game for everyone else.
+   */
+  backlog: (() => number) | null = null;
+  catchUpThreshold = 2;
+  catchUpBudgetMs = 8;
+  catchUpMaxSteps = 40;
 
   constructor(
     private readonly step: number,
@@ -59,6 +67,13 @@ export class GameLoop {
       if (this.update(this.step) !== false) steps++;
       this.acc = Math.max(0, this.acc - this.step);
       attempts++;
+    }
+    if (this.backlog && this.backlog() > this.catchUpThreshold) {
+      const end = performance.now() + this.catchUpBudgetMs;
+      for (let n = 0; n < this.catchUpMaxSteps && this.backlog() > this.catchUpThreshold && performance.now() < end; n++) {
+        if (this.update(this.step) === false) break;
+        steps++;
+      }
     }
     const renderStart = measure ? performance.now() : 0;
     // When behind, hold the latest pose instead of extrapolating or wrapping alpha.

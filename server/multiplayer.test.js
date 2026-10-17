@@ -12,9 +12,9 @@ function socket(url,hello){
  ws.addEventListener('open',()=>ws.send(JSON.stringify(hello)));
  return {ws,next,messages,send:m=>ws.send(JSON.stringify(m))};
 }
-test('four human FFA and 2v2 AI rosters use human-only lockstep barriers',{timeout:240000},async()=>{
+test('server-clocked lockstep: slow clients never stall others, chat, desync checkpoints',{timeout:240000},async()=>{
  const dir=await mkdtemp(join(tmpdir(),'rogue-four-')),port=await freePort(),url=`http://127.0.0.1:${port}`;
- const child=spawn(process.execPath,['server/server.js'],{env:{...process.env,PORT:String(port),ROGUE_FRONT_DB:join(dir,'users.json')},stdio:'ignore'}),connections=[];
+ const child=spawn(process.execPath,['server/server.js'],{env:{...process.env,PORT:String(port),ROGUE_HASH_INTERVAL:'5',ROGUE_FRONT_DB:join(dir,'users.json')},stdio:'ignore'}),connections=[];
  const req=async(path,token,payload,status=200)=>{const r=await fetch(url+path,{method:payload?'POST':'GET',headers:{'content-type':'application/json',...(token?{authorization:`Bearer ${token}`}:{})},...(payload?{body:JSON.stringify(payload)}:{})});const data=await r.json();assert.equal(r.status,status,JSON.stringify(data));return data;};
  try{
   for(let i=0;i<100;i++){try{if((await fetch(url+'/healthz')).ok)break;}catch{}await new Promise(r=>setTimeout(r,50));}
@@ -30,13 +30,24 @@ test('four human FFA and 2v2 AI rosters use human-only lockstep barriers',{timeo
   for(const u of users.slice(0,4)){const c=socket(`ws://127.0.0.1:${port}/ws`,{type:'join',room:room.id,roomId:room.id,token:u.token,missionId:room.missionId});connections.push(c);}
   const welcome=await Promise.all(connections.map(c=>c.next('welcome')));assert.deepEqual(welcome.map(w=>w.team),[0,1,2,3]);
   for(const c of connections)await c.next('start');
-  for(const c of connections.slice(0,3))c.send({type:'ready',tick:1,hash:'same'});
-  await new Promise(r=>setTimeout(r,100));assert.ok(connections.every(c=>!c.messages.some(m=>m.type==='tick')));
-  connections[3].send({type:'command',tick:2,command:{type:'formation',kind:'line',team:0}});
-  connections[3].send({type:'ready',tick:1,hash:'same'});await Promise.all(connections.map(c=>c.next('tick')));
-  for(const c of connections)c.send({type:'ready',tick:2,hash:'same'});
-  const second=await Promise.all(connections.map(c=>c.next('tick')));assert.equal(second[0].commands[0].team,3);
-  for(const [i,c] of connections.entries())c.send({type:'ready',tick:3,hash:i===2?'different':'same'});
+  // The clock starts once everybody reports loaded; nobody has to acknowledge ticks afterwards.
+  for(const c of connections)c.send({type:'loaded'});
+  const first=await Promise.all(connections.map(c=>c.next('tick')));assert.ok(first.every(t=>t.tick>=1));
+  // Connection 2 now goes silent (a "laggy" client): the others must keep receiving ticks.
+  const seen=connections[0].messages.filter(m=>m.type==='tick').length;
+  await new Promise(r=>setTimeout(r,600));
+  assert.ok(connections[0].messages.filter(m=>m.type==='tick').length>seen+8,'ticks continue without acknowledgements');
+  // The server stamps commands itself (tick + input delay) and tags the sender team.
+  connections[3].send({type:'command',tick:1,command:{type:'formation',kind:'line',team:0}});
+  const withCommand=async c=>{for(;;){const t=await c.next('tick');if(t.commands.length)return t;}};
+  const stamped=await Promise.all(connections.map(withCommand));assert.equal(stamped[0].commands[0].team,3);assert.equal(new Set(stamped.map(t=>t.tick)).size,1);
+  // Chat works in game and is delivered to every player.
+  connections[1].send({type:'chat',message:'  Tere   kõigile  '});
+  const chats=await Promise.all(connections.map(c=>c.next('chat')));assert.equal(chats[0].message.message,'Tere kõigile');assert.equal(chats[0].message.team,1);
+  // Checkpoint hashes: matching reports are fine, a mismatch halts the room.
+  for(const c of connections)c.send({type:'sync',tick:5,hash:'same'});
+  await new Promise(r=>setTimeout(r,200));assert.ok(connections.every(c=>!c.messages.some(m=>m.type==='desync')));
+  for(const [i,c] of connections.entries())c.send({type:'sync',tick:10,hash:i===2?'different':'same'});
   const desync=await Promise.all(connections.map(c=>c.next('desync')));assert.equal(Object.keys(desync[0].hashes).length,4);
   // A human can play with an AI ally against two AI opponents.
   const solo=users[4],created=(await req('/api/rooms',solo.token,{format:'teams',missionId:'procedural-v18-balanced-2048-44-o14'},201)).room,p='/api/rooms/'+created.id;
@@ -51,7 +62,7 @@ test('four human FFA and 2v2 AI rosters use human-only lockstep barriers',{timeo
   mixed=(await req(p+'/bot',solo.token,{alliance:1})).room;
   await req(p+'/ready',solo.token,{ready:true,alliance:0});await req(p+'/start',solo.token,{});
   const c=socket(`ws://127.0.0.1:${port}/ws`,{type:'join',room:created.id,roomId:created.id,token:solo.token,missionId:created.missionId});connections.push(c);
-  const w=await c.next('welcome');assert.equal(w.members.filter(m=>m.bot).length,3);await c.next('start');c.send({type:'ready',tick:1,hash:'solo'});assert.equal((await c.next('tick')).tick,1);
+  const w=await c.next('welcome');assert.equal(w.members.filter(m=>m.bot).length,3);await c.next('start');c.send({type:'loaded'});assert.equal((await c.next('tick')).tick,1);
   await req('/api/match/result',solo.token,{roomId:created.id,result:'win'});assert.equal((await req(p,solo.token)).room.status,'finished');
  }finally{for(const c of connections)c.ws.close();child.kill();await new Promise(r=>child.exitCode!==null?r():child.once('exit',r));await rm(dir,{recursive:true,force:true});}
 });

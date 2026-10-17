@@ -46,6 +46,7 @@ import { AlertOverlay, shakeAmount, toneFor } from "./render/AudioVisual";
 import { loadSettings, SettingsPanel } from "./ui/Settings";
 import type { MissionDef } from "./sim/types";
 import { LockstepClient } from "./net/LockstepClient";
+import { GameChat } from "./ui/GameChat";
 import { worldHash } from "./sim/Replay";
 import { OnlineShell } from "./ui/OnlineShell";
 import { SAVE_PREFIX, writeSavedSession, readSessionWorld, restartBattleUrl } from "./ui/SavedSessions";
@@ -195,8 +196,17 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     if (cue.x !== undefined && cue.z !== undefined) { alerts.indicate(cue.x, cue.z, cam, tone); minimap.ping(cue.x, cue.z, tone); }
   };
 
+  const chat = net ? new GameChat(document.getElementById("ui")!, {
+    canSend: !spectator,
+    teamChat: () => world.teams.length === 4 && new Set(world.alliances).size === 2,
+    send: (text, scope) => net.sendChat(text, scope),
+  }) : null;
   if (net) {
     net.setCallbacks({
+      chat: (entry, historical) => chat?.add(entry, historical, localTeam),
+      chatError: text => chat?.system(text),
+      peer: p => chat?.setPeer(p),
+      lag: (_tick, players) => chat?.setLag(players, localTeam),
       status: (status, text) => {
         hud.setNetworkStatus(status === "running" ? `${world.teams.length===4?(new Set(world.alliances).size===2?"2v2":"1v1v1v1"):"1v1"} · mängija ${localTeam + 1}` : text);
         if(status === "error" || status === "reconnecting") { paused = true; setEnabled(false); }
@@ -214,8 +224,8 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
       started: (_seed, tick) => {
         networkPackets.length = 0; running = true; paused = false;
         if(net.appliedTick===0) replayRecorder.reset(world);
-        hud.dismissBriefing(); setEnabled(!spectator && net.appliedTick === tick);
-        net.ack(worldHash(world));
+        hud.dismissBriefing(); netInputOn = !spectator && net.appliedTick === tick; setEnabled(netInputOn);
+        net.loaded();
       },
       tick: (packet) => { paused = false; hud.setPaused(false); networkPackets.push(packet); },
       desync: (tick) => { paused = true; setEnabled(false); hud.setPaused(true); hud.setWarning(`DESYNC tuvastatud tick ${tick} — mäng peatatud`); },
@@ -349,6 +359,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     if (k === "f4") selection.selectFilter(u => isIndirectUnit(u) || ["aa","spaa","manpad","logiTruck"].includes(u.kind));
   });
 
+  let netInputOn = false;
   let hudAcc = 1;
   let fpsFrames=0,fpsStarted=performance.now();
   const loop = new GameLoop(
@@ -363,8 +374,10 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
         applyingNetwork = false;
         world.tick(dt);
         replayRecorder.step();
-        net.ack(worldHash(world), packet.tick);
-        if (packet.tick === net.tick) setEnabled(!spectator);
+        net.applied(packet.tick, () => worldHash(world));
+        const inputOn = !spectator && net.behind <= 6;
+        if (inputOn !== netInputOn) { netInputOn = inputOn; setEnabled(inputOn); }
+        if (packet.tick % 30 === 0) chat?.setSelfBehind(net.behind);
       } else {
         world.tick(dt);
         replayRecorder.step();
@@ -450,6 +463,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
     if(resumeKey===saveKey)loadGame(true);
     else hud.setWarning("Salvestuse kaart või režiim on muutunud; vali sobiv lahing või alusta uut");
   }
+  if (net) loop.backlog = () => networkPackets.length;
   loop.start();
   if(net)net.connect(multiplayerRoom!,mission.id,undefined,getAuthToken(),spectator,spectatorToken);
 }

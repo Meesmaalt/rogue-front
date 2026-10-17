@@ -4,6 +4,9 @@ import type { Command, Team } from "../sim/types";
 
 export type NetStatus = "connecting" | "lobby" | "running" | "reconnecting" | "disconnected" | "error";
 export interface NetworkTick { tick: number; commands: Command[]; hash?: string; }
+export interface ChatEntry { id: string; userId: string | null; displayName: string; message: string; createdAt: number; scope: "all" | "team"; team: number; alliance: number; system?: boolean; }
+export interface PeerInfo { team: number; name: string; connected: boolean; }
+export interface PlayerLag { team: number; name: string; connected: boolean; /** ticks behind the server clock, null when unknown */ behind: number | null; }
 export interface NetworkMember { faction: FactionId; deck: FactionDeck | null; alliance?:number;bot?:boolean;difficulty?:"easy"|"normal"|"hard"; }
 export interface LockstepCallbacks {
   status?: (status: NetStatus, text: string) => void;
@@ -11,14 +14,23 @@ export interface LockstepCallbacks {
   started?: (seed: number, tick: number) => void;
   tick?: (packet: NetworkTick) => void;
   desync?: (tick: number, expected: string, actual: string) => void;
+  chat?: (entry: ChatEntry, historical: boolean) => void;
+  chatError?: (message: string) => void;
+  peer?: (peer: PeerInfo) => void;
+  lag?: (tick: number, players: PlayerLag[]) => void;
 }
 
 type ServerMessage =
-  | { type: "welcome"; playerId: string; team: Team; playerCount: number; reconnectToken: string; faction?: string; deck?: unknown; members?: NetworkMember[]; rules?: { income?: "standard" | "high" | "low"; fog?: "wargame" | "reduced" | "off"; victory?: "hq" | "annihilation" } }
+  | { type: "welcome"; hashInterval?: number; tickRate?: number; playerId: string; team: Team; playerCount: number; reconnectToken: string; faction?: string; deck?: unknown; members?: NetworkMember[]; rules?: { income?: "standard" | "high" | "low"; fog?: "wargame" | "reduced" | "off"; victory?: "hq" | "annihilation" } }
   | { type: "lobby"; playerCount: number; ready: number }
   | { type: "start"; seed: number; tick: number; missionId?: string; rules?: { income?: "standard" | "high" | "low"; fog?: "wargame" | "reduced" | "off"; victory?: "hq" | "annihilation" } }
   | { type: "tick"; tick: number; commands: Command[]; hashes?: Record<string, string> }
-  | { type: "peer-left"; playerCount: number }
+  | { type: "ticks"; packets: Array<{ tick: number; commands: Command[] }> }
+  | { type: "chat"; message: ChatEntry }
+  | { type: "chat-history"; messages: ChatEntry[] }
+  | { type: "chat-error"; message: string }
+  | { type: "peer"; team: number; name: string; connected: boolean }
+  | { type: "status"; tick: number; players: PlayerLag[] }
   | { type: "error"; message: string }
   | { type: "desync"; tick: number; hashes: Record<string, string> };
 
@@ -37,6 +49,7 @@ export class LockstepClient {
   private callbacks: LockstepCallbacks;
   private spectator = false;
   private spectatorToken = "";
+  private hashInterval = 30;
 
   constructor(callbacks: LockstepCallbacks = {}) { this.callbacks = callbacks; }
 
@@ -69,6 +82,7 @@ export class LockstepClient {
   private message(m: ServerMessage): void {
     if (m.type === "welcome") {
       this.token = m.reconnectToken;
+      if (m.hashInterval && m.hashInterval > 0) this.hashInterval = m.hashInterval;
       this.callbacks.assigned?.(m.team, m.playerCount, m.rules, m.members);
     } else if (m.type === "lobby") {
       this.callbacks.status?.("lobby", `Lobby: ${m.playerCount} mängijat`);
@@ -77,13 +91,20 @@ export class LockstepClient {
       this.callbacks.status?.("running", "Mäng algas");
       this.callbacks.started?.(m.seed, m.tick);
     } else if (m.type === "tick") {
-      this.currentTick = Math.max(this.currentTick, m.tick);
-      const packet = { tick: m.tick, commands: m.commands, hash: m.hashes?.[this.token] };
-      if (m.tick <= this.lastAppliedTick) return;
-      if (this.callbacks.tick) this.callbacks.tick(packet);
-      else this.pending.push(packet);
-    } else if (m.type === "peer-left") {
-      this.callbacks.status?.("reconnecting", "Mängija lahkus — ootan taasühendust…");
+      this.receiveTick(m.tick, m.commands);
+    } else if (m.type === "ticks") {
+      for (const packet of m.packets) this.receiveTick(packet.tick, packet.commands);
+    } else if (m.type === "chat") {
+      this.callbacks.chat?.(m.message, false);
+    } else if (m.type === "chat-history") {
+      for (const entry of m.messages) this.callbacks.chat?.(entry, true);
+    } else if (m.type === "chat-error") {
+      this.callbacks.chatError?.(m.message);
+    } else if (m.type === "peer") {
+      // Another player dropped or came back. The game itself keeps running: the server never waits for anyone.
+      this.callbacks.peer?.({ team: m.team, name: m.name, connected: m.connected });
+    } else if (m.type === "status") {
+      this.callbacks.lag?.(m.tick, m.players);
     } else if (m.type === "error") {
       this.callbacks.status?.("error", m.message);
       this.close();
@@ -93,11 +114,34 @@ export class LockstepClient {
     }
   }
 
-  /** Saada järgmise turvalise ticki käsk. Server ei luba liiga kaugele ette saata. */
-  submit(command: Command): void { if (this.spectator) return; this.send({ type: "command", tick: this.currentTick + 2, command }); }
+  private receiveTick(tick: number, commands: Command[]): void {
+    this.currentTick = Math.max(this.currentTick, tick);
+    if (tick <= this.lastAppliedTick) return;
+    const packet = { tick, commands };
+    if (this.callbacks.tick) this.callbacks.tick(packet);
+    else this.pending.push(packet);
+  }
 
-  /** Iga tick vajab kohalolu kinnitust isegi siis, kui mängijal pole käsku. */
-  ack(hash = "", appliedTick = this.lastAppliedTick): void { this.lastAppliedTick = appliedTick; if (this.spectator) return; this.send({ type: "ready", tick: appliedTick + 1, hash }); }
+  /** Saada käsk serverile. Server määrab ise, millisel tickil see täidetakse (praegune tick + sisendviide). */
+  submit(command: Command): void { if (this.spectator) return; this.send({ type: "command", command }); }
+
+  /** Anna serverile teada, et kaart ja maailm on laaditud ning kell võib käima minna. Server ei oota selle järel kedagi. */
+  loaded(): void { if (!this.spectator) this.send({ type: "loaded" }); }
+
+  /**
+   * Teata, et tick on rakendatud. Kontrollsummat (kallis) arvutatakse ja saadetakse ainult iga `hashInterval` tick järel,
+   * ning server ei oota seda — see on ainult desünkroonimise tuvastamiseks.
+   */
+  applied(tick: number, hash: () => string): void {
+    this.lastAppliedTick = tick;
+    if (this.spectator || tick % this.hashInterval !== 0) return;
+    this.send({ type: "sync", tick, hash: hash() });
+  }
+
+  sendChat(message: string, scope: "all" | "team" = "all"): void { if (!this.spectator) this.send({ type: "chat", message, scope }); }
+
+  /** Mitu tick'i on see klient serveri kellast maas (puhverdatud, veel rakendamata). */
+  get behind(): number { return Math.max(0, this.currentTick - this.lastAppliedTick); }
 
   consume(tick: number): NetworkTick | null {
     const i = this.pending.findIndex((p) => p.tick === tick);

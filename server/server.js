@@ -8,7 +8,20 @@ import { WebSocketServer } from "ws";
 
 const PORT = Number(process.env.PORT || 8787);
 const TICK_RATE = 30;
-const MAX_AHEAD = 4;
+const TICK_MS = 1000 / TICK_RATE;
+// Server-clocked lockstep: the server owns the game clock and never waits for slow clients.
+const INPUT_DELAY = 3;                       // ticks between receiving a command and executing it
+const HASH_INTERVAL = Math.max(1, Number(process.env.ROGUE_HASH_INTERVAL) || 30); // clients report world hash every N ticks
+const HISTORY_TICKS = 9000;                  // 5 min of tick packets kept for reconnect / catch-up
+const MAX_BUFFERED = 4 * 1024 * 1024;        // drop a socket whose send buffer grows beyond this (it resyncs on reconnect)
+const MAX_CATCHUP_TICKS = 5;                 // max ticks run per clock wake-up if the server itself is late
+const LOAD_TIMEOUT_MS = 60000;               // start the clock this long after the first player joined even if others still load
+const IDLE_PAUSE_MS = 20000;                 // pause the clock when no human has been connected this long
+const IDLE_DELETE_MS = 30 * 60000;           // drop a room nobody came back to
+const STATUS_EVERY = 60;                     // broadcast lag status every N ticks
+const CHAT_MAX = 300;
+const CHAT_RATE_WINDOW_MS = 8000;
+const CHAT_RATE_LIMIT = 6;
 const MAX_BODY = 256 * 1024;
 const DB_PATH = process.env.ROGUE_FRONT_DB || join(process.cwd(), "data", "accounts.json");
 const sessions = new Map();
@@ -136,9 +149,16 @@ async function createRoom(hostUser, input) {
     members: new Map(),
     tick: 0,
     commands: new Map(),
-    wsState: new Map(),
     history: new Map(),
     desynced: false,
+    running: false,
+    nextTickAt: 0,
+    firstJoinAt: 0,
+    idleSince: 0,
+    loaded: new Set(),
+    applied: new Map(),
+    hashes: new Map(),
+    chatRate: new Map(),
     chat: [],
     spectators: new Set(),
     resultRecorded: false,
@@ -185,6 +205,40 @@ function broadcastRoom(room, message) {
     if (!set) continue;
     for (const ws of set) send(ws, message);
   }
+}
+function memberTeam(room, userId) { return [...room.members.keys()].indexOf(userId); }
+function cleanChat(value, max) { return String(value || "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max); }
+function chatEntry(room, user, message, scope) {
+  const team = memberTeam(room, user.id);
+  return { id: randomUUID(), userId: user.id, displayName: user.displayName, message, createdAt: now(), scope, team, alliance: room.members.get(user.id)?.alliance ?? team };
+}
+function systemChat(room, message) {
+  pushChat(room, { id: randomUUID(), userId: null, displayName: "SERVER", message, createdAt: now(), scope: "all", team: -1, alliance: -1, system: true });
+}
+function chatVisible(room, entry, userId) {
+  if (entry.scope !== "team") return true;
+  const m = room.members.get(userId);
+  return !!m && (m.alliance ?? -1) === entry.alliance;
+}
+function pushChat(room, entry) {
+  room.chat.push(entry); room.chat = room.chat.slice(-60);
+  const message = { type: "chat", roomId: room.id, message: entry };
+  for (const member of room.members.values()) {
+    if (member.bot || !chatVisible(room, entry, member.userId)) continue;
+    for (const ws of sockets.get(member.userId) || []) send(ws, message);
+  }
+  if (entry.scope !== "team") for (const spec of room.spectators) for (const ws of sockets.get(spec) || []) send(ws, message);
+}
+function handleGameChat(room, player, m) {
+  const message = cleanChat(m.message, CHAT_MAX);
+  if (!message) return;
+  const t = now();
+  const times = (room.chatRate.get(player.userId) || []).filter(x => t - x < CHAT_RATE_WINDOW_MS);
+  if (times.length >= CHAT_RATE_LIMIT) { send(player.ws, { type: "chat-error", message: "Liiga kiire vestlus — oota hetk." }); return; }
+  times.push(t); room.chatRate.set(player.userId, times);
+  const user = userById(player.userId); if (!user) return;
+  const scope = m.scope === "team" && room.format === "teams" ? "team" : "all";
+  pushChat(room, chatEntry(room, user, message, scope));
 }
 function leaveRoom(room, userId) {
   if (room.status === "started") {
@@ -406,16 +460,15 @@ const httpServer = http.createServer(async (req, res) => {
       }
       if (req.method === "GET" && action === "chat") {
         if (!room.members.has(user.id)) return response(res, 403, { error: "Sa ei ole selles ruumis." });
-        return response(res, 200, { messages: room.chat.slice(-60) });
+        return response(res, 200, { messages: room.chat.filter(e => chatVisible(room, e, user.id)).slice(-60) });
       }
       if (req.method === "POST" && action === "chat") {
         const b = await body(req);
         if (!room.members.has(user.id)) return response(res, 403, { error: "Sa ei ole selles ruumis." });
-        const message = String(b.message || "").trim().slice(0, 500);
+        const message = cleanChat(b.message, 500);
         if (!message) return response(res, 400, { error: "Sõnum on tühi." });
-        room.chat.push({ id: randomUUID(), userId: user.id, displayName: user.displayName, message, createdAt: now() });
-        room.chat = room.chat.slice(-60); broadcastRoom(room, { type: "chat", roomId: room.id, message: room.chat.at(-1) });
-        return response(res, 200, { messages: room.chat.slice(-60) });
+        pushChat(room, chatEntry(room, user, message, "all"));
+        return response(res, 200, { messages: room.chat.filter(e => chatVisible(room, e, user.id)).slice(-60) });
       }
       if (req.method === "POST" && action === "start") {
         if (!ensureRoomCanEdit(room, user.id)) return response(res, 403, { error: "Ainult host saab mängu alustada." });
@@ -448,6 +501,29 @@ const wss = new WebSocketServer({ server: httpServer, path: "/ws", maxPayload: 6
 
 function addSocket(userId, ws) { if (!sockets.has(userId)) sockets.set(userId, new Set()); sockets.get(userId).add(ws); }
 function removeSocket(userId, ws) { const set = sockets.get(userId); if (!set) return; set.delete(ws); if (!set.size) sockets.delete(userId); }
+function sendRaw(ws, data) {
+  if (!ws || ws.readyState !== 1) return;
+  // A client that cannot drain its socket must not make the server buffer without bound.
+  // It reconnects and re-requests everything after its last applied tick.
+  if (ws.bufferedAmount > MAX_BUFFERED) { ws.close(4008, "slow"); return; }
+  ws.send(data);
+}
+function playerSocket(room, userId) { return room.reconnect.get(userId)?.ws; }
+function isConnected(room, userId) { const r = room.reconnect.get(userId); return !!(r?.connected && r.ws?.readyState === 1); }
+function sendHistory(ws, room, after) {
+  let batch = [];
+  for (const packet of room.history.values()) {
+    if (packet.tick <= after) continue;
+    batch.push(packet);
+    if (batch.length >= 300) { send(ws, { type: "ticks", packets: batch }); batch = []; }
+  }
+  if (batch.length) send(ws, { type: "ticks", packets: batch });
+}
+function broadcastPeer(room, userId, connected) {
+  const member = room.members.get(userId); if (!member) return;
+  const data = json({ type: "peer", team: memberTeam(room, userId), name: member.displayName, connected });
+  for (const m of humanMembers(room)) if (m.userId !== userId) sendRaw(playerSocket(room, m.userId), data);
+}
 
 wss.on("connection", (ws) => {
   let player = null;
@@ -461,66 +537,123 @@ wss.on("connection", (ws) => {
       if (room.status !== "started") return send(ws, { type: "error", message: "Mäng ei ole veel alanud." });
       const member = room.members.get(user.id);
       const lastAppliedTick = Number(m.lastAppliedTick ?? 0);
-      if (!Number.isInteger(lastAppliedTick) || lastAppliedTick < 0 || lastAppliedTick > room.tick || lastAppliedTick < room.tick - 1800) return send(ws,{type:"error",message:"Taastatava mängu olek on liiga vana. Alusta uut lahingut."});
+      if (!Number.isInteger(lastAppliedTick) || lastAppliedTick < 0 || lastAppliedTick > room.tick || lastAppliedTick < room.tick - HISTORY_TICKS) return send(ws,{type:"error",message:"Taastatava mängu olek on liiga vana. Alusta uut lahingut."});
       const members = [...room.members.values()].map(p => ({faction:p.faction,deck:p.deck,alliance:p.alliance,bot:!!p.bot,difficulty:p.difficulty}));
+      const chatHistory = () => { const messages = room.chat.filter(e => chatVisible(room, e, user.id)).slice(-30); if (messages.length) send(ws, { type: "chat-history", messages }); };
       if (m.spectate) {
         const grant = spectators.get(String(m.spectatorToken || ""));
         if (!grant || grant.userId !== user.id || grant.roomId !== room.id) return send(ws,{type:"error",message:"Pealtvaataja token ei kehti."});
-        player={userId:user.id,team:-1,room,ws,tick:room.tick,token:String(m.spectatorToken),spectator:true}; addSocket(user.id,ws);
-        send(ws,{type:"welcome",team:0,playerId:user.id,reconnectToken:String(m.spectatorToken),members,playerCount:room.members.size,rules:room.rules});
+        player={userId:user.id,team:-1,room,ws,token:String(m.spectatorToken),spectator:true}; addSocket(user.id,ws);
+        send(ws,{type:"welcome",team:0,playerId:user.id,reconnectToken:String(m.spectatorToken),members,playerCount:room.members.size,rules:room.rules,hashInterval:HASH_INTERVAL,tickRate:TICK_RATE});
         send(ws,{type:"start",seed:0,tick:room.tick,missionId:room.missionId,rules:room.rules});
-        for (const packet of room.history.values()) if(packet.tick>lastAppliedTick) send(ws,packet);
+        sendHistory(ws, room, lastAppliedTick); chatHistory();
         return;
       }
       if (!member) return send(ws, { type: "error", message: "Sa ei kuulu sellesse mänguruumi." });
-      let reconnect = room.reconnect.get(user.id);
-      if (m.reconnectToken && reconnect && reconnect.token === m.reconnectToken) { reconnect.ws = ws; reconnect.connected = true; }
-      const team = [...room.members.keys()].indexOf(user.id);
-      player = { userId: user.id, team, room, ws, tick: lastAppliedTick, token: reconnect?.token || randomUUID(), spectator:false };
-      const previousSocket = room.reconnect.get(user.id)?.ws;
+      const reconnect = room.reconnect.get(user.id);
+      const team = memberTeam(room, user.id);
+      player = { userId: user.id, team, room, ws, token: reconnect?.token || randomUUID(), spectator:false };
+      const previousSocket = reconnect?.ws;
       if(previousSocket && previousSocket !== ws) previousSocket.close();
-      room.wsState.delete(user.id);
       room.reconnect.set(user.id,{token:player.token,connected:true,ws}); addSocket(user.id, ws);
-      send(ws, { type: "welcome", playerId: user.id, team, playerCount: room.members.size, reconnectToken: player.token, faction: member.faction, deck: member.deck, members, rules: room.rules, reconnect: !!reconnect });
+      room.firstJoinAt ||= performance.now();
+      send(ws, { type: "welcome", playerId: user.id, team, playerCount: room.members.size, reconnectToken: player.token, faction: member.faction, deck: member.deck, members, rules: room.rules, reconnect: !!reconnect, hashInterval: HASH_INTERVAL, tickRate: TICK_RATE });
       send(ws, { type: "start", seed: 0, tick: room.tick, missionId: room.missionId, rules: room.rules });
-      for (const packet of room.history.values()) if(packet.tick>lastAppliedTick) send(ws,packet);
+      sendHistory(ws, room, lastAppliedTick); chatHistory();
+      if (reconnect) { broadcastPeer(room, user.id, true); systemChat(room, `${member.displayName} liitus mänguga uuesti.`); }
       return;
     }
     const room = player.room;
-    if(player.spectator || room.reconnect.get(player.userId)?.ws !== ws || room.desynced) return;
-    if (m.type === "ready") {
-      const tick = Number(m.tick); if (!Number.isInteger(tick) || tick < player.tick || tick > player.tick + MAX_AHEAD) return;
-      player.tick = tick; player.hash = typeof m.hash === "string" ? m.hash : ""; room.wsState.set(player.userId, { tick, hash: player.hash }); advance(room); return;
+    if (player.spectator || playerSocket(room, player.userId) !== ws) return;
+    if (m.type === "chat") { handleGameChat(room, player, m); return; }
+    if (room.desynced) return;
+    if (m.type === "loaded") { room.loaded.add(player.userId); return; }
+    if (m.type === "sync") {
+      // Periodic checkpoint: the client reports its world hash at a tick that is a multiple of HASH_INTERVAL.
+      // Nobody waits for it; the server only compares reports for the same tick as they arrive.
+      const tick = Number(m.tick);
+      if (!Number.isInteger(tick) || tick <= 0 || tick % HASH_INTERVAL || tick > room.tick || typeof m.hash !== "string" || m.hash.length > 16) return;
+      room.applied.set(player.userId, Math.max(tick, room.applied.get(player.userId) ?? 0));
+      let byTick = room.hashes.get(tick); if (!byTick) room.hashes.set(tick, byTick = new Map());
+      byTick.set(player.userId, m.hash);
+      if (new Set(byTick.values()).size > 1) {
+        room.desynced = true;
+        const data = json({ type: "desync", tick, hashes: Object.fromEntries(byTick) });
+        for (const p of humanMembers(room)) sendRaw(playerSocket(room, p.userId), data);
+        return;
+      }
+      if (byTick.size >= humanMembers(room).length) room.hashes.delete(tick);
+      for (const key of room.hashes.keys()) { if (key < room.tick - HISTORY_TICKS) room.hashes.delete(key); else break; }
+      return;
     }
     if (m.type === "command") {
-      const tick = Number(m.tick); if (!Number.isInteger(tick) || tick <= room.tick || tick > room.tick + MAX_AHEAD) return;
+      // The server decides when a command runs: current server tick + INPUT_DELAY. Clients cannot pick the tick.
       if (!m.command || typeof m.command.type !== "string") return;
-      const list = room.commands?.get(tick) || [];
+      const tick = room.tick + INPUT_DELAY;
+      const list = room.commands.get(tick) || [];
       if (list.length >= 64) return;
-      list.push({ ...m.command, team: player.team }); room.commands ??= new Map(); room.commands.set(tick, list);
+      list.push({ ...m.command, team: player.team }); room.commands.set(tick, list);
     }
   });
-  ws.on("close", () => { if (!player) return; removeSocket(player.userId, ws); if (!player.spectator) { const r=player.room.reconnect.get(player.userId); if (r && r.ws===ws) { r.connected=false; player.room.wsState.delete(player.userId); broadcastRoom(player.room,{type:"peer-left",playerCount:1}); } } });
+  ws.on("close", () => {
+    if (!player) return;
+    removeSocket(player.userId, ws);
+    if (player.spectator) return;
+    const room = player.room, r = room.reconnect.get(player.userId);
+    if (r && r.ws === ws) {
+      r.connected = false;
+      const member = room.members.get(player.userId);
+      broadcastPeer(room, player.userId, false);
+      if (member && room.status === "started") systemChat(room, `${member.displayName} ühendus katkes — mäng jätkub.`);
+    }
+  });
 });
 
-function advance(room) {
-  if(room.desynced) return;
-  const playerStates = humanMembers(room).map(m => ({id:m.userId,ws:room.reconnect.get(m.userId)?.ws}));
-  if (!playerStates.length || !playerStates.every(p => p.ws?.readyState === 1 && room.wsState.get(p.id)?.tick === room.tick + 1)) return;
-  const hashes = Object.fromEntries(playerStates.map(p => [p.id,room.wsState.get(p.id).hash]));
-  const values = Object.values(hashes);
-  if(values.every(Boolean) && new Set(values).size>1) {
-    room.desynced = true;
-    for(const p of playerStates) send(p.ws,{type:"desync",tick:room.tick,hashes});
-    return;
-  }
+// ---- Server clock -------------------------------------------------------------------------------
+// The server produces tick N+1 on its own 30 Hz timer. It does not wait for any client: a laggy or
+// disconnected player only falls behind (and fast-forwards through the buffered ticks once able to),
+// everybody else keeps playing at full speed.
+function stepRoom(room) {
   room.tick += 1;
   const commands = room.commands.get(room.tick) || []; room.commands.delete(room.tick);
   const packet = { type: "tick", tick: room.tick, commands };
-  room.history.set(room.tick,packet);
-  room.history.delete(room.tick-1800);
-  for (const p of playerStates) send(p.ws,packet);
-  for (const spec of room.spectators) for (const ws of sockets.get(spec) || []) send(ws,packet);
+  room.history.set(room.tick, packet); room.history.delete(room.tick - HISTORY_TICKS);
+  const data = json(packet);
+  for (const m of humanMembers(room)) sendRaw(playerSocket(room, m.userId), data);
+  for (const spec of room.spectators) for (const ws of sockets.get(spec) || []) sendRaw(ws, data);
+  if (room.tick % STATUS_EVERY === 0) broadcastStatus(room);
 }
+function broadcastStatus(room) {
+  const players = humanMembers(room).map(m => {
+    const connected = isConnected(room, m.userId), applied = room.applied.get(m.userId);
+    return { team: memberTeam(room, m.userId), name: m.displayName, connected, behind: connected && applied != null ? Math.max(0, room.tick - applied) : null };
+  });
+  const data = json({ type: "status", tick: room.tick, players });
+  for (const m of humanMembers(room)) sendRaw(playerSocket(room, m.userId), data);
+}
+function runClock() {
+  const t = performance.now();
+  for (const room of rooms.values()) {
+    if (room.status !== "started" || room.desynced) continue;
+    if (!room.running) {
+      // Wait for everyone to finish loading, but never longer than LOAD_TIMEOUT_MS after the first join.
+      const humans = humanMembers(room);
+      if (room.firstJoinAt && (humans.every(m => room.loaded.has(m.userId)) || t - room.firstJoinAt > LOAD_TIMEOUT_MS)) { room.running = true; room.nextTickAt = t + TICK_MS; }
+      else if (!room.firstJoinAt && now() - (room.startedAt || now()) > IDLE_DELETE_MS) { room.status = "finished"; rooms.delete(room.id); }
+      continue;
+    }
+    if (humanMembers(room).some(m => isConnected(room, m.userId))) {
+      if (room.idleSince) { room.idleSince = 0; room.nextTickAt = t + TICK_MS; }
+    } else {
+      room.idleSince ||= t;
+      if (t - room.idleSince > IDLE_DELETE_MS) { room.status = "finished"; rooms.delete(room.id); continue; }
+      if (t - room.idleSince > IDLE_PAUSE_MS) continue; // nobody is playing: stop burning CPU
+    }
+    let n = 0;
+    while (t >= room.nextTickAt && n < MAX_CATCHUP_TICKS) { stepRoom(room); room.nextTickAt += TICK_MS; n++; }
+    if (t >= room.nextTickAt) room.nextTickAt = t + TICK_MS; // server itself overloaded: drop the debt instead of spiralling
+  }
+}
+setInterval(runClock, 10).unref?.();
 
 httpServer.listen(PORT, () => console.log(`Rogue Front server listening on :${PORT}`));
