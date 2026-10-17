@@ -1,0 +1,131 @@
+{
+  "settlement": {
+    "radiusBase": 18,
+    "radiusPerBlock": 17,
+    "laneWidth": 3.6,
+    "frontSetback": 2.2,
+    "lotGap": [
+      2.2,
+      5.5
+    ],
+    "roadClearance": 1.1,
+    "squareSize": 18
+  },
+  "italy": {
+    "styles": [
+      "rowhouse",
+      "shop",
+      "residential",
+      "rural"
+    ],
+    "roofs": [
+      9983296,
+      11035722,
+      9196614
+    ],
+    "facades": [
+      13221549,
+      14470073,
+      12431521
+    ],
+    "heightScale": 1,
+    "surface": "meadow",
+    "groundTint": "#7e8961",
+    "stoneTint": "#a49e89",
+    "landmark": "square",
+    "label": "Külaväljak",
+    "spread": 1
+  },
+  "siberia": {
+    "styles": [
+      "rural",
+      "barn",
+      "residential"
+    ],
+    "roofs": [
+      9742252,
+      11120829,
+      7371914
+    ],
+    "facades": [
+      9665664,
+      11511450,
+      10855845
+    ],
+    "heightScale": 0.8,
+    "surface": "meadow",
+    "groundTint": "#a0b3b2",
+    "stoneTint": "#89969c",
+    "landmark": "timber",
+    "label": "Metsaküla tööõu",
+    "spread": 1.2
+  },
+  "canyon": {
+    "styles": [
+      "shop",
+      "rural",
+      "warehouse",
+      "residential"
+    ],
+    "roofs": [
+      8680297,
+      10325108,
+      7630691
+    ],
+    "facades": [
+      12825500,
+      14207922,
+      11640976
+    ],
+    "heightScale": 0.85,
+    "surface": "wash",
+    "groundTint": "#9c9876",
+    "stoneTint": "#ad785b",
+    "landmark": "rest",
+    "label": "Teeäärne peatus",
+    "spread": 1.25
+  },
+  "desert": {
+    "styles": [
+      "rural",
+      "residential",
+      "shop"
+    ],
+    "roofs": [
+      12692640,
+      11837325,
+      13745072
+    ],
+    "facades": [
+      14208689,
+      13218696,
+      15129534
+    ],
+    "heightScale": 0.85,
+    "surface": "wash",
+    "groundTint": "#a49978",
+    "stoneTint": "#9c8d72",
+    "landmark": "well",
+    "label": "Kaevuhoov",
+    "spread": 1
+  },
+  "landscape": {
+    "bankStride": 9,
+    "bankOffset": [
+      13,
+      27
+    ],
+    "patchWidth": [
+      28,
+      62
+    ],
+    "patchDepth": [
+      22,
+      42
+    ],
+    "patchLimit": 110,
+    "treeFringeLimit": 38,
+    "sceneryClusterShare": 0.65,
+    "landmarkDrawDistance": 700
+  }
+}

@@ -1,5 +1,27 @@
 # Arhitektuur
 
+## Piirkondlik iseloom ja kohalik kasv
+
+V18 plaaniga kaartide `characterSettlements.ts` kasutab olemasoleva kõvera maantee suunda ja loob selle frontage'ile kompaktsed hooneread. Itaalia/kõrbe külas on üks väike ringtee; Siberi/kanjonite asulates lühikesed kõrvalharud. Kohalikud teed peavad enne hoonestamist päriselt põhivõrguga ühenduma. Ressursireserv on nüüd laadimiskoha 40 × 40 m ja tehase tegeliku nihutatud 32 × 32 m ala, mitte iga ressursi ümber 100 × 100 m tühi ruut. Strateegilised ankrud ja ressursipaarid ei muutu.
+
+`region-character.json` koondab asulate mõõdud, hoonestiilid, piirkonnapaletid ja detailikihi eelarvejaotuse. `MapFeatureDef.landmark` tähistab reserveeritud külasüdant; renderdus loob sinna ühe jagatud geomeetriaga väikese külaväljaku/tööõue/teepeatuse/kaevu. `roofStyle: flat` kasutab ka mõlemas LOD-is päris lamekatuse ja parapeti geomeetriat.
+
+`regionalCharacter.ts` lisab vee kallastele ja reljeefi jalamitele pehmeid `landscape` pinnaselaike ning piiratud arvu päris metsakattega hõredaid ääresalusid. Pinnaselaigud ise ei takista liikumist ega anna varjatud katet. Maapinnaatlas sulatab need alusvärvi; põllud ja teed joonistatakse hiljem peale. `RegionalScenery` suunab senise piiratud instantsieelarve valdavalt nendele laikudele, kivid koonduvad paljanditele ja taimestik kaldaniitudele. Suurima kivi mõõt arvestatakse tee-/vee-/hoonepuhvrisse. Küladetailid ja lamapuit kasutavad olemasolevat ehitamisel puhastamise rada. Kõik genereerimisvalikud on seemnest deterministlikud; see täiendab praegust v18 generaatorit.
+
+## Piirkondlikud paigutused v18
+
+`region-plans.json` ja `regionPlans.ts` annavad 12 erinevat piirkondlikku plaani: graafid, paaritatud asulad, silutud jõejooned, kõrgendike teljed, reljeefiprofiilid ja eelistatud järvenõod. `regionInfrastructure.ts` ehitab tegelikud teed/sillad ning leiab enne asulate loomist paaritatud kuivad tootmisalad. Mõlemal baasil on kaks ühendust; teepikkused arvestavad kõverjooni. V18 maski bitid 7–8 määravad automaatse või käsitsi paigutuse. Sama valik kandub menüüst workerisse ja lobby värskendamisse.
+
+`TerrainLandform.group` ühendab ühe mäeharja osad maksimaalse kõrgusümbrisena; kompileeritud rühmaindeksid ja korduvkasutatav kõrguspuhver väldivad päringupõhiseid eraldisi. Planeerimine kasutab sama ümbrist. `MapFeatureDef.parcelId` seob ühe põllu lõiketükkide kultuuri ja põllumajandustöötluse. Täpsem kontrollide ja kasutamise ülevaade: [REGIONAL-LAYOUTS-V18.md](REGIONAL-LAYOUTS-V18.md).
+
+
+## Piirkonnageneraator v17
+
+Uus kaardivoog kasutab `regionalMap.ts` planeerimisskeletti ja nelja `regions.json` profiili. Piirkonna vaikeseaded on mängija poolt muudetavad; valik säilib v17 ID maski bittides 5–6. `regions.ts` annab `TerrainProfile`/`ReliefShape` tüübid ning sama reljeefikerneli planeerimisele ja kõrgusväljale. `region-italy`, `region-siberia`, `region-canyon` ja `region-desert` jõuavad sama kõrguspuhvri kaudu navigeerimisse, nähtavusse ja renderdusse. Vanad generaatoriharud ja ID piirid on eraldi. Server säilitab lobby kaardi värskendamisel piirkonna ja lülitid.
+
+Renderdus loeb aktiivse kõrgusprofiili piirkonda; maapinna atlas, paljandid, okaspuud, atmosfäär, vesi ja minikaart kasutavad ühist profiili. `RegionalScenery` on instantsitud kaugusgruppidega esituskiht: pindalaga kasvav kuni 24 000 detaili eelarve, teede/vee/tööalade välistus ja ehitamisel eemaldamine. Detail ei muuda liikumist ega katet. Täpsemad kontrollid ning esimese ühise strateegilise skeleti piirid: [REGIONAL-LANDSCAPES-V17.md](REGIONAL-LANDSCAPES-V17.md).
+
+
 Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 16, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
 
 

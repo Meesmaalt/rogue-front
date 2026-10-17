@@ -1,5 +1,15 @@
 # Rogue Front
 
+## 12 piirkondlikku paigutust · v18
+
+Igal maastikupiirkonnal on kolm eri paigutust: ringteed, läbipääsud, hargnevad orud või põllumajanduslikud ühendused. **Maastikupiirkond → Paigutus** laseb valida konkreetse variandi või jätta valiku seemne otsustada; sama valik on ka lobby's. Muutuvad päris teed, sillad, jõed, asulad ja kõrgendikud. Ühtlustatud on lõigatud põllutükkide kultuurid ning kokku kasvavad mäeharjad. [Paigutused, meetod ja kontrollid](docs/REGIONAL-LAYOUTS-V18.md). Külad kasvavad nüüd päris teede äärde kompaktsete hooneridadena; piirkondlikud külasüdamed, kõrbe lamekatused ning kallaste ja kaljujalamite detailikogumid annavad lähivaatele rohkem iseloomu.
+
+
+## Piirkonnapõhised kaardid · v17
+
+Uue kaardi loomisel vali **Itaalia**, **Siberi talv**, **Ameerika kanjonid** või **Kõrb**. Piirkond määrab pinnavormid, taimestiku, asustuse ja visuaalse keskkonna. Ala iseloomu ning vee-/metsa-/mäelüliteid saab eraldi muuta. Kaardi planeerimisskelett reserveerib kõigepealt ühendused ja tööalad, seejärel lisab reljeefi, asustuse ja maakasutuse. Valik töötab ka mitmikmängu lobby's. Uue generaatori jaoks alusta uut lahingut ning ehita uuesti nii mängu kui multiplayeri image. [Meetod, kontrollid ja piirid](docs/REGIONAL-LANDSCAPES-V17.md).
+
+
 Brauseripõhine RTS (Three.js + TypeScript + Vite): Wargame’i taktikaline lahing ning Real Wari baas ja ressursihaldus.
 
 Relvade ulatusringid ja tegeliku lasuarvutusega seotud lahinguandmed: [tulejuhtimise muudatus](docs/FIRE-CONTROL-RELEASE.md).

@@ -23,9 +23,15 @@ export interface MapFeatureDef {
   color?: number;
   /** Crop-row direction only; polygon bounds remain axis aligned for spatial queries. */
   cropRotation?:number;
+  /** Fragments of the same field share crop type and agricultural treatment. */
+  parcelId?:string;
   landUse?:"vineyard"|"olive"|"citrus"|"pasture";
   /** Bare mineral soil uses the same atlas layer without cultivated rows. */
   cropPattern?:"bare";
+  /** Authored ecological ground patches and small settlement focal points. */
+  landscape?:"meadow"|"scree"|"wash";
+  landmark?:"square"|"timber"|"rest"|"well";
+  roofStyle?:"flat";
   facadeColor?:number;
   district?:"center"|"residential"|"rural"|"industrial";
   buildingStyle?:"residential"|"rowhouse"|"industrial"|"rural"|"apartment"|"shop"|"barn"|"warehouse"|"civic";

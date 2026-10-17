@@ -1,6 +1,6 @@
 import {generateProceduralMap,type MapArchetype,type MapOptions} from './proceduralMap';
 import type {MissionDef,Point} from './types';
-import {resetHeightmap,setMapSize,setBases,setProceduralSeed,setTerrainProfile,setTerrainFeatures} from './heightmap';
+import {ensureHeightCache,resetHeightmap,setMapSize,setBases,setProceduralSeed,setTerrainProfile,setTerrainFeatures} from './heightmap';
 import {NavGrid} from './nav/NavGrid';
 import {pointInFeature} from './mapFeatures';
 import {Rng} from './rng';
@@ -13,7 +13,7 @@ export function validateFreshMap(mission:MissionDef,onFailure?:(reason:string)=>
  const map=mission.map,size=map.size!,half=size/2,features=map.features??[];
  try {
   const mask=/-o(\d+)$/.exec(mission.id);
-  if(/^procedural-v(?:15|16)-/.test(mission.id)&&(!mask||!(Number(mask[1])&16))&&features.filter(f=>f.waterBody==="lake").length<config.mapRefinement.minimumLakes)return fail("Järvedele ei leidunud piisavalt vaba kaldaruumi");
+  if(/^procedural-v(?:15|16|17|18)-/.test(mission.id)&&(!mask||!(Number(mask[1])&16))&&features.filter(f=>f.waterBody==="lake").length<config.mapRefinement.minimumLakes)return fail("Järvedele ei leidunud piisavalt vaba kaldaruumi");
   setMapSize(size);setBases(map.bases);setProceduralSeed(mission.seed);setTerrainProfile(map.terrainProfile,map.landforms);setTerrainFeatures(features);
   // Aircraft parking and the entire runway must fit on dry, unobstructed land.
   for(const [team,b] of map.bases.entries()){
@@ -24,6 +24,7 @@ export function validateFreshMap(mission:MissionDef,onFailure?:(reason:string)=>
     if(Math.abs(x)>half-10||Math.abs(z)>half-10||features.some(f=>(f.kind==='water'||f.kind==='building')&&pointInFeature(x,z,f,3)))return fail('Baasi lennurajal pole piisavalt vaba maad');
    }
   }
+  if(map.terrainProfile?.startsWith('region-'))ensureHeightCache();
   const grid=new NavGrid([],[],false);grid.syncFeatures(features);
   const start=grid.worldToCell(map.bases[0].x,map.bases[0].z);
   if(grid.isBlocked(start.x,start.z,2))return fail("Peamaja algusala on takistatud");
@@ -51,7 +52,9 @@ export function generateFreshMap(seed:number,archetype:MapArchetype='balanced',s
  const rng=new Rng(seed>>>0);
  for(let attempt=0;attempt<config.freshGeneration.attempts;attempt++){
   const candidate=attempt===0?seed>>>0:Math.floor(rng.next()*4294967296)>>>0;
-  try{const mission=generateProceduralMap(candidate,archetype,size,16,options);onCandidate?.(mission);if(validateFreshMap(mission))return mission;}catch{/* Try another deterministic seed. */}
+  try{const mission=generateProceduralMap(candidate,archetype,size,18,options);onCandidate?.(mission);if(validateFreshMap(mission))return mission;}catch{/* Try another deterministic seed. */}
  }
  throw new Error('Mängitavat kaarti ei õnnestunud luua. Proovi uuesti.');
 }
+
+export {regionDefaults} from './regions';

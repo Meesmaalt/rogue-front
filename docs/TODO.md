@@ -1,5 +1,35 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Kaartide iseloom ja asulate lähivaade · 17.10.2026
+
+- [x] Piirkonnale omased kompaktsed asulad kasvavad päris maantee frontage'ile ja mõnele seotud külaharule; eemaldatud uute kaartide tühi teederuudustik. Katkestatud külatee ei saa eraldatud elamusaart.
+- [x] Tehaste/laadimisalade tegelikud reservjalajäljed asendavad uute asulate ümber ülemäärase 100 × 100 m tühjendusala. Laadimine ja rajatise asukoht säilivad.
+- [x] Itaalia külaväljak, Siberi tööõu, kanjonite teepeatus ja kõrbe kaevuhoov; piirkondlik fassaadi-/katusevariatsioon ning kõrbe päris parapetiga lamekatused.
+- [x] Pehmed maapinnaüleminekud kallastel ja kaljujalamitel, hõredad päris metsaservad, kivide/põõsaste koondumine ökoloogilistesse taskutesse ning Siberi lamapuit. Instantside senine ülempiir ja teede/tööalade välistus säilivad; väikedetailid eemaldatakse ehitamisel.
+- [x] 29 sihitud asula-/nav-/geomeetria-/ehitamise kontrolli ning 10 serveritesti läbisid; lõpliku katusematerjali järel 8 renderduskontrolli kordus. Tootmisbuild läbis. Kõik 12 üldvaadet, nelja piirkonna küla-/loodusvaated ning päris lahingu käivitumine Chromiumis kontrollitud. Täiskomplekt: 593 läbis, samad 21 baasversioonil kinnitatud tõrget; uusi tõrkeid ei lisandunud.
+
+## Piirkondlikud kaardipaigutused v18 · 17.10.2026
+
+- [x] Kõigil neljal piirkonnal kolm andmepõhist graafi ning käsitsi/automaatne paigutusvalik üksikmängus ja lobby's. Graaf muudab teedevõrku, asulaid, jõgesid, ületuste arvu ja kõrgendike telgi.
+- [x] Silutud jõed ja ristumise järgi joondatud sillad, teki alt välja lõigatud asfalt, juhitud järvenõod, paigutuse eri reljeefiprofiilid ja ühise kõrgusümbrisega mäeharjad.
+- [x] Paaritatud strateegilised ankrud ja neli tootmisalapaari koos kuiva tööalaga; kaks baasiväljapääsu ja teedevõrgu ühendus ka ühe ühenduse eemaldamisel. Päris kõverjoonte lähenemispikkuste kontroll.
+- [x] Ühise põllu eri lõiketükkidel sama kultuur, istandusetüüp ja värv; järvede/teede servadel välditud juhuslik kolmnurkne värvilapistik.
+- [x] Kõik 12 paigutust kuuel suurusel, tegelik nav/lennurada 2/6 km kaartidel, seemne äärejuhtumid, päris APC sõit üle silla, menüü/worker/HTTP/lobby, TypeScript ning kliendi/serveri build. Kasutaja juhisel ei ole vanade versioonide ühilduvuse säilitamine selle etapi eesmärk.
+- [ ] Päris riistvara GPU/FPS ning inimeste pikemate matšide tasakaaluhinnang; tarkvaraline WebGL pildiülevaatus ega graafi võrdsus ei asenda seda.
+
+
+
+## Piirkonnapõhine generaator v17 · 17.10.2026
+
+- [x] Itaalia, Siberi talv, Ameerika kanjonid ja kõrb: eraldi kõrgus-/taimestiku-/asustusprofiilid ning piirkonna valik üksik- ja mitmikmängus.
+- [x] Ühine planeerimisskelett, varased lennuvälja-/tootmis-/asulareservid, järved enne reljeefi, ühendatud kõrgendikuvööndid ning pideva välja järgi lõigatud metsaservad. Madalama maa põllud ja pindalaga kasvav piiratud dekoratsioonikiht.
+- [x] Piirkonna ühine kõrguspuhver navigeerimisele/renderdusele; v17 maskis piirkond ja kõik maastikulülitid. Lobby säilitab piirkonna; ajalooliste kaartide ID-d säilivad.
+- [x] Pinnad, paljandid, puud, asulavärvid, taevas/udu, vesi, eelvaade ja minikaart. Parandatud mustad kaugpuud: puuduva vertex-colour atribuudiga kaugmudel ei sobinud jagatud materjaliga.
+- [x] Piirkonna-/geomeetria-/navigeerimise-/maski-/v16 regressioonikontrollid, kliendi/serveri build ja HTTP/lobby kontroll. Nelja piirkonna tegelikud üld-/lähivaated vaadatud Chromium/WebGL2 tarkvararenderduses. Täiskomplekti olemasolevad tõrked on aruandes eraldi.
+- [x] Rohkem piirkonnale omaseid planeerimisskelette: v18 lisab igale piirkonnale kolm paigutust. Riistvara FPS ja pikema matši hinnang on eraldi ülal.
+
+
+
 ## Hõivatavad tehased, toimiv HQ veoring ja võrdsem kaart · 17.10.2026
 
 - [x] Eemaldatud automaatveoki loomise 6000-sõlmeline eelkontroll, mis lükkas tagasi tegelikult läbitavaid pikki jõetaguseid marsruute. Sõit kasutab olemasolevat täielikku maanteeplaneerijat, takistuse korral ootab ja proovib uuesti. Väljasaatmise kontroll iga 4 s; üks rajatisele kuuluv veok, ostetud veokeid ei võeta üle.

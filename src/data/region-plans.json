@@ -1,0 +1,683 @@
+{
+  "italy": [
+    {
+      "id": "river-valley",
+      "name": "Jõeorg",
+      "topology": "ladder",
+      "townPairs": [
+        [
+          -0.28,
+          -0.24
+        ],
+        [
+          -0.25,
+          0.055
+        ],
+        [
+          -0.28,
+          0.3
+        ]
+      ],
+      "river": [
+        [
+          0,
+          -0.53
+        ],
+        [
+          -0.045,
+          -0.28
+        ],
+        [
+          0.02,
+          -0.13
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          -0.02,
+          0.13
+        ],
+        [
+          0.045,
+          0.28
+        ],
+        [
+          0,
+          0.53
+        ]
+      ],
+      "curve": 0.01,
+      "forestBias": 0,
+      "relief": {
+        "shape": "ridge",
+        "heightScale": 1,
+        "widthScale": 1,
+        "depthScale": 1
+      },
+      "lakeGuides": []
+    },
+    {
+      "id": "market-ring",
+      "name": "Turulinnade ring",
+      "topology": "ring",
+      "townPairs": [
+        [
+          -0.29,
+          0.14
+        ],
+        [
+          -0.13,
+          -0.29
+        ],
+        [
+          0.22,
+          -0.11
+        ]
+      ],
+      "river": [
+        [
+          0.04,
+          -0.53
+        ],
+        [
+          -0.07,
+          -0.3
+        ],
+        [
+          -0.04,
+          -0.1
+        ],
+        [
+          0.04,
+          0.1
+        ],
+        [
+          0.07,
+          0.3
+        ],
+        [
+          -0.04,
+          0.53
+        ]
+      ],
+      "curve": 0.035,
+      "forestBias": 0.035,
+      "relief": {
+        "shape": "ridge",
+        "heightScale": 0.85,
+        "widthScale": 1,
+        "depthScale": 1
+      },
+      "lakeGuides": []
+    },
+    {
+      "id": "farm-roads",
+      "name": "Põllumajandusvöönd",
+      "topology": "fork",
+      "townPairs": [
+        [
+          -0.27,
+          0.24
+        ],
+        [
+          -0.27,
+          -0.24
+        ],
+        [
+          -0.32,
+          0.015
+        ]
+      ],
+      "river": [
+        [
+          0.06,
+          -0.53
+        ],
+        [
+          0.03,
+          -0.3
+        ],
+        [
+          -0.045,
+          -0.15
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0.045,
+          0.15
+        ],
+        [
+          -0.03,
+          0.3
+        ],
+        [
+          -0.06,
+          0.53
+        ]
+      ],
+      "curve": 0.025,
+      "forestBias": 0.08,
+      "relief": {
+        "shape": "ridge",
+        "heightScale": 0.65,
+        "widthScale": 1,
+        "depthScale": 1
+      },
+      "lakeGuides": []
+    }
+  ],
+  "siberia": [
+    {
+      "id": "taiga-corridors",
+      "name": "Taigakoridorid",
+      "topology": "bypass",
+      "townPairs": [
+        [
+          -0.28,
+          0.24
+        ],
+        [
+          -0.15,
+          -0.3
+        ],
+        [
+          0.27,
+          -0.08
+        ]
+      ],
+      "river": [
+        [
+          0,
+          -0.53
+        ],
+        [
+          0.065,
+          -0.32
+        ],
+        [
+          -0.035,
+          -0.14
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0.035,
+          0.14
+        ],
+        [
+          -0.065,
+          0.32
+        ],
+        [
+          0,
+          0.53
+        ]
+      ],
+      "curve": 0.02,
+      "forestBias": -0.055,
+      "relief": {
+        "shape": "ridge",
+        "heightScale": 0.8,
+        "widthScale": 1,
+        "depthScale": 1
+      },
+      "lakeGuides": []
+    },
+    {
+      "id": "lake-district",
+      "name": "Järvede vahel",
+      "topology": "ring",
+      "townPairs": [
+        [
+          -0.3,
+          0.15
+        ],
+        [
+          -0.1,
+          -0.31
+        ],
+        [
+          0.24,
+          -0.09
+        ]
+      ],
+      "river": [
+        [
+          0.06,
+          -0.53
+        ],
+        [
+          0.08,
+          -0.27
+        ],
+        [
+          -0.05,
+          -0.09
+        ],
+        [
+          0.05,
+          0.09
+        ],
+        [
+          -0.08,
+          0.27
+        ],
+        [
+          -0.06,
+          0.53
+        ]
+      ],
+      "curve": 0.045,
+      "forestBias": -0.04,
+      "relief": {
+        "shape": "ridge",
+        "heightScale": 0.65,
+        "widthScale": 1,
+        "depthScale": 1
+      },
+      "lakeGuides": [
+        [
+          -0.12,
+          -0.12
+        ]
+      ]
+    },
+    {
+      "id": "ridge-passes",
+      "name": "Harjade läbipääsud",
+      "topology": "fork",
+      "townPairs": [
+        [
+          -0.25,
+          0.27
+        ],
+        [
+          -0.25,
+          -0.27
+        ],
+        [
+          -0.34,
+          0.035
+        ]
+      ],
+      "river": [
+        [
+          0,
+          -0.53
+        ],
+        [
+          -0.06,
+          -0.31
+        ],
+        [
+          0.055,
+          -0.16
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          -0.055,
+          0.16
+        ],
+        [
+          0.06,
+          0.31
+        ],
+        [
+          0,
+          0.53
+        ]
+      ],
+      "curve": 0.035,
+      "forestBias": -0.02,
+      "relief": {
+        "shape": "ridge",
+        "heightScale": 1.3,
+        "widthScale": 1,
+        "depthScale": 1
+      },
+      "lakeGuides": []
+    }
+  ],
+  "canyon": [
+    {
+      "id": "long-canyon",
+      "name": "Pikk kanjon",
+      "topology": "bypass",
+      "townPairs": [
+        [
+          -0.27,
+          0.24
+        ],
+        [
+          -0.16,
+          -0.31
+        ],
+        [
+          0.25,
+          -0.07
+        ]
+      ],
+      "river": [
+        [
+          0,
+          -0.53
+        ],
+        [
+          0.035,
+          -0.32
+        ],
+        [
+          -0.02,
+          -0.14
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0.02,
+          0.14
+        ],
+        [
+          -0.035,
+          0.32
+        ],
+        [
+          0,
+          0.53
+        ]
+      ],
+      "curve": 0.012,
+      "forestBias": 0.1,
+      "relief": {
+        "shape": "mesa",
+        "heightScale": 1.15,
+        "widthScale": 1,
+        "depthScale": 1
+      },
+      "lakeGuides": []
+    },
+    {
+      "id": "mesa-loop",
+      "name": "Lavamaade ring",
+      "topology": "ring",
+      "townPairs": [
+        [
+          -0.31,
+          0.12
+        ],
+        [
+          -0.11,
+          -0.32
+        ],
+        [
+          0.23,
+          -0.11
+        ]
+      ],
+      "river": [
+        [
+          0.02,
+          -0.53
+        ],
+        [
+          -0.055,
+          -0.3
+        ],
+        [
+          -0.04,
+          -0.11
+        ],
+        [
+          0.04,
+          0.11
+        ],
+        [
+          0.055,
+          0.3
+        ],
+        [
+          -0.02,
+          0.53
+        ]
+      ],
+      "curve": 0.04,
+      "forestBias": 0.08,
+      "relief": {
+        "shape": "mesa",
+        "heightScale": 1,
+        "widthScale": 1.15,
+        "depthScale": 1
+      },
+      "lakeGuides": []
+    },
+    {
+      "id": "branching-valley",
+      "name": "Hargnev org",
+      "topology": "fork",
+      "townPairs": [
+        [
+          -0.28,
+          0.25
+        ],
+        [
+          -0.26,
+          -0.25
+        ],
+        [
+          -0.33,
+          0.01
+        ]
+      ],
+      "river": [
+        [
+          0,
+          -0.53
+        ],
+        [
+          -0.065,
+          -0.3
+        ],
+        [
+          0.035,
+          -0.12
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          -0.035,
+          0.12
+        ],
+        [
+          0.065,
+          0.3
+        ],
+        [
+          0,
+          0.53
+        ]
+      ],
+      "curve": 0.03,
+      "forestBias": 0.13,
+      "relief": {
+        "shape": "mesa",
+        "heightScale": 1.1,
+        "widthScale": 1,
+        "depthScale": 1
+      },
+      "lakeGuides": []
+    }
+  ],
+  "desert": [
+    {
+      "id": "caravan-loop",
+      "name": "Kaubateede ring",
+      "topology": "ring",
+      "townPairs": [
+        [
+          -0.3,
+          0.13
+        ],
+        [
+          -0.09,
+          -0.3
+        ],
+        [
+          0.24,
+          -0.1
+        ]
+      ],
+      "river": [
+        [
+          0,
+          -0.53
+        ],
+        [
+          0.06,
+          -0.29
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          -0.06,
+          0.29
+        ],
+        [
+          0,
+          0.53
+        ]
+      ],
+      "curve": 0.055,
+      "forestBias": 0.1,
+      "relief": {
+        "shape": "ridge",
+        "heightScale": 0.8,
+        "widthScale": 1,
+        "depthScale": 1
+      },
+      "lakeGuides": []
+    },
+    {
+      "id": "dune-belts",
+      "name": "Luitevööndid",
+      "topology": "bypass",
+      "townPairs": [
+        [
+          -0.29,
+          0.24
+        ],
+        [
+          -0.13,
+          -0.32
+        ],
+        [
+          0.25,
+          -0.05
+        ]
+      ],
+      "river": [
+        [
+          0.04,
+          -0.53
+        ],
+        [
+          -0.045,
+          -0.26
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0.045,
+          0.26
+        ],
+        [
+          -0.04,
+          0.53
+        ]
+      ],
+      "curve": 0.03,
+      "forestBias": 0.15,
+      "relief": {
+        "shape": "dune",
+        "heightScale": 1,
+        "widthScale": 1,
+        "depthScale": 1.25
+      },
+      "lakeGuides": []
+    },
+    {
+      "id": "rock-basin",
+      "name": "Kivine nõgu",
+      "topology": "fork",
+      "townPairs": [
+        [
+          -0.27,
+          0.27
+        ],
+        [
+          -0.27,
+          -0.27
+        ],
+        [
+          -0.34,
+          0.02
+        ]
+      ],
+      "river": [
+        [
+          0,
+          -0.53
+        ],
+        [
+          0.06,
+          -0.28
+        ],
+        [
+          -0.04,
+          -0.12
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0.04,
+          0.12
+        ],
+        [
+          -0.06,
+          0.28
+        ],
+        [
+          0,
+          0.53
+        ]
+      ],
+      "curve": 0.04,
+      "forestBias": 0.08,
+      "relief": {
+        "shape": "mesa",
+        "heightScale": 1.25,
+        "widthScale": 1,
+        "depthScale": 1
+      },
+      "lakeGuides": []
+    }
+  ]
+}

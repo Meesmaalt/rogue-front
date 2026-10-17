@@ -29,3 +29,9 @@ test('v16 symmetric industry maps accept all terrain options',()=>{
  for(const size of [2048,2560,3072,4096,5120,6144])assert.equal(isProceduralMapId(`procedural-v16-balanced-${size}-43-o31`),true);
  assert.equal(isProceduralMapId('procedural-v16-balanced-2048-43-o32'),false);
 });
+
+test('v17 accepts four region bits and rejects ambiguous or out of range IDs',()=>{
+ for(const mask of [0,14,46,86,118,127])assert.equal(isProceduralMapId(`procedural-v17-balanced-2048-43-o${mask}`),true);
+ for(const suffix of ['128','01','NaN'])assert.equal(isProceduralMapId(`procedural-v17-balanced-2048-43-o${suffix}`),false);
+ assert.equal(isProceduralMapId('procedural-v17-balanced-2048-4294967296-o14'),false);
+});
