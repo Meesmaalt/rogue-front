@@ -1,3 +1,4 @@
+import {addInteriorLakes,refineRoadConnections} from "./mapRefinement";
 import {enrichItalianLandscape} from './italianLandscape';
 import {naturalHills,naturalForestEdge,naturalWoodlandAt,interiorRidges} from "./naturalLandscape";
 import battleScale from "../data/battle-scale.json";
@@ -9,9 +10,9 @@ import {buildOrganicTown,buildMountainRanges,ridgeReliefAt,subtractParcel,parcel
 import {buildVariedSettlement,buildIndustrialClusters} from "./settlements";
 import greenValley from "../data/maps/green-valley.json";
 
-export interface MapOptions {sea:boolean;mountains:boolean;forest:boolean;river:boolean}
-export function mapOptionsMask(o:MapOptions):number {return Number(o.sea)|Number(o.mountains)<<1|Number(o.forest)<<2|Number(o.river)<<3;}
-export function decodeMapOptions(n:number):MapOptions {return {sea:!!(n&1),mountains:!!(n&2),forest:!!(n&4),river:!!(n&8)};}
+export interface MapOptions {sea:boolean;mountains:boolean;forest:boolean;river:boolean;lakes?:boolean}
+export function mapOptionsMask(o:MapOptions):number {return Number(o.sea)|Number(o.mountains)<<1|Number(o.forest)<<2|Number(o.river)<<3|Number(o.lakes===false)<<4;}
+export function decodeMapOptions(n:number):MapOptions {return {sea:!!(n&1),mountains:!!(n&2),forest:!!(n&4),river:!!(n&8),...(n&16?{lakes:false}:{})};}
 export type MapArchetype="balanced"|"river"|"highlands"|"urban"|"coastal"|"forest";
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
 function polygonFeature(id:string,points:Point[],appearance:"field"|"forest",color?:number):MapFeatureDef {
@@ -31,7 +32,7 @@ function clip(points:Point[],nx:number,nz:number,limit:number):Point[] {
 
 export const GENERATED_MAP_SIZES:readonly number[]=config.largeSizes;
 export const METRIC_MAP_SIZES:readonly number[]=battleScale.mapSizes;
-export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5|6|7|8|9|10|11|12|13|14=[2560,3072,5120].includes(requestedSize)?11:requestedSize>=4096?10:8,options?:MapOptions):MissionDef {
+export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5|6|7|8|9|10|11|12|13|14|15=[2560,3072,5120].includes(requestedSize)?11:requestedSize>=4096?10:8,options?:MapOptions):MissionDef {
   // 1280 retains v2 geometry for existing saved matches; v3 sizes are deliberately bounded.
   const legacy=requestedSize===config.size;
   if((requestedSize>=4096&&generationVersion<9)||(!legacy&&![...GENERATED_MAP_SIZES,...METRIC_MAP_SIZES].includes(requestedSize)))throw new Error("Kaardi suurus pole toetatud");
@@ -61,7 +62,7 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
   }
   const phase=random(-.3,.3),amplitude=generationVersion>=11?size*random(...config.freshGeneration.riverAmplitudeRatio as [number,number]):random(38,70);
   const riverX=(z:number)=>(volcanic?size*cfg.riverOffsetRatio:0)+Math.sin(z/size*Math.PI*2+phase)*amplitude+Math.sin(z/size*Math.PI*5)*13;
-  const blocked=(p:Point,r:number,kinds:readonly string[]=["building","water"])=>features.some(f=>kinds.includes(f.kind)&&pointInFeature(p.x,p.z,f,r));
+  const blocked=(p:Point,r:number,kinds:readonly string[]=["building","water"])=>features.some(f=>(kinds.includes(f.kind)||generationVersion>=15&&f.id.startsWith("base-airfield-yard-"))&&pointInFeature(p.x,p.z,f,r));
   const road=(id:string,a:Point,b:Point,width:number,roadClass:MapFeatureDef["roadClass"]="secondary")=>{
     const length=distance(a,b);if(length<.1)return;
     features.push({id,kind:"road",x:(a.x+b.x)/2,z:(a.z+b.z)/2,width,depth:length+.4,rotation:Math.atan2(b.x-a.x,b.z-a.z),roadClass,label:roadClass==="street"?"Asulatänav":roadClass==="track"?"Talutee":"Maantee"});
@@ -81,9 +82,11 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
     const za=-half-16+i*(size+32)/config.riverSteps,zb=-half-16+(i+1)*(size+32)/config.riverSteps,a={x:riverX(za),z:za},b={x:riverX(zb),z:zb};
     features.push({id:`river-${i}`,kind:"water",waterBody:"river",x:(a.x+b.x)/2,z:(za+zb)/2,width:config.riverWidth,depth:distance(a,b)+2,rotation:Math.atan2(b.x-a.x,b.z-a.z),surfaceHeight:-.8,label:"Jõgi"});
   }
+  if(generationVersion<15){
   const lakeCenter={x:175+random(-18,18),z:-size*.36},lakeWidth=archetype==="river"?130:220;
   const shore=Array.from({length:64},(_,i)=>{const a=i*Math.PI/32,r=1+.07*Math.sin(a*3+phase)+.025*Math.cos(a*5);return {x:lakeCenter.x+Math.cos(a)*lakeWidth*.5*r,z:lakeCenter.z+Math.sin(a)*72.5*r};});
   features.push({...polygonFeature("lake",shore,"field"),kind:"water",appearance:undefined,waterBody:"lake",surfaceHeight:-.8,blocksMovement:true,label:"Järv"});
+  }
   if(options?.sea??archetype==="coastal")features.push({id:"sea",kind:"water",waterBody:"sea",x:0,z:-half+38,width:size,depth:76,surfaceHeight:-.8,label:"Meri"});
   const crossingZ=[-size*random(.22,.26),random(-20,20),size*random(.22,.26)],bridges:MapFeatureDef[]=[];
   for(let i=0;i<crossingZ.length;i++){
@@ -104,11 +107,25 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
     for(let i=4;i<towns.length;i++){
       const t=towns[i],cols=t.blocks,w=cols*config.blockWidth;
       const endpoint={x:t.x+w*.5*Math.cos(t.angle),z:t.z-w*.5*Math.sin(t.angle)};
+      if(generationVersion>=15){
+        // Use the settlement's real spine anchor and the nearest dry main-road projection.
+        // The former outer-map L bend produced kilometre-long rectangular detours.
+        const spineX=-cols*config.blockWidth/2+Math.ceil(cols/2)*config.blockWidth;
+        const anchor={x:t.x+spineX*Math.cos(t.angle),z:t.z-spineX*Math.sin(t.angle)};
+        const choices=features.filter(f=>f.kind==="road").map(f=>{
+          const a=f.rotation??0,u=Math.max(-f.depth/2,Math.min(f.depth/2,(anchor.x-f.x)*Math.sin(a)+(anchor.z-f.z)*Math.cos(a)));
+          const point={x:f.x+Math.sin(a)*u,z:f.z+Math.cos(a)*u};return {point,d:distance(anchor,point)};
+        }).sort((a,b)=>a.d-b.d);
+        const connection=choices.find(({point,d})=>{const steps=Math.max(1,Math.ceil(d/5));for(let j=0;j<=steps;j++)if(blocked({x:anchor.x+(point.x-anchor.x)*j/steps,z:anchor.z+(point.z-anchor.z)*j/steps},3,["water"]))return false;return true;});
+        if(connection)corridor(`regional-link-${i}`,[anchor,connection.point],5.5);
+        continue;
+      }
       // Connect at a ward boundary; a central spur would erase the small lots.
       const target={x:Math.sign(t.x)*size*.35,z:bridges.reduce((a,b)=>Math.abs(a.z-t.z)<Math.abs(b.z-t.z)?a:b).z};
       corridor(`regional-link-${i}`,[endpoint,{x:target.x,z:endpoint.z},target],5.5);
     }
   }
+  if(generationVersion>=15)for(const [team,b] of bases.entries()){const sign=team===0?1:-1,a=team===0?Math.PI*.75:-Math.PI/4,mid=(battleScale.generationAirfield.runwayStart+battleScale.generationAirfield.runwayEnd)/2;features.push({id:`base-airfield-yard-${team}`,kind:"cover",appearance:"yard",x:b.x+battleScale.readyAirfield.x*sign+Math.sin(a)*mid,z:b.z+battleScale.readyAirfield.z*sign+Math.cos(a)*mid,width:battleScale.generationAirfield.runwayWidth+20,depth:battleScale.generationAirfield.runwayEnd-battleScale.generationAirfield.runwayStart+20,rotation:a,blocksMovement:false,color:0x899582});}
   // V6 settlement streets are organic connected loops; old layouts remain byte-for-byte reconstructible.
   // Compact lots follow streets. A town transform rotates its whole ward, never individual random houses.
   for(let ti=0;ti<towns.length;ti++){
@@ -138,7 +155,8 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
   }
   if(!legacy){
     // Small lakes occupy unbuilt meadow pockets: real water/nav masks, never cosmetic blue decals.
-    for(let i=0;i<3;i++){
+    if(generationVersion>=15&&(options?.lakes??true))addInteriorLakes(size,rng,features,[...bases.map(b=>({...b,r:b.r+180})),...towns.map(t=>({...t,r:t.blocks*25})),...([{x:-size*.31,z:size*.17},{x:size*.31,z:-size*.17},volcanic?{x:size*.09,z:size*.13}:{x:-110,z:40},{x:-size*.29,z:-size*.29},{x:size*.29,z:size*.29},{x:size*.13,z:-size*.08},{x:-size*.13,z:size*.08},{x:-size*.25,z:-size*.39},{x:size*.25,z:size*.39}].map(p=>({...p,r:75})))]);
+    for(let i=0;i<(generationVersion<15?3:0);i++){
       const p={x:random(-half+140,half-140),z:random(-half+140,half-140)};
       if(blocked(p,85,["road","building","water"])||bases.some(b=>distance(p,b)<b.r+110))continue;
       const points=Array.from({length:32},(_,j)=>{const a=j*Math.PI/16,r=1+.08*Math.sin(a*3+i);return {x:p.x+Math.cos(a)*48*r,z:p.z+Math.sin(a)*32*r};});
@@ -162,7 +180,7 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
     }
   }
   if(!legacy&&generationVersion>=7)features.push(...buildIndustrialClusters(size,rng,features,[...bases,...towns.map(t=>({...t,r:t.blocks*40+30}))]));
-  if(generationVersion>=10)for(const [team,b] of bases.entries()){const sign=team===0?1:-1,a=team===0?Math.PI*.75:-Math.PI/4,mid=(battleScale.generationAirfield.runwayStart+battleScale.generationAirfield.runwayEnd)/2;features.push({id:`base-airfield-yard-${team}`,kind:"cover",appearance:"yard",x:b.x+battleScale.readyAirfield.x*sign+Math.sin(a)*mid,z:b.z+battleScale.readyAirfield.z*sign+Math.cos(a)*mid,width:battleScale.generationAirfield.runwayWidth+20,depth:battleScale.generationAirfield.runwayEnd-battleScale.generationAirfield.runwayStart+20,rotation:a,blocksMovement:false,color:0x899582});}
+  if(generationVersion>=10&&generationVersion<15)for(const [team,b] of bases.entries()){const sign=team===0?1:-1,a=team===0?Math.PI*.75:-Math.PI/4,mid=(battleScale.generationAirfield.runwayStart+battleScale.generationAirfield.runwayEnd)/2;features.push({id:`base-airfield-yard-${team}`,kind:"cover",appearance:"yard",x:b.x+battleScale.readyAirfield.x*sign+Math.sin(a)*mid,z:b.z+battleScale.readyAirfield.z*sign+Math.cos(a)*mid,width:battleScale.generationAirfield.runwayWidth+20,depth:battleScale.generationAirfield.runwayEnd-battleScale.generationAirfield.runwayStart+20,rotation:a,blocksMovement:false,color:0x899582});}
   const landscapeForms=landscape?buildMountainRanges(size,archetype,rng,features,[...bases.map(b=>({...b,r:b.r+55})),...towns.map(t=>({...t,r:110})),
     ...[{x:-size*.31,z:size*.17},{x:size*.31,z:-size*.17},{x:-size*.29,z:-size*.29},{x:size*.29,z:size*.29}].map(p=>({...p,r:75}))]):[];
   if(generationVersion>=10)landscapeForms.push(...naturalHills(size,archetype,rng,features,[...bases.map(b=>({...b,r:320})),...towns.map(t=>({...t,r:140})),...[{x:-size*.31,z:size*.17},{x:size*.31,z:-size*.17},{x:-110,z:40},{x:-size*.29,z:-size*.29},{x:size*.29,z:size*.29},{x:size*.13,z:-size*.08},{x:-size*.13,z:size*.08},{x:-size*.25,z:-size*.39},{x:size*.25,z:size*.39}].map(p=>({...p,r:100}))]));
@@ -290,6 +308,7 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
     ground.cropPattern="bare";ground.label="Kustunud vulkaani kivine kraater";features.push(ground);
   }
   if(generationVersion>=14)enrichItalianLandscape(seed,features,[...bases,...resources]);
+  if(generationVersion>=15)refineRoadConnections(features);
   // Canonical millimetre coordinates keep generated map hashes stable across clients.
   const quantize=(n:number)=>Math.round(n*1000)/1000;
   for(const f of features){for(const key of ["x","z","width","depth","height"] as const)if(f[key]!=null)f[key]=quantize(f[key]!);if(f.rotation!=null)f.rotation=Math.round(f.rotation*1e6)/1e6;if(f.polygon)f.polygon=f.polygon.map(p=>({x:quantize(p.x),z:quantize(p.z)}));}
@@ -304,10 +323,10 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
 export const FOCUS_MAP=greenValley as unknown as MissionDef;
 export const CURATED_MAPS:readonly MissionDef[]=[];
 export function getPlayableMap(id:string):MissionDef|undefined {
-  const custom=/^(procedural-v(?:13|14)-(?:balanced|river|highlands|urban|coastal|forest)-(?:2048|2560|3072|4096|5120|6144)-(\d+))-o(\d+)$/.exec(id);
-  if(custom){const mask=Number(custom[3]);if(mask>15||String(mask)!==custom[3]||Number(custom[2])>4294967295)return undefined;const parts=custom[1].split('-');return generateProceduralMap(Number(custom[2]),parts[2] as MapArchetype,Number(parts[3]),Number(parts[1].slice(1)) as 13|14,decodeMapOptions(mask));}
-  const current=/^procedural-v(11|12|13|14)-(balanced|river|highlands|urban|coastal|forest)-(2048|2560|3072|4096|5120|6144)-(\d+)$/.exec(id);
-  if(current)return Number(current[4])<=4294967295?generateProceduralMap(Number(current[4]),current[2] as MapArchetype,Number(current[3]),Number(current[1]) as 11|12|13|14):undefined;
+  const custom=/^(procedural-v(?:13|14|15)-(?:balanced|river|highlands|urban|coastal|forest)-(?:2048|2560|3072|4096|5120|6144)-(\d+))-o(\d+)$/.exec(id);
+  if(custom){const mask=Number(custom[3]);if(mask>(custom[1].startsWith("procedural-v15-")?31:15)||String(mask)!==custom[3]||Number(custom[2])>4294967295)return undefined;const parts=custom[1].split('-');return generateProceduralMap(Number(custom[2]),parts[2] as MapArchetype,Number(parts[3]),Number(parts[1].slice(1)) as 13|14|15,decodeMapOptions(mask));}
+  const current=/^procedural-v(11|12|13|14|15)-(balanced|river|highlands|urban|coastal|forest)-(2048|2560|3072|4096|5120|6144)-(\d+)$/.exec(id);
+  if(current)return Number(current[4])<=4294967295?generateProceduralMap(Number(current[4]),current[2] as MapArchetype,Number(current[3]),Number(current[1]) as 11|12|13|14|15):undefined;
   const metric=/^procedural-v(9|10)-(balanced|river|highlands|urban|coastal|forest)-(4096|6144)-(\d+)$/.exec(id);
   if(metric)return Number(metric[4])<=4294967295?generateProceduralMap(Number(metric[4]),metric[2] as MapArchetype,Number(metric[3]),Number(metric[1]) as 9|10):undefined;
   const regional=/^procedural-v(3|4|5|6|7|8)-(balanced|river|highlands|urban|coastal|forest)-(1536|1792|2048)-(\d+)$/.exec(id);

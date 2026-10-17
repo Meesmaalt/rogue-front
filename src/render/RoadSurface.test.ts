@@ -41,3 +41,14 @@ it('sharp asphalt and paint retain world visibility fog instead of revealing hid
   mesh.geometry.dispose();
  }
 });
+
+it.each([Math.PI/2,Math.PI/4])('crossing roads cover each asphalt point once rather than stacking coplanar strips (angle=%s)',rotation=>{
+ setMapSize(2048);setBases([{x:0,z:0,r:200}]);
+ const group=createRoadSurfaces([{id:'a',kind:'road',x:0,z:0,width:8,depth:40},{id:'b',kind:'road',x:0,z:0,width:8,depth:40,rotation}]);
+ let area=0;
+ for(const mesh of group.children as THREE.Mesh<THREE.BufferGeometry>[]){
+  if(mesh.name==='road-asphalt'){const p=mesh.geometry.attributes.position;for(let i=0;i<p.count;i+=3)area+=Math.abs((p.getX(i+1)-p.getX(i))*(p.getZ(i+2)-p.getZ(i))-(p.getZ(i+1)-p.getZ(i))*(p.getX(i+2)-p.getX(i)))/2;}
+  mesh.geometry.dispose();
+ }
+ expect(area).toBeCloseTo(640-64/Math.sin(rotation),2);expect(group.children.length).toBeLessThanOrEqual(8);
+});

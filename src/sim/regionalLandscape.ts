@@ -94,7 +94,7 @@ export function buildMountainRanges(size:number,archetype:string,rng:Rng,feature
 }
 
 /** Subtract a convex mask, keeping disjoint convex remnants instead of discarding entire fields. */
-export function subtractParcel(points:Point[],mask:readonly Point[]):Point[][] {
+export function subtractParcel(points:Point[],mask:readonly Point[],minimumArea=config.landUse.minimumArea):Point[][] {
   const clip=(poly:Point[],a:Point,b:Point,inside:boolean):Point[]=>{
     const out:Point[]=[],cross=(p:Point)=>(b.x-a.x)*(p.z-a.z)-(b.z-a.z)*(p.x-a.x);
     for(let i=0;i<poly.length;i++){
@@ -107,7 +107,7 @@ export function subtractParcel(points:Point[],mask:readonly Point[]):Point[][] {
   let remainder=points;const pieces:Point[][]=[];
   for(let i=0;i<boundary.length&&remainder.length>=3;i++){
     const a=boundary[i],b=boundary[(i+1)%boundary.length],outside=clip(remainder,a,b,false);
-    if(outside.length>=3&&parcelArea(outside)>config.landUse.minimumArea)pieces.push(outside);
+    if(outside.length>=3&&parcelArea(outside)>minimumArea)pieces.push(outside);
     remainder=clip(remainder,a,b,true);
   }
   return pieces;

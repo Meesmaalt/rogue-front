@@ -5,6 +5,19 @@ Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOP
 
 
 
+
+## V15: sidus teedevõrk ja ruumiga arvestavad järved · 17.10.2026
+
+Uus menüü/worker/serveri värske generaator kasutab `procedural-v15`. `MapOptions.lakes` on valikuline ja vaikimisi lubatud. Valikumaski bit 16 keelab järved; vanad 0–15 maskid säilitavad vaikimisi järvedega käitumise. Ainult v15 lubab maske kuni 31. `getPlayableMap`, serveri poliitika, meetri-/kompaktskaala tuvastus ja kaardi ettevalmistus tunnevad sama versiooni; vanad v2–v14 ID-d jätkavad oma generaatoriga.
+
+`mapRefinement.addInteriorLakes` asendab uutel kaartidel ühe kindla asukohaga väikese järve ja kolm ühekordset tiigikatset. Suuruse järgi proovitakse 2–5 basseini, kuni 80 katset basseini kohta. Kogu 64 tipuga kaldapolügoon peab mahtuma vabasse taskusse koos 20 m puhvriga; kontroll kasutab ruumilist indeksit ja jalajälgede lõikumist. Suurused on 6–10% kaardi laiusest (kuni 560 m enne kaldavariatsiooni), eri pikenduse, pöörde ja mitme kaldalohuga. Esimese kahe järve asukohad eelistavad vastaspooli ning eri põhja/lõuna vööndeid. Baasid, planeeritud ressursialad, lennurajad ja olemasolevad teed/hooned jäävad kuivaks. Järved lisatakse enne talusid, põllu-/metsapolügoone ja reljeefi, nii et hilisem maastik arvestab nende kaldaga. Valmis kaardi kontroll nõuab lubatud järvede korral vähemalt kaht järve ning kontrollib päris nav-ruudustikus baaside ja üheksa ressursiala ühendust.
+
+V15 külaühendus algab `buildVariedSettlement` tegelikust spine-sõlmest ja lõpeb lähimal kuival maanteeprojektsioonil. Varasem kaugema välisserva kaudu tehtud L-ring jääb ajaloolistele versioonidele. `refineRoadConnections` liidab kuni 6 m puudujäägiga T-otsad ainult takistuseta ning piisava nurgaga teele; seejärel jaotab päris ristuvad lõigud ühises ristumiskohas. Väga väikesi lõike välditakse ja sillatekke ei jagata. Lennuvälja reservpolügoon paigutatakse v15-s enne asulaid ja järvi; nii talu- kui ka asulamajade paigutus austab seda. Vana generaatori juhuarvujärjestus ja hilise reservatsiooni asukoht säilivad vanade versioonide jaoks.
+
+Renderduse `RoadOverlap` lahutab juba kaetud asfalt- või teepervepinna igast maastikukolmnurgast. Maantee on tänava ja talutee ees, ristmiku värv lõigatakse kõigi ristuvate sõiduteede juures. Tulemus säilitab tegeliku maastikukolmnurga tasapinna, maailma UV-d, valgusnormaalid ja kuni kaks materjalipartiid ruumilise tüki kohta. `subtractParcel` saab selleks valikulise väikese pindalaläve; põllugeneraatori senine vaikimisi lävi ei muutu. Piirpolügoonide WeakMap-vahemälu ning ruumilised päringud hoiavad geomeetria lõikamise kaardi loomise etapis; kaadriuuenduses seda tööd ei tehta. Sim-teede andmed jäävad eraldi esitusgeomeetriast.
+
+Kinnitatud: ristuva/kaldus ristmiku asfaldi summaarne pindala võrdub ühendiga, mitte kattuvate ristkülikute summaga; 2048/4096/6144 m näidiskaartidel säilivad baaside ning ressursialade läbipääsud. Vaadatud on genereeritud kaardi 2D paigutust. Tegelik WebGL pind, heli ja FPS pole selles keskkonnas kinnitatud.
+
 ## Tarnetsükkel ja relvade mõõtkavast sõltuv tasakaal · 17.10.2026
 
 `logistics.external` väliskopteri ja ressursilennuki koorem, koorma tasemeboonus ning väljasaatmise intervall on kahekordistatud. Kopteri nominaalne sissetulek tasemetel 1/2/3 jääb 3,6 / 6,5 / 10,24 kaubaühikuks sekundis enne `incomeMultiplier` mõju. Lennuki fondi kasv ja ülempiir säilivad, minimaalne väljalastav koorem on 720. Fondi kogumine, lennuaeg, parkimiskoht ja päris mahalaadimine mõjutavad tegelikku tempot endiselt; raha ei lisata uue lennu loomisel. Suurem last võib vajada mitut tõstukiringi. Mõlema poole ühine tarnereegel ja uuenduste sagedusboonused säilivad.

@@ -700,5 +700,15 @@
   "Peatub pardaleminekuks": "Stopping for boarding",
   "Peatub väljumiseks": "Stopping for disembarkation",
   "Väljumine ootab · vaja vaba läbipääsu": "Disembarkation waiting · clear exit required",
-  "Raske soomus, suurtükivägi ja õhutõrje. Vastupidavus väiksema liikuvuse arvelt.": "Heavy armor, artillery and air defence. Durability at the expense of mobility."
+  "Raske soomus, suurtükivägi ja õhutõrje. Vastupidavus väiksema liikuvuse arvelt.": "Heavy armor, artillery and air defence. Durability at the expense of mobility.",
+  "Järved": "Lakes",
+  "Suurjärv": "Large lake",
+  "Metsajärv": "Woodland lake",
+  "Baasi lennurajal pole piisavalt vaba maad": "Not enough clear land for the base runway",
+  "Peamaja algusala on takistatud": "The headquarters starting area is blocked",
+  "Baaside vahel puudub maapealne läbipääs": "No ground route connects the bases",
+  "Kõiki ressursirajatisi ei õnnestunud paigutada": "Not all resource facilities could be placed",
+  "Ressursirajatisele puudub maapealne ligipääs": "A resource facility has no ground access",
+  "Vali uus seeme.": "Choose another seed.",
+  "Järvedele ei leidunud piisavalt vaba kaldaruumi": "Not enough clear shoreline space for lakes"
 }

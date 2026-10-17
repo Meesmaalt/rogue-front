@@ -405,7 +405,7 @@
           4,
           6
         ],
-        "label": "K\u00f5rvalhoone"
+        "label": "Kõrvalhoone"
       },
       "industrial": {
         "width": [
@@ -587,5 +587,25 @@
     "volcanoClearRadiusRatio": 0.078,
     "riverOffsetRatio": -0.18,
     "bypassRatio": 0.115
+  },
+  "mapRefinement": {
+    "lakeAttempts": 80,
+    "lakeCountDivisor": 1400,
+    "maxLakes": 5,
+    "lakeWidthRatio": [
+      0.06,
+      0.1
+    ],
+    "lakeMaximumWidth": 560,
+    "lakeDepthRatio": [
+      0.58,
+      0.82
+    ],
+    "shoreClearance": 20,
+    "lakeVertices": 64,
+    "junctionSnapDistance": 6,
+    "junctionMinimumAngle": 0.25,
+    "minimumRoadPiece": 2,
+    "minimumLakes": 2
   }
 }

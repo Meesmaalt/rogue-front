@@ -3,6 +3,17 @@
 
 
 
+
+## Kaardigeneraator v15: päris ristmikud ja järvemaastik · 17.10.2026
+
+- [x] Kattuvate asfalt- ja teepervekolmnurkade geomeetriline lahutamine, maantee/tänava/talutee stabiilne prioriteet ning ristmiku märgistuse täpne väljalõikamine. Pinnad järgivad samu maastikukolmnurki ja maailma UV-sid, ruumilised renderduspartiid säilivad. Ristmiku asfalt ei joonistu samas kohas mitu korda.
+- [x] V15 ühendab napilt mööduvad T-otsad, jagab päris ristumised ühisteks ühenduskohtadeks ning jätab sillatekid puutumata. Külad ühenduvad oma tänavavõrgu päris sõlmest lähima kuiva maanteega; eemaldatud põhjendamatud suured täisnurksed ühendusringid.
+- [x] Kaardi suurusest sõltuvalt 2–5 suuremat järve: seemnepõhine suurus, kuju, pöördenurk ja kallas, põhja/lõuna eelistus esimesele kahele. Kogu kaldajoon kontrollitakse teede, majade, teiste veekogude, ressursside ja baasialade suhtes. Need on päris veekogud maastiku-, nähtavus-, navigatsiooni- ja minikaardikihis, mitte dekoratsioonid.
+- [x] Menüüs eraldi Järved valik. V15 maski bit 16 tähendab järvede keelamist, nii säilib vanade maskide vaikimisi järvedega käitumine. Sama versioon/tunnus töötab worker'is, serveris, ettevalmistatud kaardis ja salvestuse taastamisel; v14 ja vanemaid rekonstrueerimisreegleid ei kirjutata üle.
+- [x] Lennuvälja maa reserveeritakse enne järvi, talusid ja asulaid; hooned ning juurdepääsuteed väldivad seda. Parandatud konkreetne 2048 m seeme, kus hiline reservatsioon lubas hoone lennurajale. Seemne kontroll annab menüüs eristatava põhjuse puuduva järveruumi, lennuraja, baaside ühenduse või ressursi ligipääsu kohta.
+- [x] Sihitud kontrollid 2/4/6 km läbipääsudele ja kõigile üheksale ressursialale, järvede sõltumatu valik ja rekonstruktsioon, vana v14 kaart, risti/kaldus ristmiku täpne pindala ning serveri tunnused. Kontrollitud genereeritud kaardi 2D paigutust. Kliendi ja serveri build; täielikku testimaratonit ei tehtud.
+- [ ] Tegelik WebGL ristmiku-/kaldapilt ja FPS vajavad brauseris vaatlust; 2D paigutus ja geomeetria pindala ei kinnita GPU pilti.
+
 ## Õhutarnete tempo ning majanduse ja relvastuse tasakaal · 17.10.2026
 
 - [x] Välised varustuskopterid: baasintervall 50 → 100 s, koorem 180 → 360 ja tasemeboonus 70 → 140. Kaubalennukid: intervall 45 → 90 s, maht 480 → 960 ja tasemeboonus 140 → 280, minimaalne last 360 → 720. Lennukite ressursifondi kasv jääb samaks. Kõigi tasemete koorma/intervalli suhe säilib; raha tekib alles tegelikul mahalaadimisel, mitte väljasaatmisel.

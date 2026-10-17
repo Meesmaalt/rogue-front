@@ -68,7 +68,7 @@ export function buildVariedSettlement(index:number,town:Settlement,rng:Rng,exist
   }
  }
  road('boundary',town,transform(town.blocks*config.blockWidth/2,0));
- const blockers=[...existing,...streets].filter(f=>['building','road','bridge','water'].includes(f.kind));
+ const blockers=[...existing,...streets].filter(f=>(['building','road','bridge','water'].includes(f.kind)||f.id.startsWith('base-airfield-yard-')));
  const houses:MapFeatureDef[]=[],parks:MapFeatureDef[]=[];
  let civicPlaced=false;
  if(refined&&role!=='hamlet'){
@@ -114,7 +114,7 @@ export function buildIndustrialClusters(size:number,rng:Rng,existing:readonly Ma
   const rotate=(x:number,z:number)=>({x:p.x+x*Math.cos(a)+z*Math.sin(a),z:p.z-x*Math.sin(a)+z*Math.cos(a)});
   const parts:MapFeatureDef[]=[{style:'industrial',x:0,z:0,w:22,d:28,h:8},{style:'warehouse',x:side*25,z:-10,w:12,d:17,h:5},{style:'shop',x:side*22,z:15,w:8,d:10,h:5}].map((b,i)=>({id:`industry-${cluster}-building-${i}`,kind:'building',appearance:'farmhouse',...rotate(b.x,b.z),width:b.w,depth:b.d,height:b.h,rotation:a,buildingStyle:b.style as MapFeatureDef['buildingStyle'],label:i===0?'Tehasehoone':i===1?'Ladu':'Tehase kontor',garrisonCapacity:1,color:0x747b7b}));
   const from=rotate(-side*17,0),depth=distance(from,access),track:MapFeatureDef={id:`industry-${cluster}-access`,kind:'road',x:(from.x+access.x)/2,z:(from.z+access.z)/2,width:4,depth,rotation:Math.atan2(access.x-from.x,access.z-from.z),roadClass:'track',label:'Tehase juurdepääs'};
-  const blockers=[...existing,...features].filter(f=>['building','water'].includes(f.kind));
+  const blockers=[...existing,...features].filter(f=>(['building','water'].includes(f.kind)||f.id.startsWith('base-airfield-yard-')));
   if(parts.some(b=>[...blockers,...existing.filter(f=>f.kind==='road')].some(f=>footprintsOverlap(b,f,3)))||blockers.some(b=>footprintsOverlap(track,b,2)))continue;
   features.push(...parts,track,{id:`industry-${cluster}-yard`,kind:'cover',appearance:'yard',...p,width:70,depth:54,rotation:a,color:0x96978d,blocksMovement:false});break;
  }

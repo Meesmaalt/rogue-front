@@ -17,3 +17,10 @@ test('custom terrain masks are bounded and retain size/version/seed restrictions
 });
 
 test('v14 agricultural maps support options and retain legacy v13 IDs',()=>{assert.equal(isProceduralMapId('procedural-v14-balanced-2048-43'),true);assert.equal(isProceduralMapId('procedural-v14-coastal-4096-43-o7'),true);assert.equal(isProceduralMapId('procedural-v14-coastal-4096-43-o16'),false);});
+
+test('v15 adds an independent lake switch without changing historical option masks',()=>{
+ assert.equal(isProceduralMapId('procedural-v15-balanced-4096-43-o16'),true);
+ assert.equal(isProceduralMapId('procedural-v15-balanced-4096-43-o31'),true);
+ assert.equal(isProceduralMapId('procedural-v15-balanced-4096-43-o32'),false);
+ assert.equal(isProceduralMapId('procedural-v14-balanced-4096-43-o16'),false);
+});

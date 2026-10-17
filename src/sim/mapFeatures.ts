@@ -99,4 +99,11 @@ export class MapFeatureIndex {
   at(x:number,z:number):readonly MapFeatureDef[]{
     return this.bins.get(`${Math.floor(x/this.cellSize)}/${Math.floor(z/this.cellSize)}`)??this.empty;
   }
+  query(minX:number,minZ:number,maxX:number,maxZ:number):MapFeatureDef[]{
+    const found=new Set<MapFeatureDef>();
+    for(let x=Math.floor(minX/this.cellSize);x<=Math.floor(maxX/this.cellSize);x++)
+      for(let z=Math.floor(minZ/this.cellSize);z<=Math.floor(maxZ/this.cellSize);z++)
+        for(const f of this.bins.get(`${x}/${z}`)??this.empty)found.add(f);
+    return [...found];
+  }
 }
