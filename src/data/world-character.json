@@ -1,0 +1,137 @@
+{
+  "landmarks": {
+    "italy": {
+      "kind": "chapel",
+      "label": "Vana maakabel",
+      "width": 8,
+      "depth": 10,
+      "height": 17,
+      "wall": 12827048,
+      "roof": 10116164
+    },
+    "siberia": {
+      "kind": "lookout",
+      "label": "Metsavahitorn",
+      "width": 8,
+      "depth": 8,
+      "height": 20,
+      "wall": 9804932,
+      "roof": 8423567
+    },
+    "canyon": {
+      "kind": "waterTower",
+      "label": "Vana veetorn",
+      "width": 9,
+      "depth": 9,
+      "height": 16,
+      "wall": 10852730,
+      "roof": 7959663
+    },
+    "desert": {
+      "kind": "adobeTower",
+      "label": "Karavanitee vahitorn",
+      "width": 9,
+      "depth": 9,
+      "height": 14,
+      "wall": 13418398,
+      "roof": 11904386
+    }
+  },
+  "placement": {
+    "setbacks": [
+      52,
+      78,
+      105
+    ],
+    "baseClearance": 160,
+    "resourceClearance": 85,
+    "townClearance": 82,
+    "footprintClearance": 10,
+    "maximumReliefRange": 1.8,
+    "maximumHeight": 42,
+    "pairLimit": 2
+  },
+  "wear": {
+    "vehicleDust": 0.18,
+    "vehicleEdgeWear": 0.09
+  },
+  "operations": {
+    "updateSeconds": 0.25,
+    "ready": 7974335,
+    "working": 15975013,
+    "blocked": 13990008,
+    "idle": 6843772,
+    "anchors": {
+      "hq": [
+        -4.2,
+        7.8,
+        -3
+      ],
+      "factory": [
+        4,
+        7,
+        3
+      ],
+      "supply": [
+        -3.2,
+        5.55,
+        -4
+      ],
+      "generator": [
+        -2.1,
+        4.675,
+        -0.7
+      ],
+      "refinery": [
+        2,
+        3.96,
+        -0.5
+      ],
+      "barracks": [
+        3,
+        4,
+        -3
+      ],
+      "combatEngineer": [
+        3,
+        4,
+        -3
+      ],
+      "radar": [
+        3.5,
+        6.2,
+        -3.3
+      ],
+      "landCommand": [
+        3.5,
+        6.2,
+        -3.3
+      ],
+      "airCommand": [
+        3.5,
+        6.2,
+        -3.3
+      ],
+      "seaCommand": [
+        3.5,
+        6.2,
+        -3.3
+      ],
+      "landStrategy": [
+        3.5,
+        6.2,
+        -3.3
+      ],
+      "airStrategy": [
+        3.5,
+        6.2,
+        -3.3
+      ],
+      "seaStrategy": [
+        3.5,
+        6.2,
+        -3.3
+      ]
+    }
+  }
+}

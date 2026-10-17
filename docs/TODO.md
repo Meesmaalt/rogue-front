@@ -1,5 +1,13 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Maamärgid ja kogu mängu visuaalse iseloomu jätk · 17.10.2026
+
+- [x] Kuni kaks vastaspaaritatud piirkondlikku maamärgipaari: maakabel, metsavahitorn, veetorn või karavanitee vahitorn; päris nav-jalajälg, kuiva ligipääsu ja ühtlase aluspinna kontroll. Baasid ja tootmisalad jäävad vabaks.
+- [x] Piirkonnapaletiga tootmisrajatiste teenindusredelid, ventilaatorid, laadimisvarjud, ohutusmärgistus ja torustik jäävad olemasoleva 13 × 12 m takistuse sisse. Istandused austavad ka õuealasid.
+- [x] Baaside rollile omased teenindus-/side-/välivarustuse detailid, vihmajäljed, oksüdeerunud metallõmblused ja betoonivuugid jagatud pindadel. GLB sõidukite ja lennukite soomus saab üks kord küpsetatud kulumis-/tolmuvärvi; optika ja liikuvad sõlmed säilivad.
+- [x] Eemaldatud tootmiseaegne hoone suuruse pulseerimine. Töötuli jälgib päris energia-, järjekorra-, valmimis- ja seiskamisolekut; ressursirajatiste signaal ei avalda infot vaateväljast väljas.
+- [x] Lõplikud kontrollid: 16 nav-/maamärgi-/sillaületuse testi, töötule/optika/jagatud geomeetria kontrollid ning 10 serveritesti läbisid. TypeScript ja tootmisbuild läbisid. Nelja piirkonna, tööstuse, baaside, üksuste ning kolme tööoleku brauserivaated ja päris lahingu käivitumine kontrollitud ilma JS-vigadeta. Muutumatu lõppversiooni täiskomplektis 601 läbis ja samad 21 varasemat tõrget; uusi tõrkeid ei lisandunud.
+
 ## Kaartide iseloom ja asulate lähivaade · 17.10.2026
 
 - [x] Piirkonnale omased kompaktsed asulad kasvavad päris maantee frontage'ile ja mõnele seotud külaharule; eemaldatud uute kaartide tühi teederuudustik. Katkestatud külatee ei saa eraldatud elamusaart.

@@ -30,5 +30,19 @@ export function addFacilityDetails(g:THREE.Group,kind:UnitKind,metal:THREE.Mater
  if(kind==='landStrategy'){features.push('map-room');box(5,1.6,3,-1,4.5,0);}
  if(kind==='airStrategy'){features.push('tracking-array');for(const x of [-3,0,3])box(2.4,.25,2,x,5.5,-3,mark);}
  if(kind==='seaStrategy'){features.push('communications-mast');box(.25,8,.25,0,4,-4);for(const y of [5,6,7])box(5,.12,.12,0,y,-4);}
+ // Working fittings share the existing material batches and stay on the original structure.
+ if(['hq','landCommand','airCommand','seaCommand','landStrategy','airStrategy','seaStrategy','radar'].includes(kind)){
+  features.push('communications-cabinet');box(1.35,1.1,1.1,2.8,3.3,-2.5,dark);for(const y of [3,3.25,3.5])box(1,.055,.07,2.8,y,-1.91,metal);
+ }
+ if(['factory','combatEngineer','shipyard'].includes(kind)){
+  features.push('service-bay');for(const side of [-1,1])for(let i=0;i<5;i++)box(.18,.13,.12,side*3.8,.4+i*.24,3.55,i%2?dark:mark);
+  box(1.1,.5,.9,2.7,.3,3.2,dark);box(1.4,.12,1,2.7,.65,3.2,metal);
+ }
+ if(kind==='generator'||kind==='refinery'){
+  features.push('service-pipes');for(const x of [-2.5,2.5]){box(.13,.13,3.8,x,.4,-.3,metal);box(.3,.8,.3,x,.6,1.7,dark);box(.6,.1,.1,x,1,1.7,mark);}
+ }
+ if(kind==='barracks'){
+  features.push('field-lockers');for(const x of [-2.8,-1.8,-.8]){box(.8,1.7,.55,x,.85,-3.8,dark);box(.05,.1,.04,x+.2,1,-3.5,mark);}
+ }
  g.userData.facilityDetails=features;
 }

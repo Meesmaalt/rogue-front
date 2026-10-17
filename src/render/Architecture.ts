@@ -25,6 +25,12 @@ function surface(kind:"plaster"|"brick"|"metal"|"roof"|"concrete"|"facade1"|"fac
     if(kind==="metal"&&x%16<2)v=155;
     const i=(y*256+x)*4;image.data[i]=v;image.data[i+1]=v;image.data[i+2]=v;image.data[i+3]=255;
   }
+  // Broad rain streaks, oxidised seams and repaired joints belong to the shared surface, not extra meshes.
+  for(let y=0;y<256;y++)for(let x=0;x<256;x++){
+    const i=(y*256+x)*4,streak=(Math.sin(x*.19+Math.sin(x*.037)*3)*.5+.5)*Math.max(0,(y-90)/166),patch=(Math.sin(x*.047+y*.031)+Math.cos(x*.083-y*.019)+2)/4;
+    const wear=kind==='metal'?streak*.16+patch*.05:kind==='roof'?patch*.11:kind==='concrete'?(x%64<1||y%64<1?.18:patch*.06):streak*.09+patch*.04;
+    image.data[i]*=1-wear;image.data[i+1]*=1-wear*(kind==='metal'?1.15:1);image.data[i+2]*=1-wear*(kind==='metal'?1.45:1.08);
+  }
   c.putImageData(image,0,0);
   if(kind==="camouflage"){
     const palette=["#aabdb7","#73978f","#8baaa5","#c5cec0","#506f6b"];

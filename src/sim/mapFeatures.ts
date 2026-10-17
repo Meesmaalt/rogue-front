@@ -31,6 +31,7 @@ export interface MapFeatureDef {
   /** Authored ecological ground patches and small settlement focal points. */
   landscape?:"meadow"|"scree"|"wash";
   landmark?:"square"|"timber"|"rest"|"well";
+  landmarkStructure?:"chapel"|"lookout"|"waterTower"|"adobeTower";
   roofStyle?:"flat";
   facadeColor?:number;
   district?:"center"|"residential"|"rural"|"industrial";

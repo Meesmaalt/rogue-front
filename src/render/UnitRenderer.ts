@@ -1,3 +1,4 @@
+import {createFacilityLife,updateFacilityLife,type FacilityLife} from './FacilityLife';
 import constructionPolicy from '../data/construction-policy.json';
 import {ConstructionSite} from './ConstructionSite';
 import {renderedGroundHeightAt} from './GroundSurface';
@@ -35,7 +36,7 @@ contactContext.fillStyle = contactGradient; contactContext.fillRect(0,0,64,64);
 const contactGeometry = new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2); contactGeometry.userData.sharedArt = true;
 const contactMaterial = new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(contactCanvas),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1}); contactMaterial.userData.sharedArt = true;
 
-interface View extends LoungeState { constructionSite?:ConstructionSite; soldiers:Map<number,SoldierPose>;cargoRamp?:THREE.Group;parachute?:THREE.Group;rotorRpm:number;surface?:THREE.Mesh; resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;suspensionPitch:SuspensionState;suspensionRoll:SuspensionState; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group;upgradeRevealAt?:number;upgradeRevealLevel?:number; lastBuildingLevel?: number; lastAirState?: string }
+interface View extends LoungeState { facilityLife?:FacilityLife; constructionSite?:ConstructionSite; soldiers:Map<number,SoldierPose>;cargoRamp?:THREE.Group;parachute?:THREE.Group;rotorRpm:number;surface?:THREE.Mesh; resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;suspensionPitch:SuspensionState;suspensionRoll:SuspensionState; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group;upgradeRevealAt?:number;upgradeRevealLevel?:number; lastBuildingLevel?: number; lastAirState?: string }
 const lerpAngle = (a: number, b: number, t: number) => a + wrapAngle(b - a) * t;
 
 
@@ -136,6 +137,7 @@ export class UnitRenderer {
         lod.traverse(o=>{if(o.name==="Gun"){o.userData.restZ=o.position.z;o.userData.restX=o.rotation.x;guns.push(o);}if(o.name==="LandingGear")gears.push(o);if(o.name==="Turret")turrets.push(o as THREE.Group);if(o.name==="LeftLeg"||o.name==="RightLeg"){o.userData.restLegX=o.rotation.x;o.userData.walkPhase=Math.floor(legs.length/2)*.8;legs.push(o);}if(o.name.startsWith("SquadMember")){o.userData.squadPosition=o.position.clone();members.push(o);}});
         if(staticBuilding)this.shadowDirty=true;
         v = { cargoRamp:lod.getObjectByName('CargoRamp') as THREE.Group|undefined,soldiers:new Map(),rotorRpm:0,surface,resetPose:true,pose:{x:e.x,y:e.y,z:e.z,heading:e.heading,bank:e.flightBank??0,pitch:e.flightPitch??0,speed:0},visualSpeed:0,walkPhase:(e.id*.731)%6.28,spread:1,suspensionPitch:{value:0,velocity:0},suspensionRoll:{value:0,velocity:0},near:visual.group,far,shadow:lod.getObjectByName("ContactShadow"),guns,gears,turrets,legs,members,status:new Map(),staticBuilding,group: m.group, turret: m.turret, ring, tactical, kind: e.kind, phase: (e.id * 0.731) % 6.28, recoil: 0 };
+        if(staticBuilding&&['hq','supply','factory','barracks','generator','refinery','combatEngineer','radar','landCommand','airCommand','seaCommand','landStrategy','airStrategy','seaStrategy'].includes(e.kind)){v.facilityLife=createFacilityLife(e);v.group.add(v.facilityLife.root);}
         this.views.set(e.id, v);
       }
       v.group.visible=onScreen||v.staticBuilding;
@@ -150,6 +152,7 @@ export class UnitRenderer {
       v.walkPhase=(v.walkPhase+v.visualSpeed*frameDt*Math.PI*2/mobility.presentation.infantryStride)%(Math.PI*2);
       const distance=this.camera.position.distanceTo(this.bounds.center);
       if(v.far){const unitLimit=e.squadMaxMembers?(quality==="high"?90:quality==="medium"?70:50):lodDistance;const limit=unitLimit*(v.far.visible?.85:1.1);const detailed=(quality!=="low"&&selected.size<=12&&selected.has(e.id))||distance<limit;v.near.visible=detailed;v.far.visible=!detailed;}
+      if(v.facilityLife)updateFacilityLife(v.facilityLife,e,world,distance);
       const ground=heightAt(x,z);
       const flying=!!e.airdrop||usesFlightHeight(e);
       if(e.airdrop&&!v.parachute){v.parachute=createParachute(e.def.radius);v.group.add(v.parachute);}if(v.parachute)v.parachute.visible=!!e.airdrop;
@@ -271,10 +274,7 @@ export class UnitRenderer {
         bar.position.set(0, e.def.height + 1.2, 0);
       } else {
         if(v.constructBar){const bar=v.constructBar;bar.parent?.remove(bar);bar.geometry.dispose();(bar.material as THREE.Material).dispose();v.constructBar=undefined;}
-        if (e.productionQueue.length > 0) {
-          const pulse = 1 + Math.sin(animT * 6) * 0.012;
-          v.group.scale.x *= pulse; v.group.scale.z *= pulse;
-        }
+
       }
 
       // Status icons (player units only): out of supply / routing / low ammo
