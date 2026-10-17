@@ -1,3 +1,4 @@
+import {applyModelCharacter} from './ModelCharacter';
 import {createSupportVehicle} from './SupportVehicles';
 import {createChinook} from './Chinook';
 import {aircraftCamouflage} from "./AircraftCamouflage";
@@ -58,6 +59,7 @@ async function loadModel(faction: FactionId, kind: UnitKind, tactical=false): Pr
           }
         }
       });
+      applyModelCharacter(model,kind,faction);
       cache.set(key, model);
     })();
     inflight.set(key, job);

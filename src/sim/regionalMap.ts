@@ -1,3 +1,4 @@
+import {addRegionalLandmarks} from './regionalLandmarks';
 import {buildCharacterSettlement} from './characterSettlements';
 import {enrichRegionalCharacter} from './regionalCharacter';
 import {distanceToPlanRiver,type RegionalPlan} from './regionPlans';
@@ -153,6 +154,7 @@ export function generateRegionalMap(seed:number,archetype:MapArchetype,size:numb
   }
  }
  if(region==='italy')enrichItalianLandscape(seed,features,[...bases,...resources]);
+ if(plan)addRegionalLandmarks(seed,size,region,features,forms,bases,resources);
  if(plan)enrichRegionalCharacter(seed,size,region,features,forms,[...bases.map(b=>({...b,r:130})),...resources.map(r=>({...r,r:65}))],options.forest);
  if(!options.forest)for(let i=features.length-1;i>=0;i--)if(features[i].appearance==='forest')features.splice(i,1);
  refineRoadConnections(features);

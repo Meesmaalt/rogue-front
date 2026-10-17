@@ -8,7 +8,7 @@ interface Plant{x:number;z:number;angle:number;kind:Kind}
 /** Bounded agricultural detail: shared instanced trees/vines, culled in regional cells. */
 export function sampleItalianScenery(features:readonly MapFeatureDef[]):Plant[]{
  const fields=features.filter(f=>f.landUse&&f.landUse!=='pasture'),area=fields.reduce((n,f)=>n+f.width*f.depth,0),index=new MapFeatureIndex(features),out:Plant[]=[];let terraces=0;
- const clear=(x:number,z:number)=>!index.at(x,z).some(f=>['water','road','bridge','building'].includes(f.kind)&&pointInFeature(x,z,f,2));
+ const clear=(x:number,z:number)=>!index.at(x,z).some(f=>(['water','road','bridge','building'].includes(f.kind)||f.appearance==='yard')&&pointInFeature(x,z,f,2));
  for(const f of fields){const kind=f.landUse as 'vineyard'|'olive'|'citrus',budget=Math.floor(config.instanceBudget*f.width*f.depth/Math.max(1,area)),spacing=Math.max(kind==='vineyard'?config.vineSpacing:config.orchardSpacing,Math.sqrt(area/config.instanceBudget)),angle=(f.cropRotation??0)+(f.rotation??0),c=Math.cos(angle),s=Math.sin(angle),span=Math.hypot(f.width,f.depth);let count=0;
   for(let z=-span/2+spacing/2;z<span/2&&count<budget;z+=spacing)for(let x=-span/2+spacing/2;x<span/2&&count<budget;x+=spacing){const wx=f.x+x*c+z*s,wz=f.z-x*s+z*c;if(!pointInFeature(wx,wz,f)||!clear(wx,wz))continue;out.push({x:wx,z:wz,angle,kind});count++;
    if(kind==='vineyard'&&terraces<config.terraceLimit&&f.width>config.terraceWidth&&count%9===0&&Math.abs(renderedGroundHeightAt(wx+4,wz)-renderedGroundHeightAt(wx-4,wz))>.4){out.push({x:wx,z:wz,angle,kind:'terrace'});terraces++;}

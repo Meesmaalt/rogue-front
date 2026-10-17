@@ -1,5 +1,9 @@
 # Rogue Front
 
+## Maamärgid, tööalad ja mudelite iseloom
+
+Piirkondlikke kaarte täiendavad maakabelid, metsavahitornid, vanad veetornid ja karavanitee vahitornid koos tegelike jalajälgede ning ligipääsuga. Tööstus- ja baasihoonetel on rohkem otstarbekohast teenindusdetaili; hoone tervikuna pulseerimise asemel näitab töötuli tegelikku tootmisolekut. Sõidukite ja lennukite soomuspindadel on tagasihoidlikud kulumisjäljed, hoonetel ilmastiku- ja kasutusjäljed. Laadimisalad ja mudelite liikuvad osad säilivad.
+
 ## 12 piirkondlikku paigutust · v18
 
 Igal maastikupiirkonnal on kolm eri paigutust: ringteed, läbipääsud, hargnevad orud või põllumajanduslikud ühendused. **Maastikupiirkond → Paigutus** laseb valida konkreetse variandi või jätta valiku seemne otsustada; sama valik on ka lobby's. Muutuvad päris teed, sillad, jõed, asulad ja kõrgendikud. Ühtlustatud on lõigatud põllutükkide kultuurid ning kokku kasvavad mäeharjad. [Paigutused, meetod ja kontrollid](docs/REGIONAL-LAYOUTS-V18.md). Külad kasvavad nüüd päris teede äärde kompaktsete hooneridadena; piirkondlikud külasüdamed, kõrbe lamekatused ning kallaste ja kaljujalamite detailikogumid annavad lähivaatele rohkem iseloomu.

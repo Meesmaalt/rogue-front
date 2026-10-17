@@ -1,3 +1,4 @@
+import {createLandmarkStructure} from './LandmarkStructures';
 import {REGIONS} from '../sim/regions';
 import {createRegionalScenery} from './RegionalScenery';
 import {createResourceIndustry} from './ResourceIndustry';
@@ -494,9 +495,10 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
       }
       continue;
     }
+    if(f.landmarkStructure){const landmark=createLandmarkStructure(f);landmark.position.set(f.x,y,f.z);landmark.rotation.y=f.rotation??0;group.add(landmark);continue;}
     if(f.appearance==="resource-industrial"||f.appearance==="resource-oil"){
       const model=createResourceIndustry(f.facilityKind??(f.appearance==="resource-oil"?"oilfield":"factory"));
-      model.position.set(f.x,y,f.z);group.add(model);continue;
+      model.position.set(f.x,y,f.z);model.name=`Industry:${f.id}`;model.userData.structureId=f.id;model.userData.structureHeight=f.height;group.add(model);continue;
     }
     if (f.kind === "building" || f.kind === "wall" || f.kind === "chokepoint") {
       const h = f.height ?? (f.kind === "wall" ? 3.2 : f.kind === "chokepoint" ? 2.8 : 8);

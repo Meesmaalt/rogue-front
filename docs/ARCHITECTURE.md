@@ -1,5 +1,13 @@
 # Arhitektuur
 
+## Piirkondlikud maamärgid ja ühine mudeliviimistlus
+
+`regionalLandmarks.ts` paigutab kuni kaks paaritatud maamärgipaari olemasolevate maanteede kõrvale. Valik kontrollib vee, teede, tööalade, hoonete ja lennuvälja reserve ning reljeefi ühtlust. Juurdepääsutee lõpeb fassaadi ees. `landmarkStructure` on päris `building` jalajäljega mittegarnisoneeritav kaardiobjekt; `LandmarkStructures` annab sellele piirkondliku mudeli sama jalajälje ja kõrguse piires. `CharacterGeometry` koondab värvitud detaili üheks jagatavaks geomeetriaks.
+
+`world-character.json` koondab maamärkide mõõdud/paletid, paigutuse puhvrid, kulumise tugevuse ja töötule kinnituspunktid. Arhitektuuri jagatud tekstuurid sisaldavad laiemat pinnase- ja ilmastikukulu. `ModelCharacter` küpsetab GLB vahemällu laadimise ajal ainult soomusmaterjali tippvärvidesse tagasihoidliku tolmu/kulumise; ei muuda optikat, markeeringuid, relvi ega liikuvaid sõlmi. Geomeetria ja materjalid jäävad mudeliinstantside vahel jagatuks, kaadri jooksul kulumist uuesti ei arvutata.
+
+`FacilityLife` asendab kogu hoone pulseerimise väikese kindlasse mudeliposti kinnitatud tööindikaatoriga. Veerandsekundiline uuendus kasutab tegelikku `powerStatus`, `productionOperational` ja tootmisjärjekorda; valminud, kuid väljumist ootav üksus ei näita aktiivset tootmist. Lennuväljadele ega kaitsetornidele üldist lisasignaali ei lisata. Ressursirajatise `IndustrySignal` asub säilitatud staatilises mudelis; `ResourceSites` hoiab nähtavuse ja värvi vaatevälja-/omaniku-/tootmisolekuga kooskõlas. Tundmatu rajatis ei avalda signaali kaudu tootmisinfot. Täiendav tööstusgeomeetria jääb algse nav-jalajälje sisse.
+
 ## Piirkondlik iseloom ja kohalik kasv
 
 V18 plaaniga kaartide `characterSettlements.ts` kasutab olemasoleva kõvera maantee suunda ja loob selle frontage'ile kompaktsed hooneread. Itaalia/kõrbe külas on üks väike ringtee; Siberi/kanjonite asulates lühikesed kõrvalharud. Kohalikud teed peavad enne hoonestamist päriselt põhivõrguga ühenduma. Ressursireserv on nüüd laadimiskoha 40 × 40 m ja tehase tegeliku nihutatud 32 × 32 m ala, mitte iga ressursi ümber 100 × 100 m tühi ruut. Strateegilised ankrud ja ressursipaarid ei muutu.

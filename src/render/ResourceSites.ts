@@ -6,7 +6,7 @@ import { heightAt } from "../sim/heightmap";
 
 /** Pickup aprons and ownership/production labels; industrial footprints live in Terrain/NavGrid. */
 export class ResourceSites {
-  private sites: Array<{root:THREE.Group;ring:THREE.Mesh;label:THREE.Sprite;texture:THREE.CanvasTexture;canvas:HTMLCanvasElement;key:string}> = [];
+  private sites: Array<{root:THREE.Group;ring:THREE.Mesh;label:THREE.Sprite;texture:THREE.CanvasTexture;canvas:HTMLCanvasElement;key:string;signal?:THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>}> = [];
   private nextUpdate=0;
   constructor(scene:THREE.Scene,world:World){
     for(const rp of world.resourcePoints){
@@ -16,7 +16,7 @@ export class ResourceSites {
       const canvas=document.createElement("canvas");canvas.width=512;canvas.height=128;
       const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
       const label=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthTest:true,transparent:true}));label.position.set(12,9,0);label.scale.set(30,7.5,1);root.add(label);
-      scene.add(root);this.sites.push({root,ring,label,texture,canvas,key:""});
+      scene.add(root);this.sites.push({root,ring,label,texture,canvas,key:'',signal:scene.getObjectByName(`Industry:resource-facility-${this.sites.length}`)?.getObjectByName('IndustrySignal') as THREE.Mesh<THREE.BufferGeometry,THREE.MeshBasicMaterial>|undefined});
     }
   }
   sync(world:World,camera?:THREE.Camera):void {
@@ -27,6 +27,7 @@ export class ResourceSites {
       const known=rp.controlledBy===world.playerTeam||world.vision.isVisible(world.playerTeam,rp.x,rp.z);
       s.root.visible=known||world.vision.isExplored(world.playerTeam,rp.x,rp.z);
       s.label.visible=!camera||camera.position.distanceTo(s.root.position)<260;
+      if(s.signal){s.signal.visible=known;if(known)s.signal.material.color.setHex((rp.disabledUntil??0)>world.time?0xc46b52:rp.active?0x83b5a1:rp.controlledBy!=null?0xd8af62:0x78847b);}
       const color=!known||rp.controlledBy==null?0xc6b27b:rp.controlledBy===world.playerTeam?0x75b7bc:0xce8270;
       (s.ring.material as THREE.MeshBasicMaterial).color.setHex(color);
       const truck=world.entities.find(e=>!e.dead&&e.team===rp.controlledBy&&e.resourceConvoy?.sourceIndex===i);
