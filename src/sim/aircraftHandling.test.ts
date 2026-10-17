@@ -50,3 +50,7 @@ it('CAP retains a moving contact outside the former tiny patrol area and turns i
  for(let i=0;i<60;i++){w.time+=1/30;w.spatial.rebuild(w.entities);updateUnits(w,1/30);}
  expect(fighter.target?.id).toBe(target.id);expect(fighter.airState).toBe('airborne');expect(fighter.heading).toBeGreaterThan(.45);expect(fighter.x).toBeGreaterThan(20);expect(fighter.flightVx).toBeGreaterThan(0);
 });
+it('guided launches require elevation alignment and a controlled bank as well as a nose bearing',()=>{
+ const bases=[{x:0,z:0,r:250},{x:300,z:300,r:30}];setBases(bases);const w=new World(18,false,[],[],bases,false),p=w.spawn('fighter',0,0,0),t=w.spawn('heli',1,0,60);p.airState=t.airState='airborne';p.y=60;t.y=100;p.heading=0;t.spottedUntil[0]=100;p.cooldown=0;p.airMissileLock={targetId:t.id,readyAt:0};
+ expect(weaponFireBlocker(w,p,t,0)).toContain('laskenurka');p.flightPitch=-Math.atan2(t.y+t.def.height*.45-p.y,60);expect(weaponFireBlocker(w,p,t,0)).toBeNull();p.flightBank=1.3;expect(weaponFireBlocker(w,p,t,0)).toContain('laskenurka');
+});

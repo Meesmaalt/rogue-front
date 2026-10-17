@@ -1,3 +1,4 @@
+import {warehouseWalls} from './warehouse';
 import {depotFences,depotLayoutLevel} from './depotLayout';
 import data from '../data/base-life.json';
 import terrain from '../data/terrain.json';
@@ -16,8 +17,9 @@ export function hqStaffPoint(slot:number,place:'rest'|'van'):Point {const p=data
 /** World-metre boxes shared by the warehouse model, nav grid and pedestrian paths. */
 export function buildingSolidBoxes(e:Entity):LocalBox[]|null {
  if(e.kind==='hq'){const scale=terrain.render.buildings.militaryScale*data.hq.scale;return data.hq.solidBoxes.map(b=>({x:b.x*scale,z:b.z*scale,width:b.width*scale,depth:b.depth*scale}));}
+ if(e.kind==='airbase')return warehouseWalls(e);
  if(e.kind!=='supply')return null;
- const boxes:LocalBox[]=[data.depot.hall],level=e.buildingLevel??(e.upgrades.has('producer-3')?3:e.upgrades.has('producer-2')?2:1);
+ const boxes:LocalBox[]=warehouseWalls(e),level=e.buildingLevel??(e.upgrades.has('producer-3')?3:e.upgrades.has('producer-2')?2:1);
  for(let i=1;i<level;i++)boxes.push({...data.depot.annex,x:(i===1?-1:1)*data.depot.annex.x});return [...boxes,...depotFences(depotLayoutLevel(e))];
 }
 

@@ -10,7 +10,9 @@ export function updateAirportSupport(w:World):void {
  for(const pad of w.entities){
   if(pad.dead||pad.underConstruction||!airportHasSupport(w,pad))continue;const cap=airportStockCapacity(w,pad);
   if(!pad.airportStoresInitialized){pad.airportStoresInitialized=true;pad.ammoStock=cap.ammo;pad.fuelStock=cap.fuel;pad.repairStock=cap.repair;continue;}
+  let cargo=pad.airportCargoStock??0;for(const key of ['ammo','fuel','repair'] as const){const field=`${key}Stock` as const,take=Math.min(cargo,Math.max(0,cap[key]-(pad[field]??0)));pad[field]=(pad[field]??0)+take;cargo-=take;}pad.airportCargoStock=cargo;
   if(!w.hasCommandLink(pad)||w.powerStatus(pad.team).ratio<.25||(pad.disabledUntil??0)>w.time)continue;
+  if(w.entities.some(e=>!e.dead&&e.kind==='cargoPlane'&&e.airMissionHomeId===pad.id&&e.cargo>0))continue;
   const needs=(pad.ammoStock??0)<cap.ammo*rules.refillThreshold||(pad.fuelStock??0)<cap.fuel*rules.refillThreshold||(pad.repairStock??0)<cap.repair*rules.refillThreshold;
   if(!needs||Math.min(w.teamCredits[pad.team],w.teamResources[pad.team])<rules.refillCost)continue;
   w.teamCredits[pad.team]-=rules.refillCost;w.teamResources[pad.team]-=rules.refillCost;

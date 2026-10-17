@@ -1,3 +1,4 @@
+import {createWarehouse} from './WarehouseVisual';
 import {addHqStaffStation} from './HqStaffArea';
 import baseLayout from '../data/base-life.json';
 import {BATTLE_SCALE} from "../sim/battleScale";
@@ -197,10 +198,9 @@ function engineerYard(g:THREE.Group,p:Pal):void {
  sawhorse(g,HQ_RACK.x+1.4,HQ_RACK.z+.2,Math.PI/2,p);
 }
 function depotYard(g:THREE.Group,p:Pal):void {
- const h=baseLayout.depot.hall;
  // Compact low warehouse; its walls match the simulation footprint in metres.
- pavilion(g,h.width,h.depth,h.height,h.x,h.z,p.camo,p.wall,p.dark,false);
- for(const z of [-3,1]){box(g,.14,2.4,1.8,4.06,1.3,z,p.dark);box(g,.18,.12,2,4.1,2.6,z,p.yellow);}
+ g.add(createWarehouse('supply',{wall:p.wall,metal:p.steel,floor:p.concrete,yellow:p.yellow}));
+
  box(g,1.4,.16,6,4.9,.14,-1,p.concrete);
  for(const z of [-3,0,3]){box(g,.8,.14,.8,5.1,.3,z,p.wood);}
  // Narrow fascia and open terrace keep people, forks and cargo visible from above.
@@ -307,7 +307,7 @@ export function createMetricAirfieldStructures(pad:Pick<Entity,"x"|"y"|"z"|"head
   if(s.kind==='tower'){
    box(building,6,7,6,0,3.5,0,wall);box(building,8,2.5,8,0,8.3,0,dark);hipRoof(building,9,9,9.6,1,camo);mast(building,2,2,13,pad.team,steel);
   }else{
-   pavilion(building,s.width,s.depth,s.height,0,0,camo,wall,dark,s.kind==='hangar');
+   if(s.kind==='terminal'){const store=createWarehouse('airbase',{wall,metal:steel,floor:material(0x858b83,'concrete'),yellow:material(0xe0b53a)});store.position.set(-s.x,0,-s.z);building.add(store);}else pavilion(building,s.width,s.depth,s.height,0,0,camo,wall,dark,true);
    if(s.kind==='hangar'){box(building,.15,4.8,15,-s.width/2-.1,2.5,0,dark);for(const z of [-7.5,7.5])box(building,.2,5,.2,-s.width/2-.2,2.5,z,steel);}
    else {const label=facilityLabel('AIR',material(0xeee5bb));label.rotation.x=-Math.PI/2;label.position.y=s.height+.08;label.scale.setScalar(2.8);building.add(label);box(building,10,.2,4,0,2.6,-8,steel);}
   }
@@ -317,10 +317,11 @@ export function createMetricAirfieldStructures(pad:Pick<Entity,"x"|"y"|"z"|"head
 }
 /** Merge architecture by material without losing texture UVs. */
 function batch(g:THREE.Group):THREE.Group {
+  g.updateMatrixWorld(true);const dynamic:THREE.Object3D[]=[];g.traverse(o=>{if(o!==g&&o.userData.dynamic)dynamic.push(o);});for(const o of dynamic){g.attach(o);o.userData.closedY=o.position.y;g.remove(o);batch(o as THREE.Group);}
   g.updateMatrixWorld(true);const inverseRoot=g.matrixWorld.clone().invert(),batches=new Map<THREE.Material,THREE.BufferGeometry[]>();
   g.traverse(o=>{if(o instanceof THREE.Mesh&&!Array.isArray(o.material)){const transformed=o.geometry.clone().applyMatrix4(inverseRoot.clone().multiply(o.matrixWorld));const geometry=transformed.index?transformed.toNonIndexed():transformed;if(geometry!==transformed)transformed.dispose();if(!geometry.getAttribute("uv"))geometry.setAttribute("uv",new THREE.Float32BufferAttribute(new Float32Array(geometry.getAttribute("position").count*2),2));const list=batches.get(o.material)??[];list.push(geometry);batches.set(o.material,list);o.geometry.dispose();}});
   g.clear();for(const [material,parts] of batches){const geometry=mergeGeometries(parts);parts.forEach(p=>p.dispose());if(geometry){const mesh=new THREE.Mesh(geometry,material);mesh.castShadow=mesh.receiveShadow=true;g.add(mesh);}}
-  return g;
+  if(dynamic.length)g.add(...dynamic);return g;
 }
 
 /** Batch static map surfaces per material and 64 m cell. Cell bounds preserve

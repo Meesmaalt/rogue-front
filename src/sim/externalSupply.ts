@@ -9,7 +9,7 @@ export function externalDepotReady(w:World,depot:Entity):boolean {
 export function airportDepot(w:World,base:Entity):Entity|null {
  if(base.dead||base.underConstruction||(base.disabledUntil??0)>w.time)return null;
  if(base.kind!=='airbase'||!w.hasCommandLink(base)||w.powerStatus(base.team).ratio<.25)return null;
- return w.entities.filter(d=>d.team===base.team&&externalDepotReady(w,d)&&Math.hypot(d.x-base.x,d.z-base.z)<=rules.external.airportDepotRadius).sort((a,b)=>Math.hypot(a.x-base.x,a.z-base.z)-Math.hypot(b.x-base.x,b.z-base.z)||a.id-b.id)[0]??null;
+ return base;
 }
 export function externalEntry(w:World,team:Team,target:Point):Point {
  const half=w.mapSize/2+rules.external.edgeMargin;

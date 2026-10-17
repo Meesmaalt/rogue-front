@@ -1,3 +1,6 @@
+import {airframeFor} from '../sim/airframes';
+import {updateWarehouseVisual} from './WarehouseVisual';
+import {updateAirframe} from './Airframes';
 import {createFacilityLife,updateFacilityLife,type FacilityLife} from './FacilityLife';
 import constructionPolicy from '../data/construction-policy.json';
 import {ConstructionSite} from './ConstructionSite';
@@ -36,7 +39,7 @@ contactContext.fillStyle = contactGradient; contactContext.fillRect(0,0,64,64);
 const contactGeometry = new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2); contactGeometry.userData.sharedArt = true;
 const contactMaterial = new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(contactCanvas),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1}); contactMaterial.userData.sharedArt = true;
 
-interface View extends LoungeState { facilityLife?:FacilityLife; constructionSite?:ConstructionSite; soldiers:Map<number,SoldierPose>;cargoRamp?:THREE.Group;parachute?:THREE.Group;rotorRpm:number;surface?:THREE.Mesh; resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;suspensionPitch:SuspensionState;suspensionRoll:SuspensionState; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group;upgradeRevealAt?:number;upgradeRevealLevel?:number; lastBuildingLevel?: number; lastAirState?: string }
+interface View extends LoungeState {lastWarehouseDoor?:number; facilityLife?:FacilityLife; constructionSite?:ConstructionSite; soldiers:Map<number,SoldierPose>;cargoRamp?:THREE.Group;parachute?:THREE.Group;rotorRpm:number;surface?:THREE.Mesh; resetPose:boolean;pose:MotionPose;visualSpeed:number;walkPhase:number;spread:number;suspensionPitch:SuspensionState;suspensionRoll:SuspensionState; near:THREE.Group; far?:THREE.Group; shadow?:THREE.Object3D; guns:THREE.Object3D[]; gears:THREE.Object3D[]; turrets:THREE.Group[]; legs:THREE.Object3D[]; members:THREE.Object3D[]; status:Map<string,THREE.Mesh>; constructBar?:THREE.Mesh; staticBuilding:boolean; group: THREE.LOD; turret: THREE.Group | null; ring: THREE.Mesh; tactical: THREE.Mesh | null; kind: string; phase: number; recoil: number; upgradeKit?: THREE.Group;upgradeRevealAt?:number;upgradeRevealLevel?:number; lastBuildingLevel?: number; lastAirState?: string }
 const lerpAngle = (a: number, b: number, t: number) => a + wrapAngle(b - a) * t;
 
 
@@ -89,7 +92,7 @@ export class UnitRenderer {
       const spotted=world.areAllies(e.team,world.playerTeam)||world.isSpottedByTeam(e,world.playerTeam);
       let v = this.views.get(e.id);
       if(!spotted){if(v){v.group.visible=false;v.resetPose=true;}continue;}
-      this.bounds.center.set(e.x,e.y+e.def.height*.5,e.z);this.bounds.radius=Math.max(e.kind==="airbase"&&e.def.metricScale?240:10,e.def.radius*2,e.def.height);
+      this.bounds.center.set(e.x,e.y+e.def.height*.5,e.z);this.bounds.radius=Math.max(e.kind==="airbase"&&e.def.metricScale?240:10,e.def.radius*2,e.def.height,(airframeFor(world.factionForTeam(e.team),e.kind)?.length??0)*(e.def.modelScale??1)*.55);
       const onScreen=this.frustum.intersectsSphere(this.bounds);
       if(!v&&!onScreen&&e.def.speed>0)continue;
       if (!v) {
@@ -127,7 +130,7 @@ export class UnitRenderer {
         lod.traverse((o) => {
           const mesh = o as THREE.Mesh;
           if (!mesh.isMesh) return;
-          mesh.castShadow = staticBuilding;
+          mesh.castShadow = staticBuilding||e.def.armor==="air"&&!["JetExhaust","EngineGlow"].includes(mesh.name);
           mesh.receiveShadow = e.kind!=='groundHandler';
         });
         const surface=metricAirfield?createMetricRunway(e):undefined;if(surface)m.group.add(surface);
@@ -156,7 +159,7 @@ export class UnitRenderer {
       const ground=heightAt(x,z);
       const flying=!!e.airdrop||usesFlightHeight(e);
       if(e.airdrop&&!v.parachute){v.parachute=createParachute(e.def.radius);v.group.add(v.parachute);}if(v.parachute)v.parachute.visible=!!e.airdrop;
-      v.group.position.set(x,flying||e.def.domain==="sea"?v.pose.y:e.garrisonId?e.y:ground,z);
+      v.group.position.set(x,flying||e.def.domain==="sea"||e.groundService?.handlingStage?.startsWith('hold')?v.pose.y:e.garrisonId?e.y:ground,z);
       const shadow=v.shadow;
       if(shadow){shadow.position.y=ground-v.group.position.y+.075;
        if(e.kind==='groundHandler'&&shadow instanceof THREE.Mesh){const p=shadow.geometry.getAttribute('position'),c=Math.cos(h),s=Math.sin(h);for(let i=0;i<p.count;i++){const lx=p.getX(i)*shadow.scale.x,lz=p.getZ(i)*shadow.scale.z;p.setY(i,renderedGroundHeightAt(x+c*lx+s*lz,z-s*lx+c*lz)-ground);}p.needsUpdate=true;}
@@ -166,7 +169,9 @@ export class UnitRenderer {
        if(forklift)forklift.visible=!walking;if(walker)walker.visible=walking;if(state==='rest')v.group.visible=false;
        if(walker)walker.traverse(o=>{if(o.name==='PorterLeftLeg')o.rotation.x=Math.sin(world.time*(e.motionSpeed??0)*4)*.4;if(o.name==='PorterRightLeg')o.rotation.x=-Math.sin(world.time*(e.motionSpeed??0)*4)*.4;});
        const crates=v.group.getObjectByName('HandlingCargo');if(crates)crates.visible=e.cargo>0;if(e.groundService?.onFoot){const lift=v.group.getObjectByName('ForkCarriage');if(lift)lift.position.y+=((e.cargo>0?.45:0)-lift.position.y)*Math.min(1,frameDt*4);v.group.traverse(o=>{if(o.name==='ForkWheel')o.rotation.x=world.time*(e.motionSpeed??0)*3;});}}
-      if(['transport','cargoPlane','airTransport'].includes(e.kind)&&((e.cargoDoor??0)>0||v.cargoRamp)){
+      updateAirframe(v.group,e,world.time,world.factionForTeam(e.team));updateWarehouseVisual(v.group,e);if(v.staticBuilding&&v.lastWarehouseDoor!==e.warehouseDoor){v.lastWarehouseDoor=e.warehouseDoor;this.shadowDirty=true;}
+      if(e.def.armor==="air"&&((e.motionSpeed??0)>.1||e.airStart?.phase==='crew')&&now-this.lastConstructionShadow>.15){this.shadowDirty=true;this.lastConstructionShadow=now;}
+      if(['transport','cargoPlane','airTransport'].includes(e.kind)&&!v.cargoRamp?.userData.airframeRamp&&((e.cargoDoor??0)>0||v.cargoRamp)){
         if(!v.cargoRamp){v.cargoRamp=createCargoRamp(e.def.radius,e.def.height);v.group.add(v.cargoRamp);}
         v.cargoRamp.rotation.x=smoothMotion(v.cargoRamp.rotation.x,-Math.PI*.58*(e.cargoDoor??0),5,frameDt);
         v.cargoRamp.visible=!!v.cargoRamp.userData.integrated||(e.cargoDoor??0)>.001||Math.abs(v.cargoRamp.rotation.x)>.02;
@@ -256,7 +261,7 @@ export class UnitRenderer {
         v.group.position.y+=Math.sin(v.walkPhase*2)*mobility.presentation.vehicleBounce*pace;
       }
       for(const gun of v.guns){gun.position.z=Number(gun.userData.restZ)-Math.sin(v.recoil*Math.PI)*.24;gun.rotation.x=Number(gun.userData.restX)-(e.gunElevation??0);}
-      for(const gear of v.gears)gear.visible=v.pose.y-ground<12;
+      for(const gear of v.gears){gear.visible=v.pose.y-ground<12;if(airframeFor(world.factionForTeam(e.team),e.kind))gear.scale.y=Math.max(.05,Math.min(1,1-(v.pose.y-ground)/12));}
 
       // Construction progress bar – always strip when finished (search all children)
       if (e.underConstruction) {

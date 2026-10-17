@@ -1,3 +1,4 @@
+import ops from '../data/aircraft-operations.json';
 import type {Entity} from '../sim/types';
 import mobility from '../data/mobility.json';
 import config from '../data/audio.json';
@@ -7,6 +8,7 @@ export function aircraftEngineProfile(e:Entity):{power:number;rpm:number} {
  const speed=Math.min(1,(e.motionSpeed??0)/Math.max(1,e.def.speed));
  if(e.emergencyLanded||(e.maxFuel??0)>0&&(e.fuel??0)<=0)return {power:0,rpm:e.emergencyLanded?0:heli?cfg.autorotationRpm:0};
  if(e.airState==='grounded'||e.airState==='rearming')return heli?{power:0,rpm:0}:{power:cfg.idlePower,rpm:cfg.idleRpm};
+ if(!heli&&e.airState==='taxi'&&e.airStart&&e.airStart.phase!=='ready'){const spool=e.airStart.phase==='ignition'?Math.min(1,e.airStart.progress/ops.startup.ignitionSeconds):0;return {power:cfg.taxiPower*spool,rpm:cfg.taxiRpm*spool};}
  if(e.airState==='taxi'){
   if(heli){const spool=Math.min(1,(e.airSortieTime??0)/mobility.helicopter.rotorSpoolTime);return {power:cfg.idlePower+(cfg.takeoffPower-cfg.idlePower)*spool,rpm:cfg.idleRpm+(1-cfg.idleRpm)*spool};}
   return {power:e.airTaxiPhase==='runway'?cfg.takeoffPower:cfg.taxiPower,rpm:e.airTaxiPhase==='runway'?1:cfg.taxiRpm};

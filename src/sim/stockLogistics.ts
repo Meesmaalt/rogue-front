@@ -1,9 +1,12 @@
+import airportRules from '../data/airport-support.json';
+import {airportStockCapacity} from './airportSupport';
 import rules from '../data/logistics.json';
 import type {Entity} from './types';
 import type {World} from './World';
 export const STOCK_KEYS=['ammo','fuel','repair'] as const;
 export type StockPayload=Record<typeof STOCK_KEYS[number],number>;
 export function stockCapacity(w:World,depot:Entity):StockPayload {
+ if(depot.kind==='airbase')return airportStockCapacity(w,depot);
  const factor=1+w.supplyDepotLevel(depot)*rules.depot.capacityPerLevel;
  return {ammo:rules.depot.ammoCapacity*factor,fuel:rules.depot.fuelCapacity*factor,repair:rules.depot.repairCapacity*factor};
 }
@@ -43,7 +46,8 @@ export function receiveResourceCargo(w:World,depot:Entity,amount:number):number 
  const budget=amount*rules.resourceStockFraction,payload:StockPayload={ammo:0,fuel:0,repair:0};let remaining=budget;
  for(const key of STOCK_KEYS){const field=`${key}Stock` as const;payload[key]=Math.max(0,Math.min(budget*weights[key],cap[key]-(depot[field]??0)));remaining-=payload[key];}
  for(const key of STOCK_KEYS){const field=`${key}Stock` as const,take=Math.max(0,Math.min(remaining,cap[key]-(depot[field]??0)-payload[key]));payload[key]+=take;remaining-=take;}
- const accepted=depositPayload(w,depot,payload)/rules.resourceStockFraction;
+ let accepted=depositPayload(w,depot,payload)/rules.resourceStockFraction;
+ if(depot.kind==='airbase'){const buffered=Math.max(0,Math.min((amount-accepted)*rules.resourceStockFraction,airportRules.receivingCapacity-(depot.airportCargoStock??0)));depot.airportCargoStock=(depot.airportCargoStock??0)+buffered;accepted+=buffered/rules.resourceStockFraction;}
  w.teamResources[depot.team]+=accepted*rules.resourceIncomeFraction;w.teamCredits[depot.team]+=accepted*rules.resourceIncomeFraction;
  if(depot.team===w.playerTeam){w.resources=w.teamResources[depot.team];w.credits=w.teamCredits[depot.team];}return accepted;
 }

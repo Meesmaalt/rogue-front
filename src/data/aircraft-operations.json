@@ -1,0 +1,60 @@
+{
+  "taxi": {
+    "acceleration": 2.2,
+    "braking": 4.2,
+    "turnRate": 0.65,
+    "minimumTurnRadius": 2.4,
+    "creepSpeed": 0.7,
+    "arrival": 1.1,
+    "lineUpLookAhead": 12,
+    "lineUpTolerance": 0.055,
+    "lineUpTrack": 3
+  },
+  "takeoff": {
+    "rotationSpeedFraction": 0.9,
+    "legacySpeedFraction": 0.56,
+    "rotationPitch": 0.12,
+    "pitchResponse": 1.5,
+    "initialClimbFraction": 0.48,
+    "clearance": 6,
+    "rollFraction": 0.18
+  },
+  "startup": {
+    "runSpeed": 3.8,
+    "minimumRunSeconds": 2,
+    "boardingSeconds": 1.6,
+    "ignitionSeconds": 3.8,
+    "canopySide": 2,
+    "canopyForward": 2
+  },
+  "combat": {
+    "fighterAgility": 1.14,
+    "groundDiveAngle": 0.16,
+    "missileElevationTolerance": 0.28,
+    "missileBankLimit": 1.15
+  },
+  "warehouse": {
+    "doorSeconds": 1.2,
+    "holdOpenSeconds": 2.5,
+    "wallThickness": 0.35,
+    "doorWidth": 5.5,
+    "doorHeight": 3.2,
+    "insideDepth": 2.5,
+    "approachGap": 3,
+    "driveSpeed": 2.1,
+    "vehicleApproachDistance": 12
+  },
+  "cargo": {
+    "rampHeight": 1.4,
+    "holdDepth": 3.2,
+    "rearFraction": 0.37,
+    "crewCount": 2,
+    "rampFraction": 0.16,
+    "rampGap": 1.5
+  },
+  "visual": {
+    "flameLength": 1.4,
+    "heavyFlameFraction": 0.15,
+    "wingSweepFactor": 0.7
+  }
+}

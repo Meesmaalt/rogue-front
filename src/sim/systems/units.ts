@@ -1,3 +1,6 @@
+import {updateWarehouseDoors} from '../warehouse';
+import operations from '../../data/aircraft-operations.json';
+import {taxiAircraft,lineUpAircraft,takeoffRoll,prepareAircraftStart} from '../aircraftGround';
 import {updateResourceConvoy,updateHqCargo,adoptLegacyResourceConvoy} from '../resourceConvoys';
 import gunRules from "../../data/air-gunnery.json";
 import {fixedAirGun,airGunSolution} from "../airGunnery";
@@ -312,12 +315,7 @@ function moveSeaTo(w:World,u: Entity, target: Point, dt: number): boolean {
   u.y=w.waterNav.surfaceAt(u.x,u.z)+.15;return false;
 }
 
-function taxiTo(u:Entity,p:Point,dt:number):boolean {
-  const distance=dist2d(u,p),heading=Math.atan2(p.x-u.x,p.z-u.z);u.heading=turnToward(u.heading,heading,u.def.turnRate*dt);
-  const step=Math.min(distance,aircraftMobility(u).taxiSpeed*dt);u.motionSpeed=distance>.3?aircraftMobility(u).taxiSpeed:0;
-  if(distance>.001){u.x+=(p.x-u.x)/distance*step;u.z+=(p.z-u.z)/distance*step;}u.y=heightAt(u.x,u.z);u.flightBank=0;u.flightPitch=0;
-  return distance<=.3;
-}
+function taxiTo(u:Entity,p:Point,dt:number):boolean {return taxiAircraft(u,p,dt);}
 function runwayOccupied(w:World,u:Entity,pad:Entity):boolean {
   return w.entities.some(e=>e!==u&&!e.dead&&e.airMissionHomeId===pad.id&&(e.airState==="taxi"&&e.airTaxiPhase!=="apron"||e.airState==="returning"&&e.airLandingPhase==="final"||e.airState==="landing"&&(e.kind==="cargoPlane"||dist2d(e,airFacilityPoint(pad,6))<aircraftMobility(u).parkingOffset)||e.airState==="airborne"&&(e.airSortieTime??0)<aircraftMobility(u).launchSeparation));
 }
@@ -360,6 +358,7 @@ function moveAirTo(u: Entity, target: Point, dt: number, w: World, cruise=false)
     const slot=(u.def.weapons??[]).findIndex((s,i)=>fixedAirGun(u,s)&&weaponAmmo(u,i)>=s.ammoUsePerShot);
     if(slot>=0&&dist2d(u,u.target)<weaponRange(u,weaponSpec(u,slot))*gunRules.pursuitRangeFactor)desiredAltitude=Math.max(ground+gunRules.minimumAltitude,u.target.y+u.target.def.height*.45-weaponSpec(u,slot).muzzleHeight*(u.def.modelScale??1));
   }
+  if(!helicopter&&!landing&&!u.flightAttackExit&&u.target&&u.target.def.armor!=='air'&&u.mode!=='move'&&(u.def.weapons??[]).some(s=>fixedAirGun(u,s)))desiredAltitude=Math.max(ground+gunRules.minimumAltitude,u.target.y+distance*Math.tan(operations.combat.groundDiveAngle));
   const oldY=u.y;
   const handling=logisticsConfig.handling;
   const descent=helicopter&&final?Math.min(profile.descentRate,handling.landingDescentRate,Math.max(handling.landingTouchdownRate,(u.y-desiredAltitude)*handling.landingFlareGain)):profile.descentRate;
@@ -464,29 +463,28 @@ function updateCargoPlane(w:World,u:Entity,dt:number):void {
  }
  if(u.airState==='landing'){
   if((u.motionSpeed??0)>profile.taxiSpeed){u.motionSpeed=Math.max(profile.taxiSpeed,(u.motionSpeed??0)-profile.braking*dt);u.heading=base.heading;u.x+=Math.sin(u.heading)*u.motionSpeed*dt;u.z+=Math.cos(u.heading)*u.motionSpeed*dt;u.y=heightAt(u.x,u.z);return;}
-  if(u.airTaxiPhase!=='apron'){if(!taxiTo(u,airFacilityPoint(base,BATTLE_SCALE.cargo.parkingForward),dt))return;u.airTaxiPhase='apron';}
+  if(u.airTaxiPhase!=='apron'&&u.airTaxiPhase!=='parking'){if(!taxiTo(u,airFacilityPoint(base,BATTLE_SCALE.cargo.parkingForward),dt))return;u.airTaxiPhase='apron';}
+  if(u.airTaxiPhase==='apron'){const lead=airFacilityPoint(base,BATTLE_SCALE.cargo.parkingForward-operations.taxi.lineUpLookAhead,BATTLE_SCALE.cargo.parkingLateral);if(!taxiTo(u,lead,dt))return;u.airTaxiPhase='parking';}
   if(!taxiTo(u,parking,dt))return;
-  u.airState='grounded';u.logisticsPhase='unloading';u.motionSpeed=0;u.heading=base.heading;
+  u.airState='grounded';u.logisticsPhase='unloading';u.motionSpeed=0;
  }
  if(u.airState==='grounded'){
   if(!handleGroundCargo(w,u,depot,dt))return;
   u.cargo=0;u.logisticsPhase='loading';u.airState='taxi';u.airTaxiPhase='apron';
  }
  if(u.airState==='taxi'){
+  if(!prepareAircraftStart(u,base,dt,w.factionForTeam(u.team)))return;
   const departure=cargoDepartureRunway(base,profile.runwayStart,profile.runwayEnd);
   if(u.airTaxiPhase==='apron'){
    if(runwayOccupied(w,u,base))return;
-   if(!taxiTo(u,airFacilityPoint(base,BATTLE_SCALE.cargo.parkingForward),dt))return;u.airTaxiPhase='lining-up';
+   if(!taxiTo(u,airFacilityPoint(base,BATTLE_SCALE.cargo.parkingForward),dt))return;u.airTaxiPhase='lining-up';u.airLineUp=false;
   }
   if(u.airTaxiPhase==='lining-up'){
    const start=airFacilityPoint(departure,profile.runwayStart);
-   if(dist2d(u,start)>.3){taxiTo(u,start,dt);return;}
-   u.heading=turnToward(u.heading,departure.heading,u.def.turnRate*dt);
-   if(Math.abs(wrapAngle(u.heading-departure.heading))>.03)return;u.airTaxiPhase='runway';u.motionSpeed=0;
+   if(!u.airLineUp){if(!taxiTo(u,start,dt))return;u.airLineUp=true;}
+   if(!lineUpAircraft(u,departure,dt))return;u.airTaxiPhase='runway';u.motionSpeed=0;
   }
-  u.heading=departure.heading;u.motionSpeed=Math.min(u.def.speed,(u.motionSpeed??0)+profile.acceleration*dt);u.x+=Math.sin(u.heading)*u.motionSpeed*dt;u.z+=Math.cos(u.heading)*u.motionSpeed*dt;u.y=heightAt(u.x,u.z);
-  const forward=(u.x-departure.x)*Math.sin(departure.heading)+(u.z-departure.z)*Math.cos(departure.heading);
-  if(forward<profile.runwayEnd)return;u.airState='airborne';u.logisticsTarget=runwayEdgePoint(w.mapSize,departure,BATTLE_SCALE.cargo.exitMargin,true);
+  if(!takeoffRoll(u,departure,dt))return;u.airState='airborne';u.logisticsTarget=runwayEdgePoint(w.mapSize,departure,BATTLE_SCALE.cargo.exitMargin,true);
  }
  if(u.airState==='airborne'){
   const exit=u.logisticsTarget!;moveAirTo(u,exit,dt,w,true);if(dist2d(u,exit)<20)u.dead=true;
@@ -580,7 +578,7 @@ function groupKey(u:Entity):string {
   return label+'/'+u.moveAxis!.x+','+u.moveAxis!.z;
 }
 export function updateUnits(w: World, dt: number): void {
-  ensureDepotCrews(w);
+  updateWarehouseDoors(w,dt);ensureDepotCrews(w);
   // Derived membership is shared per tick; ordering uses live positions so merges cannot use stale priority.
   const groups=new Map<string,Entity[]>();
   for(const u of w.entities)if(!u.dead&&u.moveGroup&&u.moveAxis&&["move","amove"].includes(u.mode)){
@@ -689,24 +687,20 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
         u.y=Math.min(heightAt(u.x,u.z)+helicopterMobility(u).altitude,u.y+helicopterMobility(u).climbRate*dt);u.motionSpeed=0;u.flightVx=u.flightVz=0;
         if(u.airSortieTime<helicopterMobility(u).takeoffTime||u.y-heightAt(u.x,u.z)<mobility.helicopter.takeoffClearance)return;
       }else {
-        if(!pad)return;
+        if(!pad||!prepareAircraftStart(u,pad,dt,w.factionForTeam(u.team)))return;
         if(u.airTaxiPhase==="apron"||u.airTaxiPhase==null){
           const holding=airFacilityPoint(pad,aircraftMobility(u).runwayStart,u.def.metricScale?BATTLE_SCALE.airfieldLayout.taxiLane:aircraftMobility(u).parkingOffset);
-          if(!taxiTo(u,holding,dt)||runwayOccupied(w,u,pad))return;u.airTaxiPhase="lining-up";
+          if(!taxiTo(u,holding,dt)||runwayOccupied(w,u,pad))return;u.airTaxiPhase="lining-up";u.airLineUp=false;
         }
         if(u.airTaxiPhase==="lining-up"){
           const start=airFacilityPoint(pad,aircraftMobility(u).runwayStart);
           if(u.def.metricScale){
-            if(dist2d(u,start)>.3){taxiTo(u,start,dt);return;}
-            u.motionSpeed=0;u.heading=turnToward(u.heading,pad.heading,u.def.turnRate*dt);
-            if(Math.abs(wrapAngle(u.heading-pad.heading))>.03)return;
-          }else if(!taxiTo(u,start,dt))return;
+            if(!u.airLineUp){if(!taxiTo(u,start,dt))return;u.airLineUp=true;}
+            if(!lineUpAircraft(u,pad,dt))return;
+          }else if(!u.airLineUp){if(!taxiTo(u,start,dt))return;u.airLineUp=true;}
           u.airTaxiPhase="runway";u.motionSpeed=0;
         }
-        u.heading=pad.heading;u.motionSpeed=Math.min(d.speed*.65,(u.motionSpeed??0)+aircraftMobility(u).acceleration*dt);
-        u.x+=Math.sin(u.heading)*u.motionSpeed*dt;u.z+=Math.cos(u.heading)*u.motionSpeed*dt;u.y=heightAt(u.x,u.z);
-        const forward=(u.x-pad.x)*Math.sin(pad.heading)+(u.z-pad.z)*Math.cos(pad.heading);
-        if(forward<aircraftMobility(u).runwayEnd)return;
+        if(!takeoffRoll(u,pad,dt))return;
       }
       u.airState="airborne";u.airSortieCount=(u.airSortieCount??0)+1;u.airSortieTime=0;u.airLandingPhase=undefined;
     }
@@ -720,7 +714,7 @@ function stepUnit(w: World, u: Entity, dt: number,groups:Map<string,Entity[]>): 
       if(pad&&u.def.metricScale&&!helicopter&&(u.motionSpeed??0)>aircraftMobility(u).taxiSpeed){
         u.motionSpeed=Math.max(aircraftMobility(u).taxiSpeed,(u.motionSpeed??0)-aircraftMobility(u).braking*dt);u.heading=turnToward(u.heading,pad.heading,aircraftMobility(u).lateralAcceleration/Math.max(1,u.motionSpeed)*dt);u.x+=Math.sin(u.heading)*u.motionSpeed*dt;u.z+=Math.cos(u.heading)*u.motionSpeed*dt;u.y=heightAt(u.x,u.z);return;
       }
-      if(pad&&taxiTo(u,airParkingPoint(u,pad),dt)){u.airState="rearming";u.mode="idle";u.dest=null;u.target=null;u.airMission=null;u.airMissionPoint=null;u.patrolPoints=[];u.flightOrbitCenter=undefined;}
+      if(pad&&taxiTo(u,airParkingPoint(u,pad),dt)){u.airState="rearming";u.airStart=undefined;u.mode="idle";u.dest=null;u.target=null;u.airMission=null;u.airMissionPoint=null;u.patrolPoints=[];u.flightOrbitCenter=undefined;}
       return;
     }
     if(u.airState==="returning"){
