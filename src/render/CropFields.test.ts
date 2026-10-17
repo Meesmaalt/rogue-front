@@ -11,3 +11,10 @@ it('crop rows are deterministic, bounded and leave roads, bare soil and yards em
  const group=createCropFields(features);expect(group.children.length).toBeGreaterThan(0);
  group.traverse(o=>{if(o instanceof THREE.InstancedMesh){expect(o.count).toBeGreaterThan(0);expect(o.boundingSphere?.radius).toBeGreaterThan(0);expect([...o.instanceMatrix.array].every(Number.isFinite)).toBe(true);}});
 });
+
+it('fragments cut from one agricultural parcel keep one treatment, crop and colour',async()=>{
+ const {enrichItalianLandscape}=await import('../sim/italianLandscape');
+ const fragments:import('../sim/mapFeatures').MapFeatureDef[]=[0,1,2].map(i=>({id:`fragment-${i}`,parcelId:'one-parcel',kind:'cover',appearance:'field',x:i*120,z:i*85,width:90,depth:80,cropRotation:.5}));
+ enrichItalianLandscape(43,fragments,fragments.map(f=>({x:f.x,z:f.z})));
+ expect(new Set(fragments.map(f=>f.landUse)).size).toBe(1);expect(new Set(fragments.map(f=>f.color)).size).toBe(1);expect(new Set(fragments.map(fieldCrop)).size).toBe(1);
+});

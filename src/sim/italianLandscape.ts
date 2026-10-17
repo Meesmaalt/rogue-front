@@ -5,8 +5,11 @@ import type {Point} from './types';
 /** Agricultural districts add visual variety while retaining the original traversable parcels and corridors. */
 export function enrichItalianLandscape(seed:number,features:MapFeatureDef[],protectedPoints:readonly Point[]):void {
  const rng=new Rng((seed^0x5d71b3)>>>0),index=new MapFeatureIndex(features),roads=features.filter(f=>f.kind==='road'),farms:Point[]=[];
+ const treatments=new Map<string,{choice:number;district:number}>();
  for(const field of features.filter(f=>f.appearance==='field'&&f.cropPattern!=='bare'&&f.width>26&&f.depth>26)){
-  const choice=rng.next(),district=Math.sin(field.x/230+seed*.001)+Math.cos(field.z/190);
+  const treatment=field.parcelId?treatments.get(field.parcelId):undefined;
+  const choice=treatment?.choice??rng.next(),district=treatment?.district??Math.sin(field.x/230+seed*.001)+Math.cos(field.z/190);
+  if(field.parcelId&&!treatment)treatments.set(field.parcelId,{choice,district});
   field.landUse=choice<.27?'vineyard':choice<.46?'olive':choice<.54&&district>-.5?'citrus':choice<.73?'pasture':undefined;
   if(field.landUse){field.color=config.colors[field.landUse];field.label={vineyard:'Viinamarjaistandus',olive:'Oliivisalu',citrus:'Tsitruseistandus',pasture:'Karjamaa'}[field.landUse];}
   if(farms.length>=config.farmLimit||rng.next()>config.farmChance||protectedPoints.some(p=>Math.hypot(p.x-field.x,p.z-field.z)<config.protectedRadius)||farms.some(p=>Math.hypot(p.x-field.x,p.z-field.z)<150))continue;

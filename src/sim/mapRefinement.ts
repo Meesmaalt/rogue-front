@@ -7,14 +7,15 @@ const cfg=config.mapRefinement;
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
 
 /** Try complete shore footprints in free lowland pockets, not three random center points. */
-export function addInteriorLakes(size:number,rng:Rng,features:MapFeatureDef[],protectedPoints:readonly (Point&{r:number})[],paired=false):void {
+export function addInteriorLakes(size:number,rng:Rng,features:MapFeatureDef[],protectedPoints:readonly (Point&{r:number})[],paired=false,preferred:readonly Point[]=[]):void {
  const random=(a:number,b:number)=>a+(b-a)*rng.next();
  const requested=Math.min(cfg.maxLakes,Math.max(cfg.minimumLakes,Math.floor(size/cfg.lakeCountDivisor)+1)),count=paired?Math.max(2,Math.floor(requested/2)*2):requested;
  const blockers=features.filter(f=>['road','bridge','building','water'].includes(f.kind)||f.appearance==='yard');
  const index=new MapFeatureIndex(blockers),placed:MapFeatureDef[]=[];
  for(let i=0;i<count;i+=paired?2:1)for(let attempt=0;attempt<cfg.lakeAttempts;attempt++){
   const width=Math.min(cfg.lakeMaximumWidth,size*random(...cfg.lakeWidthRatio as [number,number])),depth=width*random(...cfg.lakeDepthRatio as [number,number]);
-  const side=i%2?-1:1,x=side*size*random(.09,.36),z=size*(i<2?(i===0?-1:1)*random(.09,.34):random(-.34,.34)),phase=random(0,Math.PI*2);
+  const side=i%2?-1:1;let x=side*size*random(.09,.36),z=size*(i<2?(i===0?-1:1)*random(.09,.34):random(-.34,.34));const phase=random(0,Math.PI*2),guide=preferred[Math.floor(i/(paired?2:1))];
+  if(guide&&attempt<40){x=guide.x+random(-1,1)*size*.012;z=guide.z+random(-1,1)*size*.012;}
   const polygon=Array.from({length:cfg.lakeVertices},(_,j)=>{
    const a=j*Math.PI*2/cfg.lakeVertices,r=1+.065*Math.sin(a*3+phase)+.035*Math.cos(a*5-phase);
    const lx=Math.cos(a)*width*.5*r,lz=Math.sin(a)*depth*.5*r,c=Math.cos(phase),s=Math.sin(phase);

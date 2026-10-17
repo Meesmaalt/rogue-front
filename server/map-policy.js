@@ -1,7 +1,7 @@
 export function isProceduralMapId(id) {
   if (typeof id !== 'string') return false;
-  const region=/^procedural-v17-(balanced|river|highlands|urban|coastal|forest)-(2048|2560|3072|4096|5120|6144)-(0|[1-9]\d*)(?:-o(0|[1-9]\d*))?$/.exec(id);
-  if(region)return Number(region[3])<=4294967295&&(region[4]==null||Number(region[4])<=127);
+  const region=/^procedural-v(17|18)-(balanced|river|highlands|urban|coastal|forest)-(2048|2560|3072|4096|5120|6144)-(0|[1-9]\d*)(?:-o(0|[1-9]\d*))?$/.exec(id);
+  if(region)return Number(region[4])<=4294967295&&(region[5]==null||Number(region[5])<=(region[1]==='18'?511:127));
   const custom=/^(procedural-v(?:13|14|15|16)-(?:balanced|river|highlands|urban|coastal|forest)-(?:2048|2560|3072|4096|5120|6144)-\d+)-o(\d+)$/.exec(id);
   if(custom)return Number(custom[2])<=(/^procedural-v(?:15|16)-/.test(custom[1])?31:15)&&String(Number(custom[2]))===custom[2]&&isProceduralMapId(custom[1]);
   if(/^procedural-v(?:11|12|13|14|15|16)-(balanced|river|highlands|urban|coastal|forest)-(2048|2560|3072|4096|5120|6144)-(\d+)$/.test(id))return Number(id.split('-').at(-1))<=4294967295;

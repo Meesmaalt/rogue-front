@@ -1,5 +1,12 @@
 # Arhitektuur
 
+## Piirkondlikud paigutused v18
+
+`region-plans.json` ja `regionPlans.ts` annavad 12 erinevat piirkondlikku plaani: graafid, paaritatud asulad, silutud jõejooned, kõrgendike teljed, reljeefiprofiilid ja eelistatud järvenõod. `regionInfrastructure.ts` ehitab tegelikud teed/sillad ning leiab enne asulate loomist paaritatud kuivad tootmisalad. Mõlemal baasil on kaks ühendust; teepikkused arvestavad kõverjooni. V18 maski bitid 7–8 määravad automaatse või käsitsi paigutuse. Sama valik kandub menüüst workerisse ja lobby värskendamisse.
+
+`TerrainLandform.group` ühendab ühe mäeharja osad maksimaalse kõrgusümbrisena; kompileeritud rühmaindeksid ja korduvkasutatav kõrguspuhver väldivad päringupõhiseid eraldisi. Planeerimine kasutab sama ümbrist. `MapFeatureDef.parcelId` seob ühe põllu lõiketükkide kultuuri ja põllumajandustöötluse. Täpsem kontrollide ja kasutamise ülevaade: [REGIONAL-LAYOUTS-V18.md](REGIONAL-LAYOUTS-V18.md).
+
+
 ## Piirkonnageneraator v17
 
 Uus kaardivoog kasutab `regionalMap.ts` planeerimisskeletti ja nelja `regions.json` profiili. Piirkonna vaikeseaded on mängija poolt muudetavad; valik säilib v17 ID maski bittides 5–6. `regions.ts` annab `TerrainProfile`/`ReliefShape` tüübid ning sama reljeefikerneli planeerimisele ja kõrgusväljale. `region-italy`, `region-siberia`, `region-canyon` ja `region-desert` jõuavad sama kõrguspuhvri kaudu navigeerimisse, nähtavusse ja renderdusse. Vanad generaatoriharud ja ID piirid on eraldi. Server säilitab lobby kaardi värskendamisel piirkonna ja lülitid.

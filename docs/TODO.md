@@ -1,5 +1,16 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Piirkondlikud kaardipaigutused v18 · 17.10.2026
+
+- [x] Kõigil neljal piirkonnal kolm andmepõhist graafi ning käsitsi/automaatne paigutusvalik üksikmängus ja lobby's. Graaf muudab teedevõrku, asulaid, jõgesid, ületuste arvu ja kõrgendike telgi.
+- [x] Silutud jõed ja ristumise järgi joondatud sillad, teki alt välja lõigatud asfalt, juhitud järvenõod, paigutuse eri reljeefiprofiilid ja ühise kõrgusümbrisega mäeharjad.
+- [x] Paaritatud strateegilised ankrud ja neli tootmisalapaari koos kuiva tööalaga; kaks baasiväljapääsu ja teedevõrgu ühendus ka ühe ühenduse eemaldamisel. Päris kõverjoonte lähenemispikkuste kontroll.
+- [x] Ühise põllu eri lõiketükkidel sama kultuur, istandusetüüp ja värv; järvede/teede servadel välditud juhuslik kolmnurkne värvilapistik.
+- [x] Kõik 12 paigutust kuuel suurusel, tegelik nav/lennurada 2/6 km kaartidel, seemne äärejuhtumid, päris APC sõit üle silla, menüü/worker/HTTP/lobby, TypeScript ning kliendi/serveri build. Kasutaja juhisel ei ole vanade versioonide ühilduvuse säilitamine selle etapi eesmärk.
+- [ ] Päris riistvara GPU/FPS ning inimeste pikemate matšide tasakaaluhinnang; tarkvaraline WebGL pildiülevaatus ega graafi võrdsus ei asenda seda.
+
+
+
 ## Piirkonnapõhine generaator v17 · 17.10.2026
 
 - [x] Itaalia, Siberi talv, Ameerika kanjonid ja kõrb: eraldi kõrgus-/taimestiku-/asustusprofiilid ning piirkonna valik üksik- ja mitmikmängus.
@@ -7,7 +18,7 @@
 - [x] Piirkonna ühine kõrguspuhver navigeerimisele/renderdusele; v17 maskis piirkond ja kõik maastikulülitid. Lobby säilitab piirkonna; ajalooliste kaartide ID-d säilivad.
 - [x] Pinnad, paljandid, puud, asulavärvid, taevas/udu, vesi, eelvaade ja minikaart. Parandatud mustad kaugpuud: puuduva vertex-colour atribuudiga kaugmudel ei sobinud jagatud materjaliga.
 - [x] Piirkonna-/geomeetria-/navigeerimise-/maski-/v16 regressioonikontrollid, kliendi/serveri build ja HTTP/lobby kontroll. Nelja piirkonna tegelikud üld-/lähivaated vaadatud Chromium/WebGL2 tarkvararenderduses. Täiskomplekti olemasolevad tõrked on aruandes eraldi.
-- [ ] Rohkem piirkonnale omaseid planeerimisskelette ning päris riistvara GPU/FPS ja mängitud matši tasakaaluhinnang. Esimene v17 versioon kasutab üht kohanduvat strateegilist põhiskeleti perekonda.
+- [x] Rohkem piirkonnale omaseid planeerimisskelette: v18 lisab igale piirkonnale kolm paigutust. Riistvara FPS ja pikema matši hinnang on eraldi ülal.
 
 
 

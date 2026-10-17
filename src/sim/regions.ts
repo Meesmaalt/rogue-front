@@ -3,7 +3,7 @@ import {Rng} from './rng';
 export type RegionId=keyof typeof profiles;
 export type TerrainProfile='farmland'|'farmland-natural'|`region-${RegionId}`;
 export type ReliefShape='ridge'|'mesa'|'dune';
-export interface RegionalLandform {x:number;z:number;width:number;depth:number;height:number;shape?:ReliefShape;rotation?:number}
+export interface RegionalLandform {x:number;z:number;width:number;depth:number;height:number;group?:string;shape?:ReliefShape;rotation?:number}
 export const REGION_IDS:readonly RegionId[]=['italy','siberia','canyon','desert'];
 export const REGIONS=profiles;
 export function regionFromProfile(profile?:string):RegionId|undefined {
@@ -26,4 +26,13 @@ export function reliefKernel(distanceSquared:number,shape?:ReliefShape):number {
  }
  if(shape==='dune')return (1-distanceSquared)**3;
  return (1-distanceSquared)**2;
+}
+
+/** Relief within a connected belt forms one envelope; separate belts can still overlap. */
+export function regionalReliefAt(p:{x:number;z:number},forms:readonly RegionalLandform[]):number {
+ let total=0;const groups=new Map<string,number>();
+ for(const f of forms){const a=f.rotation??0,dx=p.x-f.x,dz=p.z-f.z,u=dx*Math.cos(a)-dz*Math.sin(a),v=dx*Math.sin(a)+dz*Math.cos(a),h=f.height*reliefKernel((u/f.width)**2+(v/f.depth)**2,f.shape);
+  if(f.group)groups.set(f.group,Math.max(groups.get(f.group)??0,h));else total+=h;
+ }
+ for(const h of groups.values())total+=h;return total;
 }

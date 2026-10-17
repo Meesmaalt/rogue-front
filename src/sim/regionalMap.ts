@@ -1,5 +1,7 @@
+import {distanceToPlanRiver,type RegionalPlan} from './regionPlans';
+import {addPlanInfrastructure,planResourceSites} from './regionInfrastructure';
 import {Rng} from './rng';
-import {REGIONS,regionDefaults,regionalNoise,reliefKernel,type RegionId,type RegionalLandform,type ReliefShape} from './regions';
+import {REGIONS,regionDefaults,regionalNoise,reliefKernel,regionalReliefAt,type RegionId,type RegionalLandform,type ReliefShape} from './regions';
 import type {MissionDef,Point,MapResourceDef} from './types';
 import type {MapArchetype,MapOptions} from './proceduralMap';
 import {MapFeatureIndex,featureCorners,type MapFeatureDef} from './mapFeatures';
@@ -11,7 +13,7 @@ import battle from '../data/battle-scale.json';
 import generation from '../data/map-generation.json';
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
 /** V17: a region plan owns relief belts, lowland routes and districts before local detail. */
-export function generateRegionalMap(seed:number,archetype:MapArchetype,size:number,input?:MapOptions):MissionDef {
+export function generateRegionalMap(seed:number,archetype:MapArchetype,size:number,input?:MapOptions,plan?:RegionalPlan):MissionDef {
  const region:RegionId=input?.region??'italy',p=REGIONS[region],options={...regionDefaults(region),...input},rng=new Rng(seed),random=(a:number,b:number)=>a+(b-a)*rng.next();
  const features:MapFeatureDef[]=[],forms:RegionalLandform[]=[],half=size/2;
  const bases:MissionDef['map']['bases']=[{x:-size*.37,z:size*.35,r:48},{x:size*.37,z:-size*.35,r:48}];
@@ -28,11 +30,13 @@ export function generateRegionalMap(seed:number,archetype:MapArchetype,size:numb
   const sign=team===0?1:-1,a=team===0?Math.PI*.75:-Math.PI/4,mid=(battle.generationAirfield.runwayStart+battle.generationAirfield.runwayEnd)/2;
   features.push({id:`base-airfield-yard-${team}`,kind:'cover',appearance:'yard',x:b.x+battle.readyAirfield.x*sign+Math.sin(a)*mid,z:b.z+battle.readyAirfield.z*sign+Math.cos(a)*mid,width:battle.generationAirfield.runwayWidth+55,depth:battle.generationAirfield.runwayEnd-battle.generationAirfield.runwayStart+40,rotation:a,blocksMovement:false});
  }
+ if(plan)addPlanInfrastructure(plan,size,options.river,features);
+ if(!plan){
  if(options.river)for(let i=0;i<96;i++){
   const za=-half-20+i*(size+40)/96,zb=-half-20+(i+1)*(size+40)/96,a={x:riverX(za),z:za},b={x:riverX(zb),z:zb};
   features.push({id:`region-river-${i}`,kind:'water',waterBody:'river',x:(a.x+b.x)/2,z:(za+zb)/2,width:region==='canyon'?24:28,depth:distance(a,b)+2,rotation:Math.atan2(b.x-a.x,b.z-a.z),surfaceHeight:-.8,label:'Jõgi'});
  }
- if(options.sea)for(const side of [-1,1])features.push({id:`region-sea-${side}`,kind:'water',waterBody:'sea',x:0,z:side*(half-30),width:size+10,depth:60,surfaceHeight:-.8,label:'Meri'});
+
  const crossingZ=[-lane,0,lane];
  for(const side of [-1,1]){
   route(`feeder-${side}`,Array.from({length:41},(_,i)=>{const z=-size*.44+i*size*.88/40;return {x:spine(side,z),z};}));
@@ -48,11 +52,14 @@ export function generateRegionalMap(seed:number,archetype:MapArchetype,size:numb
    route(`cross-${i}-${side}`,points);
   }
  }
+ }
+ if(options.sea)for(const side of [-1,1])features.push({id:`region-sea-${side}`,kind:'water',waterBody:'sea',x:0,z:side*(half-30),width:size+10,depth:60,surfaceHeight:-.8,label:'Meri'});
  // Resource loading areas are reserved along the transport network before settlement growth.
- const targets:Point[]=[{x:spine(-1,size*.17)+30,z:size*.17},{x:spine(1,-size*.17)-30,z:-size*.17},{x:size*.075,z:35},
+ const plannedSites=plan?planResourceSites(plan,size,features):undefined;
+ const targets:Point[]=plannedSites??[{x:spine(-1,size*.17)+30,z:size*.17},{x:spine(1,-size*.17)-30,z:-size*.17},{x:size*.075,z:35},
   {x:spine(-1,-size*.31)+32,z:-size*.31},{x:spine(1,size*.31)-32,z:size*.31},
   {x:-size*.16,z:-lane+32},{x:size*.16,z:lane-32},{x:spine(-1,-size*.40)+32,z:-size*.40},{x:spine(1,size*.40)-32,z:size*.40}];
- const resources:MapResourceDef[]=targets.map((t,i)=>({...t,amount:generation.mapRefinement.initialFactoryStock,maxStock:2400,radius:14,facility:(["depot","depot","factory","oilfield","oilfield","factory","factory","mine","mine"] as const)[i],facilityOffset:{x:i%2?-20:20,z:i%2?-20:20},active:false,level:1,startupProgress:0,productionRate:0,controlledBy:null,controlProgress:.5,label:i<2?'Varustustehas':i===3||i===4?'Naftatöötlemistehas':i>=7?'Rikastustehas':'Masinatehas'}));
+ const resources:MapResourceDef[]=targets.map((t,i)=>({...t,amount:generation.mapRefinement.initialFactoryStock,maxStock:2400,radius:14,facility:(["depot","depot","factory","oilfield","oilfield","factory","factory","mine","mine"] as const)[i],facilityOffset:plannedSites?.[i].offset??{x:i%2?-20:20,z:i%2?-20:20},active:false,level:1,startupProgress:0,productionRate:0,controlledBy:null,controlProgress:.5,label:i<2?'Varustustehas':i===3||i===4?'Naftatöötlemistehas':i>=7?'Rikastustehas':'Masinatehas'}));
  for(const [i,r] of resources.entries()){
   const f={x:r.x+r.facilityOffset!.x,z:r.z+r.facilityOffset!.z};
   features.push({id:`resource-yard-${i}`,kind:'cover',appearance:'yard',...f,width:36,depth:32,blocksMovement:false,color:region==='siberia'?0xb2bec2:0xaaa18c});
@@ -60,13 +67,32 @@ export function generateRegionalMap(seed:number,archetype:MapArchetype,size:numb
   for(const f of roads){const a=f.rotation??0,t=Math.max(-f.depth/2,Math.min(f.depth/2,(r.x-f.x)*Math.sin(a)+(r.z-f.z)*Math.cos(a))),q={x:f.x+Math.sin(a)*t,z:f.z+Math.cos(a)*t},d=distance(r,q);if(d<best){best=d;chosen=q;}}
   if(chosen)road(`resource-access-${i}`,r,chosen,4.5,'track');
  }
- const townPlans=[{x:spine(-1,-lane),z:-lane},{x:spine(1,lane),z:lane},{x:spine(-1,size*.075),z:size*.075},{x:spine(1,-size*.075),z:-size*.075},
+ const townPlans=plan?plan.towns.map(t=>({...t,blocks:Math.max(1,Math.round(t.blocks*p.settlementScale*(archetype==='urban'?1.35:1)))})):[{x:spine(-1,-lane),z:-lane},{x:spine(1,lane),z:lane},{x:spine(-1,size*.075),z:size*.075},{x:spine(1,-size*.075),z:-size*.075},
   {x:spine(-1,size*.30),z:size*.30},{x:spine(1,-size*.30),z:-size*.30}].map((t,i)=>({...t,angle:random(-.15,.15),blocks:Math.max(1,Math.round((i<2?(archetype==='urban'?4:3):2)*p.settlementScale))}));
  const protectedPoints=[...bases.map(b=>({...b,r:110})),...resources.map(r=>({...r,r:75})),...townPlans.map(t=>({...t,r:t.blocks*35+35}))];
- if(options.lakes)addInteriorLakes(size,rng,features,protectedPoints,true);
+ if(options.lakes)addInteriorLakes(size,rng,features,protectedPoints,true,plan?.lakeGuides);
  // Long overlapping forms create connected belts. Their low gaps are deliberate road/settlement corridors.
  // Layout candidates exist before local streets or parcel painting.
- if(options.mountains){
+ if(plan&&options.mountains){
+  const index=new MapFeatureIndex(features.filter(f=>f.kind==='road'||f.kind==='bridge'||f.kind==='water'||f.appearance==='yard'),96,12),seen=new Set<string>();
+  const valid=(f:RegionalLandform)=>{
+   const probe:MapFeatureDef={id:'ridge',kind:'cover',x:f.x,z:f.z,width:f.width*2,depth:f.depth*2,rotation:f.rotation,shape:'ellipse'};
+   return !protectedPoints.some(p=>distance(p,f)<p.r+Math.min(f.width,f.depth)*.55)&&!index.query(f.x-Math.hypot(f.width,f.depth),f.z-Math.hypot(f.width,f.depth),f.x+Math.hypot(f.width,f.depth),f.z+Math.hypot(f.width,f.depth)).some(o=>footprintsOverlap(probe,o,9));
+  };
+  for(const [pathIndex,path] of plan.ridgePaths.entries())for(let i=1;i<path.length;i++){
+   const a=path[i-1],b=path[i],length=distance(a,b),count=Math.max(1,Math.ceil(length/(size*.04)));
+   for(let j=0;j<count;j++){
+    const t=(j+.5)/count,x=a.x+(b.x-a.x)*t,z=a.z+(b.z-a.z)*t;if(x>=0)continue;
+    const key=`${Math.round(x/20)}/${Math.round(z/20)}`;if(seen.has(key))continue;seen.add(key);
+    for(const scale of [1,.8,.6]){
+     const f:RegionalLandform={x,z,width:size*(region==='desert'?.075:.052)*scale*(plan.relief?.widthScale??1),depth:size*(region==='desert'?.025:.037)*scale*(plan.relief?.depthScale??1),height:p.reliefHeight*(.85+new Rng(seed^Math.imul(pathIndex+1,0x761b)).next()*.2)*(archetype==='highlands'?1.35:1)*(plan.relief?.heightScale??1),group:`belt-${pathIndex}`,shape:plan.relief?.shape??p.reliefShape as ReliefShape,rotation:Math.atan2(-(b.z-a.z),b.x-a.x)};
+     const opposite={...f,x:-x,z:-z,group:`belt-${pathIndex}-opposite`,rotation:(f.rotation??0)+Math.PI};
+     if(valid(f)&&valid(opposite)){forms.push(f,opposite);break;}
+    }
+   }
+  }
+ }
+ if(!plan&&options.mountains){
   const backbone=features.filter(f=>f.kind==='road'||f.kind==='water'||f.id.startsWith('base-airfield'));
   const index=new MapFeatureIndex(backbone,96,20),step=Math.max(100,size*.045),count=Math.ceil(size*.84/step);
   for(const side of [-1,1])for(const belt of [0,1])for(let j=0;j<=count;j++){
@@ -82,7 +108,10 @@ export function generateRegionalMap(seed:number,archetype:MapArchetype,size:numb
  // Settlements use existing frontage/lot logic; reserves protect airfields and industrial pickup yards.
  for(const [i,t] of townPlans.entries()){
   const reserves=resources.map((r,j)=>({id:`reserve-resource-${j}`,kind:'building' as const,x:r.x,z:r.z,width:100,depth:100}));
-  features.push(...buildVariedSettlement(i,t,rng,[...features,...reserves],region!=='italy',true));
+  const canonical=plan?[0,0,3,3,2,2][i]:i,localRng=plan?new Rng(seed^Math.imul(Math.floor(i/2)+1,0x75ab9)):rng;
+  const buildings=buildVariedSettlement(canonical,t,localRng,[...features,...reserves],region!=='italy',true);
+  if(plan)for(const f of buildings)f.id=f.id.replaceAll(`town-${canonical}-`,`town-${i}-`);
+  features.push(...buildings);
  }
  for(const f of features)if(f.kind==='building'){
   f.color=p.roof;f.facadeColor=p.facade;
@@ -96,9 +125,9 @@ export function generateRegionalMap(seed:number,archetype:MapArchetype,size:numb
   const poly=[nodes[j][i],nodes[j][i+1],nodes[j+1][i+1],nodes[j+1][i]],s={x:poly.reduce((a,p)=>a+p.x,0)/4,z:poly.reduce((a,p)=>a+p.z,0)/4};
   if(bases.some(b=>distance(b,s)<130)||townPlans.some(t=>distance(t,s)<t.blocks*32+30))continue;
   const district=regionalNoise(s.x,s.z,seed^0x362ad,Math.max(260,size*.13));
-  const riverDistance=Math.abs(s.x-riverX(s.z));
-  const threshold=p.forestThreshold+(archetype==='forest'?-.13:archetype==='urban'?.1:0);
-  const plannedRelief=(v:Point)=>forms.reduce((h,f)=>{const a=f.rotation??0,dx=v.x-f.x,dz=v.z-f.z;return h+f.height*reliefKernel(((dx*Math.cos(a)-dz*Math.sin(a))/f.width)**2+((dx*Math.sin(a)+dz*Math.cos(a))/f.depth)**2,f.shape);},0);
+  const riverDistance=plan?distanceToPlanRiver(plan,s):Math.abs(s.x-riverX(s.z));
+  const threshold=p.forestThreshold+(plan?.forestBias??0)+(archetype==='forest'?-.13:archetype==='urban'?.1:0);
+  const plannedRelief=(v:Point)=>plan?regionalReliefAt(v,forms):forms.reduce((h,f)=>{const a=f.rotation??0,dx=v.x-f.x,dz=v.z-f.z;return h+f.height*reliefKernel(((dx*Math.cos(a)-dz*Math.sin(a))/f.width)**2+((dx*Math.sin(a)+dz*Math.cos(a))/f.depth)**2,f.shape);},0);
   const woodValue=(v:Point)=>regionalNoise(v.x,v.z,seed^0x362ad,Math.max(260,size*.13))-threshold-(region==='canyon'?Math.min(1,plannedRelief(v)/35):0);
   const forestPoly:Point[]=[];
   if(options.forest&&!(region==='desert'&&riverDistance>size*.1))for(let k=0;k<poly.length;k++){
@@ -118,16 +147,16 @@ export function generateRegionalMap(seed:number,archetype:MapArchetype,size:numb
   for(const [k,polygon] of pieces.entries()){
    if(parcelArea(polygon)<220)continue;
    const xs=polygon.map(p=>p.x),zs=polygon.map(p=>p.z),minX=Math.min(...xs),maxX=Math.max(...xs),minZ=Math.min(...zs),maxZ=Math.max(...zs);
-   features.push({id:`region-${woodland?'wood':'field'}-${i}-${j}-${k}`,kind:'cover',appearance:woodland?'forest':'field',x:(minX+maxX)/2,z:(minZ+maxZ)/2,width:maxX-minX,depth:maxZ-minZ,polygon,blocksMovement:false,height:region==='siberia'?11:7,density:region==='siberia'?.9:.75,color:parseInt(p.ground.slice(1),16),...(woodland?{}:{landUse:region==='canyon'?'pasture':undefined,cropRotation:Math.PI/2})});
+   features.push({id:`region-${woodland?'wood':'field'}-${i}-${j}-${k}`,kind:'cover',appearance:woodland?'forest':'field',...(!woodland&&plan?{parcelId:`regional-parcel-${i}-${j}`}:{}) ,x:(minX+maxX)/2,z:(minZ+maxZ)/2,width:maxX-minX,depth:maxZ-minZ,polygon,blocksMovement:false,height:region==='siberia'?11:7,density:region==='siberia'?.9:.75,color:parseInt(p.ground.slice(1),16),...(woodland?{}:{landUse:region==='canyon'?'pasture':undefined,cropRotation:Math.PI/2})});
   }
  }
  if(region==='italy')enrichItalianLandscape(seed,features,[...bases,...resources]);
  if(!options.forest)for(let i=features.length-1;i>=0;i--)if(features[i].appearance==='forest')features.splice(i,1);
  refineRoadConnections(features);
  // Encode both region and exact overrides. Old generation versions retain their own defaults and IDs.
- const regionIndex=['italy','siberia','canyon','desert'].indexOf(region),mask=Number(options.sea)|Number(options.mountains)<<1|Number(options.forest)<<2|Number(options.river)<<3|Number(options.lakes===false)<<4|regionIndex<<5;
- const id=`procedural-v17-${archetype}-${size}-${seed>>>0}-o${mask}`,name=`${p.name} · ${seed>>>0}`;
+ const regionIndex=['italy','siberia','canyon','desert'].indexOf(region),mask=Number(options.sea)|Number(options.mountains)<<1|Number(options.forest)<<2|Number(options.river)<<3|Number(options.lakes===false)<<4|regionIndex<<5|(plan&&input?.layout!=null?(input.layout+1)<<7:0);
+ const id=`procedural-v${plan?18:17}-${archetype}-${size}-${seed>>>0}-o${mask}`,name=`${p.name}${plan?' · '+plan.name:''} · ${seed>>>0}`;
  const quantize=(n:number)=>Math.round(n*1000)/1000;
  for(const f of features){for(const key of ['x','z','width','depth','height'] as const)if(f[key]!=null)f[key]=quantize(f[key]!);if(f.rotation!=null)f.rotation=Math.round(f.rotation*1e6)/1e6;if(f.polygon)f.polygon=f.polygon.map(p=>({x:quantize(p.x),z:quantize(p.z)}));}
- return {id,name,seed:seed>>>0,briefing:p.description,objectives:[],map:{id,name,size,theme:'temperate',terrainProfile:`region-${region}`,heightmap:'',maxHeight:160,landforms:forms,features,resources,bases,baseDefenses:false}};
+ return {id,name,seed:seed>>>0,briefing:p.description,objectives:[],map:{...(plan?{layout:{id:plan.id,name:plan.name}}:{}),id,name,size,theme:'temperate',terrainProfile:`region-${region}`,heightmap:'',maxHeight:160,landforms:forms,features,resources,bases,baseDefenses:false}};
 }

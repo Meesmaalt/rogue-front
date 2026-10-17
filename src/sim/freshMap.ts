@@ -13,7 +13,7 @@ export function validateFreshMap(mission:MissionDef,onFailure?:(reason:string)=>
  const map=mission.map,size=map.size!,half=size/2,features=map.features??[];
  try {
   const mask=/-o(\d+)$/.exec(mission.id);
-  if(/^procedural-v(?:15|16|17)-/.test(mission.id)&&(!mask||!(Number(mask[1])&16))&&features.filter(f=>f.waterBody==="lake").length<config.mapRefinement.minimumLakes)return fail("Järvedele ei leidunud piisavalt vaba kaldaruumi");
+  if(/^procedural-v(?:15|16|17|18)-/.test(mission.id)&&(!mask||!(Number(mask[1])&16))&&features.filter(f=>f.waterBody==="lake").length<config.mapRefinement.minimumLakes)return fail("Järvedele ei leidunud piisavalt vaba kaldaruumi");
   setMapSize(size);setBases(map.bases);setProceduralSeed(mission.seed);setTerrainProfile(map.terrainProfile,map.landforms);setTerrainFeatures(features);
   // Aircraft parking and the entire runway must fit on dry, unobstructed land.
   for(const [team,b] of map.bases.entries()){
@@ -52,7 +52,7 @@ export function generateFreshMap(seed:number,archetype:MapArchetype='balanced',s
  const rng=new Rng(seed>>>0);
  for(let attempt=0;attempt<config.freshGeneration.attempts;attempt++){
   const candidate=attempt===0?seed>>>0:Math.floor(rng.next()*4294967296)>>>0;
-  try{const mission=generateProceduralMap(candidate,archetype,size,17,options);onCandidate?.(mission);if(validateFreshMap(mission))return mission;}catch{/* Try another deterministic seed. */}
+  try{const mission=generateProceduralMap(candidate,archetype,size,18,options);onCandidate?.(mission);if(validateFreshMap(mission))return mission;}catch{/* Try another deterministic seed. */}
  }
  throw new Error('Mängitavat kaarti ei õnnestunud luua. Proovi uuesti.');
 }
