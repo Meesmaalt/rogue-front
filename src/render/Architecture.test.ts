@@ -36,3 +36,8 @@ it("batches bridge parts while retaining destruction identity and world bounds",
   expect(after.max.distanceTo(before.max)).toBeLessThan(1e-5);
   const mesh=result.children[0] as THREE.Mesh;mesh.geometry.dispose();material.dispose();
 });
+it('desert houses keep a flat roof and parapet in both near and far geometry',()=>{
+ vi.stubGlobal('document',{createElement:()=>({width:0,height:0,getContext:()=>({createImageData:(w:number,h:number)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData:()=>{},fillRect:()=>{},drawImage:()=>{},fillStyle:''})})});
+ const bounds=[false,true].map(far=>new THREE.Box3().setFromObject(createCivilianBuilding(8,10,5,1,far,0xc4b18d,'rural',0xd4c29d,true)));
+ expect(bounds[0].max.y).toBeCloseTo(5.325,2);expect(bounds[1].max.y).toBeCloseTo(bounds[0].max.y,4);
+});

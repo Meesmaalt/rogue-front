@@ -243,6 +243,11 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
     else if(f.shape==="ellipse")ctx.ellipse(0,0,f.width/2,f.depth/2,0,0,Math.PI*2);
     else ctx.roundRect(-f.width/2,-f.depth/2,f.width,f.depth,Math.min(3,f.width*.05));
   };
+  for(const f of features.filter(f=>f.landscape))local(f,()=>{
+    ctx.scale(f.width/2,f.depth/2);const g=ctx.createRadialGradient(0,0,.05,0,0,1);
+    const hex=(f.color??0x929579).toString(16).padStart(6,"0"),r=parseInt(hex.slice(0,2),16),b=parseInt(hex.slice(4,6),16),green=parseInt(hex.slice(2,4),16);
+    g.addColorStop(0,`rgba(${r},${green},${b},.55)`);g.addColorStop(.55,`rgba(${r},${green},${b},.3)`);g.addColorStop(1,`rgba(${r},${green},${b},0)`);ctx.fillStyle=g;ctx.fillRect(-1,-1,2,2);
+  });
   const cropNoise=document.createElement("canvas");cropNoise.width=cropNoise.height=64;
   const cc=cropNoise.getContext("2d")!,cropData=cc.createImageData(64,64);
   for(let i=0;i<64*64;i++){const v=230+Math.round(rnd()*24);cropData.data.set([v,v,v,255],i*4);}cc.putImageData(cropData,0,0);
@@ -306,6 +311,12 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
     const fringe=Math.min(4,f.width*.2,f.depth*.2);
     for(let n=0;n<6;n++){const inset=fringe*n/6;ctx.globalAlpha=.08;ctx.fillRect(-f.width/2+inset,-f.depth/2+inset,f.width-inset*2,f.depth-inset*2);}
     ctx.globalAlpha=1;
+    if(f.landmark){
+      ctx.globalAlpha=.7;ctx.beginPath();ctx.roundRect(-f.width/2+2,-f.depth/2+2,f.width-4,f.depth-4,2);ctx.fill();ctx.globalAlpha=1;
+      ctx.strokeStyle="rgba(90,84,68,.18)";ctx.lineWidth=.18;
+      for(let x=-f.width/2+3;x<f.width/2-2;x+=2){ctx.beginPath();ctx.moveTo(x,-f.depth/2+2);ctx.lineTo(x,f.depth/2-2);ctx.stroke();}
+      for(let z=-f.depth/2+3;z<f.depth/2-2;z+=2){ctx.beginPath();ctx.moveTo(-f.width/2+2,z);ctx.lineTo(f.width/2-2,z);ctx.stroke();}
+    }
   });
   const strokeRoad=(f:MapFeatureDef,width:number,color:string)=>local(f,()=>{
     ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(0,-f.depth/2);ctx.lineTo(0,f.depth/2);ctx.stroke();
@@ -419,7 +430,7 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
   for (const f of features) {
     const y = heightAt(f.x, f.z);
     if(f.appearance==="yard"){if(landscapeAtlas||f.id.startsWith('base-airfield-yard-'))continue;group.add(weatheredYard(f));continue;}
-    if (f.appearance === "forest") continue;
+    if (f.appearance === "forest" || f.landscape) continue;
     if (f.appearance === "field") {
       if(landscapeAtlas)continue;
       const field=drapedStrip(f,f.width,f.color??0x879357,.025);
@@ -524,8 +535,8 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
         // Small paving/apron grounds the facade without covering neighbouring roads.
         if(!landscapeAtlas)group.add(weatheredYard({...f,width:f.width+3,depth:f.depth+3,color:0x8f9181}));
         const variant=Number(f.id.split("-").at(-1))||0,house=new THREE.LOD();
-        house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,false,f.color,f.buildingStyle,f.facadeColor),0);
-        house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,true,f.color,f.buildingStyle,f.facadeColor),235, .15);
+        house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,false,f.color,f.buildingStyle,f.facadeColor,f.roofStyle==='flat'),0);
+        house.addLevel(createCivilianBuilding(f.width,f.depth,h,variant,true,f.color,f.buildingStyle,f.facadeColor,f.roofStyle==='flat'),235, .15);
         house.scale.set(terrainConfig.render.buildings.civilianFootprintScale,terrainConfig.render.buildings.civilianHeightScale,terrainConfig.render.buildings.civilianFootprintScale);
         house.userData.structureId=f.id;house.userData.structureHeight=h*terrainConfig.render.buildings.civilianHeightScale;
         house.position.set(f.x,y,f.z);house.rotation.y=f.rotation??0;group.add(house);

@@ -2,7 +2,7 @@
 
 ## 12 piirkondlikku paigutust · v18
 
-Igal maastikupiirkonnal on kolm eri paigutust: ringteed, läbipääsud, hargnevad orud või põllumajanduslikud ühendused. **Maastikupiirkond → Paigutus** laseb valida konkreetse variandi või jätta valiku seemne otsustada; sama valik on ka lobby's. Muutuvad päris teed, sillad, jõed, asulad ja kõrgendikud. Ühtlustatud on lõigatud põllutükkide kultuurid ning kokku kasvavad mäeharjad. [Paigutused, meetod ja kontrollid](docs/REGIONAL-LAYOUTS-V18.md).
+Igal maastikupiirkonnal on kolm eri paigutust: ringteed, läbipääsud, hargnevad orud või põllumajanduslikud ühendused. **Maastikupiirkond → Paigutus** laseb valida konkreetse variandi või jätta valiku seemne otsustada; sama valik on ka lobby's. Muutuvad päris teed, sillad, jõed, asulad ja kõrgendikud. Ühtlustatud on lõigatud põllutükkide kultuurid ning kokku kasvavad mäeharjad. [Paigutused, meetod ja kontrollid](docs/REGIONAL-LAYOUTS-V18.md). Külad kasvavad nüüd päris teede äärde kompaktsete hooneridadena; piirkondlikud külasüdamed, kõrbe lamekatused ning kallaste ja kaljujalamite detailikogumid annavad lähivaatele rohkem iseloomu.
 
 
 ## Piirkonnapõhised kaardid · v17

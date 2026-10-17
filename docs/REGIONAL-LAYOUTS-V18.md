@@ -21,11 +21,19 @@ Jõed silutakse kontrollpunktide vahel. `regionInfrastructure.ts` leiab silla as
 
 Ühe põllu lõikamisest tekkinud tükid kannavad ühist `parcelId` väärtust. Põllukultuur, istanduse tüüp ja värv säilivad kõigil tükkidel, nii et tee või järve ümber ei teki eri värvi kolmnurkade lehvikut.
 
+## Asulate ja looduse iseloom
+
+V18 asulad järgivad olemasoleva kõvera maantee suunda. Itaalia külasüdant ja kõrbe hoove täiendab väike seotud ringtee; Siberi metsaküla ja kanjonite teeasula kasutavad lühikesi kõrvalharusid. Suur tühi tänavaruudustik on asendatud tegeliku hoonestusega seotud teedega. Kui maastik või reservatsioon katkestab kohaliku tee, ei saa selle eraldatud osa hooneid.
+
+Asulate paletid, hoonestiilid ja mõõdud tulevad `region-character.json` andmetest. Itaalia külas on purskkaevu ja pinkidega väike väljak, Siberis palgivirnad ja töövarjualune, kanjonites teeäärne puhkekoht ning kõrbes kaevuhoov. Kõrbe elamud kasutavad mõlemas detailsusastmes parapetiga lamekatust. Keskpunkt valitakse takistusteta taskusse; vee, tee või tööala kohale seda ei suruta.
+
+`regionalCharacter.ts` paigutab kallastele niiskemaid rohu-/pinnasetaskuid ja reljeefi jalamitele kivisemat maad; luite serval on kuivem nõgu. Need sulatatakse pehme üleminekuga maapinnaatlasesse. Hõredad päris metsasalud pehmendavad metsa ja lagendiku piiri. Kivid ja madal taimestik koonduvad pinnasetaskutesse; suuri rahne on hõredalt, Siberis lisandub lamapuit. Senine instantside ülempiir säilib. Pinnaselaigud ja väikedetailid ei tekita salajasi liikumistakistusi; päris mets kasutab tavalisi metsakatte reegleid.
+
 ## Lähenemised ja varustus
 
 Baaside, asulate ja teede graaf on strateegiliselt paaritatud. Mõlemal baasil on kaks väljapääsu ja baasid jäävad teedevõrgus ühendatuks ka ühe ühenduse eemaldamisel. Tee pikkus arvutatakse päris kõverjoone järgi, mitte ainult ankrute linnulennukaugusest. Test kontrollib vastavate asulate lähenemiskauguste võrdsust.
 
-Neli tootmisalapaari paigutatakse teede kõrvale koos kuiva laadimisala ja teest eemal paikneva tehasemaja jalajäljega. Ka vastaspoole peegeldatud koht peab sobima; kui üks pool ei sobi, otsitakse uus paar. Ühine neutraalne tootmisala valitakse vaidluskeskme lähedale. Kohalik maakasutus võib poolte vahel erineda; graafi võrdsus ei ole inimeste mängitud matšide võiduprotsendi mõõtmine.
+Neli tootmisalapaari paigutatakse teede kõrvale koos kuiva laadimisala ja teest eemal paikneva tehasemaja jalajäljega. Asula hooned jätavad laadimiskoha ümber 40 × 40 m ja nihutatud tehase ümber 32 × 32 m vabaks, mitte põhjendamatult suure 100 × 100 m ruudu. Ka vastaspoole peegeldatud koht peab sobima; kui üks pool ei sobi, otsitakse uus paar. Ühine neutraalne tootmisala valitakse vaidluskeskme lähedale. Kohalik maakasutus võib poolte vahel erineda; graafi võrdsus ei ole inimeste mängitud matšide võiduprotsendi mõõtmine.
 
 ## Valiku kandumine mängu
 
@@ -38,5 +46,7 @@ Uued kaardid kasutavad v18 ID-d. Maski bitid 7–8 tähendavad automaatset valik
 - Päris APC läbib kiirmarsikäsuga nii pika kui hargneva kanjoni kaardi ja sõidab üle füüsilise silla. Kontroll sisaldab tavalist sõidukontrollerit, teeotsingut ning rajatiste nav-jalajälgi.
 - Ühise põllutöötluse ja kõrgendikuvööndi kõrguse kontrollid; TypeScript, kliendi/serveri build ja päris HTTP/lobby kontroll koos käsitsi valitud paigutuse säilimisega.
 - Chromium/WebGL2 tarkvararenderduses kontrollitud 12 üldvaadet, piirkondade lähivaated, käsitsi paigutuse valimine ja kaardi valmimine. Riistvaraline GPU FPS ning pika matši tasakaal jäävad eraldi mängukatse teemaks.
+
+Iseloomuviimistluse lõppkontroll: 29 sihitud testi ja 10 serveritesti läbisid; viimase katusematerjali paranduse järel läbisid uuesti kõik 8 renderduse/ehitamisel puhastamise testi. Tootmisbuild õnnestus. Kogu komplektis läbis 593 testi ja ebaõnnestus 21; tõrgete nimed kattuvad täpselt eelnevalt baasversioonil kinnitatud nimekirjaga. Kõik 12 üldvaadet, piirkondade küla-/looduslähivaated ning päris hargneva kanjoni lahingu käivitumine kontrolliti Chromium/WebGL2-s ilma JavaScripti vigadeta.
 
 Rakendamiseks ühenda muudatus, ehita uuesti nii mängu kui multiplayeri image ning alusta uut lahingut. Täpne valik on **Maastikupiirkond → Paigutus → Uus kaart**; kordamiseks märgi „Korda sisestatud seemet”.

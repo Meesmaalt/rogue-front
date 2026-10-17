@@ -1,5 +1,13 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Kaartide iseloom ja asulate lähivaade · 17.10.2026
+
+- [x] Piirkonnale omased kompaktsed asulad kasvavad päris maantee frontage'ile ja mõnele seotud külaharule; eemaldatud uute kaartide tühi teederuudustik. Katkestatud külatee ei saa eraldatud elamusaart.
+- [x] Tehaste/laadimisalade tegelikud reservjalajäljed asendavad uute asulate ümber ülemäärase 100 × 100 m tühjendusala. Laadimine ja rajatise asukoht säilivad.
+- [x] Itaalia külaväljak, Siberi tööõu, kanjonite teepeatus ja kõrbe kaevuhoov; piirkondlik fassaadi-/katusevariatsioon ning kõrbe päris parapetiga lamekatused.
+- [x] Pehmed maapinnaüleminekud kallastel ja kaljujalamitel, hõredad päris metsaservad, kivide/põõsaste koondumine ökoloogilistesse taskutesse ning Siberi lamapuit. Instantside senine ülempiir ja teede/tööalade välistus säilivad; väikedetailid eemaldatakse ehitamisel.
+- [x] 29 sihitud asula-/nav-/geomeetria-/ehitamise kontrolli ning 10 serveritesti läbisid; lõpliku katusematerjali järel 8 renderduskontrolli kordus. Tootmisbuild läbis. Kõik 12 üldvaadet, nelja piirkonna küla-/loodusvaated ning päris lahingu käivitumine Chromiumis kontrollitud. Täiskomplekt: 593 läbis, samad 21 baasversioonil kinnitatud tõrget; uusi tõrkeid ei lisandunud.
+
 ## Piirkondlikud kaardipaigutused v18 · 17.10.2026
 
 - [x] Kõigil neljal piirkonnal kolm andmepõhist graafi ning käsitsi/automaatne paigutusvalik üksikmängus ja lobby's. Graaf muudab teedevõrku, asulaid, jõgesid, ületuste arvu ja kõrgendike telgi.

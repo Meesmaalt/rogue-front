@@ -1,5 +1,13 @@
 # Arhitektuur
 
+## Piirkondlik iseloom ja kohalik kasv
+
+V18 plaaniga kaartide `characterSettlements.ts` kasutab olemasoleva kõvera maantee suunda ja loob selle frontage'ile kompaktsed hooneread. Itaalia/kõrbe külas on üks väike ringtee; Siberi/kanjonite asulates lühikesed kõrvalharud. Kohalikud teed peavad enne hoonestamist päriselt põhivõrguga ühenduma. Ressursireserv on nüüd laadimiskoha 40 × 40 m ja tehase tegeliku nihutatud 32 × 32 m ala, mitte iga ressursi ümber 100 × 100 m tühi ruut. Strateegilised ankrud ja ressursipaarid ei muutu.
+
+`region-character.json` koondab asulate mõõdud, hoonestiilid, piirkonnapaletid ja detailikihi eelarvejaotuse. `MapFeatureDef.landmark` tähistab reserveeritud külasüdant; renderdus loob sinna ühe jagatud geomeetriaga väikese külaväljaku/tööõue/teepeatuse/kaevu. `roofStyle: flat` kasutab ka mõlemas LOD-is päris lamekatuse ja parapeti geomeetriat.
+
+`regionalCharacter.ts` lisab vee kallastele ja reljeefi jalamitele pehmeid `landscape` pinnaselaike ning piiratud arvu päris metsakattega hõredaid ääresalusid. Pinnaselaigud ise ei takista liikumist ega anna varjatud katet. Maapinnaatlas sulatab need alusvärvi; põllud ja teed joonistatakse hiljem peale. `RegionalScenery` suunab senise piiratud instantsieelarve valdavalt nendele laikudele, kivid koonduvad paljanditele ja taimestik kaldaniitudele. Suurima kivi mõõt arvestatakse tee-/vee-/hoonepuhvrisse. Küladetailid ja lamapuit kasutavad olemasolevat ehitamisel puhastamise rada. Kõik genereerimisvalikud on seemnest deterministlikud; see täiendab praegust v18 generaatorit.
+
 ## Piirkondlikud paigutused v18
 
 `region-plans.json` ja `regionPlans.ts` annavad 12 erinevat piirkondlikku plaani: graafid, paaritatud asulad, silutud jõejooned, kõrgendike teljed, reljeefiprofiilid ja eelistatud järvenõod. `regionInfrastructure.ts` ehitab tegelikud teed/sillad ning leiab enne asulate loomist paaritatud kuivad tootmisalad. Mõlemal baasil on kaks ühendust; teepikkused arvestavad kõverjooni. V18 maski bitid 7–8 määravad automaatse või käsitsi paigutuse. Sama valik kandub menüüst workerisse ja lobby värskendamisse.

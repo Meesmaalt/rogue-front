@@ -1,3 +1,5 @@
+import {buildCharacterSettlement} from './characterSettlements';
+import {enrichRegionalCharacter} from './regionalCharacter';
 import {distanceToPlanRiver,type RegionalPlan} from './regionPlans';
 import {addPlanInfrastructure,planResourceSites} from './regionInfrastructure';
 import {Rng} from './rng';
@@ -107,14 +109,14 @@ export function generateRegionalMap(seed:number,archetype:MapArchetype,size:numb
  }
  // Settlements use existing frontage/lot logic; reserves protect airfields and industrial pickup yards.
  for(const [i,t] of townPlans.entries()){
-  const reserves=resources.map((r,j)=>({id:`reserve-resource-${j}`,kind:'building' as const,x:r.x,z:r.z,width:100,depth:100}));
+  const reserves=resources.flatMap((r,j)=>plan?[{id:`reserve-loading-${j}`,kind:'building' as const,x:r.x,z:r.z,width:40,depth:40},{id:`reserve-factory-${j}`,kind:'building' as const,x:r.x+r.facilityOffset!.x,z:r.z+r.facilityOffset!.z,width:32,depth:32}]:[{id:`reserve-resource-${j}`,kind:'building' as const,x:r.x,z:r.z,width:100,depth:100}]);
   const canonical=plan?[0,0,3,3,2,2][i]:i,localRng=plan?new Rng(seed^Math.imul(Math.floor(i/2)+1,0x75ab9)):rng;
-  const buildings=buildVariedSettlement(canonical,t,localRng,[...features,...reserves],region!=='italy',true);
-  if(plan)for(const f of buildings)f.id=f.id.replaceAll(`town-${canonical}-`,`town-${i}-`);
+  const buildings=plan?buildCharacterSettlement(i,t,region,localRng,[...features,...reserves],size):buildVariedSettlement(canonical,t,localRng,[...features,...reserves],region!=='italy',true);
+
   features.push(...buildings);
  }
  for(const f of features)if(f.kind==='building'){
-  f.color=p.roof;f.facadeColor=p.facade;
+  if(!plan){f.color=p.roof;f.facadeColor=p.facade;}
   if(region==='siberia')f.label=f.buildingStyle==='industrial'?'Töökoja hoone':'Taiga asula';
  }
  // Fields belong to lowland agricultural districts, not every empty polygon on the map.
@@ -151,6 +153,7 @@ export function generateRegionalMap(seed:number,archetype:MapArchetype,size:numb
   }
  }
  if(region==='italy')enrichItalianLandscape(seed,features,[...bases,...resources]);
+ if(plan)enrichRegionalCharacter(seed,size,region,features,forms,[...bases.map(b=>({...b,r:130})),...resources.map(r=>({...r,r:65}))],options.forest);
  if(!options.forest)for(let i=features.length-1;i>=0;i--)if(features[i].appearance==='forest')features.splice(i,1);
  refineRoadConnections(features);
  // Encode both region and exact overrides. Old generation versions retain their own defaults and IDs.
