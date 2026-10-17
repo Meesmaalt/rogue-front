@@ -1,11 +1,11 @@
 import * as THREE from "three";
 
-export function createSky(temperate=false): THREE.Mesh {
+export function createSky(temperate=false,region?:{sky:string;haze:string}): THREE.Mesh {
   const geo = new THREE.SphereGeometry(1330, 16, 8);
   const mat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthWrite: false,
-    uniforms: { top: { value: new THREE.Color(temperate?0x81abc5:0x8eb4c8) }, horizon: { value: new THREE.Color(temperate?0xb7c6cc:0xf0e0b0) } },
+    uniforms: { top: { value: new THREE.Color(region?.sky??(temperate?0x81abc5:0x8eb4c8)) }, horizon: { value: new THREE.Color(region?.haze??(temperate?0xb7c6cc:0xf0e0b0)) } },
     vertexShader: `varying vec3 vWorld; void main(){vWorld=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
     fragmentShader: `uniform vec3 top; uniform vec3 horizon; varying vec3 vWorld; void main(){float h=clamp(normalize(vWorld).y,0.0,1.0);gl_FragColor=vec4(mix(horizon,top,pow(h,0.65)),1.0);
 #include <tonemapping_fragment>

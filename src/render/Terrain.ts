@@ -1,3 +1,5 @@
+import {REGIONS} from '../sim/regions';
+import {createRegionalScenery} from './RegionalScenery';
 import {createResourceIndustry} from './ResourceIndustry';
 import {createItalianScenery} from './ItalianScenery';
 import {createCropFields,fieldCrop,cropColors} from "./CropFields";
@@ -8,7 +10,7 @@ import terrainConfig from "../data/terrain.json";
 import {isGarrisonBuilding,GARRISON_RULES} from "../sim/garrison";
 import * as THREE from "three";
 import {createCivilianBuilding,batchStaticScene} from "./Architecture";
-import { getBases, MAP_SIZE, heightAt,groundHeightAt } from "../sim/heightmap";
+import { getTerrainRegion,getBases, MAP_SIZE, heightAt,groundHeightAt } from "../sim/heightmap";
 import { mulberry32 } from "../sim/rng";
 import { pointInFeature, isSeaFeature, featureCorners, forestDensityAt, MapFeatureIndex, type MapFeatureDef } from "../sim/mapFeatures";
 import type {World} from "../sim/World";
@@ -39,6 +41,7 @@ export function createTerrain(theme: "desert" | "mountains" | "city" | "temperat
   else {group.add(createLandscapeBackdrop(features));group.add(createForest(features,forestLayout));}
   if(theme!=="temperate")group.add(createDecals(rnd));
   group.add(batchStaticScene(createMapFeatures(features,theme==="temperate")));
+  group.add(createRegionalScenery(features));
   group.add(createCropFields(features));group.add(createItalianScenery(features));
   freezeTerrainTransforms(group);
   return group;
@@ -111,8 +114,9 @@ export function createLandscapeBackdrop(features:readonly MapFeatureDef[]=[]):TH
       const z=side===0?edge:side===1?-t:side===2?-edge:t;
       const blend=Math.min(1,distance/260),hill=16+Math.sin(x*.009)*Math.cos(z*.007)*23+Math.sin((x+z)*.014)*9;
       const sea=seas.find(f=>pointInFeature(Math.max(-half,Math.min(half,x)),Math.max(-half,Math.min(half,z)),f));
-      const y=sea?(sea.surfaceHeight??0):groundHeightAt(x,z)+Math.max(0,hill)*blend;
-      positions.push(x,y,z);tint.setHex(sea?0x526d78:y>25?0x7f8978:0x879170).multiplyScalar(sea?1:.9+.08*Math.sin(x*.035)*Math.cos(z*.027));colors.push(tint.r,tint.g,tint.b);
+      const region=getTerrainRegion(),edgeHeight=region?groundHeightAt(Math.max(-half,Math.min(half,x)),Math.max(-half,Math.min(half,z))):groundHeightAt(x,z);
+      const y=sea?(sea.surfaceHeight??0):edgeHeight+Math.max(0,hill)*blend;
+      positions.push(x,y,z);tint.set(sea?0x526d78:region?(y>25?REGIONS[region].rock:REGIONS[region].ground):y>25?0x7f8978:0x879170).multiplyScalar(sea?1:.9+.08*Math.sin(x*.035)*Math.cos(z*.027));colors.push(tint.r,tint.g,tint.b);
     }
     for(let row=1;row<rows.length;row++)for(let i=0;i<SEG;i++){
       const a=start+(row-1)*(SEG+1)+i,b=a+1,c=a+SEG+1,d=c+1;indices.push(a,c,b,b,c,d);
@@ -147,7 +151,8 @@ export function createRiverSurface(features:readonly MapFeatureDef[]):THREE.Buff
     list.push(featureCorners(f));groups.set(y,list);
   }
   const positions:number[]=[],colors:number[]=[],uvs:number[]=[],indices:number[]=[];
-  const deep=new THREE.Color(0x49676c),bank=new THREE.Color(0x7d9286),tint=new THREE.Color();
+  const region=getTerrainRegion();
+  const deep=new THREE.Color(region?REGIONS[region].water:0x49676c),bank=new THREE.Color(region==='siberia'?0xa4bdc8:0x7d9286),tint=new THREE.Color();
   for(const [y,polygons] of groups){
     const vertices=polygons.flat(),half=MAP_SIZE/2;
     const lo=Math.max(-half,Math.min(...vertices.map(p=>p.z))),hi=Math.min(half,Math.max(...vertices.map(p=>p.z)));
@@ -219,13 +224,15 @@ function makeGrainTexture(theme:string):THREE.CanvasTexture {
 /** A single world-space landcover atlas avoids floating, overlapping field slabs.
  * Geometry, tree placement, navigation and cover still use the same map features. */
 function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (Point&{r:number})[],forestLayout:Map<string,ForestPoint[]>):THREE.CanvasTexture {
+  const region=getTerrainRegion(),profile=region?REGIONS[region]:undefined;
+
   const canvas=document.createElement("canvas");canvas.width=canvas.height=2048;
   const ctx=canvas.getContext("2d")!,scale=canvas.width/MAP_SIZE,half=MAP_SIZE/2,rnd=mulberry32(917);
   const noise=document.createElement("canvas");noise.width=noise.height=512;const nc=noise.getContext("2d")!,data=nc.createImageData(512,512);
   for(let z=0;z<512;z++)for(let x=0;x<512;x++){
     const wx=(x+.5)/512*MAP_SIZE-half,wz=(z+.5)/512*MAP_SIZE-half;
     const macro=(terrainNoise(wx/170,wz/170)-.5)*17+(terrainNoise(wx/43,wz/43)-.5)*7,grain=rnd()*7-3.5,i=(z*512+x)*4;
-    data.data[i]=143+macro+grain;data.data[i+1]=151+macro+grain;data.data[i+2]=121+macro+grain;data.data[i+3]=255;
+    data.data[i]=profile?Math.min(255,parseInt(profile.ground.slice(1,3),16)+macro+grain):143+macro+grain;data.data[i+1]=profile?Math.min(255,parseInt(profile.ground.slice(3,5),16)+macro+grain):151+macro+grain;data.data[i+2]=profile?Math.min(255,parseInt(profile.ground.slice(5,7),16)+macro+grain):121+macro+grain;data.data[i+3]=255;
   }
   nc.putImageData(data,0,0);ctx.drawImage(noise,0,0,2048,2048);
   ctx.setTransform(scale,0,0,scale,half*scale,half*scale);
@@ -242,7 +249,7 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
   const cropPattern=ctx.createPattern(cropNoise,"repeat")!;
   for(const f of features.filter(f=>f.appearance==="field"))local(f,()=>{
     trace(f);ctx.clip();
-    ctx.fillStyle=`#${(f.landUse?f.color??cropColors[fieldCrop(f)]:cropColors[fieldCrop(f)]).toString(16).padStart(6,"0")}`;ctx.fillRect(-f.width/2,-f.depth/2,f.width,f.depth);
+    ctx.fillStyle=`#${(region?f.color??cropColors[fieldCrop(f)]:(f.landUse?f.color??cropColors[fieldCrop(f)]:cropColors[fieldCrop(f)])).toString(16).padStart(6,"0")}`;ctx.fillRect(-f.width/2,-f.depth/2,f.width,f.depth);
     ctx.globalCompositeOperation="multiply";ctx.fillStyle=cropPattern;ctx.fillRect(-f.width/2,-f.depth/2,f.width,f.depth);ctx.globalCompositeOperation="source-over";
     if(f.cropPattern==="bare"||f.landUse==='olive'||f.landUse==='citrus')return;
     ctx.strokeStyle=f.color===0x927b70?"rgba(49,35,29,.23)":"rgba(51,55,32,.35)";ctx.lineWidth=.35;
@@ -256,7 +263,7 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
   // Forest floor follows irregular shared ellipses, with soft soil transition.
   for(const f of features.filter(f=>f.appearance==="forest"))local(f,()=>{
     trace(f);ctx.clip();ctx.scale(f.width/2,f.depth/2);const gradient=ctx.createRadialGradient(0,0,.15,0,0,1);
-    gradient.addColorStop(0,"rgba(49,68,43,.78)");gradient.addColorStop(.65,"rgba(57,74,46,.68)");gradient.addColorStop(1,"rgba(67,81,51,0)");
+    gradient.addColorStop(0,region==='siberia'?"rgba(80,105,108,.48)":"rgba(49,68,43,.78)");gradient.addColorStop(.65,region==='siberia'?"rgba(97,119,124,.3)":"rgba(57,74,46,.68)");gradient.addColorStop(1,"rgba(67,81,51,0)");
     ctx.fillStyle=gradient;ctx.beginPath();if(f.shape==="ellipse")ctx.arc(0,0,1,0,Math.PI*2);else ctx.rect(-1,-1,2,2);ctx.fill();
   });
   // Rock/scree belongs to the shared height field, so relief reads at strategic zoom.
@@ -270,13 +277,15 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
     const slopeExposure=Math.max(0,(slope-cfg.rockSlope)/cfg.rockSlopeRange);
     const exposed=Math.min(.7,heightExposure*Math.min(1,slope*2+.2)+slopeExposure*.55);
     if(exposed<=0)continue;
-    const i=(iz*512+ix)*4,grain=rnd()*15;rockData.data.set([137+grain,137+grain,128+grain,Math.round(exposed*255)],i);
+    const i=(iz*512+ix)*4,grain=rnd()*15;
+    if(profile){const band=region==='canyon'?Math.sin(h*.65)*12:0;rockData.data.set([parseInt(profile.rock.slice(1,3),16)+grain+band,parseInt(profile.rock.slice(3,5),16)+grain+band,parseInt(profile.rock.slice(5,7),16)+grain+band,Math.round(exposed*255)],i);}
+    else rockData.data.set([137+grain,137+grain,128+grain,Math.round(exposed*255)],i);
   }
   rc.putImageData(rockData,0,0);ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(rockCanvas,0,0,2048,2048);ctx.restore();
   // Mud and meadow banks follow the continuous watercourse, underneath bridges.
   ctx.lineCap="round";
   for(const width of [48,37,29]){
-    ctx.strokeStyle=width===48?"rgba(147,149,118,.65)":width===37?"#969581":"#858778";ctx.lineWidth=width;
+    ctx.strokeStyle=region?(width===48?REGIONS[region].ground:REGIONS[region].rock):width===48?"rgba(147,149,118,.65)":width===37?"#969581":"#858778";ctx.lineWidth=width;
     for(const f of features.filter(f=>f.kind==="water"&&!isSeaFeature(f)))local(f,()=>{
       ctx.beginPath();if(f.waterBody==="lake") {if(f.polygon)trace(f);else ctx.ellipse(0,0,f.width/2,f.depth/2,0,0,Math.PI*2);ctx.lineWidth=(width-26)*.65+2;}else {ctx.lineWidth=width;ctx.moveTo(0,-f.depth/2);ctx.lineTo(0,f.depth/2);}ctx.stroke();
     });
@@ -639,6 +648,7 @@ function canopyTexture():THREE.DataTexture {
 interface ForestPoint {x:number;z:number;s:number;angle:number;pine:boolean}
 /** One deterministic placement source for canopy batches and baked ground shade. */
 export function sampleForest(features:readonly MapFeatureDef[],budget=terrainConfig.forest.placementBudget):Map<string,ForestPoint[]> {
+  const region=getTerrainRegion();
   const rnd=mulberry32(104),cells=new Map<string,ForestPoint[]>();
   const index=new MapFeatureIndex(features),spacing=new Map<string,Array<{x:number;z:number;s:number}>>();
   const forests=features.filter(f=>f.appearance==="forest");
@@ -650,7 +660,7 @@ export function sampleForest(features:readonly MapFeatureDef[],budget=terrainCon
       const lx=(rnd()-.5)*f.width,lz=(rnd()-.5)*f.depth,x=f.x+lx*c+lz*s,z=f.z-lx*s+lz*c;
       const nearby=index.at(x,z);
       if(nearby.some(block=>(["building","road","bridge","water","wall"].includes(block.kind)||block.appearance==="yard")&&pointInFeature(x,z,block,2))||rnd()>forestDensityAt(x,z,nearby))continue;
-      const pine=rnd()<(.25+Math.min(.4,Math.max(0,heightAt(x,z)-12)/80)),scale=(terrainConfig.forest.treeScaleMinimum+rnd()*terrainConfig.forest.treeScaleVariation)*((f.height??8)<5?terrainConfig.forest.hedgeScale:1);
+      const pine=rnd()<(region?REGIONS[region].pine:(.25+Math.min(.4,Math.max(0,heightAt(x,z)-12)/80))),scale=(terrainConfig.forest.treeScaleMinimum+rnd()*terrainConfig.forest.treeScaleVariation)*((f.height??8)<5?terrainConfig.forest.hedgeScale:1);
       const bx=Math.floor(x/3),bz=Math.floor(z/3);let crowded=false;
       for(let dx=-1;dx<=1&&!crowded;dx++)for(let dz=-1;dz<=1&&!crowded;dz++)crowded=(spacing.get(`${bx+dx}/${bz+dz}`)??[]).some(p=>Math.hypot(p.x-x,p.z-z)<(p.s+scale)*1.15);
       if(crowded)continue;
@@ -681,12 +691,25 @@ export function createForest(features:readonly MapFeatureDef[],cells=sampleFores
   const trunkMaterial=new THREE.MeshStandardMaterial({color:0x625a49,roughness:1});
   const crownMaterial=new THREE.MeshStandardMaterial({color:0xffffff,map:canopyTexture(),vertexColors:true,roughness:1,metalness:0});
   const d=new THREE.Object3D(),tint=new THREE.Color();
+  const region=getTerrainRegion();
+  const pineGeometry=new THREE.ConeGeometry(1,2,7),pineFar=new THREE.ConeGeometry(1,2,5);
+  // The shared vertex-colour material also needs colours on far/evergreen geometry.
+  // Missing attributes default to black on WebGL, hiding all distant woodland.
+  for(const geometry of [farGeometry,pineGeometry,pineFar]){
+    const position=geometry.getAttribute('position'),colors=new Float32Array(position.count*3);
+    for(let i=0;i<position.count;i++){
+      const snow=region==='siberia'&&geometry!==farGeometry?(position.getY(i)+1)/2:1;
+      colors.set(region==='siberia'&&geometry!==farGeometry?[.23+snow*.72,.37+snow*.6,.33+snow*.67]:[1,1,1],i*3);
+    }
+    geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
+  }
   let shrubBudget=terrainConfig.forest.understoryBudget;const shrubIndex=new MapFeatureIndex(features);
   for(const points of cells.values()){
-    const trunks=new THREE.InstancedMesh(trunkGeometry,trunkMaterial,points.length),crowns=new THREE.InstancedMesh(crownGeometry,crownMaterial,points.length);
+    const conifer=!!region&&points[0].pine;
+    const trunks=new THREE.InstancedMesh(trunkGeometry,trunkMaterial,points.length),crowns=new THREE.InstancedMesh(conifer?pineGeometry:crownGeometry,crownMaterial,points.length);
     points.forEach((p,i)=>{
       const y=heightAt(p.x,p.z);d.rotation.set(0,p.angle,0);d.position.set(p.x,y+terrainConfig.forest.trunkHeight*.5*p.s,p.z);d.scale.set(p.s,p.s,p.s);d.updateMatrix();trunks.setMatrixAt(i,d.matrix);trunks.setColorAt(i,new THREE.Color(1,1,1));
-      tint.setHSL(.245+rnd()*.07,.24+rnd()*.15,.27+rnd()*.10);
+      if(region==='siberia')tint.setHSL(.43,.035,.72+rnd()*.1);else tint.setHSL(.245+rnd()*.07,.24+rnd()*.15,.27+rnd()*.10);
       d.position.set(p.x,y+terrainConfig.forest.crownBaseHeight*p.s,p.z);d.rotation.set(0,p.angle,0);
       d.scale.set(terrainConfig.forest.crownRadius*(p.pine?.78:1)*p.s,terrainConfig.forest.crownHeight*(p.pine?1.15:1)*p.s,terrainConfig.forest.crownRadius*(p.pine?.78:.92)*p.s);
       d.updateMatrix();crowns.setMatrixAt(i,d.matrix);crowns.setColorAt(i,tint);
@@ -695,12 +718,12 @@ export function createForest(features:readonly MapFeatureDef[],cells=sampleFores
     crowns.userData.forestCrownCount=1;crowns.userData.forestPoints=points;crowns.userData.forestColors=crowns.instanceColor!.array.slice();crowns.userData.forestMatrices=crowns.instanceMatrix.array.slice();
     trunks.userData.forestPoints=points;trunks.userData.forestTrunks=true;trunks.userData.forestColors=trunks.instanceColor!.array.slice();trunks.userData.forestMatrices=trunks.instanceMatrix.array.slice();
     // Distant opaque canopy drops fine lobes and trunks; no extra shadow or alpha pass.
-    const far=new THREE.InstancedMesh(farGeometry,crowns.material,points.length);
+    const far=new THREE.InstancedMesh(conifer?pineFar:farGeometry,crowns.material,points.length);
     points.forEach((_,i)=>{crowns.getMatrixAt(i,d.matrix);far.setMatrixAt(i,d.matrix);crowns.getColorAt(i,tint);far.setColorAt(i,tint);});
     far.computeBoundingSphere();far.receiveShadow=true;far.matrixAutoUpdate=false;
     far.userData.forestPoints=points;far.userData.forestCrownCount=1;
     far.userData.forestColors=far.instanceColor!.array.slice();far.userData.forestMatrices=far.instanceMatrix.array.slice();
-    const close=new THREE.InstancedMesh(closeGeometry,crowns.material,points.length);
+    const close=new THREE.InstancedMesh(conifer?pineGeometry:closeGeometry,crowns.material,points.length);
     close.instanceMatrix=crowns.instanceMatrix;close.instanceColor=crowns.instanceColor;
     close.computeBoundingSphere();close.receiveShadow=true;close.matrixAutoUpdate=false;
     close.userData={...crowns.userData};

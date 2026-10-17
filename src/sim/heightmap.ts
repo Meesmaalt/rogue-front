@@ -1,3 +1,4 @@
+import {regionFromProfile,REGIONS,reliefKernel,type TerrainProfile,type ReliefShape} from './regions';
 import battleScale from "../data/battle-scale.json";
 import {pointInFeature,polygonEdgeDistance,type MapFeatureDef} from "./mapFeatures";
 import terrain from "../data/terrain.json";
@@ -17,12 +18,13 @@ const DEFAULT_BASES: readonly BaseDef[] = [
 let activeBases: readonly BaseDef[] = DEFAULT_BASES;
 let activeHeightmap: HeightmapSource | null = null;
 let proceduralSeed = 1;
-export interface TerrainLandform {x:number;z:number;width:number;depth:number;height:number;shape?:"ridge";rotation?:number}
+export interface TerrainLandform {x:number;z:number;width:number;depth:number;height:number;shape?:ReliefShape;rotation?:number}
 let activeLandforms:readonly TerrainLandform[]=terrain.farmland.landforms;
 const compileRelief=(forms:readonly TerrainLandform[])=>forms.map(f=>({f,c:Math.cos(f.rotation??0),s:Math.sin(f.rotation??0),extent:Math.hypot(f.width,f.depth)}));
 let reliefTransforms=compileRelief(activeLandforms);
-let terrainProfile: "farmland" | "farmland-natural" | undefined;
-export function setTerrainProfile(profile?: "farmland" | "farmland-natural",landforms?:readonly TerrainLandform[]): void { terrainProfile=profile; activeLandforms=landforms??terrain.farmland.landforms;reliefTransforms=compileRelief(activeLandforms);activeHeightmap=null; cacheValid=false; heightCache=null; }
+let terrainProfile: TerrainProfile | undefined;
+export function getTerrainRegion(){return regionFromProfile(terrainProfile);}
+export function setTerrainProfile(profile?: TerrainProfile,landforms?:readonly TerrainLandform[]): void { terrainProfile=profile; activeLandforms=landforms??terrain.farmland.landforms;reliefTransforms=compileRelief(activeLandforms);activeHeightmap=null; cacheValid=false; heightCache=null; }
 
 /** Cached height grid (2 m cells) — built once after bases/heightmap are set. */
 let CACHE_CELL = 2;
@@ -105,14 +107,16 @@ function valueNoise(x:number,z:number,scale:number): number {
   return a*(1-sz)+b*sz;
 }
 function rawH(x: number, z: number): number {
-  if (terrainProfile === "farmland" || terrainProfile === "farmland-natural") {
+  const region=getTerrainRegion();
+  if (region || terrainProfile === "farmland" || terrainProfile === "farmland-natural") {
     let h=1.8+valueNoise(x,z,100)*2.6+valueNoise(x+13,z-17,45)*.7;
+    if(region){const p=REGIONS[region];h=2.5+valueNoise(x,z,160)*p.roughness+valueNoise(x+13,z-17,40)*p.roughness*.22;}
     if(terrainProfile==="farmland-natural")h+=valueNoise(x-31,z+29,terrain.natural.detailScale)*terrain.natural.detailHeight+valueNoise(x+91,z-53,terrain.natural.microScale)*terrain.natural.microHeight;
     for(const {f,c,s,extent} of reliefTransforms){
-      if(f.shape==="ridge"){
+      if(f.shape){
         if(Math.abs(x-f.x)>extent||Math.abs(z-f.z)>extent)continue;
         const dx=x-f.x,dz=z-f.z,u=dx*c-dz*s,v=dx*s+dz*c,d=(u/f.width)**2+(v/f.depth)**2;
-        if(d<1)h+=f.height*(1-d)**2;
+        if(d<1)h+=f.height*(region?reliefKernel(d,f.shape):(1-d)**2);
       }else {const d=((x-f.x)/f.width)**2+((z-f.z)/f.depth)**2;h+=f.height*Math.exp(-d*2);}
     }
     return h;

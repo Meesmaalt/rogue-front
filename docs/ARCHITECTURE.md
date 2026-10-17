@@ -1,5 +1,12 @@
 # Arhitektuur
 
+## Piirkonnageneraator v17
+
+Uus kaardivoog kasutab `regionalMap.ts` planeerimisskeletti ja nelja `regions.json` profiili. Piirkonna vaikeseaded on mängija poolt muudetavad; valik säilib v17 ID maski bittides 5–6. `regions.ts` annab `TerrainProfile`/`ReliefShape` tüübid ning sama reljeefikerneli planeerimisele ja kõrgusväljale. `region-italy`, `region-siberia`, `region-canyon` ja `region-desert` jõuavad sama kõrguspuhvri kaudu navigeerimisse, nähtavusse ja renderdusse. Vanad generaatoriharud ja ID piirid on eraldi. Server säilitab lobby kaardi värskendamisel piirkonna ja lülitid.
+
+Renderdus loeb aktiivse kõrgusprofiili piirkonda; maapinna atlas, paljandid, okaspuud, atmosfäär, vesi ja minikaart kasutavad ühist profiili. `RegionalScenery` on instantsitud kaugusgruppidega esituskiht: pindalaga kasvav kuni 24 000 detaili eelarve, teede/vee/tööalade välistus ja ehitamisel eemaldamine. Detail ei muuda liikumist ega katet. Täpsemad kontrollid ning esimese ühise strateegilise skeleti piirid: [REGIONAL-LANDSCAPES-V17.md](REGIONAL-LANDSCAPES-V17.md).
+
+
 Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOPMENT-PLAN.md](DEVELOPMENT-PLAN.md). Allpool on ka ajaloolised kirjeldused: Roheorg on nüüd 1088 m (layout 16, kompaktsed jõekülad + 5 ressursirajatist, jõgi ja viis silda), vana 640/960 m/layout-kirjeldus ei ole selle kaardi hetkeseis. Aktiivne arendusjärjekord on TODO alguses.
 
 

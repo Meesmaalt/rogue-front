@@ -1,3 +1,5 @@
+import {generateRegionalMap} from './regionalMap';
+import {REGION_IDS,type RegionId} from './regions';
 import {addInteriorLakes,refineRoadConnections} from "./mapRefinement";
 import {enrichItalianLandscape} from './italianLandscape';
 import {naturalHills,naturalForestEdge,naturalWoodlandAt,interiorRidges} from "./naturalLandscape";
@@ -10,9 +12,9 @@ import {buildOrganicTown,buildMountainRanges,ridgeReliefAt,subtractParcel,parcel
 import {buildVariedSettlement,buildIndustrialClusters} from "./settlements";
 import greenValley from "../data/maps/green-valley.json";
 
-export interface MapOptions {sea:boolean;mountains:boolean;forest:boolean;river:boolean;lakes?:boolean}
-export function mapOptionsMask(o:MapOptions):number {return Number(o.sea)|Number(o.mountains)<<1|Number(o.forest)<<2|Number(o.river)<<3|Number(o.lakes===false)<<4;}
-export function decodeMapOptions(n:number):MapOptions {return {sea:!!(n&1),mountains:!!(n&2),forest:!!(n&4),river:!!(n&8),...(n&16?{lakes:false}:{})};}
+export interface MapOptions {sea:boolean;mountains:boolean;forest:boolean;river:boolean;lakes?:boolean;region?:RegionId}
+export function mapOptionsMask(o:MapOptions):number {return Number(o.sea)|Number(o.mountains)<<1|Number(o.forest)<<2|Number(o.river)<<3|Number(o.lakes===false)<<4|(o.region?REGION_IDS.indexOf(o.region)<<5:0);}
+export function decodeMapOptions(n:number):MapOptions {return {sea:!!(n&1),mountains:!!(n&2),forest:!!(n&4),river:!!(n&8),...(n&16?{lakes:false}:{}),...(n>=32?{region:REGION_IDS[(n>>5)&3]}:{})};}
 export type MapArchetype="balanced"|"river"|"highlands"|"urban"|"coastal"|"forest";
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
 function polygonFeature(id:string,points:Point[],appearance:"field"|"forest",color?:number):MapFeatureDef {
@@ -32,7 +34,8 @@ function clip(points:Point[],nx:number,nz:number,limit:number):Point[] {
 
 export const GENERATED_MAP_SIZES:readonly number[]=config.largeSizes;
 export const METRIC_MAP_SIZES:readonly number[]=battleScale.mapSizes;
-export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5|6|7|8|9|10|11|12|13|14|15|16=[2560,3072,5120].includes(requestedSize)?11:requestedSize>=4096?10:8,options?:MapOptions):MissionDef {
+export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5|6|7|8|9|10|11|12|13|14|15|16|17=[2560,3072,5120].includes(requestedSize)?11:requestedSize>=4096?10:8,options?:MapOptions):MissionDef {
+  if(generationVersion===17){if(!METRIC_MAP_SIZES.includes(requestedSize))throw new Error('Kaardi suurus pole toetatud');return generateRegionalMap(inputSeed>>>0,archetype,requestedSize,options);}
   // 1280 retains v2 geometry for existing saved matches; v3 sizes are deliberately bounded.
   const legacy=requestedSize===config.size;
   if((requestedSize>=4096&&generationVersion<9)||(!legacy&&![...GENERATED_MAP_SIZES,...METRIC_MAP_SIZES].includes(requestedSize)))throw new Error("Kaardi suurus pole toetatud");
@@ -337,6 +340,9 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
 export const FOCUS_MAP=greenValley as unknown as MissionDef;
 export const CURATED_MAPS:readonly MissionDef[]=[];
 export function getPlayableMap(id:string):MissionDef|undefined {
+  const biome=/^procedural-v17-(balanced|river|highlands|urban|coastal|forest)-(2048|2560|3072|4096|5120|6144)-(0|[1-9]\d*)(?:-o(0|[1-9]\d*))?$/.exec(id);
+  if(biome){const mask=Number(biome[4]??14);if(Number(biome[3])>4294967295||mask>127)return undefined;const m=generateRegionalMap(Number(biome[3]),biome[1] as MapArchetype,Number(biome[2]),biome[4]!=null?decodeMapOptions(mask):undefined);return biome[4]!=null?m:{...m,id,map:{...m.map,id}};}
+
   const custom=/^(procedural-v(?:13|14|15|16)-(?:balanced|river|highlands|urban|coastal|forest)-(?:2048|2560|3072|4096|5120|6144)-(\d+))-o(\d+)$/.exec(id);
   if(custom){const mask=Number(custom[3]);if(mask>(/^procedural-v(?:15|16)-/.test(custom[1])?31:15)||String(mask)!==custom[3]||Number(custom[2])>4294967295)return undefined;const parts=custom[1].split('-');return generateProceduralMap(Number(custom[2]),parts[2] as MapArchetype,Number(parts[3]),Number(parts[1].slice(1)) as 13|14|15|16,decodeMapOptions(mask));}
   const current=/^procedural-v(11|12|13|14|15|16)-(balanced|river|highlands|urban|coastal|forest)-(2048|2560|3072|4096|5120|6144)-(\d+)$/.exec(id);

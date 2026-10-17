@@ -1,8 +1,9 @@
+import {REGIONS} from '../sim/regions';
 import {isTacticallySupplied,tacticalSupplyNodes} from "../sim/systems/tacticalSupply";
 import type { World } from "../sim/World";
 import type { Picker } from "../input/Picker";
 import type { Entity } from "../sim/types";
-import { MAP_SIZE, heightAt } from "../sim/heightmap";
+import { getTerrainRegion, MAP_SIZE, heightAt } from "../sim/heightmap";
 import { featureBlocksMovement } from "../sim/mapFeatures";
 import { MinimapFog } from "./MinimapFog";
 
@@ -184,7 +185,8 @@ export class Minimap {
     for (const f of this.features) {
       const [mx, my] = this.w2m(f.x, f.z);
       c.save(); c.translate(mx, my); c.rotate(-(f.rotation ?? 0));
-      c.fillStyle = f.appearance === "forest" ? "#304a2b" : f.appearance === "field" ? "#8b935e" : f.kind === "water" ? "rgba(55,105,125,.72)" : f.kind === "road" || f.kind === "bridge" ? "rgba(210,190,150,.48)" : featureBlocksMovement(f) ? "rgba(45,48,50,.78)" : "rgba(180,170,140,.35)";
+      const region=getTerrainRegion(),profile=region?REGIONS[region]:undefined;
+      c.fillStyle = profile&&f.appearance==='forest'?profile.forest:profile&&f.kind==='water'?profile.water:profile&&f.appearance==='field'?'#'+(f.color??0x989874).toString(16).padStart(6,'0'):f.appearance === "forest" ? "#304a2b" : f.appearance === "field" ? "#8b935e" : f.kind === "water" ? "rgba(55,105,125,.72)" : f.kind === "road" || f.kind === "bridge" ? "rgba(210,190,150,.48)" : featureBlocksMovement(f) ? "rgba(45,48,50,.78)" : "rgba(180,170,140,.35)";
       if(f.kind==="bridge"&&(this.world.infrastructureDamage.get(f.id)??0)>=1)c.fillStyle="#524839";
       if(f.polygon){const a=f.rotation??0,scale=S/MAP_SIZE;c.beginPath();f.polygon.forEach((p,i)=>{const x=((p.x-f.x)*Math.cos(a)-(p.z-f.z)*Math.sin(a))*scale,z=((p.x-f.x)*Math.sin(a)+(p.z-f.z)*Math.cos(a))*scale;if(i)c.lineTo(x,z);else c.moveTo(x,z);});c.closePath();c.fill();}
       else if(f.shape==="ellipse"){c.beginPath();c.ellipse(0,0,f.width/MAP_SIZE*S/2,f.depth/MAP_SIZE*S/2,0,0,Math.PI*2);c.fill();}
@@ -206,10 +208,11 @@ export class Minimap {
     const cv = document.createElement("canvas");
     cv.width = cv.height = S;
     const g = cv.getContext("2d")!, im = g.createImageData(S, S),green=this.features.some(f=>f.appearance==="field");
+    const region=getTerrainRegion(),color=region?REGIONS[region].ground:undefined,base=color?[parseInt(color.slice(1,3),16),parseInt(color.slice(3,5),16),parseInt(color.slice(5,7),16)]:[green?103:150,green?128:133,green?77:92];
     for (let py = 0; py < S; py++) for (let px = 0; px < S; px++) {
       const x = (px / S) * MAP_SIZE - MAP_SIZE / 2, z = (py / S) * MAP_SIZE - MAP_SIZE / 2, h = heightAt(x, z);
       const k = Math.max(0.55, Math.min(1.3, 0.85 + h * 0.012 + (h - heightAt(x + 4, z + 4)) * 0.05)), i = (py * S + px) * 4;
-      im.data[i] = Math.min(255, (green?103:150) * k); im.data[i + 1] = Math.min(255, (green?128:133) * k); im.data[i + 2] = Math.min(255, (green?77:92) * k); im.data[i + 3] = 255;
+      im.data[i] = Math.min(255, base[0] * k); im.data[i + 1] = Math.min(255, base[1] * k); im.data[i + 2] = Math.min(255, base[2] * k); im.data[i + 3] = 255;
     }
     g.putImageData(im, 0, 0);
     this.paintFeatures(g);

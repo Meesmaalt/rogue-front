@@ -1,5 +1,16 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Piirkonnapõhine generaator v17 · 17.10.2026
+
+- [x] Itaalia, Siberi talv, Ameerika kanjonid ja kõrb: eraldi kõrgus-/taimestiku-/asustusprofiilid ning piirkonna valik üksik- ja mitmikmängus.
+- [x] Ühine planeerimisskelett, varased lennuvälja-/tootmis-/asulareservid, järved enne reljeefi, ühendatud kõrgendikuvööndid ning pideva välja järgi lõigatud metsaservad. Madalama maa põllud ja pindalaga kasvav piiratud dekoratsioonikiht.
+- [x] Piirkonna ühine kõrguspuhver navigeerimisele/renderdusele; v17 maskis piirkond ja kõik maastikulülitid. Lobby säilitab piirkonna; ajalooliste kaartide ID-d säilivad.
+- [x] Pinnad, paljandid, puud, asulavärvid, taevas/udu, vesi, eelvaade ja minikaart. Parandatud mustad kaugpuud: puuduva vertex-colour atribuudiga kaugmudel ei sobinud jagatud materjaliga.
+- [x] Piirkonna-/geomeetria-/navigeerimise-/maski-/v16 regressioonikontrollid, kliendi/serveri build ja HTTP/lobby kontroll. Nelja piirkonna tegelikud üld-/lähivaated vaadatud Chromium/WebGL2 tarkvararenderduses. Täiskomplekti olemasolevad tõrked on aruandes eraldi.
+- [ ] Rohkem piirkonnale omaseid planeerimisskelette ning päris riistvara GPU/FPS ja mängitud matši tasakaaluhinnang. Esimene v17 versioon kasutab üht kohanduvat strateegilist põhiskeleti perekonda.
+
+
+
 ## Hõivatavad tehased, toimiv HQ veoring ja võrdsem kaart · 17.10.2026
 
 - [x] Eemaldatud automaatveoki loomise 6000-sõlmeline eelkontroll, mis lükkas tagasi tegelikult läbitavaid pikki jõetaguseid marsruute. Sõit kasutab olemasolevat täielikku maanteeplaneerijat, takistuse korral ootab ja proovib uuesti. Väljasaatmise kontroll iga 4 s; üks rajatisele kuuluv veok, ostetud veokeid ei võeta üle.
