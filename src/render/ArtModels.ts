@@ -1,3 +1,5 @@
+import {airframeFor} from '../sim/airframes';
+import {createAirframe} from './Airframes';
 import {applyModelCharacter} from './ModelCharacter';
 import {createSupportVehicle} from './SupportVehicles';
 import {createChinook} from './Chinook';
@@ -31,6 +33,7 @@ export async function loadArtModels(factions: readonly FactionId[], kinds = ART_
   }));
 }
 async function loadModel(faction: FactionId, kind: UnitKind, tactical=false): Promise<void> {
+  if(airframeFor(faction,kind))return;
   const key = `${faction}/${kind}${tactical?"-lod":""}`;
   if (cache.has(key)) return;
   let job = inflight.get(key);
@@ -68,12 +71,13 @@ async function loadModel(faction: FactionId, kind: UnitKind, tactical=false): Pr
 }
 
 export function createArtModel(kind: UnitKind, team: Team, faction: FactionId, tactical=false): Model | null {
+  const airframe=createAirframe(kind,faction);
   const support=createSupportVehicle(kind,team);if(support)return support;
   if(kind==='transport'&&faction==='usa')return {group:createChinook(tactical),turret:null};
   const modelKind=kind==="airTransport"?"cargoPlane":kind;
-  const source = cache.get(`${faction}/${modelKind}${tactical?"-lod":""}`);
+  const source = airframe??cache.get(`${faction}/${modelKind}${tactical?"-lod":""}`);
   if (!source) return null;
-  const group = source.clone(true);
+  const group = airframe??source.clone(true);
   group.traverse(o => {
     if (!(o instanceof THREE.Mesh)) return;
     const material = o.material;

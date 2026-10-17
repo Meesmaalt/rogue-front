@@ -78,3 +78,7 @@ it('holding the middle button orbits and tilts, clamps pitch and stops on releas
  events.dispatchEvent(event('pointermove',150,5000));expect(view.pitch).toBeLessThanOrEqual(1.3);events.dispatchEvent(event('pointerup',150,5000));const yaw=view.yaw;events.dispatchEvent(event('pointermove',400,100));expect(view.yaw).toBe(yaw);
  surface.dispatchEvent(event('pointerdown',100,100));events.dispatchEvent(new Event('blur'));events.dispatchEvent(event('pointermove',500,100));expect(view.yaw).toBe(yaw);
 });
+it('jet rotation during the runway roll uses its continuous simulated height before the airborne transition',()=>{
+ expect(usesFlightHeight({airState:'taxi',airTaxiPhase:'runway',def:{armor:'air',category:'air'}})).toBe(true);
+ expect(usesFlightHeight({airState:'taxi',airTaxiPhase:'apron',def:{armor:'air',category:'air'}})).toBe(false);
+});

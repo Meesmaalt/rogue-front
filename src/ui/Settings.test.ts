@@ -11,3 +11,7 @@ it("invalid settings cannot corrupt volume, graphics or command bindings",()=>{
  const settings=loadSettings();expect(settings.quality).toBe("medium");expect(settings.masterVolume).toBe(0);expect(settings.sfxVolume).toBe(1);expect(settings.keys.pause).toBe("escape");expect(settings.keys.attackMove).toBe("a");
  vi.stubGlobal("localStorage",{getItem:()=>{throw new Error("Blocked");}});expect(loadSettings().quality).toBe("medium");
 });
+it('defaults include shadows and antialiasing, and explicit toggles and resolution survive reload',()=>{
+ vi.stubGlobal('localStorage',{getItem:()=>null});expect(loadSettings().shadows).toBe(true);expect(loadSettings().antialiasing).toBe(true);
+ vi.stubGlobal('localStorage',{getItem:()=>JSON.stringify({shadows:false,antialiasing:false,ambientOcclusion:true,bloom:true,renderScale:.75})});const s=loadSettings();expect([s.shadows,s.antialiasing,s.ambientOcclusion,s.bloom,s.renderScale]).toEqual([false,false,true,true,.75]);
+});

@@ -22,9 +22,9 @@ it('upgrades increase capacity and frequency, disabled depots never dispatch, a 
  depot.disabledUntil=100;dispatchExternalHelicopters(w);expect(w.entities.some(e=>e.kind==='transport')).toBe(false);depot.disabledUntil=0;dispatchExternalHelicopters(w);
  const h=w.entities.find(e=>e.kind==='transport')!,money=w.teamCredits[0];depot.dead=true;run(w,400);expect(h.dead).toBe(true);expect(w.teamCredits[0]).toBe(money);expect(w.airCargoDelivered[0]).toBe(0);
 });
-it('airport cargo needs a nearby completed depot and works even when that warehouse is empty',()=>{
- const {w,depot}=fixture();w.spawn('airCommand',0,-85,-10);const base=w.spawn('airbase',0,-35,0);expect(airportDepot(w,base)).toBe(depot);
- depot.ammoStock=depot.fuelStock=0;expect(airportDepot(w,base)).toBe(depot);depot.disabledUntil=100;expect(airportDepot(w,base)).toBeNull();depot.disabledUntil=0;
+it('airport cargo uses the built-in receiving warehouse independently of nearby depots',()=>{
+ const {w,depot}=fixture();w.spawn('airCommand',0,-85,-10);const base=w.spawn('airbase',0,-35,0);expect(airportDepot(w,base)).toBe(base);
+ depot.ammoStock=depot.fuelStock=0;expect(airportDepot(w,base)).toBe(base);depot.disabledUntil=100;expect(airportDepot(w,base)).toBe(base);depot.disabledUntil=0;base.disabledUntil=100;expect(airportDepot(w,base)).toBeNull();base.disabledUntil=0;
  for(let i=0;i<3600&&!w.entities.some(e=>e.kind==='cargoPlane');i++)w.tick(1/30);
  expect(w.entities.some(e=>e.kind==='cargoPlane')).toBe(true);
 });
@@ -36,8 +36,8 @@ it('full receiving warehouses retain inbound cargo and credit only accepted part
  const {w,depot}=fixture();dispatchExternalHelicopters(w);const h=w.entities.find(e=>e.kind==='transport')!;
  h.x=h.logisticsHome!.x;h.z=h.logisticsHome!.z;h.y=0;h.motionSpeed=0;h.flightVx=h.flightVz=0;h.cargo=100;
  depot.ammoStock=1200;depot.fuelStock=1600;depot.repairStock=600;const money=w.teamCredits[0];
- for(let i=0;i<3000&&!w.entities.some(e=>e.kind==='groundHandler'&&e.groundService?.phase==='unload');i++)run(w,1);
- const handler=w.entities.find(e=>e.kind==='groundHandler'&&e.groundService?.phase==='unload')!;expect(handler).toBeDefined();run(w,90);expect(h.cargo+handler.cargo).toBe(100);expect(w.teamCredits[0]).toBe(money);
+ for(let i=0;i<3000&&!w.entities.some(e=>e.kind==='groundHandler'&&e.groundService?.handlingStage==='warehouse-unload');i++)run(w,1);
+ const handler=w.entities.find(e=>e.kind==='groundHandler'&&e.groundService?.handlingStage==='warehouse-unload')!;expect(handler).toBeDefined();run(w,90);expect(h.cargo+handler.cargo).toBe(100);expect(w.teamCredits[0]).toBe(money);
  depot.fuelStock-=20;run(w,1);expect(h.cargo+handler.cargo).toBeCloseTo(50);expect(w.teamCredits[0]-money).toBeCloseTo(30);
 });
 it('cargo plane completes a physical airport delivery and exits without granting another payout',()=>{
@@ -53,8 +53,8 @@ it('no warehouse means no passive money, and destroying an inbound import loses 
  const receiver=w.spawn('supply',0,-65,0);receiver.ammoStock=receiver.fuelStock=receiver.repairStock=receiver.logisticsStorage=0;dispatchExternalHelicopters(w);const h=w.entities.find(e=>e.kind==='transport')!,cargo=h.cargo;damage(w,h,10000);w.tick(1/30);
  expect(w.airCargoLost[0]).toBe(cargo);expect(w.teamCredits[0]).toBe(credits);expect(receiver.logisticsStorage).toBe(0);
 });
-it('a plane switches receiving depots if its airport still has another usable warehouse',()=>{
- const {w,depot}=fixture();w.spawn('airCommand',0,-85,-10);const base=w.spawn('airbase',0,-35,0),replacement=w.spawn('supply',0,-20,20);
+it('a plane keeps its airport receiving warehouse when a nearby supply depot is destroyed',()=>{
+ const {w,depot}=fixture();w.spawn('airCommand',0,-85,-10);const base=w.spawn('airbase',0,-35,0);w.spawn('supply',0,-20,20);
  for(let i=0;i<3600&&!w.entities.some(e=>e.kind==='cargoPlane');i++)w.tick(1/30);const plane=w.entities.find(e=>e.kind==='cargoPlane')!;expect(plane).toBeDefined();depot.dead=true;run(w,1);
- expect(airportDepot(w,base)).toBe(replacement);expect(plane.supplyDepotId).toBe(replacement.id);expect(plane.logisticsPhase).not.toBe('loading');
+ expect(airportDepot(w,base)).toBe(base);expect(plane.supplyDepotId).toBe(base.id);expect(plane.logisticsPhase).not.toBe('loading');
 });

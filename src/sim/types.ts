@@ -174,9 +174,12 @@ export interface Entity {
   aiDecisionAt?: number;
   aiIntent?: "attack" | "defend" | "recon" | "resupply" | "counterbattery" | "retreat" | null;
   gunElevation?:number;weaponCooldowns?:number[];secondaryAmmo?:number[];activeWeapon?:number;
+  airLineUp?:boolean;
+  airStart?:{phase:'crew'|'boarding'|'ignition'|'ready';progress:number;from:Point;target:Point;runSeconds:number};
+  airportCargoStock?:number;warehouseDoor?:number;warehouseDoorUntil?:number;
   motionReverse?: boolean; flightVx?: number; flightVz?: number;
   motionSpeed?: number; flightBank?: number; flightPitch?: number; flightClimb?: number; flightOrbitCenter?: Point; airLandingPhase?: "approach"|"final";
-  airHomeSlot?:number;airTaxiPhase?:"apron"|"lining-up"|"runway";combatPosition?:Point;combatPositionTarget?:number;combatPositionAnchor?:Point;combatPositionRetryAt?:number;taskApproachIndex?:number;
+  airHomeSlot?:number;airTaxiPhase?:"apron"|"parking"|"lining-up"|"runway";combatPosition?:Point;combatPositionTarget?:number;combatPositionAnchor?:Point;combatPositionRetryAt?:number;taskApproachIndex?:number;
   airportStoresInitialized?:boolean;
   resourceConvoy?:{sourceIndex:number;homeId:number;pickup:Point;dock:Point;phase:"to-source"|"loading"|"to-hq"|"unloading"|"retiring"};
   hqCargo?:{truckId:number;homeId:number;phase:"pickup"|"deliver";pickup:Point;door:Point;readyAt?:number};
@@ -184,7 +187,7 @@ export interface Entity {
   constructionDispatchAt?:number;constructionRoster?:number[];constructionReplacementAt?:number[];
   constructionFlight?:{homeId:number;crewId:number;phase:'arriving'|'pickup'|'loading'|'outbound'|'unloading'|'working'|'returning'|'parked';returnTrip?:boolean;boardingAt?:number;pickup?:Point;home:Point;site:Point;readyAt:number;departed?:boolean};
   engineerDuty?:{homeId:number;phase:'rest'|'to-van'|'boarding'|'travel'|'working'|'return'|'cargo';idleFor:number;readyAt?:number;vanPoint?:Point;vanHeading?:number};
-  groundService?:{crewIndex?:number;crewState?:'rest'|'walking'|'boarding'|'driving'|'parking'|'returning';stagingPoint?:Point;carrierId:number;depotId:number;phase:"pickup"|"load"|"deliver"|"unload";progress:number;air:boolean;onFoot?:boolean;blockedTime?:number;pickupPoint?:Point;retreatPoint?:Point;dockSlot?:number};
+  groundService?:{handlingStage?:'hold-enter'|'hold-load'|'hold-exit'|'warehouse-enter'|'warehouse-unload'|'warehouse-exit';handlingOutside?:Point;crewIndex?:number;crewState?:'rest'|'walking'|'boarding'|'driving'|'parking'|'returning';stagingPoint?:Point;carrierId:number;depotId:number;phase:"pickup"|"load"|"deliver"|"unload";progress:number;air:boolean;onFoot?:boolean;blockedTime?:number;pickupPoint?:Point;retreatPoint?:Point;dockSlot?:number};
   logisticsManual?:boolean;groundServiceId?:number;groundServiceRetryAt?:number;logisticsPadSlot?:number;cargoDoor?:number;
   airdrop?:{x:number;z:number;descent:number};
   strategicAmmo?:Partial<Record<StrategicPayload,number>>;strategicWork?:{payload:StrategicPayload|"research";progress:number};nuclearUnlocked?:boolean;strategicCooldownUntil?:number;

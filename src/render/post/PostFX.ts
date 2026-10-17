@@ -1,49 +1,33 @@
-import * as THREE from "three";
-import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
-import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
-import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
-import { SMAAPass } from "three/examples/jsm/postprocessing/SMAAPass.js";
-import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import { SSAOPass } from "three/examples/jsm/postprocessing/SSAOPass.js";
-
-const VignetteShader = {
-  uniforms: { tDiffuse: { value: null }, darkness: { value: 0.18 }, offset: { value: 1.08 } },
-  vertexShader: `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
-  fragmentShader: `uniform sampler2D tDiffuse; uniform float darkness; uniform float offset; varying vec2 vUv; void main(){vec4 c=texture2D(tDiffuse,vUv);vec2 p=(vUv-0.5)*offset;float d=dot(p,p);float v=smoothstep(0.18,0.62,d);c.rgb*=1.0-v*darkness;gl_FragColor=c;}`,
-};
-
+import * as THREE from 'three';
+import {EffectComposer} from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/examples/jsm/postprocessing/RenderPass.js';
+import {ShaderPass} from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import {FXAAShader} from 'three/examples/jsm/shaders/FXAAShader.js';
+import {OutputPass} from 'three/examples/jsm/postprocessing/OutputPass.js';
+import {UnrealBloomPass} from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import {SSAOPass} from 'three/examples/jsm/postprocessing/SSAOPass.js';
+export interface PostOptions {antialiasing:boolean;ambientOcclusion:boolean;bloom:boolean}
+/** Effects can change in a running game, without losing the WebGL context. */
 export class PostFX {
-  readonly composer?: EffectComposer;
-  private readonly vignette?: ShaderPass;
-  private readonly bloom?: UnrealBloomPass;
-  private readonly ssao?: SSAOPass;
-  private readonly smaa?: SMAAPass;
-
-  constructor(private readonly renderer: THREE.WebGLRenderer, private readonly scene: THREE.Scene, private readonly camera: THREE.Camera, width: number, height: number, enablePost: boolean, enableSsao: boolean) {
-    if(!enablePost)return;
-    this.composer = new EffectComposer(renderer);
-    this.composer.addPass(new RenderPass(scene, camera));
-    if (enableSsao) {
-      const ssao = new SSAOPass(scene, camera, width, height);
-      ssao.kernelRadius = 7;
-      ssao.minDistance = 0.001;
-      ssao.maxDistance = 0.12;
-      this.ssao = ssao;
-      this.composer.addPass(ssao);
-    }
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(width, height), 0.10, 0.55, 0.88);
-    this.composer.addPass(this.bloom);
-    this.vignette = new ShaderPass(VignetteShader);
-    this.composer.addPass(this.vignette);
-    this.smaa = new SMAAPass(width, height);
-    this.composer.addPass(this.smaa);
-  }
-
-  resize(width: number, height: number): void {
-    this.composer?.setSize(width, height);
-    this.ssao?.setSize(width, height);
-    this.smaa?.setSize(width, height);
-  }
-
-  render(): void { if(this.composer)this.composer.render();else this.renderer.render(this.scene,this.camera); }
+ composer?:EffectComposer;
+ private aa?:ShaderPass;private ssao?:SSAOPass;private bloom?:UnrealBloomPass;private output?:OutputPass;
+ private options:PostOptions={antialiasing:false,ambientOcclusion:false,bloom:false};
+ constructor(private renderer:THREE.WebGLRenderer,private scene:THREE.Scene,private camera:THREE.Camera,private width:number,private height:number,enablePost:boolean,enableSsao:boolean){if(enablePost)this.configure({antialiasing:true,ambientOcclusion:enableSsao,bloom:true});}
+ configure(options:PostOptions):void {
+  this.options=options;
+  if(!options.antialiasing&&!options.ambientOcclusion&&!options.bloom)return;
+  if(!this.composer){this.composer=new EffectComposer(this.renderer);this.composer.addPass(new RenderPass(this.scene,this.camera));this.output=new OutputPass();}
+  // Expensive buffers are created only after the user enables their effect.
+  if(options.ambientOcclusion&&!this.ssao){this.ssao=new SSAOPass(this.scene,this.camera,this.width,this.height);this.ssao.kernelRadius=7;this.ssao.minDistance=.001;this.ssao.maxDistance=.12;}
+  if(options.bloom&&!this.bloom)this.bloom=new UnrealBloomPass(new THREE.Vector2(this.width,this.height),.1,.55,.88);
+  if(options.antialiasing&&!this.aa)this.aa=new ShaderPass(FXAAShader);
+  for(const p of this.composer.passes.slice(1))this.composer.removePass(p);
+  if(this.ssao){this.ssao.enabled=options.ambientOcclusion;this.composer.addPass(this.ssao);}
+  if(this.bloom){this.bloom.enabled=options.bloom;this.composer.addPass(this.bloom);}
+  this.composer.addPass(this.output!);
+  if(this.aa){this.aa.enabled=options.antialiasing;this.composer.addPass(this.aa);}
+  this.resize(this.width,this.height);
+ }
+ resize(width:number,height:number):void {this.width=width;this.height=height;const ratio=this.renderer.getPixelRatio();this.composer?.setPixelRatio(ratio);this.composer?.setSize(width,height);if(this.aa)this.aa.uniforms.resolution.value.set(1/(width*ratio),1/(height*ratio));}
+ render():void {if(this.composer&&(this.options.antialiasing||this.options.ambientOcclusion||this.options.bloom))this.composer.render();else this.renderer.render(this.scene,this.camera);}
 }

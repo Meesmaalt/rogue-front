@@ -356,7 +356,7 @@
       "lateralAcceleration": 18
     },
     "fighter": {
-      "maxBank": 1.22,
+      "maxBank": 1.26,
       "lateralAcceleration": 32
     }
   }

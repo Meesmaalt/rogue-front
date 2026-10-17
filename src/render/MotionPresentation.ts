@@ -33,6 +33,6 @@ export function springSuspension(state:SuspensionState,target:number,dt:number,r
 }
 
 /** Taxi is a ground phase for jets, but helicopters already lift vertically during it. */
-export function usesFlightHeight(e:Pick<Entity,'airState'>&{def:Pick<Entity['def'],'armor'|'category'>}):boolean {
- return e.def.armor==='air'&&!['grounded','rearming'].includes(e.airState??'')&&(e.airState!=='taxi'||e.def.category==='heli');
+export function usesFlightHeight(e:Pick<Entity,'airState'|'airTaxiPhase'>&{def:Pick<Entity['def'],'armor'|'category'>}):boolean {
+ return e.def.armor==='air'&&!['grounded','rearming'].includes(e.airState??'')&&(e.airState!=='taxi'||e.def.category==='heli'||e.airTaxiPhase==='runway');
 }

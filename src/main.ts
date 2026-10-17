@@ -88,7 +88,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   setTerrainProfile(mission.map.terrainProfile,mission.map.landforms);
   let visualQuality=loadSettings().quality;
   const glCanvas = document.getElementById("game") as HTMLCanvasElement;
-  const ctx = createRenderContext(glCanvas, mission.map.theme === "temperate",visualQuality,/^procedural-v(12|13|14|15|16|17|18)-/.test(mission.id));
+  const ctx = createRenderContext(glCanvas, mission.map.theme === "temperate",visualQuality,/^procedural-v(12|13|14|15|16|17|18)-/.test(mission.id),loadSettings());
   hud.setWarning("Laadin 3D-mudeleid…");
   try { await loadArtModels(multiplayerRoom?FACTION_LIST:[faction,FACTION_LIST.find(f=>f!==faction)??"russia"]); hud.setWarning(""); } catch (error) {
     console.warn("3D asset loading failed", error);
@@ -116,7 +116,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   let lastHover:Element|null=null;document.addEventListener("mouseover",e=>{const b=(e.target as Element|null)?.closest?.("button")??null;if(b&&b!==lastHover)audio.ui("hover");lastHover=b;});
   let intelAcc=0, terrainAcc=.2, hoverAcc=0;
   let terrainForQuality:THREE.Group|undefined;
-  const settingsPanel = new SettingsPanel((settings) => { audio.setSettings(settings);visualQuality=settings.quality; ctx.setQuality(settings.quality);if(terrainForQuality)setTerrainDetailQuality(terrainForQuality,settings.quality); performancePanel.setEnabled(settings.performanceOverlay??false); },()=>{cam.enabled=true;setEnabled(running&&!paused);});
+  const settingsPanel = new SettingsPanel((settings) => { audio.setSettings(settings);visualQuality=settings.quality; ctx.setQuality(settings.quality,settings);if(terrainForQuality)setTerrainDetailQuality(terrainForQuality,settings.quality); performancePanel.setEnabled(settings.performanceOverlay??false); },()=>{cam.enabled=true;setEnabled(running&&!paused);});
   let paused = false;
   const originalIssue = world.issue.bind(world);
   world.issue = (command) => {

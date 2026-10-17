@@ -1,3 +1,4 @@
+import operations from '../data/aircraft-operations.json';
 import expansion from "../data/expansion.json";
 import {UNITS} from './units';
 import data from '../data/battle-scale.json';
@@ -23,10 +24,17 @@ export function metricUnitDefinition(base:UnitDef,kind:UnitKind,compact=false):U
 
 const metricAircraft={...mobility.aircraft,...data.aircraft};
 const metricHelicopter={...mobility.helicopter,...data.helicopter};
+const agileAircraft={...metricAircraft,maxBank:data.aircraftRoles.fighter.maxBank,lateralAcceleration:data.aircraftRoles.fighter.lateralAcceleration*operations.combat.fighterAgility};
 const compactAircraft={...metricAircraft,altitude:data.compact.airAltitude,approachAltitude:90};
 const compactHelicopter={...metricHelicopter,altitude:data.compact.helicopterAltitude};
 const metricAirlift={...metricAircraft,...data.aircraftRoles.heavy,altitude:expansion.airlift.flightAltitude};
-export function aircraftMobility(u:Entity){if(u.def.metricScale&&(u.kind==='cargoPlane'||u.kind==='bomber'))return {...(u.def.compactScale?compactAircraft:metricAircraft),...data.aircraftRoles[u.kind==='bomber'?'bomber':'heavy']};if(u.kind==='airTransport'&&u.def.metricScale&&!u.def.compactScale)return metricAirlift;return u.def.compactScale?compactAircraft:u.def.metricScale?metricAircraft:mobility.aircraft;}
+export function aircraftMobility(u:Entity){
+ if(!u.def.metricScale)return mobility.aircraft;
+ if(u.kind==='airTransport'&&!u.def.compactScale)return metricAirlift;
+ const profile=u.def.compactScale?compactAircraft:metricAircraft;
+ if(u.kind==='cargoPlane'||u.kind==='airTransport'||u.kind==='bomber')return {...profile,...data.aircraftRoles[u.kind==='bomber'?'bomber':'heavy']};
+ return u.kind==='ecm'?profile:{...profile,maxBank:agileAircraft.maxBank,lateralAcceleration:agileAircraft.lateralAcceleration};
+}
 export function helicopterMobility(u:Entity){return u.def.compactScale?compactHelicopter:u.def.metricScale?metricHelicopter:mobility.helicopter;}
 
 export function displayedWeaponDistance(spec:{rangeScale?:number},distance:number):number{return distance/(spec.rangeScale??1);}

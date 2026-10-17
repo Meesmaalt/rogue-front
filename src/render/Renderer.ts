@@ -18,12 +18,12 @@ export interface RenderContext {
   water: THREE.Mesh;
   resize(): void;
   updateShadows(force:boolean):void;
-  setQuality(quality: GameSettings["quality"]): void;
+  setQuality(quality: GameSettings["quality"],settings?:Partial<GameSettings>): void;
 }
 
-export function createRenderContext(canvas: HTMLCanvasElement, temperate = false, quality:GameSettings["quality"]="medium",compact=false): RenderContext {
+export function createRenderContext(canvas: HTMLCanvasElement, temperate = false, quality:GameSettings["quality"]="medium",compact=false,settings:Partial<GameSettings>={}): RenderContext {
   let profile = chooseVisualProfile(quality);
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
   renderer.localClippingEnabled=true;
   renderer.setPixelRatio(profile.pixelRatio);
   renderer.shadowMap.enabled = profile.shadows;
@@ -62,9 +62,12 @@ export function createRenderContext(canvas: HTMLCanvasElement, temperate = false
   scene.add(water);
   const post = new PostFX(renderer, scene, camera, window.innerWidth, window.innerHeight, profile.post, profile.ssao);
 
-  const setQuality = (quality: GameSettings["quality"]) => {
+  const setQuality = (quality: GameSettings["quality"],graphics:Partial<GameSettings>=settings) => {
+    settings=graphics;
     profile = chooseVisualProfile(quality);
+    profile.shadows=settings.shadows??profile.shadows;profile.pixelRatio*=settings.renderScale??1;
     renderer.setPixelRatio(profile.pixelRatio);
+    post.configure({antialiasing:settings.antialiasing??true,ambientOcclusion:settings.ambientOcclusion??false,bloom:settings.bloom??false});
     renderer.shadowMap.enabled = profile.shadows;
     sun.castShadow = profile.shadows;
     if(sun.shadow.mapSize.x!==(profile.shadowSize||512)){sun.shadow.map?.dispose();sun.shadow.map=null;}
@@ -81,7 +84,7 @@ export function createRenderContext(canvas: HTMLCanvasElement, temperate = false
     post.resize(w, h);
   };
   window.addEventListener("resize", resize);
-  resize();
+  setQuality(quality,settings);
 
   const updateShadows=(force:boolean)=>{
     if(!profile.shadows)return;

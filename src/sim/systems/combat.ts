@@ -1,3 +1,4 @@
+import operations from '../../data/aircraft-operations.json';
 import balance from "../../data/combat-balance.json";
 import {fixedAirGun,airGunAligned,airGunSolution,airGunRecovering,recordAirGunShot,constrainAirGunDirection} from "../airGunnery";
 import {BUILDINGS,isBuildable} from "../buildings";
@@ -163,6 +164,8 @@ export function weaponFireBlocker(w:World,u:Entity,t:Entity,index:number):string
   if(spec.visual!=="cruise"&&!["artillery","mortar","mlrs"].includes(u.kind)&&!w.vision.hasLineOfSight(u,t,spec.guidance==='radar'))return w.smoke.blocks(u,t)?"Suits varjab sihitud tulejoont":"Tulejoon blokeeritud";
   const angle=Math.atan2(t.x-u.x,t.z-u.z),delta=Math.abs(wrapAngle(angle-u.heading));
   if(u.def.category==='air'&&spec.flight==='guided'){
+    const elevation=Math.atan2(t.y+t.def.height*.45-u.y,Math.max(1,distance));
+    if(Math.abs(elevation+(u.flightPitch??0))>operations.combat.missileElevationTolerance||Math.abs(u.flightBank??0)>operations.combat.missileBankLimit)return 'Ootab stabiilset raketi laskenurka';
     if(delta>mobility.combat.airMissileAimTolerance)return "Ootab raketi laskesektorit";
     if(u.airMissileLock?.targetId!==t.id||w.time<u.airMissileLock.readyAt)return "Lukustab raketi sihtmärki";
     const assessing=w.projectiles.some(p=>p.sourceId===u.id&&p.flight==='guided'&&p.target===t&&!p.guidanceLost&&(p.age??0)<mobility.combat.airMissileReengageSeconds);

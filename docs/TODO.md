@@ -1,5 +1,15 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Lennukite lahing, mudelid ja lennuvälja teenindus · 17.10.2026
+
+- [x] Ninaga juhitav kiirenduse/pidurdusega ruleerimine, eraldi rajale joondumine ja kiirusest sõltuv pidev õhkutõus. Veidi liikuvamad hävitajad; maasihtmärgi sukeldumisrünnak ning raketi kõrgusnurga/külgkalde kontroll lisaks lukule ja ninasuunale.
+- [x] Fraktsiooni ning lennukirolliga seotud andmepõhised siluetid, õiged ühe-/kahemootorilised hävitajad, A-10 tagamootorid, delta-/ees-/sabatiivad, pommitajad ja C-17 / Il-76 / Y-20 kaubalennukid. Jagatud geomeetria, meeskonnamärgistus, liikuvad mootoriventilaatorid, düüsikuma, telik ja kaheosaline kaubaramp.
+- [x] Salvestatav pilootide jooks → pardaleminek → mootori süüde → ruleerimine. Mootorihääl, kokpitikate ja düüsiefektid järgivad samu faase.
+- [x] Lennujaama oma vastuvõtuladu, päris ukseava ja ruloo; laadur sõidab avatud lennukisse, võtab koorma, tagurdab välja, sõidab lattu ja väljub enne lennuki lahkumist. Tavalistes ladudes avaneb ruloo ka maantee-varustusveokile. Kauba säilivus, osaline vastuvõtt ja piiratud lennujaamapuhver; uut kaubalennukit pole enne eelmise lahkumist/hävimist.
+- [x] Varjud vaikimisi sees ka keskmisel graafikal; eraldi FXAA, SSAO, valguskuma ja renderduse mõõtkava valikud. Lülitid rakenduvad mängu ajal ja säilivad seadetes; menüü mahub keritavalt vaatesse.
+- [x] Typecheck ja tootmisbuild läbisid; 72 sihtkontrolli ning 12 serveritesti. Brauseris kolme fraktsiooni lennukipark, kaubaruumi/lao sisevedu, piloodid, süüde, õhkutõus ja graafikalülitid ilma JS-vigadeta. Päris genereeritud lahing käivitus keskmise graafika, varjude ja FXAA-ga. Korratav kontroll `scripts/dev/check-aircraft.mjs`.
+- [x] Täissarjas 636 läbis ja 21 ebaõnnestus; tõrgete nimed kattuvad varasema baasversiooniga, uusi tõrkeid pole. Kogu projekti testisari pole nende varasemate vigade tõttu roheline.
+
 ## Nelja mängija mitmikmäng ja AI tiimikaaslased · 17.10.2026
 
 - [x] 1v1, 2v2 ja 1v1v1v1 ruumid; neli eraldi omanikku, majandust ja fraktsiooni.

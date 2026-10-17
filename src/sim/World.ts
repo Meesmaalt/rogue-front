@@ -707,7 +707,7 @@ export class World {
       if(!base)continue;const depot=airportDepot(this,base)!;
       const level=Math.max(this.producerLevel(base)-1,this.supplyDepotLevel(depot));
       this.airCargoPool[team]=Math.min(config.planePoolMax,this.airCargoPool[team]+config.planePoolRate*(1+level*config.planePoolRatePerLevel)*this.incomeMultiplier*dt);
-      if(this.airCargoPool[team]<config.planeMinimumLoad||this.time-this.airCargoLastSpawn[team]<config.planeInterval/(1+level*config.planeFrequencyPerLevel)||this.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="cargoPlane").length>=config.planeFleetByLevel[level])continue;
+      if(this.airCargoPool[team]<config.planeMinimumLoad||this.time-this.airCargoLastSpawn[team]<config.planeInterval/(1+level*config.planeFrequencyPerLevel)||this.entities.filter(e=>!e.dead&&e.team===team&&e.kind==="cargoPlane").length>=1)continue;
       if(this.metricBattle&&this.entities.some(e=>!e.dead&&e.airMissionHomeId===base.id&&(['returning','landing'].includes(e.airState??'')||e.airState==='taxi'&&e.airTaxiPhase!=='apron')))continue;
       const amount=Math.min(config.planeCapacity+level*config.planeCapacityPerLevel,Math.floor(this.airCargoPool[team])),entry=this.metricBattle?runwayEdgePoint(this.mapSize,base,config.edgeMargin):externalEntry(this,team,base);
       this.airCargoPool[team]-=amount;this.airCargoLastSpawn[team]=this.time;

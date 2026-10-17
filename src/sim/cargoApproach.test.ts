@@ -34,3 +34,24 @@ it.each([Math.PI*.75,-Math.PI/4])('cargo departure uses the same runway toward i
  expect(out.x+Math.sin(out.heading)*start).toBeCloseTo(pad.x+Math.sin(heading)*end);
  expect(out.z+Math.cos(out.heading)*start).toBeCloseTo(pad.z+Math.cos(heading)*end);
 });
+
+import {warehousePoint} from './warehouse';
+import {updateAirportSupport} from './airportSupport';
+import {saveWorld,loadWorld} from './SaveState';
+import {worldHash} from './Replay';
+it('loader enters the open hold and receiving building; cargo is paid only inside, then the loader exits before departure',()=>{
+ setMapSize(2048);const bases=[{x:0,z:0,r:700},{x:800,z:800,r:30}];setBases(bases);const w=new World(42,false,[],[],bases,false,true);w.compactBattle=true;w.networkMode=true;w.spawn('hq',0,-60,-70);w.spawn('generator',0,-60,-90);const pad=w.spawn('airbase',0,0,0);updateAirportSupport(w);
+ const plane=w.spawn('cargoPlane',0,35,80);plane.airMissionHomeId=pad.id;plane.supplyDepotId=pad.id;plane.airState='grounded';plane.logisticsPhase='unloading';plane.cargo=240;plane.heading=0;plane.logisticsTarget={x:-1100,z:0};w.nav.syncBuildings(w.entities);const stages=new Set<string>(),money=w.credits;let sawLoad=false,sawCredit=false,saved=false;
+ for(let i=0;i<12000&&w.airCargoDelivered[0]<240;i++){
+  const cargo=plane.cargo,delivered=w.airCargoDelivered[0];w.time+=1/30;w.spatial.rebuild(w.entities);updateUnits(w,1/30);
+  const loader=w.entities.find(e=>!e.dead&&e.groundService?.carrierId===plane.id);if(loader?.groundService?.handlingStage)stages.add(loader.groundService.handlingStage);
+  if(plane.cargo<cargo){sawLoad=true;expect(loader?.groundService?.handlingStage).toBe('hold-exit');expect(loader!.y).toBeGreaterThan(plane.y+.9);expect(plane.cargo+loader!.cargo+w.airCargoDelivered[0]).toBe(240);if(!sawCredit)expect(w.credits).toBe(money);}
+  if(w.airCargoDelivered[0]>delivered){sawCredit=true;const inside=warehousePoint(pad,true);expect(Math.hypot(loader!.x-inside.x,loader!.z-inside.z)).toBeLessThan(.1);expect(pad.warehouseDoor).toBe(1);expect(plane.airState).toBe('grounded');}
+  if(!saved&&loader?.groundService?.handlingStage==='hold-load'){const snapshot=saveWorld(w),copy=new World(42,false,[],[],bases,false,true);loadWorld(copy,JSON.parse(JSON.stringify(snapshot)));expect(worldHash(copy)).toBe(worldHash(w));saved=true;}
+ }
+ expect(sawLoad&&sawCredit&&saved).toBe(true);expect(w.airCargoDelivered[0]).toBe(240);expect(plane.cargo).toBe(0);expect(stages).toEqual(new Set(['hold-enter','hold-load','hold-exit','warehouse-enter','warehouse-unload','warehouse-exit']));expect(pad.airportCargoStock).toBeGreaterThan(0);
+});
+it('an existing cargo flight excludes a second arrival even after a higher-level airport dispatch interval',()=>{
+ setMapSize(2048);const bases=[{x:0,z:0,r:700},{x:800,z:800,r:30}];setBases(bases);const w=new World(42,false,[],[],bases,false,true);w.networkMode=true;w.externalVictoryMode=true;w.spawn('hq',0,0,-70);w.spawn('generator',0,20,-70);const pad=w.spawn('airbase',0,0,0);pad.buildingLevel=3;w.airCargoPool[0]=5000;w.time=1000;
+ w.tick(1/30);const first=w.entities.find(e=>e.kind==='cargoPlane'&&e.team===0&&!e.dead);expect(first).toBeDefined();w.time+=500;w.airCargoPool[0]=5000;w.tick(1/30);expect(w.entities.filter(e=>e.kind==='cargoPlane'&&e.team===0&&!e.dead)).toHaveLength(1);expect(w.entities.find(e=>e.kind==='cargoPlane'&&e.team===0&&!e.dead)).toBe(first);
+});
