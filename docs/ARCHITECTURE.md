@@ -1,5 +1,13 @@
 # Arhitektuur
 
+## Sujuvam reljeef ja mitmekesine looduskate
+
+Ühe harja kattuvad kõrgendusvormid kasutavad terava maksimumi asemel sujuvat piiratud kaalutud ümbrist `sum(h⁴) / sum(h³)`. Harja osad ei liitu kõrgemaks üksikute vormide maksimumist; üleminek on järjekorrast sõltumatu ja sama reegel töötab planeerimises ning tegelikus kõrgusväljas. Harja tihedam proovistus eemaldab eraldi künkakeskmete rütmi; sirge katselise harja tipu kõrguse kõikumine on alla 1,5%. Kõrguspuhvri loomine kasutab kahte ette eraldatud rühmapuhvrit; ticki-aegne kõrguspäring jääb samaks.
+
+`region-character.json` määrab seemnest sõltuvate teekumeruste, jõeloogete, harja laiuse/sügavuse/kõrguse ja põllujaotuse vahemikud. Maanteede kumeruse ühine seemnetegur säilitab paariliste lähenemiste sümmeetria. Ühised, ebaühtlase sammuga põllupiirid ja nende tegelikest polügoonidest arvutatud lõikepäringud asendavad ühtlase ruudustiku. Piirkondlik baasvärvi muster järgib nüüd kaardi seemet. Jõekallas küpsetatakse pehmete kihtidena olemasolevasse atlasesse, kogu jõevõrk ühe tõmbega kihi kohta, et segmentide otste läbipaistvus ei kuhjuks.
+
+`SceneryGeometry` loob kaheksa jagatavat siluetti: tahuline rahn, kihiline kiviplaat, põõsas, rohupuhmas, roog, kaktus, känd ja lamapuit. `RegionalScenery` valib neist piirkonna, seemne, nõlva, kalda ja metsaserva järgi; kaktus esineb kanjonipiirkonnas, kännud/lamapuit Siberi metsakatte lähedal. Igal tüübil on oma paigutuspuhver. Mõõtude, proportsioonide ja tooni varieerumine toimub instantsimaatriksites/värvides. Geomeetria on ühe stseeni sees tüübi kohta jagatud ning materjal ühine; 256 m lahtrid hoiavad batch'ide arvu kontrolli all. Varasem 24 000 detaili ülempiir, kaugus-LOD ja ehitamisel puhastamise rada säilivad. Need väikedetailid ei lisa nav-takistusi ega varjatud lahingulist katet.
+
 ## Multiplayeri lobby elutsükkel
 
 `OnlineShell` värskendab ruumi olekut `/api/me` vastusest ühe järjestikuse pollitsükliga. `pollEpoch` välistab lahkumise, navigeerimise või ruumitegevuse eel alustatud vastused. Ruumi serialiseeritud olek on vaate allkiri: muutumatu olek ei kirjuta DOM-i üle. Muutunud oleku korral tõstetakse sama vestluspaneel uude vaatesse ning taastatakse sisendi fookus ja valikuvahemik. Sama vestluspaneel säilib ka teistele menüüvahelehtedele minnes; tagasi pääseb nupust „MINU RUUM”. Lahingu algust jälgitakse ka teisel vahelehel. Chatil on eraldi päringujärjestus ja sõnumite allkiri; varasema vestluse lugemine ei hüppa automaatselt lõppu.
@@ -28,7 +36,7 @@ V18 plaaniga kaartide `characterSettlements.ts` kasutab olemasoleva kõvera maan
 
 `region-plans.json` ja `regionPlans.ts` annavad 12 erinevat piirkondlikku plaani: graafid, paaritatud asulad, silutud jõejooned, kõrgendike teljed, reljeefiprofiilid ja eelistatud järvenõod. `regionInfrastructure.ts` ehitab tegelikud teed/sillad ning leiab enne asulate loomist paaritatud kuivad tootmisalad. Mõlemal baasil on kaks ühendust; teepikkused arvestavad kõverjooni. V18 maski bitid 7–8 määravad automaatse või käsitsi paigutuse. Sama valik kandub menüüst workerisse ja lobby värskendamisse.
 
-`TerrainLandform.group` ühendab ühe mäeharja osad maksimaalse kõrgusümbrisena; kompileeritud rühmaindeksid ja korduvkasutatav kõrguspuhver väldivad päringupõhiseid eraldisi. Planeerimine kasutab sama ümbrist. `MapFeatureDef.parcelId` seob ühe põllu lõiketükkide kultuuri ja põllumajandustöötluse. Täpsem kontrollide ja kasutamise ülevaade: [REGIONAL-LAYOUTS-V18.md](REGIONAL-LAYOUTS-V18.md).
+`TerrainLandform.group` ühendab ühe mäeharja osad sujuva, komponendi maksimumiga piiratud kõrgusümbrisena; kompileeritud rühmaindeksid ja korduvkasutatav kõrguspuhver väldivad päringupõhiseid eraldisi. Planeerimine kasutab sama ümbrist. `MapFeatureDef.parcelId` seob ühe põllu lõiketükkide kultuuri ja põllumajandustöötluse. Täpsem kontrollide ja kasutamise ülevaade: [REGIONAL-LAYOUTS-V18.md](REGIONAL-LAYOUTS-V18.md).
 
 
 ## Piirkonnageneraator v17

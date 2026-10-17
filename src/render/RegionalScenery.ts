@@ -1,17 +1,19 @@
 import * as THREE from 'three';
+import {createSceneryGeometry,type SceneryKind} from './SceneryGeometry';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import character from '../data/region-character.json';
-import {getTerrainRegion,MAP_SIZE} from '../sim/heightmap';
+import {getTerrainRegion,getProceduralSeed,MAP_SIZE} from '../sim/heightmap';
 import {REGIONS,regionalNoise} from '../sim/regions';
 import {mulberry32} from '../sim/rng';
 import {MapFeatureIndex,pointInFeature,type MapFeatureDef} from '../sim/mapFeatures';
 import {renderedGroundHeightAt} from './GroundSurface';
-export interface SceneryPoint {x:number;z:number;size:number;angle:number;rock:boolean;clustered:boolean;deadwood:boolean}
+export interface SceneryPoint {x:number;z:number;size:number;angle:number;rock:boolean;clustered:boolean;deadwood:boolean;kind:SceneryKind;stretch:number;tint:number}
 /** Visual ground detail only: does not add invisible pathfinding obstacles or concealment. */
 export function sampleRegionalScenery(features:readonly MapFeatureDef[]):SceneryPoint[]{
  const region=getTerrainRegion();if(!region)return [];
- const patches=features.filter(f=>f.landscape);
- const p=REGIONS[region],budget=Math.min(24000,Math.round(p.sceneryBudget*(MAP_SIZE/2048)**2)),rnd=mulberry32(7621),index=new MapFeatureIndex(features),out:SceneryPoint[]=[];
+ const patches=features.filter(f=>f.landscape),seed=getProceduralSeed(),cfg=character.scenery;
+ const banks=new MapFeatureIndex(features.filter(f=>f.kind==='water'),96,cfg.waterDistance),woods=new MapFeatureIndex(features.filter(f=>f.appearance==='forest'),96,32);
+ const p=REGIONS[region],budget=Math.min(24000,Math.round(p.sceneryBudget*(MAP_SIZE/2048)**2)),rnd=mulberry32(seed^7621),index=new MapFeatureIndex(features,64,8),out:SceneryPoint[]=[];
  for(let i=0;i<budget*3&&out.length<budget;i++){
   const clustered=patches.length>0&&rnd()<character.landscape.sceneryClusterShare,patch=clustered?patches[Math.floor(rnd()*patches.length)]:undefined;
   const a=rnd()*Math.PI*2,r=Math.sqrt(rnd()),lx=Math.cos(a)*r*(patch?.width??0)/2,lz=Math.sin(a)*r*(patch?.depth??0)/2,angle=patch?.rotation??0;
@@ -20,30 +22,40 @@ export function sampleRegionalScenery(features:readonly MapFeatureDef[]):Scenery
   if(near.some(f=>(['road','water','building','bridge'].includes(f.kind)||f.appearance==='yard'||f.appearance==='field')&&pointInFeature(x,z,f,4)))continue;
   const h=renderedGroundHeightAt(x,z),slope=Math.hypot(renderedGroundHeightAt(x+4,z)-renderedGroundHeightAt(x-4,z),renderedGroundHeightAt(x,z+4)-renderedGroundHeightAt(x,z-4))/8;
   const rock=rnd()<(patch?.landscape==='scree'?.88:patch?.landscape==='meadow'?.12:region==='canyon'?.6:region==='desert'?.34:.22)+slope*.5;
-  if(!rock&&regionalNoise(x,z,7621,150)<.35)continue;
+  if(!rock&&regionalNoise(x,z,seed^7621,150)<.35)continue;
   if(h<0)continue;
   const size=(rock?.45:.45)+Math.pow(rnd(),rock?2.5:1)*(rock?(patch?.landscape==='scree'?3.4:2.2):1.1);
-  if(near.some(f=>(['road','water','building','bridge'].includes(f.kind)||f.appearance==='yard'||f.appearance==='field')&&pointInFeature(x,z,f,Math.max(4,size*1.15))))continue;
-  out.push({x,z,rock,clustered,deadwood:region==='siberia'&&!rock&&clustered&&rnd()<.2,size,angle:rnd()*Math.PI*2});
+  const district=regionalNoise(x,z,seed^0x8ab1,cfg.districtSpan),wet=banks.at(x,z).some(f=>pointInFeature(x,z,f,cfg.waterDistance));
+  let kind:SceneryKind=rock?(district<cfg.slabShare?'slab':'boulder'):'scrub';
+  if(!rock){
+   if(wet&&rnd()<cfg.reedShare)kind='reed';
+   else if(region==='siberia'&&clustered&&rnd()<cfg.deadwoodShare&&woods.at(x,z).some(f=>pointInFeature(x,z,f,32)))kind=rnd()<cfg.stumpShare?'stump':'log';
+   else if(region==='canyon'&&district<cfg.cactusShare)kind='cactus';
+   else if(district<cfg.grassShare)kind='grass';
+  }
+  const stretch=cfg.stretch[0]+rnd()*(cfg.stretch[1]-cfg.stretch[0]),radius=size*cfg.footprint[kind]*Math.max(stretch,1);
+  if(near.some(f=>(['road','water','building','bridge'].includes(f.kind)||f.appearance==='yard'||f.appearance==='field')&&pointInFeature(x,z,f,Math.max(4,radius))))continue;
+  out.push({x,z,rock,clustered,deadwood:kind==='log',kind,stretch,tint:cfg.tint[0]+district*(cfg.tint[1]-cfg.tint[0]),size,angle:rnd()*Math.PI*2});
  }
  return out;
 }
 export function createRegionalScenery(features:readonly MapFeatureDef[]):THREE.Group {
  const root=new THREE.Group();root.name='RegionalGroundDetail';const region=getTerrainRegion();if(!region)return root;
  const points=sampleRegionalScenery(features),cells=new Map<string,SceneryPoint[]>();
- for(const p of points){const key=`${p.deadwood?'log':p.rock?'rock':'scrub'}/${Math.floor(p.x/128)}/${Math.floor(p.z/128)}`,list=cells.get(key)??[];list.push(p);cells.set(key,list);}
- const rock=new THREE.IcosahedronGeometry(1,0),scrub=new THREE.IcosahedronGeometry(1,0),log=new THREE.CylinderGeometry(.23,.35,3,6).rotateZ(Math.PI/2);
- const stone=new THREE.MeshStandardMaterial({color:REGIONS[region].rock,roughness:1}),plant=new THREE.MeshStandardMaterial({color:region==='siberia'?0x899a9f:region==='desert'?0x8b885e:0x687050,roughness:1});
- const timber=new THREE.MeshStandardMaterial({color:0x787568,roughness:1});
+ for(const p of points){const key=`${p.kind}/${Math.floor(p.x/character.scenery.cellSize)}/${Math.floor(p.z/character.scenery.cellSize)}`,list=cells.get(key)??[];list.push(p);cells.set(key,list);}
+ const geometries=new Map<SceneryKind,THREE.BufferGeometry>();
+ const material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1});
  const matrix=new THREE.Matrix4(),rotation=new THREE.Quaternion(),axis=new THREE.Vector3(0,1,0),scale=new THREE.Vector3();
  for(const list of cells.values()){
-  const origin={x:list[0].x,z:list[0].z},isRock=list[0].rock,deadwood=list[0].deadwood,mesh=new THREE.InstancedMesh(deadwood?log:isRock?rock:scrub,deadwood?timber:isRock?stone:plant,list.length);
+  const origin={x:list[0].x,z:list[0].z},kind=list[0].kind;
+  if(!geometries.has(kind))geometries.set(kind,createSceneryGeometry(kind,region));
+  const mesh=new THREE.InstancedMesh(geometries.get(kind)!,material,list.length);mesh.name=`RegionalScenery:${kind}`;
   for(const [i,p] of list.entries()){
-   rotation.setFromAxisAngle(axis,p.angle);scale.set(p.size,p.size*(deadwood?.4:isRock?.6:.45),p.size*.8);
-   matrix.compose(new THREE.Vector3(p.x-origin.x,renderedGroundHeightAt(p.x,p.z)+scale.y*.45,p.z-origin.z),rotation,scale);mesh.setMatrixAt(i,matrix);mesh.setColorAt(i,new THREE.Color().setScalar(.84+(p.size%1)*.22));
+   rotation.setFromAxisAngle(axis,p.angle);scale.set(p.size*p.stretch,p.size,p.size*.85);
+   matrix.compose(new THREE.Vector3(p.x-origin.x,renderedGroundHeightAt(p.x,p.z)-.035,p.z-origin.z),rotation,scale);mesh.setMatrixAt(i,matrix);mesh.setColorAt(i,new THREE.Color().setScalar(p.tint));
   }
   mesh.computeBoundingSphere();mesh.receiveShadow=true;mesh.userData.vegetationPoints=list;mesh.userData.vegetationMatrices=mesh.instanceMatrix.array.slice();
-  const lod=new THREE.LOD();lod.position.set(origin.x,0,origin.z);lod.addLevel(mesh,0);lod.addLevel(new THREE.Group(),320,.15);root.add(lod);
+  const lod=new THREE.LOD();lod.position.set(origin.x,0,origin.z);lod.addLevel(mesh,0);lod.addLevel(new THREE.Group(),character.scenery.drawDistance,.15);root.add(lod);
  }
  root.add(createSettlementLandmarks(features));return root;
 }

@@ -21,10 +21,11 @@ let proceduralSeed = 1;
 export interface TerrainLandform {x:number;z:number;width:number;depth:number;height:number;group?:string;shape?:ReliefShape;rotation?:number}
 let activeLandforms:readonly TerrainLandform[]=terrain.farmland.landforms;
 let reliefGroupValues=new Float64Array(0);
+let reliefGroupWeights=new Float64Array(0);
 const compileRelief=(forms:readonly TerrainLandform[])=>{
  const groups=new Map<string,number>();
  const compiled=forms.map(f=>{if(f.group&&!groups.has(f.group))groups.set(f.group,groups.size);return {f,group:f.group?groups.get(f.group)!:-1,c:Math.cos(f.rotation??0),s:Math.sin(f.rotation??0),extent:Math.hypot(f.width,f.depth)};});
- reliefGroupValues=new Float64Array(groups.size);return compiled;
+ reliefGroupValues=new Float64Array(groups.size);reliefGroupWeights=new Float64Array(groups.size);return compiled;
 };
 let reliefTransforms=compileRelief(activeLandforms);
 let terrainProfile: TerrainProfile | undefined;
@@ -66,6 +67,7 @@ export function setBases(bases: readonly BaseDef[]): void {
   activeBases = bases.length ? bases : DEFAULT_BASES;
   cacheValid = false;
 }
+export function getProceduralSeed():number{return proceduralSeed>>>0;}
 export function setProceduralSeed(seed: number): void { proceduralSeed = seed | 0; cacheValid = false; heightCache = null; }
 
 export function resetHeightmap(): void {
@@ -117,15 +119,15 @@ function rawH(x: number, z: number): number {
     let h=1.8+valueNoise(x,z,100)*2.6+valueNoise(x+13,z-17,45)*.7;
     if(region){const p=REGIONS[region];h=2.5+valueNoise(x,z,160)*p.roughness+valueNoise(x+13,z-17,40)*p.roughness*.22;}
     if(terrainProfile==="farmland-natural")h+=valueNoise(x-31,z+29,terrain.natural.detailScale)*terrain.natural.detailHeight+valueNoise(x+91,z-53,terrain.natural.microScale)*terrain.natural.microHeight;
-    reliefGroupValues.fill(0);
+    reliefGroupValues.fill(0);reliefGroupWeights.fill(0);
     for(const {f,c,s,extent,group} of reliefTransforms){
       if(f.shape){
         if(Math.abs(x-f.x)>extent||Math.abs(z-f.z)>extent)continue;
         const dx=x-f.x,dz=z-f.z,u=dx*c-dz*s,v=dx*s+dz*c,d=(u/f.width)**2+(v/f.depth)**2;
-        if(d<1){const value=f.height*(region?reliefKernel(d,f.shape):(1-d)**2);if(group>=0)reliefGroupValues[group]=Math.max(reliefGroupValues[group],value);else h+=value;}
+        if(d<1){const value=f.height*(region?reliefKernel(d,f.shape):(1-d)**2);if(group>=0){const weight=value*value*value;reliefGroupValues[group]+=value*weight;reliefGroupWeights[group]+=weight;}else h+=value;}
       }else {const d=((x-f.x)/f.width)**2+((z-f.z)/f.depth)**2;h+=f.height*Math.exp(-d*2);}
     }
-    for(const value of reliefGroupValues)h+=value;
+    for(let i=0;i<reliefGroupValues.length;i++)if(reliefGroupWeights[i])h+=reliefGroupValues[i]/reliefGroupWeights[i];
     return h;
   }
   const broad=(valueNoise(x,z,90)-0.5)*22;

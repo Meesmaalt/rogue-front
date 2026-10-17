@@ -1,5 +1,13 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Maastiku sujuvus ja objektide mitmekesisus · 17.10.2026
+
+- [x] Piiratud sujuv harjaümbris planeerimises ja kõrgusväljas; tihedam proovistus ning seemnest sõltuv aeglaselt muutuv harja mõõt/kõrgus. Tuletise, maksimumi, järjestussõltumatuse ja tegeliku kõrguse kokkulangevuse kontrollid.
+- [x] Seemne järgi varieeruvad jõeloogete ja teekumeruste tugevused ning ebaühtlase sammuga ühised põllupiirid. Valitud paigutus ja paariliste baasiteede omadused säilivad.
+- [x] Kaardi seemnega seotud maapinnatoonid ja pehmed jõekalda üleminekud ilma jõelõikude otste tumedate läbipaistvusühendusteta.
+- [x] Kaheksa jagatud loodussiluetti: rahn, kiviplaat, põõsas, rohi, roog, kaktus, känd ja lamapuit. Piirkonna-/kalda-/metsaservareeglid, mõõtude/toonide varieerumine ning tegelikule kujule vastavad paigutuspuhvrid. Detailide senine ülempiir ja ehitamisel puhastamine säilivad.
+- [x] Lõplik build ja 11 serveritesti läbisid. Kõik 12 paigutust kuuel suurusel, päris nav 2/6 km kaartidel, seemnepiirid, maamärgid ja APC sillaületused kontrollitud. 40 sihitud testi läbisid; lõppkomplektis 610 läbis ja samad 21 baasversiooni tõrget (nimed täpselt võrreldud). Kaheksa üldvaadet, nelja piirkonna harjade lähivaated, kaheksa objekti galerii ning päris lahingu käivitumine Chromiumis kontrollitud ilma JS-vigadeta. Riistvara FPS-i see ei mõõda.
+
 ## Multiplayeri lobby töökindlus ja viimistlus · 17.10.2026
 
 - [x] Muutumatu ruumi DOM säilib; muutunud ruum kasutab sama vestlusvormi, mustandit, fookust, kursorit ja kerimiskohta ka menüüvahelehtede vahel. Saatmise ooteolek, topeltsaatmise tõke, vea järel uuesti proovimine ja järgmise mustandi säilimine.

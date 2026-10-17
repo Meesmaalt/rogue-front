@@ -13,6 +13,7 @@ import {subtractParcel,parcelArea,convexHull} from './regionalLandscape';
 import {addInteriorLakes,refineRoadConnections} from './mapRefinement';
 import {enrichItalianLandscape} from './italianLandscape';
 import battle from '../data/battle-scale.json';
+import character from '../data/region-character.json';
 import generation from '../data/map-generation.json';
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
 /** V17: a region plan owns relief belts, lowland routes and districts before local detail. */
@@ -83,12 +84,13 @@ export function generateRegionalMap(seed:number,archetype:MapArchetype,size:numb
    return !protectedPoints.some(p=>distance(p,f)<p.r+Math.min(f.width,f.depth)*.55)&&!index.query(f.x-Math.hypot(f.width,f.depth),f.z-Math.hypot(f.width,f.depth),f.x+Math.hypot(f.width,f.depth),f.z+Math.hypot(f.width,f.depth)).some(o=>footprintsOverlap(probe,o,9));
   };
   for(const [pathIndex,path] of plan.ridgePaths.entries())for(let i=1;i<path.length;i++){
-   const a=path[i-1],b=path[i],length=distance(a,b),count=Math.max(1,Math.ceil(length/(size*.04)));
+   const a=path[i-1],b=path[i],length=distance(a,b),count=Math.max(1,Math.ceil(length/(size*character.variation.ridgeSpacing)));
    for(let j=0;j<count;j++){
     const t=(j+.5)/count,x=a.x+(b.x-a.x)*t,z=a.z+(b.z-a.z)*t;if(x>=0)continue;
     const key=`${Math.round(x/20)}/${Math.round(z/20)}`;if(seen.has(key))continue;seen.add(key);
+    const variation=character.variation,blend=(range:readonly number[],salt:number)=>range[0]+regionalNoise(x,z,seed^salt,size*.19)*(range[1]-range[0]);
     for(const scale of [1,.8,.6]){
-     const f:RegionalLandform={x,z,width:size*(region==='desert'?.075:.052)*scale*(plan.relief?.widthScale??1),depth:size*(region==='desert'?.025:.037)*scale*(plan.relief?.depthScale??1),height:p.reliefHeight*(.85+new Rng(seed^Math.imul(pathIndex+1,0x761b)).next()*.2)*(archetype==='highlands'?1.35:1)*(plan.relief?.heightScale??1),group:`belt-${pathIndex}`,shape:plan.relief?.shape??p.reliefShape as ReliefShape,rotation:Math.atan2(-(b.z-a.z),b.x-a.x)};
+     const f:RegionalLandform={x,z,width:size*(region==='desert'?.075:.052)*scale*blend(variation.ridgeWidth,0x34aa)*(plan.relief?.widthScale??1),depth:size*(region==='desert'?.025:.037)*scale*blend(variation.ridgeDepth,0x87bb)*(plan.relief?.depthScale??1),height:p.reliefHeight*blend(variation.ridgeHeight,0x529c)*(archetype==='highlands'?1.35:1)*(plan.relief?.heightScale??1),group:`belt-${pathIndex}`,shape:plan.relief?.shape??p.reliefShape as ReliefShape,rotation:Math.atan2(-(b.z-a.z),b.x-a.x)};
      const opposite={...f,x:-x,z:-z,group:`belt-${pathIndex}-opposite`,rotation:(f.rotation??0)+Math.PI};
      if(valid(f)&&valid(opposite)){forms.push(f,opposite);break;}
     }
@@ -122,8 +124,11 @@ export function generateRegionalMap(seed:number,archetype:MapArchetype,size:numb
  }
  // Fields belong to lowland agricultural districts, not every empty polygon on the map.
  const blockers=new MapFeatureIndex(features.filter(f=>['water','building','road','bridge'].includes(f.kind)||f.appearance==='yard'),96,8);
- const cell=Math.max(64,Math.min(115,size/30)),steps=Math.ceil((size-24)/cell),gridStep=(size-24)/steps;
- const nodes=Array.from({length:steps+1},(_,j)=>Array.from({length:steps+1},(_,i)=>({x:-half+12+i*gridStep+(i>0&&i<steps?random(-.17,.17)*gridStep:0),z:-half+12+j*gridStep+(j>0&&j<steps?random(-.17,.17)*gridStep:0)})));
+ const cell=Math.max(64,Math.min(115,size/30)),steps=Math.ceil((size-24)/cell);
+ // Shared, uneven plot boundaries replace the uniform checkerboard without gaps or overlaps.
+ const axis=(salt:number)=>{const rng=new Rng(seed^salt),range=character.variation.parcelSpan,weights=Array.from({length:steps},()=>range[0]+rng.next()*(range[1]-range[0])),total=weights.reduce((a,b)=>a+b,0),points=[-half+12];for(const w of weights)points.push(points.at(-1)!+w/total*(size-24));return points;};
+ const xs=axis(0x14352),zs=axis(0x917c),jitter=character.variation.parcelJitter;
+ const nodes=Array.from({length:steps+1},(_,j)=>Array.from({length:steps+1},(_,i)=>({x:xs[i]+(i>0&&i<steps?random(-jitter,jitter)*Math.min(xs[i]-xs[i-1],xs[i+1]-xs[i]):0),z:zs[j]+(j>0&&j<steps?random(-jitter,jitter)*Math.min(zs[j]-zs[j-1],zs[j+1]-zs[j]):0)})));
  for(let j=0;j<steps;j++)for(let i=0;i<steps;i++){
   const poly=[nodes[j][i],nodes[j][i+1],nodes[j+1][i+1],nodes[j+1][i]],s={x:poly.reduce((a,p)=>a+p.x,0)/4,z:poly.reduce((a,p)=>a+p.z,0)/4};
   if(bases.some(b=>distance(b,s)<130)||townPlans.some(t=>distance(t,s)<t.blocks*32+30))continue;
@@ -140,7 +145,7 @@ export function generateRegionalMap(seed:number,archetype:MapArchetype,size:numb
   }
   const woodland=forestPoly.length>=3&&parcelArea(forestPoly)>100;
   let pieces=[woodland?forestPoly:poly];
-  for(const f of blockers.query(s.x-gridStep,s.z-gridStep,s.x+gridStep,s.z+gridStep)){
+  for(const f of blockers.query(Math.min(...poly.map(p=>p.x))-4,Math.min(...poly.map(p=>p.z))-4,Math.max(...poly.map(p=>p.x))+4,Math.max(...poly.map(p=>p.z))+4)){
    const mask=convexHull(featureCorners({...f,width:f.width+7,depth:f.depth+7}));
    pieces=pieces.flatMap(poly=>subtractParcel(poly,mask,100)).sort((a,b)=>parcelArea(b)-parcelArea(a)).slice(0,8);
   }

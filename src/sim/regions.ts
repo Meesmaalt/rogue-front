@@ -28,11 +28,12 @@ export function reliefKernel(distanceSquared:number,shape?:ReliefShape):number {
  return (1-distanceSquared)**2;
 }
 
-/** Relief within a connected belt forms one envelope; separate belts can still overlap. */
+/** A bounded, differentiable weighted envelope removes max seams without stacking ridge pieces. */
 export function regionalReliefAt(p:{x:number;z:number},forms:readonly RegionalLandform[]):number {
- let total=0;const groups=new Map<string,number>();
+ let total=0;const groups=new Map<string,{weighted:number;weight:number}>();
  for(const f of forms){const a=f.rotation??0,dx=p.x-f.x,dz=p.z-f.z,u=dx*Math.cos(a)-dz*Math.sin(a),v=dx*Math.sin(a)+dz*Math.cos(a),h=f.height*reliefKernel((u/f.width)**2+(v/f.depth)**2,f.shape);
-  if(f.group)groups.set(f.group,Math.max(groups.get(f.group)??0,h));else total+=h;
+  if(h===0)continue;
+  if(f.group){const g=groups.get(f.group)??{weighted:0,weight:0},weight=h*h*h;g.weighted+=weight*h;g.weight+=weight;groups.set(f.group,g);}else total+=h;
  }
- for(const h of groups.values())total+=h;return total;
+ for(const g of groups.values())if(g.weight)total+=g.weighted/g.weight;return total;
 }

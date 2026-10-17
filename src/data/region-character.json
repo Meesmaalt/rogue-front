@@ -34,7 +34,9 @@
     "stoneTint": "#a49e89",
     "landmark": "square",
     "label": "Külaväljak",
-    "spread": 1
+    "spread": 1,
+    "plantTint": 6846027,
+    "reedTint": 7898714
   },
   "siberia": {
     "styles": [
@@ -58,7 +60,9 @@
     "stoneTint": "#89969c",
     "landmark": "timber",
     "label": "Metsaküla tööõu",
-    "spread": 1.2
+    "spread": 1.2,
+    "plantTint": 9740184,
+    "reedTint": 10267291
   },
   "canyon": {
     "styles": [
@@ -83,7 +87,9 @@
     "stoneTint": "#ad785b",
     "landmark": "rest",
     "label": "Teeäärne peatus",
-    "spread": 1.25
+    "spread": 1.25,
+    "plantTint": 7369809,
+    "reedTint": 8095842
   },
   "desert": {
     "styles": [
@@ -107,7 +113,9 @@
     "stoneTint": "#9c8d72",
     "landmark": "well",
     "label": "Kaevuhoov",
-    "spread": 1
+    "spread": 1,
+    "plantTint": 9667927,
+    "reedTint": 8030036
   },
   "landscape": {
     "bankStride": 9,
@@ -126,6 +134,88 @@
     "patchLimit": 110,
     "treeFringeLimit": 38,
     "sceneryClusterShare": 0.65,
-    "landmarkDrawDistance": 700
+    "landmarkDrawDistance": 700,
+    "groundBlend": 0.28,
+    "bankFeather": [
+      [
+        64,
+        0.05
+      ],
+      [
+        56,
+        0.08
+      ],
+      [
+        48,
+        0.12
+      ],
+      [
+        41,
+        0.18
+      ],
+      [
+        35,
+        0.26
+      ],
+      [
+        29,
+        0.4
+      ]
+    ]
+  },
+  "variation": {
+    "roadCurve": [
+      0.68,
+      1.32
+    ],
+    "riverBend": 0.014,
+    "ridgeWidth": [
+      0.82,
+      1.18
+    ],
+    "ridgeDepth": [
+      0.8,
+      1.2
+    ],
+    "ridgeHeight": [
+      0.76,
+      1.18
+    ],
+    "ridgeSpacing": 0.022,
+    "parcelSpan": [
+      0.65,
+      1.4
+    ],
+    "parcelJitter": 0.17
+  },
+  "scenery": {
+    "cellSize": 256,
+    "drawDistance": 340,
+    "districtSpan": 190,
+    "footprint": {
+      "boulder": 1,
+      "slab": 1.08,
+      "scrub": 0.8,
+      "grass": 0.65,
+      "reed": 0.65,
+      "cactus": 0.7,
+      "stump": 0.55,
+      "log": 1.3
+    },
+    "waterDistance": 24,
+    "reedShare": 0.7,
+    "slabShare": 0.46,
+    "stumpShare": 0.22,
+    "cactusShare": 0.42,
+    "grassShare": 0.57,
+    "stretch": [
+      0.72,
+      1.32
+    ],
+    "tint": [
+      0.82,
+      1.12
+    ],
+    "deadwoodShare": 0.28
   }
 }

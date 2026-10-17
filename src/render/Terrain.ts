@@ -1,5 +1,6 @@
 import {createLandmarkStructure} from './LandmarkStructures';
-import {REGIONS} from '../sim/regions';
+import {REGIONS,regionalNoise} from '../sim/regions';
+import character from '../data/region-character.json';
 import {createRegionalScenery} from './RegionalScenery';
 import {createResourceIndustry} from './ResourceIndustry';
 import {createItalianScenery} from './ItalianScenery';
@@ -11,7 +12,7 @@ import terrainConfig from "../data/terrain.json";
 import {isGarrisonBuilding,GARRISON_RULES} from "../sim/garrison";
 import * as THREE from "three";
 import {createCivilianBuilding,batchStaticScene} from "./Architecture";
-import { getTerrainRegion,getBases, MAP_SIZE, heightAt,groundHeightAt } from "../sim/heightmap";
+import { getTerrainRegion,getProceduralSeed,getBases, MAP_SIZE, heightAt,groundHeightAt } from "../sim/heightmap";
 import { mulberry32 } from "../sim/rng";
 import { pointInFeature, isSeaFeature, featureCorners, forestDensityAt, MapFeatureIndex, type MapFeatureDef } from "../sim/mapFeatures";
 import type {World} from "../sim/World";
@@ -229,11 +230,14 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
 
   const canvas=document.createElement("canvas");canvas.width=canvas.height=2048;
   const ctx=canvas.getContext("2d")!,scale=canvas.width/MAP_SIZE,half=MAP_SIZE/2,rnd=mulberry32(917);
+  const seed=getProceduralSeed(),groundTint=region?new THREE.Color(character[region].groundTint).convertLinearToSRGB():undefined;
   const noise=document.createElement("canvas");noise.width=noise.height=512;const nc=noise.getContext("2d")!,data=nc.createImageData(512,512);
   for(let z=0;z<512;z++)for(let x=0;x<512;x++){
     const wx=(x+.5)/512*MAP_SIZE-half,wz=(z+.5)/512*MAP_SIZE-half;
-    const macro=(terrainNoise(wx/170,wz/170)-.5)*17+(terrainNoise(wx/43,wz/43)-.5)*7,grain=rnd()*7-3.5,i=(z*512+x)*4;
+    const district=region?regionalNoise(wx,wz,seed^0x4864,Math.max(180,MAP_SIZE*.09)):terrainNoise(wx/170,wz/170);
+    const macro=(district-.5)*17+(terrainNoise(wx/43,wz/43)-.5)*7,grain=rnd()*7-3.5,i=(z*512+x)*4;
     data.data[i]=profile?Math.min(255,parseInt(profile.ground.slice(1,3),16)+macro+grain):143+macro+grain;data.data[i+1]=profile?Math.min(255,parseInt(profile.ground.slice(3,5),16)+macro+grain):151+macro+grain;data.data[i+2]=profile?Math.min(255,parseInt(profile.ground.slice(5,7),16)+macro+grain):121+macro+grain;data.data[i+3]=255;
+    if(groundTint){const amount=district*character.landscape.groundBlend;data.data[i]=data.data[i]*(1-amount)+groundTint.r*255*amount;data.data[i+1]=data.data[i+1]*(1-amount)+groundTint.g*255*amount;data.data[i+2]=data.data[i+2]*(1-amount)+groundTint.b*255*amount;}
   }
   nc.putImageData(data,0,0);ctx.drawImage(noise,0,0,2048,2048);
   ctx.setTransform(scale,0,0,scale,half*scale,half*scale);
@@ -290,12 +294,20 @@ function makeLandscapeTexture(features:readonly MapFeatureDef[],bases:readonly (
   rc.putImageData(rockData,0,0);ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(rockCanvas,0,0,2048,2048);ctx.restore();
   // Mud and meadow banks follow the continuous watercourse, underneath bridges.
   ctx.lineCap="round";
-  for(const width of [48,37,29]){
-    ctx.strokeStyle=region?(width===48?REGIONS[region].ground:REGIONS[region].rock):width===48?"rgba(147,149,118,.65)":width===37?"#969581":"#858778";ctx.lineWidth=width;
-    for(const f of features.filter(f=>f.kind==="water"&&!isSeaFeature(f)))local(f,()=>{
-      ctx.beginPath();if(f.waterBody==="lake") {if(f.polygon)trace(f);else ctx.ellipse(0,0,f.width/2,f.depth/2,0,0,Math.PI*2);ctx.lineWidth=(width-26)*.65+2;}else {ctx.lineWidth=width;ctx.moveTo(0,-f.depth/2);ctx.lineTo(0,f.depth/2);}ctx.stroke();
+  const banks=features.filter(f=>f.kind==="water"&&!isSeaFeature(f));
+  for(const [width,alpha] of region?character.landscape.bankFeather:[[48,1],[37,1],[29,1]]){
+    ctx.globalAlpha=alpha;
+    ctx.strokeStyle=region?REGIONS[region].rock:width===48?"rgba(147,149,118,.65)":width===37?"#969581":"#858778";ctx.lineWidth=width;
+    // One stroke for the full channel: alpha must not accumulate at segment joins.
+    ctx.beginPath();
+    for(const f of banks.filter(f=>f.waterBody!=="lake"))local(f,()=>{ctx.moveTo(0,-f.depth/2);ctx.lineTo(0,f.depth/2);});
+    ctx.stroke();
+    for(const f of banks.filter(f=>f.waterBody==="lake"))local(f,()=>{
+      ctx.beginPath();if(f.polygon)trace(f);else ctx.ellipse(0,0,f.width/2,f.depth/2,0,0,Math.PI*2);
+      ctx.lineWidth=(width-26)*.65+2;ctx.stroke();
     });
   }
+  ctx.globalAlpha=1;
   // Ocean shore is the actual water footprint boundary, never a river stripe.
   for(const f of features.filter(f=>isSeaFeature(f)))local(f,()=>{
     const beach=ctx.createLinearGradient(f.width/2-4,0,f.width/2+18,0);
