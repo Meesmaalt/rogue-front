@@ -1,0 +1,29 @@
+{
+  "usa": {
+    "armorMul": 1.02,
+    "speedMul": 1,
+    "damageMul": 1,
+    "buildCostMul": 1.03,
+    "opticsMul": 1.08,
+    "supplyEfficiency": 1.03,
+    "moraleMul": 1.03
+  },
+  "russia": {
+    "armorMul": 1.03,
+    "speedMul": 0.98,
+    "damageMul": 1.02,
+    "buildCostMul": 1.02,
+    "opticsMul": 0.97,
+    "supplyEfficiency": 0.99,
+    "moraleMul": 1
+  },
+  "china": {
+    "armorMul": 0.98,
+    "speedMul": 1.03,
+    "damageMul": 0.98,
+    "buildCostMul": 0.97,
+    "opticsMul": 1,
+    "supplyEfficiency": 1.04,
+    "moraleMul": 0.99
+  }
+}

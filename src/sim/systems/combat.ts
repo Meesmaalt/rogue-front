@@ -1,3 +1,4 @@
+import balance from "../../data/combat-balance.json";
 import {fixedAirGun,airGunAligned,airGunSolution,airGunRecovering,recordAirGunShot,constrainAirGunDirection} from "../airGunnery";
 import {BUILDINGS,isBuildable} from "../buildings";
 import {BATTLE_SCALE} from "../battleScale";
@@ -24,9 +25,10 @@ export function weaponSpec(u:Entity,index=0):WeaponSpec {
   const d=u.def;return {profile:"legacy",name:d.name,visual:d.weapon==="missile"?"atgm":d.weapon==="cannon"?"autocannon":"rifle",weapon:d.weapon==="none"?"bullet":d.weapon,flight:d.weapon==="missile"?"guided":"direct",guidance:d.weapon==="missile"?"radar":"none",warhead:"he",targets:d.targetClass==="air"?"air":d.targetClass==="armor"?"armor":d.targetClass==="all"?"all":"ground",range:d.range,minimumRange:d.minimumRange??0,damage:d.damage,cooldown:d.cooldown,penetration:d.penetration??5,accuracy:d.accuracy??.6,splash:d.splash??0,ammoCapacity:d.ammoCapacity??0,ammoUsePerShot:d.ammoUsePerShot??1,suppressionPower:d.suppressionPower??1,speed:d.projectileSpeed,launchSpeed:d.missileLaunchSpeed??d.projectileSpeed,acceleration:d.missileAcceleration??75,turnRate:d.missileTurnRate??3.2,gravity:0,minFlight:0,muzzle:1.4,muzzleHeight:2};
 }
 /** Shared impact math: the HUD never maintains a separate damage table. */
-export function penetrationFactor(warhead:string,penetration:number,armor:number,unarmored:boolean,distance=0):number {
+export function penetrationFactor(warhead:string,penetration:number,armor:number,unarmored:boolean,distance=0,scale?:Pick<UnitDef,"metricScale"|"compactScale">):number {
   if(unarmored)return 1;
-  const pen=penetration*(warhead==="kinetic"?Math.max(.65,1-distance/500):1),ratio=pen/Math.max(1,armor);
+  const falloffDistance=scale?.metricScale?balance.kineticFalloffMetricDistance*(scale.compactScale?BATTLE_SCALE.compact.rangeScale:1):balance.kineticFalloffLegacyDistance;
+  const pen=penetration*(warhead==="kinetic"?Math.max(balance.minimumKineticRetention,1-distance/falloffDistance):1),ratio=pen/Math.max(1,armor);
   if(warhead==="kinetic")return ratio>=1?Math.min(1.35,.8+ratio*.2):ratio>.85?.12:0;
   if(warhead==="heat")return ratio>=1?Math.min(1.4,.75+ratio*.25):.1*ratio;
   return Math.max(.12,Math.min(1,.22+ratio*.65));
@@ -34,12 +36,12 @@ export function penetrationFactor(warhead:string,penetration:number,armor:number
 export function weaponImpactEstimate(spec:WeaponSpec,target:UnitDef,face:"front"|"side"|"rear"="front",distance=0):number {
   if(!weaponCanTarget(spec,{def:target}))return 0;
   const armor=face==="front"?target.armorFront:face==="side"?target.armorSide:target.armorRear;
-  return spec.damage*weaponDamageMultiplier(spec.weapon,target.armor)*penetrationFactor(spec.warhead,spec.penetration,armor??8,target.category==="infantry"||target.armor==="air",distance);
+  return spec.damage*weaponDamageMultiplier(spec.weapon,target.armor)*penetrationFactor(spec.warhead,spec.penetration,armor??8,target.category==="infantry"||target.armor==="air",distance,target);
 }
 /** Live target comparison includes both sides' purchased upgrades. */
 export function weaponImpactAgainst(u:Entity,spec:WeaponSpec,target:Entity,distance=Math.hypot(target.x-u.x,target.z-u.z)):number {
   if(!weaponCanTarget(spec,target))return 0;
-  return weaponDamage(u,spec)*weaponDamageMultiplier(spec.weapon,target.def.armor)*penetrationFactor(spec.warhead,weaponPenetration(u,spec),armorValue(target,hitFace(u.x,u.z,target)),target.def.category==="infantry"||target.def.armor==="air",distance);
+  return weaponDamage(u,spec)*weaponDamageMultiplier(spec.weapon,target.def.armor)*penetrationFactor(spec.warhead,weaponPenetration(u,spec),armorValue(target,hitFace(u.x,u.z,target)),target.def.category==="infantry"||target.def.armor==="air",distance,u.def);
 }
 export function weaponAmmo(u:Pick<Entity,"ammo"|"secondaryAmmo">,index:number):number {return index===0?u.ammo??0:u.secondaryAmmo?.[index]??0;}
 export function weaponCooldown(u:Pick<Entity,"cooldown"|"weaponCooldowns">,index:number):number {return index===0?u.cooldown:u.weaponCooldowns?.[index]??0;}
@@ -69,7 +71,7 @@ export function selectWeapon(u:Entity,t:Entity,ready=false,world?:World):number 
   for(let i=0;i<(u.def.weapons?.length??1);i++){
     const spec=weaponSpec(u,i);if(!weaponCanTarget(spec,t)||!garrisonWeaponAllowed(u,spec,t,ready)||spec.damage<=0)continue;
     if(ready&&(u.motionSpeed??0)>mobility.combat.weaponMotionThreshold&&spec.fireOnMove===false)continue;
-    if(spec.warhead==="kinetic"&&penetrationFactor(spec.warhead,weaponPenetration(u,spec),armorValue(t,hitFace(u.x,u.z,t)),t.def.category==="infantry"||t.def.armor==="air",distance)<=0)continue;
+    if(spec.warhead==="kinetic"&&penetrationFactor(spec.warhead,weaponPenetration(u,spec),armorValue(t,hitFace(u.x,u.z,t)),t.def.category==="infantry"||t.def.armor==="air",distance,u.def)<=0)continue;
     if(spec.ammoCapacity>0&&weaponAmmo(u,i)<spec.ammoUsePerShot)continue;
     if(ready&&(weaponCooldown(u,i)>0||distance-t.def.radius>weaponRange(u,spec)||distance<spec.minimumRange))continue;
     if(ready&&world&&weaponFireBlocker(world,u,t,i)!==null)continue;
@@ -103,7 +105,7 @@ export function incomingGuidedDamage(w:World,u:Entity,target:Entity):number {
   if(p.team!==u.team||p.flight!=='guided'||p.guidanceLost||p.target!==target||(p.age??0)>mobility.combat.coordinationSeconds)continue;
   const eta=Math.hypot(p.x-target.x,p.y-target.y,p.z-target.z)/Math.max(1,p.speed);
   if(eta>mobility.combat.coordinationSeconds)continue;
-  const face=hitFace(p.x,p.z,target),penetration=penetrationFactor(p.warhead??'he',p.penetration??0,armorValue(target,face),target.def.category==='infantry'||target.def.armor==='air',dist2dForRound(p,target));
+  const face=hitFace(p.x,p.z,target),penetration=penetrationFactor(p.warhead??'he',p.penetration??0,armorValue(target,face),target.def.category==='infantry'||target.def.armor==='air',dist2dForRound(p,target),target.def);
   expected+=(p.impactDamage??p.damage)*(p.hitChance??.5)*penetration;
  }
  return expected;
@@ -146,7 +148,7 @@ export function weaponFireBlocker(w:World,u:Entity,t:Entity,index:number):string
   if(u.flightAttackExit)return "Eemaldub ründeläbimiselt";
   if(!weaponCanTarget(spec,t)||spec.damage<=0)return "Sobimatu sihtmärgi liik";
   if(!garrisonWeaponAllowed(u,spec,t))return "Garnisoni relv või laskesektor ei võimalda tuld";
-  if(spec.warhead==="kinetic"&&penetrationFactor(spec.warhead,weaponPenetration(u,spec),armorValue(t,hitFace(u.x,u.z,t)),t.def.category==="infantry"||t.def.armor==="air",distance)<=0)return "Soomus peatab selle mürsu";
+  if(spec.warhead==="kinetic"&&penetrationFactor(spec.warhead,weaponPenetration(u,spec),armorValue(t,hitFace(u.x,u.z,t)),t.def.category==="infantry"||t.def.armor==="air",distance,u.def)<=0)return "Soomus peatab selle mürsu";
   if(spec.flight==='guided'&&incomingGuidedDamage(w,u,t)>=t.hp*mobility.combat.lethalReservationMargin)return "Ootab rühma raketitabamust";
   if(spec.radarTargetsOnly&&(t.disabledUntil??0)>w.time)return "Radar ei kiirga";
   if(spec.ammoCapacity>0&&weaponAmmo(u,index)<spec.ammoUsePerShot)return "Moon otsas · vaja varustust";

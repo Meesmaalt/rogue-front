@@ -2,6 +2,16 @@
 
 
 
+
+## Õhutarnete tempo ning majanduse ja relvastuse tasakaal · 17.10.2026
+
+- [x] Välised varustuskopterid: baasintervall 50 → 100 s, koorem 180 → 360 ja tasemeboonus 70 → 140. Kaubalennukid: intervall 45 → 90 s, maht 480 → 960 ja tasemeboonus 140 → 280, minimaalne last 360 → 720. Lennukite ressursifondi kasv jääb samaks. Kõigi tasemete koorma/intervalli suhe säilib; raha tekib alles tegelikul mahalaadimisel, mitte väljasaatmisel.
+- [x] `faction-balance.json` koondab väiksemad riigiboonused. Eemaldatud olukord, kus sama baasvarustus saab korraga tugeva HP/soomuse/kahjustuse boonuse ning hinnasoodustuse. Mudelite enda rahvuspõhised relvad, soomus ja hinnad säilivad. Sama baaslennuki tervise ja tulejõu suhe krediidi kohta jääb nüüd 12% vahemikku.
+- [x] SPAA-l igal rahvusel üks kahur ja üks piiratud raketipesa; eemaldatud dubleeriv kolmas IR-raketipesa. Eraldi radar-SAM ja passiivne IR-õhutõrje säilivad eri rollidena. Ostetaval lahinguinseneril on nüüd kirjelduses lubatud piiratud moonaga lähikaitserelv; automaatne ehituspersonal ei hakka võitlema.
+- [x] Kineetilise mürsu läbivuskadu arvestab meetri-/kompaktkaardi mõõtkava, mitte vana 500-ühiku valemit. Sama reegel kehtib relvainfos, sihtmärgivalikus, laskmise väravas ja päris tabamuses; kompaktkaardil vastab 400 m mänguruumi samale 2 km näidatud distantsile. Parameetrid on `combat-balance.json` all.
+- [x] 36 sihitud kontrolli: kõigi kolme rahvuse 31 põhiplatvormi relvaandmed kolmes mõõtkavas, päris frontaalne tankitabamus ja selle hinnang, inseneri tuletempo/moon, õhu- ja mitmerelvaline lahing, tarnete mahalaadimine/kaotus/save/hash ning keel. Kliendi ja serveri build.
+- [ ] Inimeste pikkade matšide tasakaaluhinnang ning tegelik WebGL/heli/FPS ülevaatus jäävad avatuks; konfiguratsiooni- ja simulatsioonikontrollid ei tõesta lõplikku võrdset võiduvõimalust.
+
 ## Usaldusväärne jalaväe pealevõtt ja tühistatavad transpordikäsud · 17.10.2026
 
 - [x] Maapealne transport pidurdab enne pardaleminekut ja väljumist; kiirusepiir on `mobility.transport.boardingSpeed`. Pealevõtt kontrollib päris maapealset läbipääsu, ka kaubalennukisse laadimisel: vahemaa üksi ei luba läbi müüri pardale ilmuda.

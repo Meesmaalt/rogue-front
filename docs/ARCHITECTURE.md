@@ -4,6 +4,19 @@ Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOP
 
 
 
+
+## Tarnetsükkel ja relvade mõõtkavast sõltuv tasakaal · 17.10.2026
+
+`logistics.external` väliskopteri ja ressursilennuki koorem, koorma tasemeboonus ning väljasaatmise intervall on kahekordistatud. Kopteri nominaalne sissetulek tasemetel 1/2/3 jääb 3,6 / 6,5 / 10,24 kaubaühikuks sekundis enne `incomeMultiplier` mõju. Lennuki fondi kasv ja ülempiir säilivad, minimaalne väljalastav koorem on 720. Fondi kogumine, lennuaeg, parkimiskoht ja päris mahalaadimine mõjutavad tegelikku tempot endiselt; raha ei lisata uue lennu loomisel. Suurem last võib vajada mitut tõstukiringi. Mõlema poole ühine tarnereegel ja uuenduste sagedusboonused säilivad.
+
+`faction-balance.json` annab kerged doktriinikordajad eraldi rahvuse mudelipõhistest relva-/soomusandmetest. USA: HP/soomus +2%, hind +3%, optika +8%; Venemaa: HP/soomus +3%, kahjustus +2%, hind +2%, kiirus −2%; Hiina: HP/soomus ja kahjustus −2%, hind −3%, kiirus +3%. Väikesed varustuse/moraali erisused on samuti samas tabelis. Senised mudelite enda loadout-id ning AI koosseisueelistused jäävad. SPAA dubleeriv lisaraketipesa on eemaldatud kõigilt kolmelt poolelt; üks kahur ja üks rahvuspõhine raketipesa kasutavad jätkuvalt eraldi moona ning laadimisaegu. Ostetava `engineer` neljaliikmeline rühm saab ühe piiratud rifle-pesa; automaatne `engineerDuty`/ehituspersonal väljub üksusekontrollerist enne lahinguringi.
+
+`penetrationFactor` saab valikulise mõõtkavakonteksti. `combat-balance.json` kasutab kineetilise läbivuse kauguskaoks vana kaardi 500 asemel meetrikaardil 12000 m võrdlusdistantsi; kompaktkaardil korrutatakse see sama `battle-scale.compact.rangeScale` väärtusega, millega relvaulatus. Vana kaardi käitumine ja minimaalne 65% kineetiline jääkläbivus säilivad. Laskepesa valik, lasu lubamine, HUD kahjustusehinnang ja mürsu tegelik läbitud maa arvestavad sama konteksti. Kahe kilomeetri frontaalne tabamus on testitud nii meetri- kui ka 0,2 skaalaga kompaktmaailmas, kontrollides hinnangu ja tegeliku HP kao kooskõla.
+
+Täissalvestus säilitab üksuse `def`-i: vanas salvestuses juba loodud üksuste näitajaid ei kirjutata ümber. Uus tasakaal rakendub tervikuna uues matšis ning uutele toodetud üksustele.
+
+Kontroll katab kõigi kolme rahvuse kõik 31 põhiplatvormi ja nende relvade arvulise kehtivuse tava-, meetri- ning kompaktskaalal; see ei ole inimeste mängitud pika matši võiduprotsendi mõõtmine. Lõplik matšitasakaal ja WebGL/heli tunnetus vajavad mängus hinnangut.
+
 ## Transpordikäsu elutsükkel ja füüsiline pardaleminek · 17.10.2026
 
 `unitTasks.replaceTask` on ühine sim-käsu üleminek käsutöötlusele, paanikale ning transpordi/kaubalennuki laadimisele. See vabastab ehitaja/remondi broneeringud ja katkestatud eriülesanded, kuid säilitab relva laadimise ning pardal olevad üksused. Reisija uus käsk eemaldab tema ID eelmise vedaja järjekorrast; esimese reisija eemaldamisel nullitakse vana lähenemine ja järgmiseks valitakse järgmine broneering. Vedaja käsu tühistamisel, pealevõtu aegumisel või `World` surmapuhastusel vabastab `clearPickupQueue` ainult ootel reisijad, peatades laadimisest jäänud lähenemise. Pardal olevad sõdurid ei ilmu käsu tühistamisel maapinnale.

@@ -699,5 +699,6 @@
   "Laadimine katkestati · üksus ei jõudnud transpordini": "Pickup cancelled · unit could not reach the transport",
   "Peatub pardaleminekuks": "Stopping for boarding",
   "Peatub väljumiseks": "Stopping for disembarkation",
-  "Väljumine ootab · vaja vaba läbipääsu": "Disembarkation waiting · clear exit required"
+  "Väljumine ootab · vaja vaba läbipääsu": "Disembarkation waiting · clear exit required",
+  "Raske soomus, suurtükivägi ja õhutõrje. Vastupidavus väiksema liikuvuse arvelt.": "Heavy armor, artillery and air defence. Durability at the expense of mobility."
 }

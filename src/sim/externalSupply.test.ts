@@ -25,7 +25,7 @@ it('upgrades increase capacity and frequency, disabled depots never dispatch, a 
 it('airport cargo needs a nearby completed depot and works even when that warehouse is empty',()=>{
  const {w,depot}=fixture();w.spawn('airCommand',0,-85,-10);const base=w.spawn('airbase',0,-35,0);expect(airportDepot(w,base)).toBe(depot);
  depot.ammoStock=depot.fuelStock=0;expect(airportDepot(w,base)).toBe(depot);depot.disabledUntil=100;expect(airportDepot(w,base)).toBeNull();depot.disabledUntil=0;
- for(let i=0;i<1200;i++)w.tick(1/30);
+ for(let i=0;i<3600&&!w.entities.some(e=>e.kind==='cargoPlane');i++)w.tick(1/30);
  expect(w.entities.some(e=>e.kind==='cargoPlane')).toBe(true);
 });
 it('save and replay hashing retain pending dispatch and inbound external cargo',()=>{
@@ -42,7 +42,7 @@ it('full receiving warehouses retain inbound cargo and credit only accepted part
 });
 it('cargo plane completes a physical airport delivery and exits without granting another payout',()=>{
  const {w,depot}=fixture();w.spawn('airCommand',0,-85,-10);w.spawn('airbase',0,-35,0);
- for(let i=0;i<1200;i++)w.tick(1/30);
+ for(let i=0;i<3600&&!w.entities.some(e=>e.kind==='cargoPlane');i++)w.tick(1/30);
  const plane=w.entities.find(e=>e.kind==='cargoPlane')!;expect(plane).toBeDefined();const money=w.teamCredits[0],cargo=plane.cargo;
  for(let i=0;i<6000&&!plane.dead;i++)w.tick(1/30);
  expect(plane.dead).toBe(true);expect(Math.max(Math.abs(plane.x),Math.abs(plane.z))).toBeGreaterThan(w.mapSize/2);expect(plane.cargo).toBe(0);expect(w.teamCredits[0]-money).toBeGreaterThanOrEqual(cargo*.6-1e-5);expect(depot.logisticsStorage).toBeGreaterThan(0);
@@ -55,6 +55,6 @@ it('no warehouse means no passive money, and destroying an inbound import loses 
 });
 it('a plane switches receiving depots if its airport still has another usable warehouse',()=>{
  const {w,depot}=fixture();w.spawn('airCommand',0,-85,-10);const base=w.spawn('airbase',0,-35,0),replacement=w.spawn('supply',0,-20,20);
- for(let i=0;i<1200;i++)w.tick(1/30);const plane=w.entities.find(e=>e.kind==='cargoPlane')!;expect(plane).toBeDefined();depot.dead=true;run(w,1);
+ for(let i=0;i<3600&&!w.entities.some(e=>e.kind==='cargoPlane');i++)w.tick(1/30);const plane=w.entities.find(e=>e.kind==='cargoPlane')!;expect(plane).toBeDefined();depot.dead=true;run(w,1);
  expect(airportDepot(w,base)).toBe(replacement);expect(plane.supplyDepotId).toBe(replacement.id);expect(plane.logisticsPhase).not.toBe('loading');
 });

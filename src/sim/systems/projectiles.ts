@@ -27,7 +27,7 @@ function blocked(w:World,obstacles:readonly Entity[],p:Projectile,x:number,y:num
 }
 function penetrationMultiplier(p:Projectile,e:Entity):number {
   const armor=armorValue(e,hitFace(p.x-p.vx,p.z-p.vz,e));
-  const mult=penetrationFactor(p.warhead??"he",p.penetration??0,armor,e.def.category==="infantry"||e.def.armor==="air",Math.hypot(p.x-(p.launchX??p.x),p.z-(p.launchZ??p.z)));
+  const mult=penetrationFactor(p.warhead??"he",p.penetration??0,armor,e.def.category==="infantry"||e.def.armor==="air",Math.hypot(p.x-(p.launchX??p.x),p.z-(p.launchZ??p.z)),e.def);
   return mult*(p.warhead==="heat"?1-(equipmentModule(e,"protection")?.heatProtection??0):1);
 
 }

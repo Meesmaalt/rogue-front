@@ -1,3 +1,4 @@
+import balance from "../data/faction-balance.json";
 import platforms from "../data/platforms.json";
 import type { UnitKind } from "./types";
 
@@ -66,13 +67,7 @@ const USA: FactionDef = {
   airExtra: ["interceptor", "bomber", "casHeli", "ecm", "multirole", "attackAircraft"],
   seaExtra: ["frigate", "missileBoat"],
   bonuses: {
-    armorMul: 1.04,
-    speedMul: 1.0,
-    damageMul: 1.0,
-    buildCostMul: 1.06,
-    opticsMul: 1.18,
-    supplyEfficiency: 1.1,
-    moraleMul: 1.08,
+    ...balance.usa,
     prefer: { fighter: 1.3, interceptor: 1.2, ifv: 1.15, reconVehicle: 1.25, ecm: 1.2, multirole: 1.25, gunship: 1.1, tank: 1.0 },
   },
   doctrineBlurb: "Kvaliteet, optika ja õhuvõime. Kallim, aga näeb esimesena.",
@@ -110,16 +105,10 @@ const RUSSIA: FactionDef = {
   airExtra: ["interceptor", "bomber", "casHeli", "ecm", "multirole", "attackAircraft"],
   seaExtra: ["frigate", "missileBoat"],
   bonuses: {
-    armorMul: 1.1,
-    speedMul: 0.95,
-    damageMul: 1.06,
-    buildCostMul: 0.92,
-    opticsMul: 0.92,
-    supplyEfficiency: 0.95,
-    moraleMul: 1.0,
+    ...balance.russia,
     prefer: { tank: 1.25, artillery: 1.3, mlrs: 1.2, atgm: 1.25, spaa: 1.25, mortar: 1.15, inf: 1.1 },
   },
-  doctrineBlurb: "Raske soomus, suurtükivägi ja AA. Odavam mass, aeglasem manööver.",
+  doctrineBlurb: "Raske soomus, suurtükivägi ja õhutõrje. Vastupidavus väiksema liikuvuse arvelt.",
 };
 
 const CHINA: FactionDef = {
@@ -154,13 +143,7 @@ const CHINA: FactionDef = {
   airExtra: ["interceptor", "bomber", "casHeli", "ecm", "multirole", "attackAircraft"],
   seaExtra: ["frigate", "missileBoat"],
   bonuses: {
-    armorMul: 1.0,
-    speedMul: 1.06,
-    damageMul: 0.98,
-    buildCostMul: 0.9,
-    opticsMul: 1.0,
-    supplyEfficiency: 1.15,
-    moraleMul: 0.98,
+    ...balance.china,
     prefer: { ifv: 1.25, apc: 1.2, mlrs: 1.25, lightTank: 1.2, atInf: 1.15, inf: 1.15, fighter: 1.05 },
   },
   doctrineBlurb: "Mobiilsus, IFV/APC tihedus, odav logistika. Rocket arty kaal.",

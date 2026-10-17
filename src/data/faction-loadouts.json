@@ -390,12 +390,6 @@
           "muzzleHeight": 2.82,
           "muzzle": 0.8,
           "muzzleSide": 0.95
-        },
-        {
-          "profile": "ir-sam",
-          "ammoCapacity": 4,
-          "range": 95,
-          "damage": 32
         }
       ],
       "ability": "Mobiilne õhutõrje: kahur lähiohu ja jalaväe vastu; piiratud raketid pikemale õhuohule, peatub raketilasuks"
@@ -1038,12 +1032,6 @@
           "muzzleHeight": 2.52,
           "muzzle": 0.8,
           "muzzleSide": 0.95
-        },
-        {
-          "profile": "ir-sam",
-          "ammoCapacity": 4,
-          "range": 95,
-          "damage": 32
         }
       ],
       "ability": "Mobiilne õhutõrje: kahur lähiohu ja jalaväe vastu; piiratud raketid pikemale õhuohule, peatub raketilasuks"
@@ -1686,12 +1674,6 @@
           "muzzleHeight": 2.82,
           "muzzle": 0.8,
           "muzzleSide": 0.95
-        },
-        {
-          "profile": "ir-sam",
-          "ammoCapacity": 4,
-          "range": 95,
-          "damage": 32
         }
       ],
       "ability": "Mobiilne õhutõrje: kahur lähiohu ja jalaväe vastu; piiratud raketid pikemale õhuohule, peatub raketilasuks"

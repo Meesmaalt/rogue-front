@@ -858,6 +858,17 @@
       {
         "profile": "ir-sam"
       }
+    ],
+    "engineer": [
+      {
+        "profile": "rifle",
+        "damage": 4,
+        "cooldown": 0.8,
+        "range": 24,
+        "penetration": 3,
+        "accuracy": 0.5,
+        "ammoCapacity": 180
+      }
     ]
   }
 }
