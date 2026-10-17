@@ -24,3 +24,8 @@ test('v15 adds an independent lake switch without changing historical option mas
  assert.equal(isProceduralMapId('procedural-v15-balanced-4096-43-o32'),false);
  assert.equal(isProceduralMapId('procedural-v14-balanced-4096-43-o16'),false);
 });
+
+test('v16 symmetric industry maps accept all terrain options',()=>{
+ for(const size of [2048,2560,3072,4096,5120,6144])assert.equal(isProceduralMapId(`procedural-v16-balanced-${size}-43-o31`),true);
+ assert.equal(isProceduralMapId('procedural-v16-balanced-2048-43-o32'),false);
+});

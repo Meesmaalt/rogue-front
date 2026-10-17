@@ -101,5 +101,6 @@
     "rotorPulseSharpness": 10,
     "rotorTurbulence": 0.18,
     "dopplerSoundSpeed": 343
-  }
+  },
+  "logisticsAircraft": {"volume": 0.55, "referenceDistance": 115, "maxDistance": 1100}
 }

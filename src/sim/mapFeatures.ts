@@ -18,6 +18,7 @@ export interface MapFeatureDef {
   blocksMovement?: boolean;
   /** Optional tactical metadata used by UI/rendering. */
   label?: string;
+  facilityKind?: "mine"|"oilfield"|"factory"|"depot";
   appearance?: "forest" | "field" | "farmhouse" | "hedge" | "resource-industrial" | "resource-oil" | "yard";
   color?: number;
   /** Crop-row direction only; polygon bounds remain axis aligned for spatial queries. */

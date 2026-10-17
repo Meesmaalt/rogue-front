@@ -1,5 +1,5 @@
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
-import {AudioManager,spatialSound} from './Audio';
+import {AudioManager,spatialSound,engineSound} from './Audio';
 import type {Entity} from '../sim/types';
 import type {GameSettings} from '../ui/Settings';
 class Param{value=0;setValueAtTime(v:number,..._args:unknown[]){this.value=v;}setTargetAtTime(v:number,..._args:unknown[]){this.value=v;}exponentialRampToValueAtTime(v:number,..._args:unknown[]){this.value=v;}}
@@ -132,3 +132,12 @@ it('visible units remain audible without selection and hidden units are silent',
 });
 
 it('zooming out reduces positional volume even with the same ground focus',()=>{const near=spatialSound(0,0,{x:0,z:0,yaw:0,distance:50}),far=spatialSound(0,0,{x:0,z:0,yaw:0,distance:900});expect(near.gain).toBeGreaterThan(far.gain*5);expect(spatialSound(800,0,{x:0,z:0,yaw:0,distance:50}).gain).toBeLessThan(near.gain);});
+
+it('automatic resource flights fade much earlier than player aircraft, without requiring selection',()=>{
+ const supply={kind:'transport',supplyDepotId:1,x:450,z:0} as Entity,player={...supply,supplyDepotId:undefined};
+ const listener={x:0,z:0,yaw:0,distance:80};
+ expect(engineSound(supply,listener).gain).toBeLessThan(engineSound(player,listener).gain*.15);
+ expect(engineSound({...supply,x:40},listener).gain).toBeGreaterThan(engineSound(supply,listener).gain*5);
+ expect(engineSound({...supply,x:1200},listener).gain).toBe(0);
+ expect(engineSound({...supply,kind:'cargoPlane'},listener).gain).toBe(engineSound(supply,listener).gain);
+});

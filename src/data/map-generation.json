@@ -606,6 +606,7 @@
     "junctionSnapDistance": 6,
     "junctionMinimumAngle": 0.25,
     "minimumRoadPiece": 2,
-    "minimumLakes": 2
+    "minimumLakes": 2,
+    "initialFactoryStock": 150
   }
 }

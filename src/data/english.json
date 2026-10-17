@@ -710,5 +710,19 @@
   "Kõiki ressursirajatisi ei õnnestunud paigutada": "Not all resource facilities could be placed",
   "Ressursirajatisele puudub maapealne ligipääs": "A resource facility has no ground access",
   "Vali uus seeme.": "Choose another seed.",
-  "Järvedele ei leidunud piisavalt vaba kaldaruumi": "Not enough clear shoreline space for lakes"
+  "Järvedele ei leidunud piisavalt vaba kaldaruumi": "Not enough clear shoreline space for lakes",
+  "Varustustehas": "Supply works",
+  "Naftatöötlemistehas": "Oil refinery",
+  "Masinatehas": "Machine works",
+  "Rikastustehas": "Ore processing plant",
+  "Veok teel": "Truck en route",
+  "HQ juures": "At HQ",
+  "Veok laeb": "Truck loading",
+  "Ootab veokit": "Awaiting truck",
+  "Vajab peamaja": "HQ required",
+  "Luura rajatist": "Scout facility",
+  "Seisatud": "Offline",
+  "Käivitus": "Starting up",
+  "lahinguinsenerid": "combat engineers",
+  "Laos": "Stock"
 }

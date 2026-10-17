@@ -7,12 +7,12 @@ const cfg=config.mapRefinement;
 const distance=(a:Point,b:Point)=>Math.hypot(a.x-b.x,a.z-b.z);
 
 /** Try complete shore footprints in free lowland pockets, not three random center points. */
-export function addInteriorLakes(size:number,rng:Rng,features:MapFeatureDef[],protectedPoints:readonly (Point&{r:number})[]):void {
+export function addInteriorLakes(size:number,rng:Rng,features:MapFeatureDef[],protectedPoints:readonly (Point&{r:number})[],paired=false):void {
  const random=(a:number,b:number)=>a+(b-a)*rng.next();
- const count=Math.min(cfg.maxLakes,Math.max(cfg.minimumLakes,Math.floor(size/cfg.lakeCountDivisor)+1));
+ const requested=Math.min(cfg.maxLakes,Math.max(cfg.minimumLakes,Math.floor(size/cfg.lakeCountDivisor)+1)),count=paired?Math.max(2,Math.floor(requested/2)*2):requested;
  const blockers=features.filter(f=>['road','bridge','building','water'].includes(f.kind)||f.appearance==='yard');
  const index=new MapFeatureIndex(blockers),placed:MapFeatureDef[]=[];
- for(let i=0;i<count;i++)for(let attempt=0;attempt<cfg.lakeAttempts;attempt++){
+ for(let i=0;i<count;i+=paired?2:1)for(let attempt=0;attempt<cfg.lakeAttempts;attempt++){
   const width=Math.min(cfg.lakeMaximumWidth,size*random(...cfg.lakeWidthRatio as [number,number])),depth=width*random(...cfg.lakeDepthRatio as [number,number]);
   const side=i%2?-1:1,x=side*size*random(.09,.36),z=size*(i<2?(i===0?-1:1)*random(.09,.34):random(-.34,.34)),phase=random(0,Math.PI*2);
   const polygon=Array.from({length:cfg.lakeVertices},(_,j)=>{
@@ -22,10 +22,14 @@ export function addInteriorLakes(size:number,rng:Rng,features:MapFeatureDef[],pr
   });
   const xs=polygon.map(p=>p.x),zs=polygon.map(p=>p.z),minX=Math.min(...xs),maxX=Math.max(...xs),minZ=Math.min(...zs),maxZ=Math.max(...zs);
   const f:MapFeatureDef={id:`basin-lake-${i}`,kind:'water',waterBody:'lake',x:(minX+maxX)/2,z:(minZ+maxZ)/2,width:maxX-minX,depth:maxZ-minZ,polygon,surfaceHeight:-.8,blocksMovement:true,label:i===0?'Suurjärv':'Metsajärv'};
-  if(protectedPoints.some(p=>distance(p,f)<p.r+Math.max(f.width,f.depth)/2+cfg.shoreClearance))continue;
-  const nearby=index.query(minX-cfg.shoreClearance,minZ-cfg.shoreClearance,maxX+cfg.shoreClearance,maxZ+cfg.shoreClearance);
-  if([...nearby,...placed].some(o=>footprintsOverlap(f,o,cfg.shoreClearance)))continue;
-  features.push(f);placed.push(f);break;
+  const candidates=paired?[f,{...f,id:`basin-lake-${i+1}`,x:-f.x,z:-f.z,polygon:f.polygon!.map(p=>({x:-p.x,z:-p.z}))}]:[f];
+  if(candidates.some(candidate=>{
+   if(protectedPoints.some(p=>distance(p,candidate)<p.r+Math.max(candidate.width,candidate.depth)/2+cfg.shoreClearance))return true;
+   const x=candidate.x,z=candidate.z,w=candidate.width/2+cfg.shoreClearance,d=candidate.depth/2+cfg.shoreClearance;
+   const nearby=index.query(x-w,z-d,x+w,z+d);
+   return [...nearby,...placed].some(o=>footprintsOverlap(candidate,o,cfg.shoreClearance));
+  })||paired&&footprintsOverlap(candidates[0],candidates[1],cfg.shoreClearance))continue;
+  features.push(...candidates);placed.push(...candidates);break;
  }
 }
 

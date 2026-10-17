@@ -32,7 +32,7 @@ function clip(points:Point[],nx:number,nz:number,limit:number):Point[] {
 
 export const GENERATED_MAP_SIZES:readonly number[]=config.largeSizes;
 export const METRIC_MAP_SIZES:readonly number[]=battleScale.mapSizes;
-export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5|6|7|8|9|10|11|12|13|14|15=[2560,3072,5120].includes(requestedSize)?11:requestedSize>=4096?10:8,options?:MapOptions):MissionDef {
+export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="balanced",requestedSize=config.defaultSize,generationVersion:3|4|5|6|7|8|9|10|11|12|13|14|15|16=[2560,3072,5120].includes(requestedSize)?11:requestedSize>=4096?10:8,options?:MapOptions):MissionDef {
   // 1280 retains v2 geometry for existing saved matches; v3 sizes are deliberately bounded.
   const legacy=requestedSize===config.size;
   if((requestedSize>=4096&&generationVersion<9)||(!legacy&&![...GENERATED_MAP_SIZES,...METRIC_MAP_SIZES].includes(requestedSize)))throw new Error("Kaardi suurus pole toetatud");
@@ -60,8 +60,10 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
     // Frontier villages sit on the opposite side of their main city, leaving room for dense wards.
     for(const i of [4,6])towns[i].z=-Math.sign(towns[i].x)*size*random(.045,.10);
   }
+  // Shared strategic anchors; local streets, parcels and vegetation remain organic.
+  if(generationVersion>=16){for(const [a,b] of [[0,1],[2,3],[4,6],[5,7]]){towns[b]={...towns[a],x:-towns[a].x,z:-towns[a].z,angle:towns[a].angle+Math.PI};}}
   const phase=random(-.3,.3),amplitude=generationVersion>=11?size*random(...config.freshGeneration.riverAmplitudeRatio as [number,number]):random(38,70);
-  const riverX=(z:number)=>(volcanic?size*cfg.riverOffsetRatio:0)+Math.sin(z/size*Math.PI*2+phase)*amplitude+Math.sin(z/size*Math.PI*5)*13;
+  const riverX=(z:number)=>(volcanic&&generationVersion<16?size*cfg.riverOffsetRatio:0)+Math.sin(z/size*Math.PI*2+(generationVersion>=16?0:phase))*amplitude+Math.sin(z/size*Math.PI*5)*13;
   const blocked=(p:Point,r:number,kinds:readonly string[]=["building","water"])=>features.some(f=>(kinds.includes(f.kind)||generationVersion>=15&&f.id.startsWith("base-airfield-yard-"))&&pointInFeature(p.x,p.z,f,r));
   const road=(id:string,a:Point,b:Point,width:number,roadClass:MapFeatureDef["roadClass"]="secondary")=>{
     const length=distance(a,b);if(length<.1)return;
@@ -88,17 +90,19 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
   features.push({...polygonFeature("lake",shore,"field"),kind:"water",appearance:undefined,waterBody:"lake",surfaceHeight:-.8,blocksMovement:true,label:"Järv"});
   }
   if(options?.sea??archetype==="coastal")features.push({id:"sea",kind:"water",waterBody:"sea",x:0,z:-half+38,width:size,depth:76,surfaceHeight:-.8,label:"Meri"});
+  if(generationVersion>=16&&(options?.sea??archetype==="coastal"))features.push({id:"sea-opposite",kind:"water",waterBody:"sea",x:0,z:half-38,width:size,depth:76,surfaceHeight:-.8,label:"Meri"});
   const crossingZ=[-size*random(.22,.26),random(-20,20),size*random(.22,.26)],bridges:MapFeatureDef[]=[];
   for(let i=0;i<crossingZ.length;i++){
     const z=crossingZ[i],b:MapFeatureDef={id:`bridge-${i}`,kind:(options?.river??true)?"bridge":"road",x:riverX(z),z,width:generationVersion>=9?16:10,depth:56,rotation:Math.PI/2,surfaceHeight:1.4,label:"Jõesild"};features.push(b);bridges.push(b);
   }
+  if(generationVersion>=16){crossingZ[1]=0;crossingZ[2]=-crossingZ[0];for(let i=0;i<bridges.length;i++){bridges[i].x=riverX(crossingZ[i]);bridges[i].z=crossingZ[i];}}
   const through=(town:typeof towns[number],sign:number):Point[]=>{
     const cols=archetype==="urban"&&town.blocks===3?4:town.blocks;
     const x=-cols*config.blockWidth/2+Math.ceil(cols/2)*config.blockWidth,z=town.blocks*config.blockDepth/2+35;
     return [sign,-sign].map(side=>({x:town.x+x*Math.cos(town.angle)+side*z*Math.sin(town.angle),z:town.z-x*Math.sin(town.angle)+side*z*Math.cos(town.angle)}));
   };
   corridor("west-spine",[bases[0],...through(towns[2],1),{x:towns[0].x+21,z:130},...through(towns[0],1),{x:-size*.29,z:-half+(landscape&&archetype==="coastal"?95:65)}]);
-  corridor("east-spine",[bases[1],...through(towns[3],-1),{x:towns[1].x+21,z:-130},...through(towns[1],-1),{x:size*.29,z:half-65}]);
+  corridor("east-spine",[bases[1],...through(towns[3],generationVersion>=16?1:-1),{x:towns[1].x+(generationVersion>=16?-21:21),z:-130},...through(towns[1],generationVersion>=16?1:-1),{x:size*.29,z:half-(generationVersion>=16&&archetype==="coastal"?95:65)}]);
   for(let i=0;i<bridges.length;i++){
     const b=bridges[i];corridor(`cross-west-${i}`,[{x:-size*.35,z:b.z},{x:b.x-b.depth/2,z:b.z}]);
     corridor(`cross-east-${i}`,volcanic&&i===1?[{x:b.x+b.depth/2,z:b.z},{x:-size*.10,z:size*cfg.bypassRatio},{x:size*.10,z:size*cfg.bypassRatio},{x:size*.35,z:b.z}]:[{x:b.x+b.depth/2,z:b.z},{x:size*.35,z:b.z}]);
@@ -155,7 +159,7 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
   }
   if(!legacy){
     // Small lakes occupy unbuilt meadow pockets: real water/nav masks, never cosmetic blue decals.
-    if(generationVersion>=15&&(options?.lakes??true))addInteriorLakes(size,rng,features,[...bases.map(b=>({...b,r:b.r+180})),...towns.map(t=>({...t,r:t.blocks*25})),...([{x:-size*.31,z:size*.17},{x:size*.31,z:-size*.17},volcanic?{x:size*.09,z:size*.13}:{x:-110,z:40},{x:-size*.29,z:-size*.29},{x:size*.29,z:size*.29},{x:size*.13,z:-size*.08},{x:-size*.13,z:size*.08},{x:-size*.25,z:-size*.39},{x:size*.25,z:size*.39}].map(p=>({...p,r:75})))]);
+    if(generationVersion>=15&&(options?.lakes??true))addInteriorLakes(size,rng,features,[...bases.map(b=>({...b,r:b.r+180})),...towns.map(t=>({...t,r:t.blocks*25})),...([{x:-size*.31,z:size*.17},{x:size*.31,z:-size*.17},volcanic?{x:size*.09,z:size*.13}:{x:-110,z:40},{x:-size*.29,z:-size*.29},{x:size*.29,z:size*.29},{x:size*.13,z:-size*.08},{x:-size*.13,z:size*.08},{x:-size*.25,z:-size*.39},{x:size*.25,z:size*.39}].map(p=>({...p,r:75})))],generationVersion>=16);
     for(let i=0;i<(generationVersion<15?3:0);i++){
       const p={x:random(-half+140,half-140),z:random(-half+140,half-140)};
       if(blocked(p,85,["road","building","water"])||bases.some(b=>distance(p,b)<b.r+110))continue;
@@ -247,17 +251,27 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
   const resources:MapResourceDef[]=[];
   const desired=[{x:-size*.31,z:size*.17},{x:size*.31,z:-size*.17},volcanic?{x:size*.09,z:size*.13}:{x:-110,z:40},{x:-size*.29,z:-size*.29},{x:size*.29,z:size*.29}];
   if(!legacy)desired.push({x:size*.13,z:-size*.08},{x:-size*.13,z:size*.08},{x:-size*.25,z:-size*.39},{x:size*.25,z:size*.39});
+  if(generationVersion>=16)desired[2]={x:0,z:0};
+  const paired=new Map([[0,1],[3,4],[5,6],[7,8]]);
   for(let i=0;i<desired.length;i++){
+    const previous=generationVersion>=16?[...paired].find(([,b])=>b===i)?.[0]:undefined;
+    if(previous!=null)desired[i]={x:-resources[previous].x,z:-resources[previous].z};
     let chosen:Point|undefined,offset:Point|undefined;
     for(let radius=0;radius<=96&&!chosen;radius+=16)for(let n=0;n<16&&!chosen;n++){
       const p={x:desired[i].x+Math.sin(n*Math.PI/8)*radius,z:desired[i].z+Math.cos(n*Math.PI/8)*radius};
       if((landscape&&ridgeReliefAt(p,landscapeForms)>2)||blocked(p,6)||bases.some(b=>distance(p,b)<b.r+100))continue;
+      if(generationVersion>=16&&paired.has(i)){
+        const mirror={x:-p.x,z:-p.z};
+        if(blocked(mirror,6)||(landscape&&ridgeReliefAt(mirror,landscapeForms)>2)||bases.some(b=>distance(mirror,b)<b.r+100))continue;
+      }
+      if(previous!=null&&radius>0)continue;
       for(const off of [{x:22,z:18},{x:-22,z:-18},{x:22,z:-18},{x:-22,z:18},{x:0,z:26}]){
-        if(blocked({x:p.x+off.x,z:p.z+off.z},9,["building","road","water"]))continue;chosen=p;offset=off;break;
+        if(blocked({x:p.x+off.x,z:p.z+off.z},9,["building","road","water"])||generationVersion>=16&&paired.has(i)&&blocked({x:-p.x-off.x,z:-p.z-off.z},9,["building","road","water"]))continue;chosen=p;offset=off;break;
       }
     }
     if(!chosen||!offset)throw new Error("Kaardigeneraator ei leidnud turvalist ressursikohta");
-    resources.push({...chosen,amount:legacy?config.resourceStock:config.regionalResourceStock,maxStock:legacy?config.resourceStock:config.regionalResourceStock,radius:config.resourceRadius,controlledBy:null,controlProgress:.5,facility:["depot","depot","factory","mine","oilfield","factory","factory","oilfield","mine"][i] as MapResourceDef["facility"],level:1,active:false,startupProgress:0,productionRate:0,disabledUntil:0,facilityOffset:offset,label:i<2?"Kodupiirkonna ladu":i===2||i===5||i===6?"Rinde tööstus":i>=7?"Tagala tööstus":"Tööstusala"});
+    resources.push({...chosen,amount:generationVersion>=16?config.mapRefinement.initialFactoryStock:legacy?config.resourceStock:config.regionalResourceStock,maxStock:legacy?config.resourceStock:config.regionalResourceStock,radius:config.resourceRadius,controlledBy:null,controlProgress:.5,facility:(generationVersion>=16?["depot","depot","factory","oilfield","oilfield","factory","factory","mine","mine"]:["depot","depot","factory","mine","oilfield","factory","factory","oilfield","mine"])[i] as MapResourceDef["facility"],level:1,active:false,startupProgress:0,productionRate:0,disabledUntil:0,facilityOffset:offset,label:i<2?"Kodupiirkonna ladu":i===2||i===5||i===6?"Rinde tööstus":i>=7?"Tagala tööstus":"Tööstusala"});
+    if(generationVersion>=16){const names={depot:"Varustustehas",oilfield:"Naftatöötlemistehas",factory:"Masinatehas",mine:"Rikastustehas"};resources[i].label=names[resources[i].facility!];}
     const facility={x:chosen.x+offset.x,z:chosen.z+offset.z};features.push({id:`resource-yard-${i}`,kind:"cover",appearance:"yard",...facility,width:32,depth:26,color:0x8d9085,blocksMovement:false});
     let closest:Point|undefined,best=Infinity;
     for(const r of features.filter(f=>f.kind==="road")){
@@ -323,10 +337,10 @@ export function generateProceduralMap(inputSeed:number,archetype:MapArchetype="b
 export const FOCUS_MAP=greenValley as unknown as MissionDef;
 export const CURATED_MAPS:readonly MissionDef[]=[];
 export function getPlayableMap(id:string):MissionDef|undefined {
-  const custom=/^(procedural-v(?:13|14|15)-(?:balanced|river|highlands|urban|coastal|forest)-(?:2048|2560|3072|4096|5120|6144)-(\d+))-o(\d+)$/.exec(id);
-  if(custom){const mask=Number(custom[3]);if(mask>(custom[1].startsWith("procedural-v15-")?31:15)||String(mask)!==custom[3]||Number(custom[2])>4294967295)return undefined;const parts=custom[1].split('-');return generateProceduralMap(Number(custom[2]),parts[2] as MapArchetype,Number(parts[3]),Number(parts[1].slice(1)) as 13|14|15,decodeMapOptions(mask));}
-  const current=/^procedural-v(11|12|13|14|15)-(balanced|river|highlands|urban|coastal|forest)-(2048|2560|3072|4096|5120|6144)-(\d+)$/.exec(id);
-  if(current)return Number(current[4])<=4294967295?generateProceduralMap(Number(current[4]),current[2] as MapArchetype,Number(current[3]),Number(current[1]) as 11|12|13|14|15):undefined;
+  const custom=/^(procedural-v(?:13|14|15|16)-(?:balanced|river|highlands|urban|coastal|forest)-(?:2048|2560|3072|4096|5120|6144)-(\d+))-o(\d+)$/.exec(id);
+  if(custom){const mask=Number(custom[3]);if(mask>(/^procedural-v(?:15|16)-/.test(custom[1])?31:15)||String(mask)!==custom[3]||Number(custom[2])>4294967295)return undefined;const parts=custom[1].split('-');return generateProceduralMap(Number(custom[2]),parts[2] as MapArchetype,Number(parts[3]),Number(parts[1].slice(1)) as 13|14|15|16,decodeMapOptions(mask));}
+  const current=/^procedural-v(11|12|13|14|15|16)-(balanced|river|highlands|urban|coastal|forest)-(2048|2560|3072|4096|5120|6144)-(\d+)$/.exec(id);
+  if(current)return Number(current[4])<=4294967295?generateProceduralMap(Number(current[4]),current[2] as MapArchetype,Number(current[3]),Number(current[1]) as 11|12|13|14|15|16):undefined;
   const metric=/^procedural-v(9|10)-(balanced|river|highlands|urban|coastal|forest)-(4096|6144)-(\d+)$/.exec(id);
   if(metric)return Number(metric[4])<=4294967295?generateProceduralMap(Number(metric[4]),metric[2] as MapArchetype,Number(metric[3]),Number(metric[1]) as 9|10):undefined;
   const regional=/^procedural-v(3|4|5|6|7|8)-(balanced|river|highlands|urban|coastal|forest)-(1536|1792|2048)-(\d+)$/.exec(id);

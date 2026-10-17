@@ -150,7 +150,7 @@
     "pathNodeBudget": 6000
   },
   "resourceConvoys": {
-    "dispatchInterval": 24,
+    "dispatchInterval": 4,
     "capacity": 150,
     "loadSeconds": 4.5,
     "pickupArrival": 2,
@@ -159,7 +159,6 @@
     "workerPickupSeconds": 1.2,
     "workerUnloadSeconds": 1.2,
     "workerArrival": 0.8,
-    "pathSearchLimit": 6000,
     "dock": {
       "x": 13,
       "z": 26,

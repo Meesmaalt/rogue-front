@@ -6,6 +6,16 @@ Hetkeseisu koodipõhine ülevaade ja järgmiste muudatuste sõltuvused: [DEVELOP
 
 
 
+## V16: tootmisrajatised ja toimiv pikk veoring · 17.10.2026
+
+Värske generaator, ettevalmistuse worker, menüü ning server toetavad `procedural-v16`. V15 ja varasemad ID-d jäävad oma versiooni kasutama. V16 teeb põhilised asulaankrud vastandpaarideks ning jõemeandri keskpunkti suhtes paarituks; keskne sild on nullpunktis ja välimised sillad vastandlikud. Järvi paigutatakse kahekaupa, kontrollides enne mõlema kaldapolügooni sobivust teede, hoonete ning kaitstud punktidega. Ressursipaaridel 0/1, 3/4, 5/6 ja 7/8 on vastandlik asukoht ning võrdsed rajatisetüübid ja varud; keskne tehas jääb ühisesse vaidlusalasse. See tasakaalustab strateegilisi ankrupunkte, mitte iga puud ega iga kõrgusvälja elementi.
+
+V16 tehases on algul `mapRefinement.initialFactoryStock` (150) kaubaühikut. Pärast inseneridega käivitamist kasvatab senine tootmissüsteem varu kuni 2400-ni. Naftatöötlemine, rikastus, masina- ja varustustootmine kasutavad olemasolevaid erinevaid tootmiskiirusi ning ühist varustusmajandust. `ResourceIndustry` asendab suurte mängijatehaste taaskasutuse nelja kompaktse mudeliga; geomeetria mahub 13 × 12 m nav-takistusse ja on staatiliselt materjalide järgi koondatud. `MapFeatureDef.facilityKind` annab renderdusele tootmisala tüübi. `ResourceSites` näitab tootmist, laoseisu ja veoki faasi eraldi ridadel, ka inglise keeles.
+
+`dispatchResourceConvoys` ei kasuta enam lühikese A* otsingu ebaõnnestumist veoki loomise keeluna. See kontroll andis keerulisel/pikal läbitaval marsruudil tühja tulemuse ja veok jäi igavesti loomata. Kohapeal loodud rajatise veok kasutab päris sõidukontrolleri teeotsingut; hiljem ehitatud takistused tekitavad marsruudi kordusotsingu. Üks rajatis saab ühe oma veoki, mitte mängija ostetud sõiduki. Kontrollintervall on 4 s; tegelik raha tekib endiselt alles HQ vaba meeskonna füüsilisel kastide üleandmisel.
+
+`Audio.engineSound` rakendab automaatsetele varustuslendudele ja ehituslennule `audio.logisticsAircraft` nõrgema kaugusprofiili. Stereo, kaamera suum, nähtavuse kontroll, mootorifaasi heli ja piiratud heliallikate arv säilivad. Valimata nähtavad üksused jäävad kuuldavaks; mängija enda lahingulennunduse heli ei lühendata.
+
 ## V15: sidus teedevõrk ja ruumiga arvestavad järved · 17.10.2026
 
 Uus menüü/worker/serveri värske generaator kasutab `procedural-v15`. `MapOptions.lakes` on valikuline ja vaikimisi lubatud. Valikumaski bit 16 keelab järved; vanad 0–15 maskid säilitavad vaikimisi järvedega käitumise. Ainult v15 lubab maske kuni 31. `getPlayableMap`, serveri poliitika, meetri-/kompaktskaala tuvastus ja kaardi ettevalmistus tunnevad sama versiooni; vanad v2–v14 ID-d jätkavad oma generaatoriga.

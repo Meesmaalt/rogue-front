@@ -1,5 +1,16 @@
 # Aktiivne viimistlusjärjekord — 10.10.2026
 
+## Hõivatavad tehased, toimiv HQ veoring ja võrdsem kaart · 17.10.2026
+
+- [x] Eemaldatud automaatveoki loomise 6000-sõlmeline eelkontroll, mis lükkas tagasi tegelikult läbitavaid pikki jõetaguseid marsruute. Sõit kasutab olemasolevat täielikku maanteeplaneerijat, takistuse korral ootab ja proovib uuesti. Väljasaatmise kontroll iga 4 s; üks rajatisele kuuluv veok, ostetud veokeid ei võeta üle.
+- [x] Päris genereeritud kaardi kontroll: lahinguinsener hõivab ja käivitab tehase, veok toob kauba HQ juurde ning vaba ehitusmeeskond kannab selle majja. Eraldi regressioon varem tagasilükatud pika jõetaguse marsruudiga.
+- [x] Neli kompaktset nav-jalajälge austavat tsiviiltootmismudelit: varustustehas, masinatehas, naftatöötlemistehas ja rikastustehas. V16 algvaru 150, ülempiir 2400; käivitatud rajatis toodab juurde. Tootmise/laoseisu kõrval eraldi veoringi olek ning ET/EN nimed.
+- [x] V16 strateegilised asulaankrud, sümmeetrilisem jõgi ja sillaületused, paaridena paigutatud ebaühtlase kaldaga järved ning nelja ressursipaari täpselt vastandlik asukoht, sama rajatisetüüp ja varu. Kohalikud kvartalid, põllud, taimestik ja reljeef säilitavad loomuliku varieeruvuse. Varasemad kaardiversioonid rekonstrueeritakse oma generaatoriga.
+- [x] Ressursikopteritel ja -lennukitel oma helikaugus ja tugevus: 55% lähtetugevus, 115 m võrdluskaugus ja 1100 m piir; valiku nõuet pole. Mängija lahingulennukite kaugus säilib.
+- [x] Sihitud veoringi-, kaardi-, mudelimõõtude-, heli-, keele- ja serveripoliitika kontrollid; kliendi/serveri build. Täielikku testikomplekti ei käivitatud.
+- [ ] Tegelik 3D-pilt, helitugevuse mängutunnetus ja FPS vajavad mängus vaatlust; siin kontrolliti simulatsiooni, geomeetriat ja ehitust.
+
+
 
 
 

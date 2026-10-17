@@ -1,3 +1,4 @@
+import {createResourceIndustry} from './ResourceIndustry';
 import {createItalianScenery} from './ItalianScenery';
 import {createCropFields,fieldCrop,cropColors} from "./CropFields";
 import {createRoadSurfaces,roadTexture as asphaltTexture} from "./RoadSurface";
@@ -6,7 +7,7 @@ import {applyTerrainDetail,createTerrainDetailTexture,terrainNoise} from "./Terr
 import terrainConfig from "../data/terrain.json";
 import {isGarrisonBuilding,GARRISON_RULES} from "../sim/garrison";
 import * as THREE from "three";
-import {createCivilianBuilding,createBuildingModel,batchStaticScene} from "./Architecture";
+import {createCivilianBuilding,batchStaticScene} from "./Architecture";
 import { getBases, MAP_SIZE, heightAt,groundHeightAt } from "../sim/heightmap";
 import { mulberry32 } from "../sim/rng";
 import { pointInFeature, isSeaFeature, featureCorners, forestDensityAt, MapFeatureIndex, type MapFeatureDef } from "../sim/mapFeatures";
@@ -474,8 +475,8 @@ function createMapFeatures(features: readonly MapFeatureDef[],landscapeAtlas=fal
       continue;
     }
     if(f.appearance==="resource-industrial"||f.appearance==="resource-oil"){
-      const model=createBuildingModel(f.appearance==="resource-oil"?"refinery":"factory",0,"russia")!;
-      model.group.position.set(f.x,y,f.z);group.add(model.group);continue;
+      const model=createResourceIndustry(f.facilityKind??(f.appearance==="resource-oil"?"oilfield":"factory"));
+      model.position.set(f.x,y,f.z);group.add(model);continue;
     }
     if (f.kind === "building" || f.kind === "wall" || f.kind === "chokepoint") {
       const h = f.height ?? (f.kind === "wall" ? 3.2 : f.kind === "chokepoint" ? 2.8 : 8);

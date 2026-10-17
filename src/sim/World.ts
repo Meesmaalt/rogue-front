@@ -293,7 +293,7 @@ export class World {
       { x: -70, z: 70, amount: 1000, radius: 12 }, { x: 70, z: -70, amount: 1000, radius: 12 },
     ];
     this.mapFeatures = [...features.map(f=>({...f})),...(baseDefenses?generateBaseFeatures(this.bases):[]),
-      ...this.resourcePoints.map((rp,i):MapFeatureDef=>({id:`resource-facility-${i}`,kind:"building",x:rp.x+(rp.facilityOffset?.x??18),z:rp.z+(rp.facilityOffset?.z??0),width:13,depth:12,height:6,garrisonable:false,appearance:rp.facility==="oilfield"?"resource-oil":"resource-industrial",label:rp.label??"Ressursirajatis"}))];
+      ...this.resourcePoints.map((rp,i):MapFeatureDef=>({id:`resource-facility-${i}`,kind:"building",x:rp.x+(rp.facilityOffset?.x??18),z:rp.z+(rp.facilityOffset?.z??0),width:13,depth:12,height:6,garrisonable:false,facilityKind:rp.facility??"depot",appearance:rp.facility==="oilfield"?"resource-oil":"resource-industrial",label:rp.label??"Ressursirajatis"}))];
     this.rng = () => this.rngState.next();
     this.nav = new NavGrid([], this.mapFeatures);
     this.waterNav=new WaterNavGrid(this.mapFeatures);

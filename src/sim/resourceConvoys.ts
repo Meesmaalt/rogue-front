@@ -1,7 +1,6 @@
 import rules from '../data/logistics.json';
 import life from '../data/base-life.json';
 import {basePoint} from './baseLayout';
-import {findPath} from './nav/Pathfinder';
 import {dist2d} from './math';
 import type {Entity,Point} from './types';
 import type {World} from './World';
@@ -23,7 +22,8 @@ export function dispatchResourceConvoys(w:World,lastSpawn:[number,number]):void 
    const pickup=[0,1,-1,2,-2].map(n=>w.nav.nearestWalkable({x:site.x+n*(def.radius*2+1),z:site.z},def.radius)).find(p=>p&&dist2d(p,site)<=site.radius+cfg.pickupArrival&&!w.entities.some(e=>!e.dead&&e.def.speed>0&&e.def.domain!=='air'&&e.loadedIntoId==null&&dist2d(e,p)<e.def.radius+def.radius));
    const local=cfg.dock,dock=w.nav.nearestWalkable(basePoint(hq,local.x+(i%3)*local.spacing,local.z+Math.floor(i/3)*local.spacing),def.radius);
    if(!pickup||!dock)continue;
-   if(!findPath(w.nav,pickup,dock,def.radius,undefined,[],cfg.pathSearchLimit).length&&dist2d(pickup,dock)>cfg.dockArrival)continue;
+   // The real driving planner handles connectivity and later obstructions. A short
+   // preflight A* budget used to suppress perfectly valid long-distance routes.
    const truck=w.spawn('logiTruck',team,pickup.x,pickup.z);
    truck.resourceConvoy={sourceIndex:i,homeId:hq.id,pickup,dock,phase:'loading'};
    truck.supplyDepotId=hq.id;truck.logisticsSourceIndex=i;truck.logisticsCargoCapacity=cfg.capacity;

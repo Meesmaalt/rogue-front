@@ -87,7 +87,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   setMapSize(mission.map.size??640);
   let visualQuality=loadSettings().quality;
   const glCanvas = document.getElementById("game") as HTMLCanvasElement;
-  const ctx = createRenderContext(glCanvas, mission.map.theme === "temperate",visualQuality,/^procedural-v(12|13|14|15)-/.test(mission.id));
+  const ctx = createRenderContext(glCanvas, mission.map.theme === "temperate",visualQuality,/^procedural-v(12|13|14|15|16)-/.test(mission.id));
   hud.setWarning("Laadin 3D-mudeleid…");
   try { await loadArtModels(multiplayerRoom?FACTION_LIST:[faction,FACTION_LIST.find(f=>f!==faction)??"russia"]); hud.setWarning(""); } catch (error) {
     console.warn("3D asset loading failed", error);
@@ -100,9 +100,9 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   // World bakes heights once after adding hydrology to the final bases/landforms.
 
   const skirmish = !!skirmishDifficulty;
-  const world = new World(mission.seed, !skirmish, mission.map.resources, mission.map.features ?? [], mission.map.bases, mission.map.baseDefenses ?? true,/^procedural-v(9|10|11|12|13|14|15)-/.test(mission.id));
-  world.compactBattle=/^procedural-v(12|13|14|15)-/.test(mission.id);
-  world.metricBattle=/^procedural-v(9|10|11|12|13|14|15)-/.test(mission.id);
+  const world = new World(mission.seed, !skirmish, mission.map.resources, mission.map.features ?? [], mission.map.bases, mission.map.baseDefenses ?? true,/^procedural-v(9|10|11|12|13|14|15|16)-/.test(mission.id));
+  world.compactBattle=/^procedural-v(12|13|14|15|16)-/.test(mission.id);
+  world.metricBattle=/^procedural-v(9|10|11|12|13|14|15|16)-/.test(mission.id);
   const multiplayer = !!multiplayerRoom && !skirmish;
   const net = multiplayer ? new LockstepClient() : null;
   const networkPackets: Array<{ tick: number; commands: import("./sim/types").Command[] }> = [];
@@ -157,7 +157,7 @@ async function boot(mission: MissionDef, multiplayerRoom?: string, skirmishDiffi
   const performancePanel=new PerformancePanel(loadSettings().performanceOverlay??false);
   const gpuTimer=new GpuTimer(ctx.renderer.getContext());
   const gl=ctx.renderer.getContext(),debug=gl.getExtension("WEBGL_debug_renderer_info");
-  performancePanel.configure({clientBuild:"landscape-v15/camo-v1",mapId:mission.id,seed:mission.seed,mapSize:mission.map.size,buildingCount:world.mapFeatures.filter(f=>f.kind==="building").length,
+  performancePanel.configure({clientBuild:"landscape-v16/camo-v1",mapId:mission.id,seed:mission.seed,mapSize:mission.map.size,buildingCount:world.mapFeatures.filter(f=>f.kind==="building").length,
     browser:navigator.userAgent,logicalCores:navigator.hardwareConcurrency,deviceMemoryGB:(navigator as Navigator&{deviceMemory?:number}).deviceMemory??null,
     graphics:debug?{vendor:gl.getParameter(debug.UNMASKED_VENDOR_WEBGL),renderer:gl.getParameter(debug.UNMASKED_RENDERER_WEBGL)}:{renderer:gl.getParameter(gl.RENDERER)},
     webglVersion:gl.getParameter(gl.VERSION),gpuTimerSupported:gpuTimer.supported,devicePixelRatio:window.devicePixelRatio});

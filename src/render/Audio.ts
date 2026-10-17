@@ -14,6 +14,13 @@ export function spatialSound(x:number,z:number,listener:{x:number;z:number;yaw:n
  const dx=x-listener.x,dz=z-listener.z,distance=Math.hypot(dx,dz,listener.distance??0);
  return {gain:distance>config.maxDistance?0:1/(1+(distance/config.referenceDistance)**2),pan:Math.max(-.85,Math.min(.85,(dx*Math.cos(listener.yaw)-dz*Math.sin(listener.yaw))/Math.max(1,distance)))};
 }
+/** Automatic supply traffic stays local to the camera; combat aircraft retain their range. */
+export function engineSound(e:Entity,listener:{x:number;z:number;yaw:number;distance?:number}):{gain:number;pan:number}{
+ const mix=spatialSound(e.x,e.z,listener);
+ const automatic=(e.kind==='transport'||e.kind==='cargoPlane')&&e.supplyDepotId!=null||!!e.constructionFlight;
+ if(automatic){const d=Math.hypot(e.x-listener.x,e.z-listener.z,listener.distance??0),cfg=config.logisticsAircraft;mix.gain=d>=cfg.maxDistance?0:cfg.volume/(1+(d/cfg.referenceDistance)**2);}
+ return mix;
+}
 /** Original procedural score and layered positional effects. Audio never changes simulation. */
 export class AudioManager {
  private ctx:AudioContext|null=null;
@@ -84,7 +91,7 @@ export class AudioManager {
   for(const e of entities){
    if(e.dead||!this.entityAudible(e))continue;const cls=ENGINE_CLASS.get(e.kind);if(!cls)continue;
    if(cls==='hum'&&(e as {underConstruction?:boolean}).underConstruction)continue;
-   const mix=spatialSound(e.x,e.z,this.listener);if(mix.gain<.03)continue;
+   const mix=engineSound(e,this.listener);if(mix.gain<.008)continue;
    const vx=(e.x-e.px)*30,vz=(e.z-e.pz)*30,speed=Math.hypot(vx,vz);
    if(!(cls==='heli'||cls==='jet'||cls==='prop'||cls==='hum')&&speed<.4)continue;
    cands.push({e,cls,mix,speed,vx,vz,score:mix.gain*(cls==='jet'||cls==='heli'?1.4:cls==='hum'?.4:1)});
